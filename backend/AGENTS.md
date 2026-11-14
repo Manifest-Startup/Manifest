@@ -8,7 +8,7 @@ FastAPI app with a Strawberry GraphQL API. Entry point `app/main.py` (mounts rou
 |---|---|---|
 | `app/routes/` | REST routers (`*_routes.py`); thin: validate, authorise, call a service | services, security |
 | `app/graphql/` | `schema.py` = every Query/Mutation resolver + `_DefaultDenyAuthExtension` (new fields are authenticated unless added to `PUBLIC_FIELDS`); `*_types.py` = Strawberry types | services, security |
-| `app/services/` | Business logic, one concern per `*_service.py`; AI calls go through `ai_router.py` / `ai_layer_service.py` with cost tracking; the OpenAI key is the customer's own, resolved per request by `ai_credentials.py` (background threads: `start_thread_with_current_key`) | db, utils |
+| `app/services/` | Business logic, one concern per `*_service.py`; AI calls go through `ai/router.py` / `ai/layer.py` with cost tracking; the OpenAI key is the customer's own, resolved per request by `ai/credentials.py` (background threads: `start_thread_with_current_key`) | db, utils |
 | `app/managers/manifest_manager.py` | Orchestrates document generation across services | services |
 | `app/security/` | Auth policy, cookies (`cookies.py`), SSRF-safe HTTP (`safe_http.py`), audit chain, rate limits, crypto | config only |
 | `app/auth/` | Session tokens (`replit_auth.create_session_token`) and identity helpers | security, db |

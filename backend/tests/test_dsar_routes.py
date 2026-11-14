@@ -39,7 +39,7 @@ def auth_client():
     with patch(
         "app.security.step_up._recent_login_satisfies", return_value=True
     ), patch(
-        "app.services.rate_limit_service.rate_limit_service.allow",
+        "app.services.shared.rate_limit.rate_limit_service.allow",
         return_value=True,
     ):
         yield client

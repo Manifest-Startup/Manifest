@@ -31,7 +31,7 @@ def require_admin(request: Request, user_id: str = Depends(require_user_id)) -> 
         _recent_login_satisfies,
         has_recent_step_up,
     )
-    from app.services.totp_mfa_service import get_user_mfa_status
+    from app.services.identity.totp_mfa import get_user_mfa_status
     from app.utils.auth_utils import get_current_session_id_optional
 
     principal = resolve_principal(user_id)

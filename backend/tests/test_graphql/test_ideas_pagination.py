@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 from app.main import app
 from app.db.database import InMemoryDatabaseClient, set_db_client_override
-from app.services.idea_list_metadata_service import encode_ideas_cursor
+from app.services.ideas.list_metadata import encode_ideas_cursor
 
 
 GET_IDEAS_PAGE = """

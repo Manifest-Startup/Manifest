@@ -1,6 +1,6 @@
 """Tests for route-specific SPA HTML shells."""
 
-from app.services.spa_prerender_shell import apply_spa_shell, normalize_path, resolve_route_shell
+from app.services.web.spa_prerender_shell import apply_spa_shell, normalize_path, resolve_route_shell
 
 SAMPLE_HTML = """<!DOCTYPE html>
 <html><head>

@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.services.privacy_jurisdiction import resolve_default_consent_for
+from app.services.compliance.privacy_jurisdiction import resolve_default_consent_for
 
 
 def _req(headers=None):

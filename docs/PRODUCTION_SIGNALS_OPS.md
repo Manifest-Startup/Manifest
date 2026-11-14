@@ -47,7 +47,7 @@ Fine-grained PAT or GitHub App needs **Issues** and **Projects** write scopes fo
 
 ## Allowlist
 
-`error` events open issues when `event_name` is in the backend allowlist (see `ISSUE_EVENT_ALLOWLIST` in `production_signal_service.py`) **or** when `severity` is `critical`.
+`error` events open issues when `event_name` is in the backend allowlist (see `ISSUE_EVENT_ALLOWLIST` in `operations/production_signals.py`) **or** when `severity` is `critical`.
 
 ## MCP
 

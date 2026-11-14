@@ -8,8 +8,8 @@ from app.auth.replit_auth import (
 )
 from app.security.config import secure_cookies_enabled
 from app.security.cookies import clear_auth_cookies, set_auth_cookies
-from app.services.security_audit_service import record_security_event
-from app.services.session_service import revoke_session
+from app.services.compliance.security_audit import record_security_event
+from app.services.identity.sessions import revoke_session
 from app.utils.auth_utils import get_current_token_payload_optional
 from app.utils.logger import logger
 from fastapi import APIRouter, HTTPException, Request, Response

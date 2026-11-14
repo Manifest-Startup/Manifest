@@ -11,8 +11,8 @@ Manifest now treats survey feedback as an internal operating loop, not just stor
 - Internal REST routes:
   - `POST /api/internal/survey-ops/summary`
   - `POST /api/internal/survey-ops/sync-issues`
-- Shared backend service: `backend/app/services/survey_ops_service.py`
-- Shared GitHub helper: `backend/app/services/github_issue_service.py`
+- Shared backend service: `backend/app/services/operations/survey_ops.py`
+- Shared GitHub helper: `backend/app/services/integrations/github_issues.py`
 - CLI entrypoint: `backend/scripts/run_survey_issue_sync.py`
 - GitHub Actions workflow: `.github/workflows/survey-feedback.yml`
 - MCP tools:
@@ -47,13 +47,13 @@ GraphQL `surveyInsights` exposes the same aggregates for the signed-in insights 
 
 ## GitHub Issue Generation
 
-`survey_ops_service.py` converts repeated survey signals into GitHub-ready issue candidates when:
+`operations/survey_ops.py` converts repeated survey signals into GitHub-ready issue candidates when:
 
 - a trust signal repeats enough times
 - a desired first output keeps showing up
 - open-text feedback clusters around recurring themes such as research credibility, onboarding clarity, collaboration, performance, or shareability
 
-The sync path de-duplicates against existing open GitHub issues and reuses the shared label bootstrapping logic from `github_issue_service.py`.
+The sync path de-duplicates against existing open GitHub issues and reuses the shared label bootstrapping logic from `integrations/github_issues.py`.
 
 ## UI Surface
 

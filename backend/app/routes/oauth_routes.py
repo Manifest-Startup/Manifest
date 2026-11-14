@@ -122,7 +122,7 @@ def save_integration(user_id: str, provider: str, data: dict) -> bool:
             RegionMismatchError,
             assert_region_match,
         )
-        from app.services.integration_token_crypto import encrypt_integration_tokens
+        from app.services.integrations.token_crypto import encrypt_integration_tokens
 
         # Residency gate — fail closed before any plaintext touches storage.
         try:

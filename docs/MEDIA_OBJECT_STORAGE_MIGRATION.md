@@ -15,7 +15,7 @@ Manifest currently writes some generated assets under `generated/` on the API ho
 
 | Asset type | Typical path / source | Notes |
 |------------|----------------------|--------|
-| Pitch reel video | `generated/pdfs/pitch-reels/` | See `pitch_reel_video_worker.py`; production checklist in [docs/API.md](API.md). |
+| Pitch reel video | `generated/pdfs/pitch-reels/` | See `pitch_reels/video_worker.py`; production checklist in [docs/API.md](API.md). |
 | Patents / PDFs | `generated/pdfs/` (and related helpers) | Audit `patent_pdf_utils` and download routes for current file naming. |
 | Other generated documents | Same tree as applicable | Inventory during implementation. |
 

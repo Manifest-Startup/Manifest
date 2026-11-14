@@ -2,7 +2,7 @@
 
 from app.db.database import create_database_client
 from app.routes.dependencies import require_agent_loop_key
-from app.services.survey_ops_service import SurveyOpsConfigurationError, survey_ops_service
+from app.services.operations.survey_ops import SurveyOpsConfigurationError, survey_ops_service
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field

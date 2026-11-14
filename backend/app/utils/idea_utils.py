@@ -16,7 +16,7 @@ except ImportError:
     _requests = None  # type: ignore[assignment]
 
 from app.db.database import create_database_client, get_db_connection
-from app.services.demo_document_service import build_demo_documents
+from app.services.documents.demo_documents import build_demo_documents
 from app.utils.logger import logger
 
 if os.path.exists(".env"):
@@ -239,7 +239,7 @@ def _update_idea_documents(idea_id, update_data):
 
     user_id = update_data.get("user_id")
     if user_id:
-        from app.services.idea_list_metadata_service import refresh_idea_list_metadata
+        from app.services.ideas.list_metadata import refresh_idea_list_metadata
 
         refresh_idea_list_metadata(create_database_client(), idea_id, str(user_id))
 
@@ -446,7 +446,7 @@ def generate_background_tasks(  # noqa: C901
                     logger.info(
                         f"[Patent] Generating provisional patent draft for idea_id {idea_id}"
                     )
-                    from app.services.provisional_patent_service import ProvisionalPatent
+                    from app.services.documents.provisional_patent import ProvisionalPatent
 
                     patent_service = ProvisionalPatent(manifest_manager)
                     patent_draft = patent_service.generate()

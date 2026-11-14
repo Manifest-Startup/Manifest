@@ -6,7 +6,7 @@ This workflow powers Manifest's internal agent feedback loop. Agents can audit p
 
 ## Source Files
 
-- `backend/app/services/website_issue_sync_service.py`
+- `backend/app/services/operations/website_issue_sync.py`
 - `backend/app/routes/website_testing_routes.py`
 - `backend/scripts/run_website_issue_sync.py`
 - `mcp_server/src/manifest_mcp/client.py`

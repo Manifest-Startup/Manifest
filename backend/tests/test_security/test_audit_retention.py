@@ -71,7 +71,7 @@ def test_marker_is_emitted_before_delete():
     with patch.object(
         audit_retention, "get_db_connection", side_effect=_fake_get_conn
     ), patch(
-        "app.services.security_audit_service.record_security_event",
+        "app.services.compliance.security_audit.record_security_event",
         side_effect=_fake_record,
     ):
         result = audit_retention.enforce_retention()
@@ -93,7 +93,7 @@ def test_delete_predicate_bounds_by_marker_seq():
     with patch.object(
         audit_retention, "get_db_connection", side_effect=_fake_get_conn
     ), patch(
-        "app.services.security_audit_service.record_security_event",
+        "app.services.compliance.security_audit.record_security_event",
         return_value=None,
     ):
         audit_retention.enforce_retention()
@@ -117,7 +117,7 @@ def test_skipped_when_marker_emit_fails():
     with patch.object(
         audit_retention, "get_db_connection", side_effect=_fake_get_conn
     ), patch(
-        "app.services.security_audit_service.record_security_event",
+        "app.services.compliance.security_audit.record_security_event",
         side_effect=RuntimeError("sink down"),
     ):
         result = audit_retention.enforce_retention()
@@ -143,7 +143,7 @@ def test_skipped_when_marker_seq_cannot_be_resolved():
     with patch.object(
         audit_retention, "get_db_connection", side_effect=_fake_get_conn
     ), patch(
-        "app.services.security_audit_service.record_security_event",
+        "app.services.compliance.security_audit.record_security_event",
         return_value=None,
     ):
         result = audit_retention.enforce_retention()
@@ -162,7 +162,7 @@ def test_delete_predicate_includes_legacy_null_seq_rows():
     cur = _CursorRecorder(marker_seq=10)
     with patch.object(audit_retention, "get_db_connection",
                        side_effect=lambda: _ConnRecorder(cur)), patch(
-        "app.services.security_audit_service.record_security_event",
+        "app.services.compliance.security_audit.record_security_event",
         return_value=None,
     ):
         audit_retention.enforce_retention()

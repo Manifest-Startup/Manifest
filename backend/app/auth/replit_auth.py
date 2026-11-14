@@ -8,7 +8,7 @@ import httpx
 import jwt
 from app.db.database import get_db_connection
 from app.security.config import session_secret
-from app.services.session_service import create_user_session, is_session_active, touch_session
+from app.services.identity.sessions import create_user_session, is_session_active, touch_session
 from app.utils.logger import logger
 from fastapi import Request
 
@@ -164,7 +164,7 @@ def create_session_token(
     # Stamp the user's current password_changed_at into the token so that
     # a password reset invalidates every session issued before that moment.
     try:
-        from app.services.password_reset_service import get_password_changed_at_epoch
+        from app.services.identity.password_reset import get_password_changed_at_epoch
 
         pwd_iat = get_password_changed_at_epoch(user_id)
         if pwd_iat is not None:
@@ -254,7 +254,7 @@ def get_current_user_from_session(request: Request) -> dict[str, Any] | None:
         return None
     if user_id:
         try:
-            from app.services.password_reset_service import (
+            from app.services.identity.password_reset import (
                 get_password_changed_at_epoch,
             )
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from app.services import cache_service as cs
+from app.services.shared import cache as cs
 
 
 @pytest.fixture(autouse=True)

@@ -119,7 +119,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | S | `state` cookie set with `httponly=True` + `samesite=lax` is fine, but `code_verifier` is stored in a cookie — acceptable for PKCE but should be `__Host-` prefixed to bind to host. | M | SEC-014 |
 | T | OAuth callback errors redirect to `/?error=...` with no logging of attacker IP/UA in audit log. | M | SEC-023 |
 
-### 4.3 Authentication: Email + password / password reset (`backend/app/services/password_reset_service.py`)
+### 4.3 Authentication: Email + password / password reset (`backend/app/services/identity/password_reset.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|
@@ -128,7 +128,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | T | Reset tokens are SHA-256 hashed, single-use, 30-min TTL, atomic consume — **good**. | — | (control) |
 | I | Rate-limit fallback degrades to in-memory bucket on shared-backend errors (logged loudly, but limit becomes per-process). Acceptable with monitoring; documented. | L | SEC-024 |
 
-### 4.4 Sessions (`backend/app/services/session_service.py`, `backend/app/utils/auth_utils.py`)
+### 4.4 Sessions (`backend/app/services/identity/sessions.py`, `backend/app/utils/auth_utils.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|
@@ -138,7 +138,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | E | No concurrent-session cap, no automatic invalidate on role change (role model doesn't exist). | M | SEC-016 |
 | I | Session JWTs use HS256 with `SESSION_SECRET`. `settings.py` ships a default `SECRET_KEY = "your-secret-key-here"` — if anything reads `SECRET_KEY` instead of `SESSION_SECRET`, signing keys collide on the placeholder. | H | SEC-012 |
 
-### 4.5 MFA (`backend/app/services/totp_mfa_service.py`)
+### 4.5 MFA (`backend/app/services/identity/totp_mfa.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|
@@ -147,7 +147,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | T | `MFA_ENCRYPTION_KEY` falls back to `session_secret()` outside production. If `is_production_environment()` returns False due to misconfigured env vars, MFA secrets are encrypted with the session signing key. | H | SEC-019 |
 | R | No proof-of-identity flow on MFA reset (recovery codes only). | M | SEC-025 |
 
-### 4.6 API keys (`backend/app/services/api_key_service.py`)
+### 4.6 API keys (`backend/app/services/identity/api_keys.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|
@@ -173,7 +173,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | T | No CSRF/handshake-time auth check. | C | (covered by SEC-004/005) |
 | D | No per-socket throttling. | M | SEC-032 |
 
-### 4.9 AI / voice agent (`backend/app/services/ai_router.py`, `voice_agent_service.py`)
+### 4.9 AI / voice agent (`backend/app/services/ai/router.py`, `voice/agent.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|
@@ -191,7 +191,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | T | No MIME sniffing, AV-scan hook, or size cap visible at the upload layer. | M | SEC-039 |
 | T | Uploaded/generated files served from the **same origin** as the SPA — a malicious HTML upload would inherit cookies. | H | SEC-040 |
 
-### 4.11 Privacy + consent (`backend/app/services/privacy_consent_service.py`)
+### 4.11 Privacy + consent (`backend/app/services/compliance/privacy_consent.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|
@@ -199,7 +199,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | R | Consent ledger present but no DSAR endpoint (export/delete/rectify/object) and no per-purpose granularity beyond analytics/comms/DNS-S. | H | SEC-042 |
 | R | No Records of Processing Activities (RoPA), DPA template, sub-processor list, or DPIA artifacts on file. | H | SEC-043 |
 
-### 4.12 Audit logging (`backend/app/services/security_audit_service.py`)
+### 4.12 Audit logging (`backend/app/services/compliance/security_audit.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|

@@ -18,8 +18,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import llm_usage_tap
-from app.services import partner_discovery_service as pd
+from app.services.ai import usage_tap as llm_usage_tap
+from app.services.ideas import partner_discovery as pd
 
 
 @pytest.fixture

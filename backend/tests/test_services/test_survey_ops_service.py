@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services.survey_ops_service import SurveyOpsService
+from app.services.operations.survey_ops import SurveyOpsService
 
 
 def _row(survey_type: str, answers, *, days_ago: int = 1, response_id: str | None = None):

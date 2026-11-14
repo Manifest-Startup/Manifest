@@ -6,9 +6,9 @@ import pytest
 
 from app.db.database import InMemoryDatabaseClient, begin_query_metrics, end_query_metrics
 from app.graphql.schema import Query
-from app.services.investment_service import InvestmentService
-from app.services.messaging_service import MessagingService
-from app.services.social_graph_service import SocialGraphService
+from app.services.social.investments import InvestmentService
+from app.services.social.messaging import MessagingService
+from app.services.social.graph import SocialGraphService
 
 
 def _seed_users(store, count=60):

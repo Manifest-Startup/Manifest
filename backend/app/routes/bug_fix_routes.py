@@ -13,7 +13,7 @@ from typing import Any
 
 from app.db.database import create_database_client
 from app.routes.dependencies import require_agent_loop_key
-from app.services import bug_fix_service as bfs
+from app.services.operations import bug_fix as bfs
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field

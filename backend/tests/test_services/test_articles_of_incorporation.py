@@ -1,5 +1,5 @@
 import pytest
-from app.services.articles_of_incorporation_service import ArticlesOfIncorporation
+from app.services.documents.articles_of_incorporation import ArticlesOfIncorporation
 
 @pytest.fixture
 def valid_kwargs():

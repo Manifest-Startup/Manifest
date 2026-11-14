@@ -24,8 +24,9 @@ from app.routes.dependencies import require_admin
 from app.security.config import secure_cookies_enabled
 from app.security.cookies import set_auth_cookies
 from app.security.oidc_verification import verify_id_token
-from app.services.admin_audit_service import record_admin_event
-from app.services.enterprise_sso_service import (
+from app.services.compliance.admin_audit import record_admin_event
+from app.services.compliance.security_audit import record_security_event
+from app.services.identity.enterprise_sso import (
     find_tenant_for_email,
     issue_scim_token,
     jit_provision_user,
@@ -33,7 +34,6 @@ from app.services.enterprise_sso_service import (
     saml_enabled,
     upsert_tenant,
 )
-from app.services.security_audit_service import record_security_event
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse

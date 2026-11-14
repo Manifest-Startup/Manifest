@@ -1,44 +1,44 @@
 # Interface Class
-from app.services.ai_layer_service import AILayer
+from app.services.ai.layer import AILayer
+from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
 # Legal Formation and Structure
-from app.services.articles_of_incorporation_service import ArticlesOfIncorporation
+from app.services.documents.articles_of_incorporation import ArticlesOfIncorporation
 
 # Financial Documents
-from app.services.bank_account_service import BankAccount
-from app.services.business_model_canvas_service import BusinessModelCanvas
-from app.services.capitalization_table_service import CapitalizationTable
-from app.services.consultant_agreement_service import ConsultantAgreement
+from app.services.documents.bank_account import BankAccount
+from app.services.documents.capitalization_table import CapitalizationTable
+from app.services.documents.consultant_agreement import ConsultantAgreement
 
 # Compliance
-from app.services.ein_service import EINService
+from app.services.documents.ein import EINService
 
 # Human Resources
-from app.services.employee_contract_service import EmployeeContract, OfferLetter
-from app.services.employee_handbook_service import EmployeeHandbook
-from app.services.founders_agreement_service import FoundersAgreement
-from app.services.idea_service import Idea
-from app.services.intellectual_property_service import IntellectualPropertyAgreement
-from app.services.investment_agreement_service import InvestmentAgreement
+from app.services.documents.employee_contract import EmployeeContract, OfferLetter
+from app.services.documents.employee_handbook import EmployeeHandbook
+from app.services.documents.founders_agreement import FoundersAgreement
+from app.services.documents.intellectual_property import IntellectualPropertyAgreement
+from app.services.documents.investment_agreement import InvestmentAgreement
 
 # Sales and Marketing
-from app.services.marketing_plan_service import MarketingPlan
-from app.services.non_disclosure_agreement_service import NonDisclosureAgreement
-from app.services.operating_agreement_service import OperatingAgreement
+from app.services.documents.marketing_plan import MarketingPlan
+from app.services.documents.non_disclosure_agreement import NonDisclosureAgreement
+from app.services.documents.operating_agreement import OperatingAgreement
 
 # Presentation
-from app.services.pitch_deck_service import PitchDeck
-from app.services.privacy_policy_service import PrivacyPolicy
-from app.services.product_requirements_document_service import ProductRequirementsDocument
+from app.services.documents.pitch_deck import PitchDeck
+from app.services.documents.privacy_policy import PrivacyPolicy
+from app.services.documents.product_requirements_document import ProductRequirementsDocument
 
 # Product Development and IP
-from app.services.product_roadmap_service import ProductRoadmap
-from app.services.sales_contract_service import SalesContract
-from app.services.shareholders_agreement_service import ShareholdersAgreement
-from app.services.similar_ideas_service import SimilarIdeas
+from app.services.documents.product_roadmap import ProductRoadmap
+from app.services.documents.sales_contract import SalesContract
+from app.services.documents.shareholders_agreement import ShareholdersAgreement
 
 # Operational Documents
-from app.services.standard_operating_procedure_service import StandardOperatingProcedure
+from app.services.documents.standard_operating_procedure import StandardOperatingProcedure
+from app.services.ideas.service import Idea
+from app.services.ideas.similar_ideas import SimilarIdeas
 from app.utils.logger import logger
 
 

@@ -192,7 +192,7 @@ async def scim_create_user(payload: ScimUserCreate2, authorization: str | None =
     work even when JIT is disabled.
     """
     tenant = _require_tenant(authorization)
-    from app.services.enterprise_sso_service import scim_provision_user
+    from app.services.identity.enterprise_sso import scim_provision_user
 
     name = payload.name or {}
     user_id = scim_provision_user(

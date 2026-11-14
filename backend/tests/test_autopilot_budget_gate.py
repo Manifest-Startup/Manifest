@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import run_autopilot_agent as ap  # noqa: E402
 from app.db.database import InMemoryDatabaseClient  # noqa: E402
-from app.services import cost_tracking_service as cts  # noqa: E402
+from app.services.ai import cost_tracking as cts  # noqa: E402
 
 
 @pytest.fixture
@@ -103,7 +103,7 @@ def test_denylisted_paths_are_blocked(path):
 
 @pytest.mark.parametrize(
     "path",
-    ["backend/app/services/idea_service.py", "frontend/src/features/ideas/Foo.tsx", "docs/API.md"],
+    ["backend/app/services/ideas/service.py", "frontend/src/features/ideas/Foo.tsx", "docs/API.md"],
 )
 def test_normal_paths_are_allowed(path):
     assert ap.path_is_denylisted(path) is False

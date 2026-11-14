@@ -12,7 +12,7 @@ Last synced: **2026-05-17**.
 
 | # | Stream | Action |
 |---|--------|--------|
-| 75–78 | Website audit — headings | Fixed via route-specific SPA shells (`spa_prerender_shell.py`, `spa-shell-bootstrap.js`). Close after deploy + audit re-run. |
+| 75–78 | Website audit — headings | Fixed via route-specific SPA shells (`web/spa_prerender_shell.py`, `spa-shell-bootstrap.js`). Close after deploy + audit re-run. |
 | 79 | SEO — duplicate pre-hydration shell | Shells differ per route (`/`, `/login`, `/signup`, `/pitch-reels`, …). |
 | 80 | No-JS / crawler resilience | Richer `<noscript>` + static `<main>` in index HTML. |
 
@@ -28,7 +28,7 @@ Last synced: **2026-05-17**.
 |--------|----------------|------------------|
 | Product UX | [PRODUCT_VISION.md](PRODUCT_VISION.md), [API.md](API.md) caveats | `frontend/src/App.tsx`, `frontend/public/index.html` |
 | Security SEC-### | [security/FINDINGS_BACKLOG.md](security/FINDINGS_BACKLOG.md) | `.github/workflows/security.yml`, `backend/app/security/` |
-| Infra — media | [MEDIA_OBJECT_STORAGE_MIGRATION.md](MEDIA_OBJECT_STORAGE_MIGRATION.md) | `pitch_reel_video_worker.py`, `pitch_reel_service.py` |
+| Infra — media | [MEDIA_OBJECT_STORAGE_MIGRATION.md](MEDIA_OBJECT_STORAGE_MIGRATION.md) | `pitch_reels/video_worker.py`, `pitch_reels/service.py` |
 | Infra — jobs | [ASYNC_JOB_QUEUE_DESIGN.md](ASYNC_JOB_QUEUE_DESIGN.md) | `runBackgroundTasks`, `idea_utils.py` |
 
 ## Useful commands

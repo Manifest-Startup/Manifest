@@ -77,7 +77,7 @@ Optional CPRA-style opt-out. When enabled, optional analytics remains off even i
 - `frontend/src/features/privacy/analyticsClient.ts`
 - `frontend/src/features/account/components/PrivacyControlsPanel.tsx`
 - `backend/app/routes/privacy_routes.py`
-- `backend/app/services/privacy_consent_service.py`
+- `backend/app/services/compliance/privacy_consent.py`
 - `backend/app/routes/customer_routes.py`
 - `backend/app/main.py`
 - `supabase/migrations/20260418120000_privacy_consents.sql`

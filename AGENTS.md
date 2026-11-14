@@ -24,7 +24,7 @@ Product intent and long-form context: `docs/AI_AGENT_BASE_PROMPT.md`, `docs/PROD
 ## Engineering rules
 
 - Keep changes inside the requested feature. Prefer extending an existing helper over adding a parallel one (check `find`/`impact` first); remove code you make dead in the same change and confirm with `orphans`/`unused`.
-- One owner per concern: OpenAI keys (bring your own key) → `backend/app/services/ai_credentials.py` (never read `OPENAI_API_KEY` directly), cookies → `backend/app/security/cookies.py`, DB access → `backend/app/db/`, GraphQL documents → `frontend/src/features/core/apollo/queries.ts`.
+- One owner per concern: OpenAI keys (bring your own key) → `backend/app/services/ai/credentials.py` (never read `OPENAI_API_KEY` directly), cookies → `backend/app/security/cookies.py`, DB access → `backend/app/db/`, GraphQL documents → `frontend/src/features/core/apollo/queries.ts`.
 - Defaults for every feature: very easy to use, robust, cheap to run, few primary actions, proportionate tests, docs updated when behaviour or a public contract changes.
 - Never commit credentials, customer records, production data, virtualenvs, coverage or build output (see `.gitignore`).
 - Do not run deployments or database migrations unless the task explicitly asks.

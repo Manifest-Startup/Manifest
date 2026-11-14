@@ -42,7 +42,7 @@ def test_python_and_typescript_importers_resolve():
 def test_impact_includes_transitive_dependents():
     rows = run("impact", "backend/app/db/rows.py")
     files = {r["file"] for r in rows}
-    assert "backend/app/services/dsar_workflow_service.py" in files
+    assert "backend/app/services/compliance/dsar_workflow.py" in files
     assert any(r["hops"] > 1 for r in rows)
 
 

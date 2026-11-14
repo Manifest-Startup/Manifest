@@ -23,8 +23,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import llm_usage_tap
-from app.services import voice_testing_service as vts
+from app.services.ai import usage_tap as llm_usage_tap
+from app.services.voice import evaluation as vts
 
 
 @pytest.fixture

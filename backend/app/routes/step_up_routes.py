@@ -10,7 +10,7 @@ from __future__ import annotations
 from app.db.database import get_db_connection
 from app.routes.dependencies import require_user_id
 from app.security.step_up import DEFAULT_TTL_SECONDS, record_step_up
-from app.services.security_audit_service import record_security_event
+from app.services.compliance.security_audit import record_security_event
 from app.utils.auth_utils import get_current_session_id_optional
 from app.utils.logger import logger
 from app.utils.password_utils import verify_password
@@ -110,7 +110,7 @@ async def step_up_totp(
     user_id: str = Depends(require_user_id),
 ):
     try:
-        from app.services.totp_mfa_service import verify_user_mfa_code
+        from app.services.identity.totp_mfa import verify_user_mfa_code
     except ImportError:
         raise HTTPException(status_code=501, detail="TOTP step-up not available") from None
     try:

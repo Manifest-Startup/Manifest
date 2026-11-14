@@ -8,15 +8,16 @@ from types import SimpleNamespace
 
 import pytest
 from app.graphql.error_masking import should_mask_error
-from app.services import ai_credentials, user_ai_key_service
-from app.services.ai_credentials import (
+from app.services.ai import credentials as ai_credentials
+from app.services.ai import user_keys as user_ai_key_service
+from app.services.ai.credentials import (
     MISSING_KEY_MESSAGE,
     MissingOpenAIKeyError,
     current_openai_key,
     start_thread_with_current_key,
     use_openai_key,
 )
-from app.services.ai_router import AIRouter
+from app.services.ai.router import AIRouter
 from graphql import GraphQLError
 
 USER_KEY = "sk-user-" + "a" * 32

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import fastapi_app
-from app.services.privacy_consent_service import PRIVACY_CONSENT_COOKIE
+from app.services.compliance.privacy_consent import PRIVACY_CONSENT_COOKIE
 
 
 def _consent_cookie(analytics_enabled: bool = False, do_not_sell_or_share: bool = False) -> str:
@@ -23,7 +23,7 @@ def _consent_cookie(analytics_enabled: bool = False, do_not_sell_or_share: bool 
 def test_get_privacy_consent_defaults_to_essential_only_without_saved_choice():
     client = TestClient(fastapi_app)
 
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.get("/api/privacy/consent")
 
     assert response.status_code == 200
@@ -41,7 +41,7 @@ def test_get_privacy_consent_eu_visitor_requires_explicit_optin():
     pre-ticked boxes."""
     client = TestClient(fastapi_app)
 
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.get(
             "/api/privacy/consent",
             headers={"cf-ipcountry": "DE"},
@@ -61,7 +61,7 @@ def test_get_privacy_consent_honours_global_privacy_control_signal():
     do-not-sell-or-share even if they have no stored preference."""
     client = TestClient(fastapi_app)
 
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.get(
             "/api/privacy/consent",
             headers={"sec-gpc": "1", "cf-ipcountry": "US"},
@@ -80,7 +80,7 @@ def test_get_privacy_consent_eu_visitor_with_stored_optin_is_preserved_without_g
     client = TestClient(fastapi_app)
 
     stored = _consent_cookie(analytics_enabled=True, do_not_sell_or_share=False)
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.get(
             "/api/privacy/consent",
             headers={"cf-ipcountry": "DE"},
@@ -100,7 +100,7 @@ def test_get_privacy_consent_stored_pref_is_overridden_only_by_gpc_header():
     client = TestClient(fastapi_app)
 
     stored = _consent_cookie(analytics_enabled=True, do_not_sell_or_share=False)
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.get(
             "/api/privacy/consent",
             headers={"cf-ipcountry": "DE", "sec-gpc": "1"},
@@ -117,7 +117,7 @@ def test_get_privacy_consent_stored_pref_is_overridden_only_by_gpc_header():
 
 def test_post_privacy_consent_accepts_granular_purposes():
     client = TestClient(fastapi_app)
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.post(
             "/api/privacy/consent",
             json={
@@ -159,7 +159,7 @@ def test_post_privacy_consent_withdraw_revokes_listed_purpose_only():
             "source": "test",
         }
     )
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.post(
             "/api/privacy/consent/withdraw",
             json={"purposes": ["ai_training_enabled"], "reason": "user-request"},
@@ -181,7 +181,7 @@ def test_latest_preference_for_round_trips_granular_purposes_from_jsonb():
     """Granular purposes persisted into ``consent_payload`` MUST come
     back from the DB read path so authenticated users don't lose their
     marketing/ai_training/cookies preferences on the next request."""
-    from app.services import privacy_consent_service as svc
+    from app.services.compliance import privacy_consent as svc
 
     fake_row = {
         "analytics_enabled": True,
@@ -234,7 +234,7 @@ def test_post_privacy_consent_withdraw_marketing_forces_do_not_sell():
             "source": "test",
         }
     )
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.post(
             "/api/privacy/consent/withdraw",
             json={"purposes": ["marketing_enabled"]},
@@ -248,7 +248,7 @@ def test_post_privacy_consent_withdraw_marketing_forces_do_not_sell():
 def test_post_privacy_consent_sets_cookie_and_clears_optional_tracking_cookie():
     client = TestClient(fastapi_app)
 
-    with patch("app.services.privacy_consent_service.get_database_url", return_value=None):
+    with patch("app.services.compliance.privacy_consent.get_database_url", return_value=None):
         response = client.post(
             "/api/privacy/consent",
             json={

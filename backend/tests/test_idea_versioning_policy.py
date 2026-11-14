@@ -1,6 +1,6 @@
 """Unit tests for idea snapshot hashing and versioning policy helpers."""
 
-from app.services.idea_versioning_policy import (
+from app.services.ideas.versioning_policy import (
     compute_content_hash,
     compute_content_hash_from_version_row,
     snapshot_payload_from_idea,

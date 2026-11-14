@@ -23,19 +23,18 @@ from app.graphql.pitch_reel_types import (
 )
 from app.security.config import is_test_environment
 from app.security.cookies import clear_auth_cookies, set_auth_cookies
-from app.services import cache_service, job_service
-from app.services.ai_credentials import start_thread_with_current_key
-from app.services.demo_document_service import build_demo_documents
-from app.services.idea_versioning_policy import VERSION_KIND_MANUAL
-from app.services.security_audit_service import record_security_event
-from app.services.session_service import (
+from app.services.ai.credentials import start_thread_with_current_key
+from app.services.compliance.security_audit import record_security_event
+from app.services.documents.demo_documents import build_demo_documents
+from app.services.ideas import generation_jobs as job_service
+from app.services.ideas.versioning_policy import VERSION_KIND_MANUAL
+from app.services.identity.sessions import (
     list_user_sessions,
     revoke_all_other_sessions,
     revoke_all_sessions,
     revoke_session,
 )
-from app.services.survey_ops_service import survey_ops_service
-from app.services.totp_mfa_service import (
+from app.services.identity.totp_mfa import (
     disable_user_totp,
     enable_user_totp,
     generate_recovery_codes,
@@ -46,6 +45,8 @@ from app.services.totp_mfa_service import (
     verify_totp,
     verify_user_mfa_code,
 )
+from app.services.operations.survey_ops import survey_ops_service
+from app.services.shared import cache as cache_service
 from app.utils.auth_utils import (
     DEMO_MODE,
     DEMO_USER_EMAIL,
@@ -125,7 +126,7 @@ def _get_provisional_patent(description: str) -> str:
     manifest_manager.set_idea(description)
     if manifest_manager.ai_layer.is_available():
         try:
-            from app.services.provisional_patent_service import ProvisionalPatent
+            from app.services.documents.provisional_patent import ProvisionalPatent
 
             patent_service = ProvisionalPatent(manifest_manager)
             return patent_service.generate()
@@ -148,7 +149,7 @@ def _update_idea_generated_field(
         .eq("user_id", user_id)
         .execute()
     )
-    from app.services.idea_list_metadata_service import refresh_idea_list_metadata
+    from app.services.ideas.list_metadata import refresh_idea_list_metadata
 
     refresh_idea_list_metadata(db, idea_id, user_id)
 
@@ -984,8 +985,8 @@ def _visible_integrations(rows: list[dict]) -> list[dict]:
 
 
 def _ai_key_status(user_id: str) -> AiKeyStatus:
-    from app.services.ai_credentials import platform_key
-    from app.services.user_ai_key_service import key_last4
+    from app.services.ai.credentials import platform_key
+    from app.services.ai.user_keys import key_last4
 
     last4 = key_last4(user_id)
     if last4:
@@ -1019,7 +1020,7 @@ if not DATABASE_URL:
 
 def _require_full_account(db, request) -> str:
     """Raise if the current user is a try-before-signup guest (blocked for social/invest/publish)."""
-    from app.services.guest_workspace_service import fetch_user_is_guest
+    from app.services.identity.guest_workspace import fetch_user_is_guest
 
     user_id = get_current_user_id(request)
     if fetch_user_is_guest(db, user_id):
@@ -1960,10 +1961,10 @@ class Query:
         after: str | None = None,
     ) -> list[IdeaSummary]:
         user_id = get_current_user_id(info.context["request"])
-        from app.services.idea_list_metadata_service import (
+        from app.services.ideas.list_metadata import (
             IDEA_SUMMARY_DB_COLUMNS as summary_columns,
         )
-        from app.services.idea_list_metadata_service import (
+        from app.services.ideas.list_metadata import (
             decode_ideas_cursor,
             normalize_ideas_page_size,
             read_list_metadata,
@@ -2310,7 +2311,7 @@ class Query:
     @strawberry.field
     async def idea_investments(self, info: strawberry.Info, idea_id: str) -> list[Investment]:
         """Get all investments for an idea"""
-        from app.services.investment_service import create_investment_service
+        from app.services.social.investments import create_investment_service
 
         service = create_investment_service(info.context["db"])
         investments_data = await service.get_idea_investments(idea_id)
@@ -2345,7 +2346,7 @@ class Query:
     @strawberry.field
     async def idea_cap_table(self, info: strawberry.Info, idea_id: str) -> list[CapTableEntry]:
         """Get the cap table for an idea"""
-        from app.services.investment_service import create_investment_service
+        from app.services.social.investments import create_investment_service
 
         service = create_investment_service(info.context["db"])
         cap_data = await service.get_cap_table(idea_id)
@@ -2374,7 +2375,7 @@ class Query:
     async def my_portfolio(self, info: strawberry.Info) -> list[PortfolioItem]:
         """Get current user's investment portfolio"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.investment_service import create_investment_service
+        from app.services.social.investments import create_investment_service
 
         service = create_investment_service(info.context["db"])
         portfolio_data = await service.get_user_investments(user_id)
@@ -2404,7 +2405,7 @@ class Query:
     @strawberry.field
     async def user_followers(self, info: strawberry.Info, user_id: str) -> list[UserFollow]:
         """Get followers for a user"""
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
         followers_data = await service.get_followers(user_id)
@@ -2431,7 +2432,7 @@ class Query:
     @strawberry.field
     async def user_following(self, info: strawberry.Info, user_id: str) -> list[UserFollow]:
         """Get users that a user is following"""
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
         following_data = await service.get_following(user_id)
@@ -2458,7 +2459,7 @@ class Query:
     @strawberry.field
     async def user_social_stats(self, info: strawberry.Info, user_id: str) -> SocialStats:
         """Get social statistics for a user"""
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -2483,7 +2484,7 @@ class Query:
     async def pitch_reels_feed(self, info: strawberry.Info, limit: int = 20) -> list[PitchReel]:
         """Get the published pitch reels feed with viewer-specific social state."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reel_service import create_pitch_reel_service
+        from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
         reels_data = await service.list_feed(viewer_id=user_id, limit=max(1, min(limit, 50)))
@@ -2495,7 +2496,7 @@ class Query:
     ) -> list[PitchReelComment]:
         """Get comments for a pitch reel."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reel_service import create_pitch_reel_service
+        from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
         comments_data = await service.list_comments(
@@ -2788,7 +2789,7 @@ class Query:
     ) -> list["Conversation"]:
         """Get current user's conversations."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -2844,7 +2845,7 @@ class Query:
     ) -> list["Message"]:
         """Get messages for a conversation."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -2881,7 +2882,7 @@ class Query:
     async def unread_message_count(self, info: strawberry.Info) -> "UnreadCount":
         """Get total unread message count for current user."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -2892,7 +2893,7 @@ class Query:
     async def idea_owner(self, info: strawberry.Info, idea_id: str) -> Optional["IdeaOwner"]:
         """Get the owner of an idea for messaging."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -2918,7 +2919,7 @@ class Query:
     @strawberry.field
     async def user_public_key(self, info: strawberry.Info, user_id: str) -> str | None:
         """Get a user's public encryption key."""
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -2930,7 +2931,7 @@ class Query:
     async def idea_collaborators(self, info: strawberry.Info, idea_id: str) -> list["Collaborator"]:
         """Get all collaborators for an idea including the owner"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -2978,7 +2979,7 @@ class Query:
     async def my_shared_ideas(self, info: strawberry.Info) -> list["SharedIdea"]:
         """Get ideas shared with the current user"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -3007,7 +3008,7 @@ class Query:
     ) -> list["CollaborationInvitation"]:
         """Get pending collaboration invitations for the current user"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -3041,7 +3042,7 @@ class Query:
     async def idea_versions(self, info: strawberry.Info, idea_id: str) -> list["IdeaVersion"]:
         """Get version history for an idea"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -3074,7 +3075,7 @@ class Query:
     async def check_idea_access(self, info: strawberry.Info, idea_id: str) -> "AccessCheckResult":
         """Check if current user has access to an idea and get their role"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -3089,7 +3090,7 @@ class Query:
     async def idea_qualification_session(
         self, info: strawberry.Info, session_id: str
     ) -> IdeaQualificationSession | None:
-        from app.services import idea_qualification_service as qs
+        from app.services.ai import idea_qualification as qs
 
         user_id = get_current_user_id(info.context["request"])
         row = qs.get_session(db=info.context["db"], session_id=session_id, user_id=user_id)
@@ -3101,7 +3102,7 @@ class Query:
     async def my_idea_qualification_sessions(
         self, info: strawberry.Info
     ) -> list[IdeaQualificationSession]:
-        from app.services import idea_qualification_service as qs
+        from app.services.ai import idea_qualification as qs
 
         user_id = get_current_user_id(info.context["request"])
         rows = qs.list_sessions(db=info.context["db"], user_id=user_id)
@@ -3109,7 +3110,7 @@ class Query:
 
     @strawberry.field
     async def my_cost_dashboard(self, info: strawberry.Info) -> UserCostDashboard:
-        from app.services import cost_tracking_service
+        from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
         payload = cost_tracking_service.build_user_cost_dashboard(
@@ -3119,7 +3120,7 @@ class Query:
 
     @strawberry.field
     async def my_agent_runs(self, info: strawberry.Info, limit: int = 20) -> list[AgentRunSummary]:
-        from app.services import cost_tracking_service
+        from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
         rows = cost_tracking_service.list_recent_runs(
@@ -3141,7 +3142,7 @@ class Query:
         enforces — this is just a UX preview so buttons can be
         disabled before the user clicks.
         """
-        from app.services import cost_tracking_service
+        from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
         result = cost_tracking_service.guard_can_run(
@@ -3168,7 +3169,7 @@ class Query:
         Returns nine entries in canonical order; sections that have not
         been generated yet come back with `content = null`.
         """
-        from app.services import bmc_orchestrator_service as bmc
+        from app.services.canvas import orchestrator as bmc
 
         user_id = get_current_user_id(info.context["request"])
         ownership = (
@@ -3195,7 +3196,7 @@ class Query:
         not owned, so the frontend can render the empty-state cleanly
         for any non-owner view without revealing ownership info.
         """
-        from app.services import partner_discovery_service as pd
+        from app.services.ideas import partner_discovery as pd
 
         user_id = get_current_user_id(info.context["request"])
         ownership = (
@@ -3216,7 +3217,7 @@ class Query:
     async def admin_cost_overview(
         self, info: strawberry.Info, window_days: int | None = None
     ) -> AdminCostOverview:
-        from app.services import admin_cost_service
+        from app.services.ai import admin_costs as admin_cost_service
 
         payload = admin_cost_service.build_admin_cost_overview(
             db=info.context["db"], window_days=window_days
@@ -3231,7 +3232,7 @@ class Query:
         agent_kind: str | None = None,
         status: str | None = None,
     ) -> list[AdminAgentRunRow]:
-        from app.services import admin_cost_service
+        from app.services.ai import admin_costs as admin_cost_service
 
         rows = admin_cost_service.list_recent_runs_cross_user(
             db=info.context["db"], limit=limit, agent_kind=agent_kind, status=status
@@ -3242,7 +3243,7 @@ class Query:
     async def admin_production_test_stats(
         self, info: strawberry.Info, hours: int = 24
     ) -> AdminProductionTestStats:
-        from app.services import admin_cost_service
+        from app.services.ai import admin_costs as admin_cost_service
 
         payload = admin_cost_service.build_production_test_health(
             db=info.context["db"], hours=hours
@@ -3258,7 +3259,7 @@ class Query:
         emotion: str | None = None,
         pass_only: bool | None = None,
     ) -> list[VoiceTestRun]:
-        from app.services import voice_testing_service as vts
+        from app.services.voice import evaluation as vts
 
         rows = vts.list_recent_runs(
             db=info.context["db"],
@@ -3273,7 +3274,7 @@ class Query:
     async def admin_voice_test_stats(
         self, info: strawberry.Info, hours: int = 168
     ) -> VoiceTestStats:
-        from app.services import voice_testing_service as vts
+        from app.services.voice import evaluation as vts
 
         payload = vts.get_test_stats(db=info.context["db"], hours=hours)
         return _map_voice_test_stats(payload)
@@ -3286,7 +3287,7 @@ class Mutation:
         self, info: strawberry.Info, title: str, description: str | None = None
     ) -> Idea:
         user_id = get_current_user_id(info.context["request"])
-        from app.services.idea_list_metadata_service import compute_idea_list_metadata
+        from app.services.ideas.list_metadata import compute_idea_list_metadata
 
         data = {
             "idea_id": str(uuid.uuid4()),
@@ -3320,7 +3321,7 @@ class Mutation:
         required_skills: list[str] | None = None,
     ) -> Idea:
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         collab_gate = create_collaboration_service(info.context["db"])
         if not await collab_gate.check_access(idea_id, user_id, "edit"):
@@ -3366,7 +3367,7 @@ class Mutation:
         # Drop the voice agent's cached conversation context for this idea so
         # the next voice turn sees the new title/description immediately.
         try:
-            from app.services.cache_service import cache_delete
+            from app.services.shared.cache import cache_delete
 
             cache_delete(f"voice:context:{user_id}:{idea_id}")
         except Exception:  # cache invalidation must never fail the mutation
@@ -3583,8 +3584,8 @@ class Mutation:
             raise Exception("Failed to update idea publish status")
 
         if new_status:
-            from app.services.pitch_reel_service import create_pitch_reel_service
-            from app.services.pitch_reel_video_worker import schedule_pitch_reel_video_generation
+            from app.services.pitch_reels.service import create_pitch_reel_service
+            from app.services.pitch_reels.video_worker import schedule_pitch_reel_video_generation
 
             reel_service = create_pitch_reel_service(info.context["db"])
             reel_id, needs_video = reel_service.upsert_reel_for_published_idea(
@@ -3601,7 +3602,7 @@ class Mutation:
                     str(idea_row.get("description") or ""),
                 )
         else:
-            from app.services.pitch_reel_service import create_pitch_reel_service
+            from app.services.pitch_reels.service import create_pitch_reel_service
 
             create_pitch_reel_service(info.context["db"]).unpublish_reel_for_idea(idea_id)
 
@@ -3610,7 +3611,7 @@ class Mutation:
     @strawberry.mutation
     async def save_openai_api_key(self, info: strawberry.Info, api_key: str) -> AiKeyStatus:
         """Store the customer's own OpenAI key (validated, encrypted at rest)."""
-        from app.services.user_ai_key_service import InvalidOpenAIKeyError, save_user_key
+        from app.services.ai.user_keys import InvalidOpenAIKeyError, save_user_key
 
         user_id = str(get_current_user_id(info.context["request"]))
         try:
@@ -3622,7 +3623,7 @@ class Mutation:
 
     @strawberry.mutation
     async def remove_openai_api_key(self, info: strawberry.Info) -> AiKeyStatus:
-        from app.services.user_ai_key_service import delete_user_key
+        from app.services.ai.user_keys import delete_user_key
 
         user_id = str(get_current_user_id(info.context["request"]))
         await asyncio.to_thread(delete_user_key, user_id)
@@ -3842,7 +3843,7 @@ class Mutation:
     ) -> Investment:
         """Create a new investment in an idea"""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.investment_service import create_investment_service
+        from app.services.social.investments import create_investment_service
 
         service = create_investment_service(info.context["db"])
 
@@ -3883,7 +3884,7 @@ class Mutation:
     ) -> bool:
         """Add a contribution to an existing investment"""
         _require_full_account(info.context["db"], info.context["request"])
-        from app.services.investment_service import create_investment_service
+        from app.services.social.investments import create_investment_service
 
         service = create_investment_service(info.context["db"])
 
@@ -3903,7 +3904,7 @@ class Mutation:
     ) -> bool:
         """Update the status of an investment (pending, confirmed, cancelled)"""
         _require_full_account(info.context["db"], info.context["request"])
-        from app.services.investment_service import create_investment_service
+        from app.services.social.investments import create_investment_service
 
         service = create_investment_service(info.context["db"])
 
@@ -3914,7 +3915,7 @@ class Mutation:
     async def follow_user(self, info: strawberry.Info, followed_id: str) -> FollowResult:
         """Follow a user"""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -3925,7 +3926,7 @@ class Mutation:
     async def unfollow_user(self, info: strawberry.Info, followed_id: str) -> FollowResult:
         """Unfollow a user"""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -3936,7 +3937,7 @@ class Mutation:
     async def toggle_follow(self, info: strawberry.Info, followed_id: str) -> FollowResult:
         """Toggle follow status for a user"""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -3947,7 +3948,7 @@ class Mutation:
     async def upvote_idea(self, info: strawberry.Info, idea_id: str) -> VoteResult:
         """Upvote an idea"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -3959,7 +3960,7 @@ class Mutation:
     async def remove_vote(self, info: strawberry.Info, idea_id: str) -> VoteResult:
         """Remove vote from an idea"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -3971,7 +3972,7 @@ class Mutation:
     async def toggle_upvote(self, info: strawberry.Info, idea_id: str) -> VoteResult:
         """Toggle upvote on an idea"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social_graph_service import create_social_graph_service
+        from app.services.social.graph import create_social_graph_service
 
         service = create_social_graph_service(info.context["db"])
 
@@ -3985,7 +3986,7 @@ class Mutation:
     ) -> PitchReelLikeResult:
         """Toggle like state for a pitch reel."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reel_service import create_pitch_reel_service
+        from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
         result = await service.toggle_like(reel_id=reel_id, user_id=user_id)
@@ -4001,7 +4002,7 @@ class Mutation:
     ) -> PitchReelSaveResult:
         """Toggle saved/bookmarked state for a pitch reel."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reel_service import create_pitch_reel_service
+        from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
         result = await service.toggle_save(reel_id=reel_id, user_id=user_id)
@@ -4017,7 +4018,7 @@ class Mutation:
     ) -> PitchReelShareResult:
         """Record a successful pitch reel share event."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reel_service import create_pitch_reel_service
+        from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
         result = await service.record_share(reel_id=reel_id, user_id=user_id)
@@ -4032,7 +4033,7 @@ class Mutation:
     ) -> PitchReelCommentCreateResult:
         """Create a comment on a pitch reel."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reel_service import create_pitch_reel_service
+        from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
         result = await service.create_comment(reel_id=reel_id, user_id=user_id, body=body)
@@ -4314,7 +4315,7 @@ class Mutation:
 
         from app.auth.replit_auth import create_session_token
         from app.db.database import get_db_connection
-        from app.services.password_reset_service import validate_password_for_user
+        from app.services.identity.password_reset import validate_password_for_user
         from app.utils.password_utils import hash_password
 
         # Enforce composition + breached-password (HIBP) policy at signup so
@@ -4394,7 +4395,7 @@ class Mutation:
 
         from app.auth.replit_auth import create_session_token
         from app.db.database import get_db_connection
-        from app.services.guest_workspace_service import check_guest_start_rate_limit
+        from app.services.identity.guest_workspace import check_guest_start_rate_limit
 
         request = info.context["request"]
         client = getattr(request, "client", None)
@@ -4468,7 +4469,7 @@ class Mutation:
     ) -> MergeGuestWorkspaceResult:
         """Attach a guest user's ideas and related rows to the authenticated account."""
         from app.db.database import get_db_connection
-        from app.services.guest_workspace_service import merge_guest_workspace_sql
+        from app.services.identity.guest_workspace import merge_guest_workspace_sql
 
         target_user_id = get_current_user_id(info.context["request"])
         try:
@@ -4502,12 +4503,12 @@ class Mutation:
             )
             return generic_response
 
-        from app.services.email_service import send_guest_upgrade_email
-        from app.services.guest_upgrade_service import (
+        from app.services.identity.guest_upgrade import (
             build_guest_upgrade_url,
             create_guest_upgrade_token,
         )
-        from app.services.password_reset_service import check_guest_upgrade_request_rate_limit
+        from app.services.identity.password_reset import check_guest_upgrade_request_rate_limit
+        from app.services.integrations.email_sender import send_guest_upgrade_email
 
         normalised = (email or "").lower().strip()
         request = info.context.get("request")
@@ -4571,7 +4572,7 @@ class Mutation:
             raise Exception("Guest upgrade is not available in demo mode.")
 
         from app.auth.replit_auth import create_session_token
-        from app.services.guest_upgrade_service import complete_guest_upgrade
+        from app.services.identity.guest_upgrade import complete_guest_upgrade
 
         request = info.context.get("request")
         client = getattr(request, "client", None) if request else None
@@ -4618,13 +4619,13 @@ class Mutation:
             logger.info("[request_password_reset] Demo mode - skipping (email=%s)", email)
             return generic_response
 
-        from app.services.email_service import send_password_reset_email
-        from app.services.password_reset_service import (
+        from app.services.identity.password_reset import (
             build_reset_url,
             check_request_rate_limit,
             create_reset_token_for_user,
             find_resettable_user,
         )
+        from app.services.integrations.email_sender import send_password_reset_email
 
         normalised_email = (email or "").lower().strip()
         request = info.context.get("request")
@@ -4701,7 +4702,7 @@ class Mutation:
             raise Exception("Password reset is not available in demo mode.")
 
         from app.auth.replit_auth import create_session_token
-        from app.services.password_reset_service import (
+        from app.services.identity.password_reset import (
             check_reset_attempt_rate_limit,
             consume_token_and_reset_password,
             validate_password_strength,
@@ -5042,7 +5043,7 @@ class Mutation:
             _recent_login_satisfies,
             has_recent_step_up,
         )
-        from app.services.import_export_service import ImportExportService
+        from app.services.ideas.import_export import ImportExportService
         from app.utils.auth_utils import get_current_session_id_optional
 
         request = info.context["request"]
@@ -5086,7 +5087,7 @@ class Mutation:
         """Import startup ideas from note exports and backups."""
         import base64
 
-        from app.services.import_export_service import ImportExportService
+        from app.services.ideas.import_export import ImportExportService
 
         user_id = get_current_user_id(info.context["request"])
         service = ImportExportService()
@@ -5161,7 +5162,7 @@ class Mutation:
     ) -> "Conversation":
         """Start or get existing conversation with another user, optionally about a specific idea."""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -5236,7 +5237,7 @@ class Mutation:
         user_id = _require_full_account(info.context["db"], info.context["request"])
         import json
 
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -5273,7 +5274,7 @@ class Mutation:
     async def mark_conversation_read(self, info: strawberry.Info, conversation_id: str) -> bool:
         """Mark all messages in a conversation as read."""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -5283,7 +5284,7 @@ class Mutation:
     async def set_encryption_key(self, info: strawberry.Info, public_key: str) -> bool:
         """Set or update user's public encryption key for E2E messaging."""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.messaging_service import create_messaging_service
+        from app.services.social.messaging import create_messaging_service
 
         service = create_messaging_service(info.context["db"])
 
@@ -5297,7 +5298,7 @@ class Mutation:
     ) -> "InviteResult":
         """Invite a user to collaborate on an idea"""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -5322,7 +5323,7 @@ class Mutation:
     ) -> bool:
         """Accept or decline a collaboration invitation"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -5335,7 +5336,7 @@ class Mutation:
     ) -> bool:
         """Update a collaborator's role"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -5348,7 +5349,7 @@ class Mutation:
     ) -> bool:
         """Remove a collaborator from an idea"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -5360,7 +5361,7 @@ class Mutation:
     ) -> "IdeaVersion":
         """Create a new version snapshot of an idea"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -5390,7 +5391,7 @@ class Mutation:
     ) -> bool:
         """Restore an idea to a previous version"""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.collaboration_service import create_collaboration_service
+        from app.services.ideas.collaboration import create_collaboration_service
 
         service = create_collaboration_service(info.context["db"])
 
@@ -5420,7 +5421,7 @@ class Mutation:
             _recent_login_satisfies,
             has_recent_step_up,
         )
-        from app.services.security_audit_service import record_security_event
+        from app.services.compliance.security_audit import record_security_event
 
         request = info.context["request"]
         actor_id = get_current_user_id(request)
@@ -5486,8 +5487,8 @@ class Mutation:
     async def start_idea_qualification(
         self, info: strawberry.Info, initial_idea_text: str
     ) -> IdeaQualificationSession:
-        from app.services import cost_tracking_service
-        from app.services import idea_qualification_service as qs
+        from app.services.ai import cost_tracking as cost_tracking_service
+        from app.services.ai import idea_qualification as qs
 
         user_id = get_current_user_id(info.context["request"])
         try:
@@ -5513,8 +5514,8 @@ class Mutation:
         self, info: strawberry.Info, session_id: str, user_message: str
     ) -> IdeaQualificationSession:
         from app.main import manifest_manager
-        from app.services import cost_tracking_service
-        from app.services import idea_qualification_service as qs
+        from app.services.ai import cost_tracking as cost_tracking_service
+        from app.services.ai import idea_qualification as qs
 
         user_id = get_current_user_id(info.context["request"])
         try:
@@ -5544,7 +5545,7 @@ class Mutation:
         monthly_cap_usd: float | None = None,
         paused: bool | None = None,
     ) -> UserCostLimits:
-        from app.services import cost_tracking_service
+        from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
         row = cost_tracking_service.set_user_cost_limits(
@@ -5565,8 +5566,8 @@ class Mutation:
         self, info: strawberry.Info, idea_id: str, section_name: str
     ) -> BmcSection:
         from app.main import manifest_manager
-        from app.services import bmc_orchestrator_service as bmc
-        from app.services import cost_tracking_service
+        from app.services.ai import cost_tracking as cost_tracking_service
+        from app.services.canvas import orchestrator as bmc
 
         user_id = get_current_user_id(info.context["request"])
         ownership = (
@@ -5605,8 +5606,8 @@ class Mutation:
         self, info: strawberry.Info, idea_id: str
     ) -> list[BmcSection]:
         from app.main import manifest_manager
-        from app.services import bmc_orchestrator_service as bmc
-        from app.services import cost_tracking_service
+        from app.services.ai import cost_tracking as cost_tracking_service
+        from app.services.canvas import orchestrator as bmc
 
         user_id = get_current_user_id(info.context["request"])
         ownership = (
@@ -5658,8 +5659,8 @@ class Mutation:
         Returns the candidates persisted on this run (ranked).
         """
         from app.main import manifest_manager
-        from app.services import cost_tracking_service
-        from app.services import partner_discovery_service as pd
+        from app.services.ai import cost_tracking as cost_tracking_service
+        from app.services.ideas import partner_discovery as pd
 
         user_id = get_current_user_id(info.context["request"])
         ownership = (
@@ -5706,7 +5707,7 @@ class Mutation:
         does NOT initiate outreach, share data, or call any third-party
         API. A future outreach agent will read approved=true rows.
         """
-        from app.services import partner_discovery_service as pd
+        from app.services.ideas import partner_discovery as pd
 
         user_id = get_current_user_id(info.context["request"])
         # Verify the candidate's idea is owned by the caller.
@@ -5760,7 +5761,7 @@ class Mutation:
         operator's billing dashboard.
         """
         from app.main import manifest_manager
-        from app.services import voice_testing_service as vts
+        from app.services.voice import evaluation as vts
 
         user_id = get_current_user_id(info.context["request"])
         try:

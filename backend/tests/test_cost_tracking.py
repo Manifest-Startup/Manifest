@@ -13,9 +13,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import cost_tracking_service as cts
-from app.services import idea_qualification_service as qs
-from app.services import llm_usage_tap
+from app.services.ai import cost_tracking as cts
+from app.services.ai import idea_qualification as qs
+from app.services.ai import usage_tap as llm_usage_tap
 
 
 @pytest.fixture

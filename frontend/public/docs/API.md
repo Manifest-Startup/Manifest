@@ -13,7 +13,7 @@ Primary source files:
 - `backend/app/routes/website_testing_routes.py`
 - `backend/app/routes/voice_agent_routes.py`
 - `backend/app/routes/dependencies.py`
-- `backend/app/services/privacy_consent_service.py`
+- `backend/app/services/compliance/privacy_consent.py`
 
 ## API Surfaces
 
@@ -364,7 +364,7 @@ Requires a token with **Issues** and **Projects** write access.
 3. **Frontend** — `REACT_APP_API_URL` (and related `REACT_APP_SUPABASE_*`) must target the same production API and Supabase project.
 4. **`GOOGLE_API_KEY`** — optional in production; without it, reels use a built-in placeholder video but still appear in the feed.
 5. **Background worker** — video generation uses an in-process **daemon thread**. On platforms that freeze or recycle the process immediately after each request, prefer `PITCH_REEL_VIDEO_MODE=disabled` or run a long-lived API worker; do not rely on the thread finishing on ephemeral serverless instances.
-6. **Generated video files** — by default, successful jobs write MP4s under `generated/pdfs/pitch-reels/` on the API host. Ephemeral disks lose these files after deploy; static/CDN frontends may not serve that path. For durable URLs, plan object storage (e.g. Supabase Storage) and public URLs—see `pitch_reel_video_worker.py`.
+6. **Generated video files** — by default, successful jobs write MP4s under `generated/pdfs/pitch-reels/` on the API host. Ephemeral disks lose these files after deploy; static/CDN frontends may not serve that path. For durable URLs, plan object storage (e.g. Supabase Storage) and public URLs—see `pitch_reels/video_worker.py`.
 
 ## Minimal GraphQL Example
 

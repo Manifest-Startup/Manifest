@@ -51,7 +51,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
             mock_manager.update.side_effect = Exception("AI service down")
             mock_manager.get_similar_ideas.return_value = None
@@ -75,7 +75,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "## Similar Ideas\n- Idea A\n- Idea B"
@@ -103,7 +103,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             bmc_content = "## Key Partners\n- AWS\n## Key Activities\n- Development"
@@ -130,7 +130,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "similar"
@@ -156,7 +156,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "similar"
@@ -182,7 +182,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "similar"
@@ -208,7 +208,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf") as mock_generate_specification_pdf, \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.ai_layer.is_available.return_value = True
@@ -246,7 +246,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf") as mock_fill_coversheet, \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.ai_layer.is_available.return_value = True
@@ -283,7 +283,7 @@ class TestBackgroundTaskGeneration:
              patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
              patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
              patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-             patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+             patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
              patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
 
             similar_content = "## Similar Ideas\n- Competitor A\n- Competitor B"
@@ -307,7 +307,7 @@ class TestBackgroundTaskGeneration:
 class TestSimilarIdeasService:
 
     def test_update_with_valid_idea(self):
-        from app.services.similar_ideas_service import SimilarIdeas
+        from app.services.ideas.similar_ideas import SimilarIdeas
         mock_model = MagicMock()
         mock_model.idea.description = "A test startup idea"
         mock_model.ai_layer.perform_web_search_json.return_value = {
@@ -333,7 +333,7 @@ class TestSimilarIdeasService:
         assert "Idea A" in service.results
 
     def test_update_with_no_description(self):
-        from app.services.similar_ideas_service import SimilarIdeas
+        from app.services.ideas.similar_ideas import SimilarIdeas
         mock_model = MagicMock()
         mock_model.idea.description = None
 
@@ -343,7 +343,7 @@ class TestSimilarIdeasService:
         mock_model.ai_layer.perform_web_search_json.assert_not_called()
 
     def test_find_returns_grounded_markdown(self):
-        from app.services.similar_ideas_service import SimilarIdeas
+        from app.services.ideas.similar_ideas import SimilarIdeas
         mock_model = MagicMock()
         mock_model.ai_layer.perform_web_search_json.return_value = {
             "data": {
@@ -381,7 +381,7 @@ class TestSimilarIdeasService:
         assert service.results == result
 
     def test_find_falls_back_to_markdown_generation_when_search_fails(self):
-        from app.services.similar_ideas_service import SimilarIdeas
+        from app.services.ideas.similar_ideas import SimilarIdeas
         mock_model = MagicMock()
         mock_model.ai_layer.perform_web_search_json.side_effect = Exception("Search timeout")
         mock_model.ai_layer.generate_rich_text.return_value = "# Similar Landscape"
@@ -392,7 +392,7 @@ class TestSimilarIdeasService:
         assert result == "# Similar Landscape"
 
     def test_find_handles_ai_error(self):
-        from app.services.similar_ideas_service import SimilarIdeas
+        from app.services.ideas.similar_ideas import SimilarIdeas
         mock_model = MagicMock()
         mock_model.ai_layer.perform_web_search_json.side_effect = Exception("Search timeout")
         mock_model.ai_layer.generate_rich_text.side_effect = Exception("API timeout")
@@ -403,7 +403,7 @@ class TestSimilarIdeasService:
         assert result == ""
 
     def test_find_without_ai_layer(self):
-        from app.services.similar_ideas_service import SimilarIdeas
+        from app.services.ideas.similar_ideas import SimilarIdeas
         service = SimilarIdeas(None)
         result = service.find("test idea")
         assert result == ""

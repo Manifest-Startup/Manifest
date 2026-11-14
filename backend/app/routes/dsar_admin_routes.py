@@ -25,7 +25,8 @@ from typing import Any
 
 from app.security.permissions import Principal, require_admin
 from app.security.rate_limit_policies import TIER_AUTH, enforce_rate_limit
-from app.services import breach_timer_service, dsar_workflow_service
+from app.services.compliance import breach_timers as breach_timer_service
+from app.services.compliance import dsar_workflow as dsar_workflow_service
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, EmailStr, Field
 

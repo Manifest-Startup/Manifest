@@ -65,12 +65,12 @@ Many service classes are thin wrappers around AI prompt execution and summary st
 
 ### 4) AI execution path
 
-- `AILayer` (`backend/app/services/ai_layer_service.py`) is used by services.
-- `AIRouter` (`backend/app/services/ai_router.py`) handles API calls, retries, JSON-mode responses, and web search.
+- `AILayer` (`backend/app/services/ai/layer.py`) is used by services.
+- `AIRouter` (`backend/app/services/ai/router.py`) handles API calls, retries, JSON-mode responses, and web search.
 - Main provider wiring uses `OPENAI_API_KEY`.
-- Website audit automation composes `AIRouter` with `httpx` crawling and GitHub Issues API writes in `backend/app/services/website_issue_sync_service.py`.
-- Survey feedback automation reads `survey_responses`, computes aggregate product signals, and reuses shared GitHub issue creation helpers in `backend/app/services/survey_ops_service.py` and `backend/app/services/github_issue_service.py`.
-- Optional GitHub **Projects v2** linkage lives in `backend/app/services/github_project_service.py` and runs after successful issue creation when project env vars are set.
+- Website audit automation composes `AIRouter` with `httpx` crawling and GitHub Issues API writes in `backend/app/services/operations/website_issue_sync.py`.
+- Survey feedback automation reads `survey_responses`, computes aggregate product signals, and reuses shared GitHub issue creation helpers in `backend/app/services/operations/survey_ops.py` and `backend/app/services/integrations/github_issues.py`.
+- Optional GitHub **Projects v2** linkage lives in `backend/app/services/integrations/github_projects.py` and runs after successful issue creation when project env vars are set.
 
 ### 5) Background generation path
 
@@ -166,14 +166,14 @@ Demo mode behavior:
 
 1. Internal agent or workflow calls `/api/internal/website-testing/sync-issues` or the MCP website audit tool.
 2. Backend discovers public routes from `sitemap.xml` and homepage links.
-3. `website_issue_sync_service.py` crawls bounded pages, generates issue candidates, and de-duplicates them against open GitHub issues.
+3. `operations/website_issue_sync.py` crawls bounded pages, generates issue candidates, and de-duplicates them against open GitHub issues.
 4. Backend creates GitHub issues directly when repository credentials are configured.
 
 ### Example: survey response to GitHub issue
 
 1. Visitor or signed-in user submits `/research` or `/feedback/survey`.
 2. GraphQL `submitSurvey` stores the response in `survey_responses`.
-3. `survey_ops_service.py` aggregates marketability / PMF signals and clusters repeated open-text themes.
+3. `operations/survey_ops.py` aggregates marketability / PMF signals and clusters repeated open-text themes.
 4. Internal REST routes, MCP tools, or `.github/workflows/survey-feedback.yml` can turn repeated themes into GitHub issues.
 
 ## Architectural Risks to Keep in Mind

@@ -14,14 +14,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.agent_content import (
+from app.services.web.agent_content import (
     AGENTS_MARKDOWN,
     MARKDOWN_TWINS,
     SITE_ORIGIN,
     pricing_markdown,
 )
-from app.services.public_openapi import public_openapi_spec
-from app.services.spa_fallback import markdown_response
+from app.services.web.public_openapi import public_openapi_spec
+from app.services.web.spa_fallback import markdown_response
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 

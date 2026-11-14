@@ -13,7 +13,7 @@ Phase 2c of the agentic-automation roadmap.
 
 - New permission `admin.cost.read` in `ADMIN_PERMISSIONS`
   ([`backend/app/security/permissions.py`](../backend/app/security/permissions.py)).
-- Service [`backend/app/services/admin_cost_service.py`](../backend/app/services/admin_cost_service.py)
+- Service [`backend/app/services/ai/admin_costs.py`](../backend/app/services/ai/admin_costs.py)
   with three public functions:
   - `build_admin_cost_overview(db, window_days=None)` — one-shot
     payload powering the dashboard.

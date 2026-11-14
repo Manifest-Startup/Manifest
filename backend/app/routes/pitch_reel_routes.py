@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 
 from app.db.database import create_database_client
-from app.services.pitch_reel_service import create_pitch_reel_service
+from app.services.pitch_reels.service import create_pitch_reel_service
 from app.utils.logger import logger
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import Response

@@ -18,7 +18,7 @@ import pytest
 
 from app.auth.replit_auth import SESSION_SECRET, create_session_token
 from app.graphql.schema import Mutation
-from app.services import password_reset_service as prs
+from app.services.identity import password_reset as prs
 from app.utils import auth_utils
 from app.utils.reset_token_utils import generate_reset_token, hash_token
 
@@ -99,7 +99,7 @@ def _patched_connection(rows: List[Dict[str, Any] | None]):
         yield conn
 
     with patch(
-        "app.services.password_reset_service.get_db_connection",
+        "app.services.identity.password_reset.get_db_connection",
         fake_get_db_connection,
     ):
         yield cur
@@ -120,8 +120,8 @@ def test_request_password_reset_unknown_email_returns_generic():
         return True
 
     with patch(
-        "app.services.password_reset_service.find_resettable_user", return_value=None
-    ), patch("app.services.email_service.send_password_reset_email", new=fake_send):
+        "app.services.identity.password_reset.find_resettable_user", return_value=None
+    ), patch("app.services.integrations.email_sender.send_password_reset_email", new=fake_send):
         result = _run(
             Mutation().request_password_reset(info, email="nobody@example.com")
         )
@@ -142,8 +142,8 @@ def test_request_password_reset_oauth_only_returns_generic():
 
     # find_resettable_user filters out users without a password_hash by design.
     with patch(
-        "app.services.password_reset_service.find_resettable_user", return_value=None
-    ), patch("app.services.email_service.send_password_reset_email", new=fake_send):
+        "app.services.identity.password_reset.find_resettable_user", return_value=None
+    ), patch("app.services.integrations.email_sender.send_password_reset_email", new=fake_send):
         result = _run(
             Mutation().request_password_reset(info, email="oauth@example.com")
         )
@@ -170,12 +170,12 @@ def test_request_password_reset_happy_path_sends_email(monkeypatch):
     }
 
     with patch(
-        "app.services.password_reset_service.find_resettable_user", return_value=user_row
+        "app.services.identity.password_reset.find_resettable_user", return_value=user_row
     ), patch(
-        "app.services.password_reset_service.create_reset_token_for_user",
+        "app.services.identity.password_reset.create_reset_token_for_user",
         return_value="raw-token-abc",
     ), patch(
-        "app.services.email_service.send_password_reset_email", new=fake_send
+        "app.services.integrations.email_sender.send_password_reset_email", new=fake_send
     ):
         result = _run(Mutation().request_password_reset(info, email="real@example.com"))
 
@@ -197,9 +197,9 @@ def test_request_password_reset_rate_limit_returns_generic_no_email():
         prs.check_request_rate_limit("flood@example.com", "10.9.9.9")
 
     with patch(
-        "app.services.password_reset_service.find_resettable_user"
+        "app.services.identity.password_reset.find_resettable_user"
     ) as lookup, patch(
-        "app.services.email_service.send_password_reset_email", new=fake_send
+        "app.services.integrations.email_sender.send_password_reset_email", new=fake_send
     ):
         result = _run(
             Mutation().request_password_reset(info, email="flood@example.com")
@@ -295,7 +295,7 @@ def test_reset_password_happy_path_returns_fresh_token():
         with patch(
             "app.utils.password_utils.hash_password", side_effect=_hash_pw
         ), patch(
-            "app.services.password_reset_service.get_password_changed_at_epoch",
+            "app.services.identity.password_reset.get_password_changed_at_epoch",
             return_value=9999999999,
         ):
             auth_user = _run(
@@ -332,7 +332,7 @@ def test_old_session_token_rejected_after_password_change():
     user_id = "33333333-3333-3333-3333-333333333333"
     # Token issued when pwd_iat was 1000.
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=1000,
     ):
         old_token = create_session_token(user_id, email="bob@example.com")
@@ -343,7 +343,7 @@ def test_old_session_token_rejected_after_password_change():
 
     # Now the user's password_changed_at has advanced.
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
     ):
         from fastapi import HTTPException
@@ -361,7 +361,7 @@ def test_old_session_token_rejected_by_replit_auth_helper():
 
     user_id = "55555555-5555-5555-5555-555555555555"
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=1000,
     ):
         old_token = create_session_token(user_id, email="dave@example.com")
@@ -371,7 +371,7 @@ def test_old_session_token_rejected_by_replit_auth_helper():
     request.headers = {}
 
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
     ):
         assert ra.get_current_user_from_session(request) is None
@@ -382,7 +382,7 @@ def test_fresh_session_token_accepted_by_replit_auth_helper():
 
     user_id = "66666666-6666-6666-6666-666666666666"
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
     ):
         token = create_session_token(user_id, email="erin@example.com")
@@ -392,7 +392,7 @@ def test_fresh_session_token_accepted_by_replit_auth_helper():
     request.headers = {}
 
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
     ), patch("app.auth.replit_auth.is_session_active", return_value=True):
         payload = ra.get_current_user_from_session(request)
@@ -403,7 +403,7 @@ def test_fresh_session_token_accepted_by_replit_auth_helper():
 def test_fresh_session_token_accepted():
     user_id = "44444444-4444-4444-4444-444444444444"
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
     ), patch("app.auth.replit_auth.create_user_session", return_value=None):
         token = create_session_token(user_id, email="carol@example.com")
@@ -413,7 +413,7 @@ def test_fresh_session_token_accepted():
     request.headers = {}
 
     with patch(
-        "app.services.password_reset_service.get_password_changed_at_epoch",
+        "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
     ), patch("app.utils.auth_utils.is_session_active", return_value=True):
         result = auth_utils.get_current_user_id(request)

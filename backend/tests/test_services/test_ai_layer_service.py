@@ -3,16 +3,16 @@ Tests for AILayer service using AIRouter backend.
 """
 
 import pytest
-from app.services.ai_credentials import MissingOpenAIKeyError
+from app.services.ai.credentials import MissingOpenAIKeyError
 from unittest.mock import patch, Mock, MagicMock
-from app.services.ai_layer_service import AILayer
+from app.services.ai.layer import AILayer
 import os
 
 
 @pytest.fixture
 def mock_router():
     """Fixture for a mock AIRouter."""
-    with patch('app.services.ai_layer_service.AIRouter') as mock:
+    with patch('app.services.ai.layer.AIRouter') as mock:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = True
         mock_instance.chat.return_value = "Test response"
@@ -33,7 +33,7 @@ def ai_layer(mock_router):
 
 def test_ai_layer_initialization():
     """Test AILayer initializes with AIRouter."""
-    with patch('app.services.ai_layer_service.AIRouter') as mock_router:
+    with patch('app.services.ai.layer.AIRouter') as mock_router:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = True
         mock_router.return_value = mock_instance
@@ -54,7 +54,7 @@ def test_generate_text_success(ai_layer, mock_router):
 
 def test_generate_text_not_available():
     """Test generate_text when router is not available."""
-    with patch('app.services.ai_layer_service.AIRouter') as mock:
+    with patch('app.services.ai.layer.AIRouter') as mock:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = False
         mock.return_value = mock_instance
@@ -162,7 +162,7 @@ def test_perform_web_search_success(ai_layer, mock_router):
 
 def test_perform_web_search_no_router():
     """Test web search when AIRouter is not available."""
-    with patch('app.services.ai_layer_service.AIRouter') as mock_class:
+    with patch('app.services.ai.layer.AIRouter') as mock_class:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = False
         mock_class.return_value = mock_instance
@@ -224,7 +224,7 @@ def test_generate_structured_response_error(ai_layer, mock_router):
 
 def test_model_configuration():
     """Test model configuration from environment."""
-    with patch('app.services.ai_layer_service.AIRouter') as mock:
+    with patch('app.services.ai.layer.AIRouter') as mock:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = True
         mock.return_value = mock_instance
@@ -236,7 +236,7 @@ def test_model_configuration():
 
 def test_default_model():
     """Test default model is set."""
-    with patch('app.services.ai_layer_service.AIRouter') as mock:
+    with patch('app.services.ai.layer.AIRouter') as mock:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = True
         mock.return_value = mock_instance

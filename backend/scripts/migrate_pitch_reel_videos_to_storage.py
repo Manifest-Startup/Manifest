@@ -15,7 +15,7 @@ import psycopg2
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.services.pitch_reel_media_service import publish_reel_video_bytes, storage_is_configured
+from app.services.pitch_reels.media import publish_reel_video_bytes, storage_is_configured
 from app.utils.logger import logger
 
 

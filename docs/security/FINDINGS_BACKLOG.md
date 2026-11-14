@@ -77,13 +77,13 @@ Severity:
 ## High
 
 ### SEC-007 — API keys hashed with plain SHA-256 (docstring claims bcrypt)
-- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/api_key_service.py:35-53`
+- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/identity/api_keys.py:35-53`
 - **What:** SHA-256 is fast → DB leak enables offline brute-force on `manifest_sk_*` namespace. Docstring claims bcrypt.
 - **Acceptance:** Migrate to HMAC-SHA-256 with a server-side pepper (or Argon2id) keyed via KMS; backfill existing keys behind a flag; rotate or invalidate on next use.
-- **Closed:** 2026-04-19 (Task #11). `api_key_service.py` now hashes keys with **bcrypt** (SHA-256 pre-hashed to sidestep bcrypt's 72-byte input cap), docstring matches behavior, and a 24h-overlap rotation endpoint (`POST /api-keys/{id}/rotate`) lets clients cut over without downtime. Existing SHA-256 rows are detected and forced to rotate on next use. Verified by `tests/test_api_keys.py::test_*_bcrypt_*` and `test_rotate_with_overlap`.
+- **Closed:** 2026-04-19 (Task #11). `identity/api_keys.py` now hashes keys with **bcrypt** (SHA-256 pre-hashed to sidestep bcrypt's 72-byte input cap), docstring matches behavior, and a 24h-overlap rotation endpoint (`POST /api-keys/{id}/rotate`) lets clients cut over without downtime. Existing SHA-256 rows are detected and forced to rotate on next use. Verified by `tests/test_api_keys.py::test_*_bcrypt_*` and `test_rotate_with_overlap`.
 
 ### SEC-008 — No breached-password (HIBP) check on signup or reset
-- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/password_reset_service.py:170-179`
+- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/identity/password_reset.py:170-179`
 - **Acceptance:** k-anonymity HIBP API call on signup, password change, and reset; fail with user-friendly message; cached briefly to limit outbound calls.
 - **Closed:** 2026-04-19 (Task #11). `backend/app/security/breached_passwords.py` implements the k-anonymity range API (5-char SHA-1 prefix), 5-minute in-memory cache, and fail-open on network error; `validate_password_for_user()` (used by GraphQL signup, change-password, and `reset_password` mutations) calls it. `DISABLE_HIBP_CHECK` env supported for hermetic tests. Verified by `tests/test_security_hardening.py::test_breached_password_*`.
 
@@ -93,7 +93,7 @@ Severity:
 - **Closed:** 2026-04-19 (Task #11). `backend/app/security/account_lockout.py` records each failed login keyed by `(user_id, ip)`, applies an exponential cooldown (capped at 1h), and the `login_user` GraphQL mutation calls `enforce_lockout()` *before* password compare, then `register_failure()` / `clear_lockout()` after. Audit events emitted on every threshold step. Verified by `tests/test_security_hardening.py::test_lockout_*` and `tests/test_password_reset.py::test_reset_clears_lockout`.
 
 ### SEC-010 — Session-revocation check fails open on DB error
-- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/session_service.py:45-63`
+- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/identity/sessions.py:45-63`
 - **What:** `is_session_active` returns `True` on DB exception. Necessary for availability but disables revocation during outages.
 - **Acceptance:** Add a short-lived in-memory "recently revoked" cache; alert on DB-fallback events; documented degradation policy.
 
@@ -271,7 +271,7 @@ Severity:
 ### SEC-018 — No WebAuthn / passkey support
 - **Severity:** Medium · **Owner:** T2
 - **Acceptance:** WebAuthn registration/auth flows; passkeys preferred over TOTP for new enrollments.
-- **Closed:** 2026-04-19 (Task #11). The `webauthn` reference library (v2.7.1) is pinned in `backend/requirements.txt`. `backend/app/services/webauthn_service.py` implements full registration and authentication ceremonies (`begin_registration`/`finish_registration`/`begin_authentication`/`finish_authentication`) backed by the `webauthn_credentials` table (migration: `setup_security_hardening_tables.py`). The verify endpoints enforce `expected_rp_id`, `expected_origin`, `require_user_verification=True`, and reject sign-count regressions as cloned-credential indicators. Challenges are stashed for 5 min in `step_up_verifications` and consumed on verify (one-shot). A successful authn ceremony emits a step-up proof (`record_step_up`). `backend/app/routes/webauthn_routes.py` exposes `/api/webauthn/{credentials, register/begin, register/verify, authenticate/begin, authenticate/verify}`; the verify endpoints return `503` unless `ENABLE_WEBAUTHN=1` so a half-deployed environment can never accidentally accept attestations against the wrong RP/origin.
+- **Closed:** 2026-04-19 (Task #11). The `webauthn` reference library (v2.7.1) is pinned in `backend/requirements.txt`. `backend/app/services/identity/webauthn.py` implements full registration and authentication ceremonies (`begin_registration`/`finish_registration`/`begin_authentication`/`finish_authentication`) backed by the `webauthn_credentials` table (migration: `setup_security_hardening_tables.py`). The verify endpoints enforce `expected_rp_id`, `expected_origin`, `require_user_verification=True`, and reject sign-count regressions as cloned-credential indicators. Challenges are stashed for 5 min in `step_up_verifications` and consumed on verify (one-shot). A successful authn ceremony emits a step-up proof (`record_step_up`). `backend/app/routes/webauthn_routes.py` exposes `/api/webauthn/{credentials, register/begin, register/verify, authenticate/begin, authenticate/verify}`; the verify endpoints return `503` unless `ENABLE_WEBAUTHN=1` so a half-deployed environment can never accidentally accept attestations against the wrong RP/origin.
 
 ### SEC-022 — No request-id correlation
 - **Severity:** Medium · **Owner:** T5

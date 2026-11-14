@@ -56,7 +56,7 @@ async def test_merge_guest_workspace_propagates_service_errors():
         conn.cursor.return_value.__enter__.return_value = cur
         conn.cursor.return_value.__exit__.return_value = False
         with patch(
-            "app.services.guest_workspace_service.merge_guest_workspace_sql",
+            "app.services.identity.guest_workspace.merge_guest_workspace_sql",
             side_effect=Exception("Invalid or expired merge secret"),
         ):
             with pytest.raises(Exception, match="Invalid or expired merge secret"):

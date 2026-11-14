@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.main import fastapi_app
 import app.routes.survey_ops_routes as survey_ops_routes
-from app.services.survey_ops_service import SurveyOpsConfigurationError
+from app.services.operations.survey_ops import SurveyOpsConfigurationError
 
 
 def test_survey_summary_route_returns_service_payload():

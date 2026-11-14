@@ -9,8 +9,8 @@ from pathlib import Path
 import app.main as main_module
 import pytest
 from app.main import fastapi_app
-from app.services.agent_content import AGENT_PAGES, markdown_to_html
-from app.services.spa_fallback import is_spa_route, prefers_markdown, register_spa_fallback
+from app.services.web.agent_content import AGENT_PAGES, markdown_to_html
+from app.services.web.spa_fallback import is_spa_route, prefers_markdown, register_spa_fallback
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -169,7 +169,7 @@ def test_agent_guide_has_when_to_use_section(client: TestClient):
 
 
 def test_pricing_md_matches_enforced_tiers(client: TestClient):
-    from app.services.api_key_service import BillingTier
+    from app.services.identity.api_keys import BillingTier
 
     body = client.get("/pricing.md").text
     for tier in (BillingTier.FREE, BillingTier.STARTER, BillingTier.PRO):

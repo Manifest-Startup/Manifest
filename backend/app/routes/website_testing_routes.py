@@ -1,7 +1,7 @@
 """Internal website testing API routes for agent-triggered audits."""
 
 from app.routes.dependencies import require_agent_loop_key
-from app.services.website_issue_sync_service import (
+from app.services.operations.website_issue_sync import (
     WebsiteIssueSyncConfigurationError,
     website_issue_sync_service,
 )

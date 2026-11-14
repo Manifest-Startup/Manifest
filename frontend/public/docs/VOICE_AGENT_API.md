@@ -5,9 +5,9 @@ Last verified against code on **May 31, 2026**.
 Source files:
 
 - `backend/app/routes/voice_agent_routes.py`
-- `backend/app/services/voice_agent_service.py`
-- `backend/app/services/tts_service.py`
-- `backend/app/services/realtime_voice_service.py` (Realtime / speech-to-speech)
+- `backend/app/services/voice/agent.py`
+- `backend/app/services/voice/text_to_speech.py`
+- `backend/app/services/voice/realtime.py` (Realtime / speech-to-speech)
 - `frontend/src/features/voice/FloatingVoiceButton.tsx`
 - `frontend/src/features/marketing/components/PitchPage.tsx` (home-page guest + voice entry)
 - `frontend/src/features/voice/voiceAgentApi.ts`
@@ -256,7 +256,7 @@ When the feature is off (or the key is missing) the route returns `{ "enabled": 
 Notes:
 
 - **Cost + safety:** Realtime audio is materially more expensive than the streaming TTS pipeline, so it is **off by default** (`VOICE_REALTIME_ENABLED=false`). Guests are refused unless `VOICE_REALTIME_ALLOW_GUESTS=true`. Tune the model/voice with `VOICE_REALTIME_MODEL` / `VOICE_REALTIME_VOICE` (Realtime exposes a different voice set than TTS — there is no `nova`; `shimmer` is the warm female default).
-- **Persona + grounding:** the session `instructions` reuse the shared `BASE_VOICE_AGENT_PROMPT` plus spoken guidance and the same founder/idea grounding as the streaming path (`backend/app/services/realtime_voice_service.py`).
+- **Persona + grounding:** the session `instructions` reuse the shared `BASE_VOICE_AGENT_PROMPT` plus spoken guidance and the same founder/idea grounding as the streaming path (`backend/app/services/voice/realtime.py`).
 - **Durable note:** the live speech-to-speech turn stays off the hot path; the structured voice note is synthesized once when the session ends (or the founder opens the workspace) by replaying the transcript through `POST /process`, then persisted via GraphQL — so persistence behaves like the streaming pipeline without paying its latency on every turn.
 - **Frontend:** `frontend/src/features/voice/realtimeVoiceClient.ts` (WebRTC), `realtimeEvents.ts` (pure transcript reducer), `useRealtimeVoiceSession.ts` (session hook, same API shape as `useVoiceIdeaSession`), wired in `VoiceAgent.tsx` behind the status probe with full fallback.
 

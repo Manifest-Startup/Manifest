@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
-from app.services.pitch_deck_service import PitchDeck
+from app.services.documents.pitch_deck import PitchDeck
 import json
 import os
 

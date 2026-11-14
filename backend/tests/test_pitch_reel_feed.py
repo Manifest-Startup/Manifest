@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from app.db.database import DatabaseClient, InMemoryDatabaseClient, QueryResponse
-from app.services.pitch_reel_service import DEMO_REEL_IDS, PitchReelService
+from app.services.pitch_reels.service import DEMO_REEL_IDS, PitchReelService
 
 
 @pytest.mark.asyncio

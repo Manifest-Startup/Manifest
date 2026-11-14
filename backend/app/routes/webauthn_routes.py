@@ -13,8 +13,8 @@ from typing import Any
 
 from app.routes.dependencies import require_user_id
 from app.security.step_up import record_step_up
-from app.services.security_audit_service import record_security_event
-from app.services.webauthn_service import (
+from app.services.compliance.security_audit import record_security_event
+from app.services.identity.webauthn import (
     begin_authentication,
     begin_registration,
     finish_authentication,

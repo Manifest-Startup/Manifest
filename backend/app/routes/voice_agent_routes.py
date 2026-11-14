@@ -6,17 +6,17 @@ from typing import Any
 
 from app.db.database import create_database_client
 from app.routes.dependencies import require_user_id
-from app.services.realtime_voice_service import (
-    RealtimeVoiceError,
-    realtime_voice_service,
-)
-from app.services.stt_service import stt_service
-from app.services.tts_service import tts_service
-from app.services.voice_agent_service import voice_agent_service
-from app.services.voice_command_catalog import (
+from app.services.voice.agent import voice_agent_service
+from app.services.voice.command_catalog import (
     VOICE_COMMAND_CAPABILITIES,
     VOICE_COMMAND_CAPABILITY_SUMMARY,
 )
+from app.services.voice.realtime import (
+    RealtimeVoiceError,
+    realtime_voice_service,
+)
+from app.services.voice.speech_to_text import stt_service
+from app.services.voice.text_to_speech import tts_service
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse

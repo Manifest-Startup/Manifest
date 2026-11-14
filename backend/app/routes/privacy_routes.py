@@ -1,11 +1,11 @@
 from uuid import uuid4
 
-from app.services.privacy_consent_service import (
+from app.services.compliance.privacy_consent import (
     get_effective_privacy_preferences,
     persist_privacy_preferences,
     set_privacy_cookies,
 )
-from app.services.privacy_jurisdiction import (
+from app.services.compliance.privacy_jurisdiction import (
     _gpc_signal,
     resolve_default_consent_for,
 )
@@ -110,11 +110,11 @@ async def withdraw_privacy_consent(
     listed purpose to False and emits a ``privacy_consent_withdrawn``
     audit event with the explicit purpose list and optional reason.
     """
-    from app.services.privacy_consent_service import (
+    from app.services.compliance.privacy_consent import (
         GRANULAR_PURPOSES,
         get_effective_privacy_preferences,
     )
-    from app.services.security_audit_service import record_security_event
+    from app.services.compliance.security_audit import record_security_event
 
     current = get_effective_privacy_preferences(request)
     valid = {p for p in payload.purposes if p in GRANULAR_PURPOSES}

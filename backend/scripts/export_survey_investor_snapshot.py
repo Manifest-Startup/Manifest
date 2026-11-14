@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv(project_root / ".env")
 
 from app.db.database import create_database_client
-from app.services.survey_ops_service import survey_ops_service
+from app.services.operations.survey_ops import survey_ops_service
 
 
 def main() -> None:

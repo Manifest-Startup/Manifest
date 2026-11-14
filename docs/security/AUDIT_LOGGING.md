@@ -11,15 +11,15 @@ and ISO 27001 A.12.4.
 | Component | Path | Responsibility |
 |-----------|------|----------------|
 | Canonical schema + hash chain | `backend/app/security/audit_chain.py` | Defines event registry (type, category, severity, sensitivity), redacts metadata, computes the per-row hash chain. |
-| Writer | `backend/app/services/security_audit_service.py` | The single allowed insertion point. Sanitises, links into the chain under an advisory lock, mirrors to the SIEM stream. |
+| Writer | `backend/app/services/compliance/security_audit.py` | The single allowed insertion point. Sanitises, links into the chain under an advisory lock, mirrors to the SIEM stream. |
 | SIEM sink | `backend/app/security/audit_sink.py` | Append-only JSONL stream under `AUDIT_SINK_PATH`. Daily rotation. Off-host preservation target. |
 | Verifier | `backend/app/security/audit_verifier.py` | Re-hashes stored rows in order and reports any break. |
 | Detections | `backend/app/security/audit_detections.py` | Brute-force, impossible-travel, mass-export, privilege-escalation heuristics that emit tagged `detection_*` events. |
 | Migration | `backend/scripts/setup_audit_chain_tables.py` | Idempotent DDL — runs at app startup. |
 | Retention worker | `backend/app/security/audit_retention.py` + `backend/scripts/run_audit_retention.py` | Daily purge with a 1-year floor (SOC 2 / ISO 27001). HIPAA tenants set `AUDIT_RETENTION_DAYS=2190` (6 years). Marker-first DELETE: the worker emits an `audit_retention_purge` event before removing rows, then deletes only `created_at < cutoff AND (seq IS NULL OR seq < marker_seq)` so the marker (and anything newer) is provably untouchable while legacy pre-chain rows are still purged. |
-| Fail-closed writer | `backend/app/services/security_audit_service.py` | If a chained INSERT fails, we refuse to write a non-chained legacy row by default and emit a `detection_audit_chain_break` to the SIEM sink. Operators may set `AUDIT_ALLOW_LEGACY_FALLBACK=1` *only* during a forward migration; the fallback path logs a degraded-mode warning. |
+| Fail-closed writer | `backend/app/services/compliance/security_audit.py` | If a chained INSERT fails, we refuse to write a non-chained legacy row by default and emit a `detection_audit_chain_break` to the SIEM sink. Operators may set `AUDIT_ALLOW_LEGACY_FALLBACK=1` *only* during a forward migration; the fallback path logs a degraded-mode warning. |
 | Chain-break alerting | `backend/app/security/audit_verifier._alert_on_break` | Every `verify_chain` / `verify_chain_window` run that reports `is_intact=False` emits a `detection_audit_chain_break` (severity=critical) so on-call sees the integrity loss within hours, not quarters. |
-| PII redaction at writer boundary | `backend/app/services/security_audit_service.py` | Top-level canonical identity fields (`actor_id`, `target_id`, `tenant_id`) are passed through a pseudonymizer before persistence. Email-shaped values are replaced with a stable `email:<sha256-prefix>` token so cross-row correlation still works for IR while raw PII never lands in the immutable audit table or the SIEM stream. Non-email identifiers (UUIDs, slugs) pass through unchanged. |
+| PII redaction at writer boundary | `backend/app/services/compliance/security_audit.py` | Top-level canonical identity fields (`actor_id`, `target_id`, `tenant_id`) are passed through a pseudonymizer before persistence. Email-shaped values are replaced with a stable `email:<sha256-prefix>` token so cross-row correlation still works for IR while raw PII never lands in the immutable audit table or the SIEM stream. Non-email identifiers (UUIDs, slugs) pass through unchanged. |
 
 ## Schema
 

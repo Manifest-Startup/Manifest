@@ -31,7 +31,7 @@ if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
 from app.db.database import get_database_url, get_db_connection  # noqa: E402
-from app.services.security_audit_service import record_security_event  # noqa: E402
+from app.services.compliance.security_audit import record_security_event  # noqa: E402
 from app.utils.logger import logger  # noqa: E402
 
 
@@ -151,7 +151,7 @@ def run_all() -> Dict[str, Any]:
     # because silently dropping holds could destroy data that is under
     # legal hold or active investigation. Missing file (no exceptions
     # configured at all) is the only allowed empty state.
-    from app.services.retention_exception_register import (  # local import keeps script light
+    from app.services.compliance.retention_exceptions import (  # local import keeps script light
         RegisterLoadError,
         _resolve_path,
         load_register_strict,

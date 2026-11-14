@@ -2,7 +2,7 @@ import os
 
 import jwt
 from app.security.config import demo_mode_enabled, session_secret
-from app.services.session_service import is_session_active, touch_session
+from app.services.identity.sessions import is_session_active, touch_session
 from app.utils.logger import logger
 from dotenv import load_dotenv
 from fastapi import HTTPException, Request
@@ -91,7 +91,7 @@ def _is_token_password_invalidated(user_id: str, payload: dict) -> bool:
     token was issued. Used to invalidate stale JWTs after a reset.
     """
     try:
-        from app.services.password_reset_service import get_password_changed_at_epoch
+        from app.services.identity.password_reset import get_password_changed_at_epoch
 
         current = get_password_changed_at_epoch(user_id)
         if current is None:

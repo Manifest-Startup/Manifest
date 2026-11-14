@@ -2,7 +2,7 @@ import json
 from unittest.mock import MagicMock, Mock, patch
 
 from app.db.database import InMemoryDatabaseClient
-from app.services.demo_document_service import DemoDocumentBundle
+from app.services.documents.demo_documents import DemoDocumentBundle
 from app.utils.idea_utils import (
     GENERATED_PDF_ROOT,
     USPTO_COVERSHEET_TEMPLATE,
@@ -58,7 +58,7 @@ def test_generate_background_tasks_error_handling():
          patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
          patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
          patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-         patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+         patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
          patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
         mock_manager.update.side_effect = Exception("Test exception")
         mock_manager.get_similar_ideas.return_value = None
@@ -84,7 +84,7 @@ def test_generate_background_tasks_success():
          patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
          patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
          patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
-         patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls, \
+         patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
          patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
         mock_manager.get_similar_ideas.return_value = "similar ideas markdown"
         mock_manager.bmc.summary = "bmc markdown"
@@ -227,7 +227,7 @@ def test_generate_background_tasks_persists_patent_pdf_urls_to_served_directory(
          patch("app.utils.idea_utils._supabase_configured", return_value=False), \
          patch("app.utils.patent_pdf_utils.generate_specification_pdf", side_effect=_write_pdf), \
          patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf", side_effect=lambda template, output, fields: _write_pdf(output)), \
-         patch("app.services.provisional_patent_service.ProvisionalPatent") as mock_patent_cls:
+         patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls:
         mock_manager.ai_layer.is_available.return_value = True
         mock_manager.get_similar_ideas.return_value = "similar"
         mock_manager.bmc.summary = "bmc"

@@ -101,7 +101,7 @@ even an attacker holding both the database backups and the active KEK
 cannot read the data.
 
 This is the primary mechanism behind
-`app.services.tenant_purge_service.purge_user_data` (the GDPR Art. 17 /
+`app.services.compliance.tenant_purge.purge_user_data` (the GDPR Art. 17 /
 CCPA §1798.105 endpoint). The plaintext rows are also deleted/tombstoned
 in the same transaction as defence-in-depth.
 

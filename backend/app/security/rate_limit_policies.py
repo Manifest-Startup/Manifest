@@ -23,7 +23,7 @@ import ipaddress
 import os
 from dataclasses import dataclass
 
-from app.services.rate_limit_service import rate_limit_service
+from app.services.shared.rate_limit import rate_limit_service
 from fastapi import HTTPException, Request, status
 
 # --- Tier catalog ---------------------------------------------------------

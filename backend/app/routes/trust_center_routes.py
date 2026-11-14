@@ -42,7 +42,7 @@ def _safe_retention_exceptions() -> list:
     which legal holds are currently postponing default deletion. The
     public view never includes the SQL match predicate."""
     try:
-        from app.services.retention_exception_register import public_view
+        from app.services.compliance.retention_exceptions import public_view
 
         return public_view()
     except Exception:

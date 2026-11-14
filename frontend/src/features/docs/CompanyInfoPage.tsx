@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import MarkdownDocument from "./MarkdownDocument";
 
-// Copy is served by the backend (backend/app/services/agent_content.py) as
+// Copy is served by the backend (backend/app/services/web/agent_content.py) as
 // Markdown so the React page, the no-JavaScript shell and the /*.md twins
 // read by AI agents always say the same thing.
 const companyTabs = [

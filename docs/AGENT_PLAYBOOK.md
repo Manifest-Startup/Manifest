@@ -21,8 +21,8 @@ Manifest is a full-stack platform with four main execution paths:
 - GraphQL contract and resolvers: `backend/app/graphql/schema.py`
 - REST routes: `backend/app/routes/*.py`
 - Shared route auth dependency: `backend/app/routes/dependencies.py`
-- Website audit and GitHub issue sync: `backend/app/routes/website_testing_routes.py`, `backend/app/services/website_issue_sync_service.py`
-- Survey analytics and GitHub triage: `backend/app/routes/survey_ops_routes.py`, `backend/app/services/survey_ops_service.py`, `backend/app/services/github_issue_service.py`
+- Website audit and GitHub issue sync: `backend/app/routes/website_testing_routes.py`, `backend/app/services/operations/website_issue_sync.py`
+- Survey analytics and GitHub triage: `backend/app/routes/survey_ops_routes.py`, `backend/app/services/operations/survey_ops.py`, `backend/app/services/integrations/github_issues.py`
 
 ### Backend orchestration and AI
 
@@ -31,19 +31,19 @@ Manifest is a full-stack platform with four main execution paths:
   - `backend/app/managers/manifest_manager_refactored.py`
   - `backend/app/managers/service_registry.py`
 - AI abstraction:
-  - `backend/app/services/ai_layer_service.py`
-  - `backend/app/services/ai_router.py`
+  - `backend/app/services/ai/layer.py`
+  - `backend/app/services/ai/router.py`
 
 ### Business/document services
 
-- Idea core: `backend/app/services/idea_service.py`
-- BMC: `backend/app/services/business_model_canvas_service.py`
-- Similar ideas: `backend/app/services/similar_ideas_service.py`
-- Pitch deck: `backend/app/services/pitch_deck_service.py`
-- PRD: `backend/app/services/product_requirements_document_service.py`
-- Patent draft: `backend/app/services/provisional_patent_service.py`
-- Idea qualification (pre-build conversational agent): `backend/app/services/idea_qualification_service.py` + prompt `backend/app/prompts/idea_qualification.mcp.json` + table `idea_qualification_sessions`. Frontend page: `frontend/src/features/ideas/components/IdeaQualificationPage.tsx`. See `docs/IDEA_QUALIFICATION_AGENT.md`.
-- Agent run + cost tracking: `backend/app/services/cost_tracking_service.py` + `backend/app/services/llm_usage_tap.py` (router-to-tracker shim) + tables `agent_runs`, `agent_tasks`, `agent_cost_events`, `user_cost_limits`. Frontend billing page: `frontend/src/features/account/components/BillingDashboardPage.tsx`. AIRouter writes per-call usage into the tap; the cost service reads + persists. See `docs/COST_TRACKING.md`.
+- Idea core: `backend/app/services/ideas/service.py`
+- BMC: `backend/app/services/canvas/business_model_canvas.py`
+- Similar ideas: `backend/app/services/ideas/similar_ideas.py`
+- Pitch deck: `backend/app/services/documents/pitch_deck.py`
+- PRD: `backend/app/services/documents/product_requirements_document.py`
+- Patent draft: `backend/app/services/documents/provisional_patent.py`
+- Idea qualification (pre-build conversational agent): `backend/app/services/ai/idea_qualification.py` + prompt `backend/app/prompts/idea_qualification.mcp.json` + table `idea_qualification_sessions`. Frontend page: `frontend/src/features/ideas/components/IdeaQualificationPage.tsx`. See `docs/IDEA_QUALIFICATION_AGENT.md`.
+- Agent run + cost tracking: `backend/app/services/ai/cost_tracking.py` + `backend/app/services/ai/usage_tap.py` (router-to-tracker shim) + tables `agent_runs`, `agent_tasks`, `agent_cost_events`, `user_cost_limits`. Frontend billing page: `frontend/src/features/account/components/BillingDashboardPage.tsx`. AIRouter writes per-call usage into the tap; the cost service reads + persists. See `docs/COST_TRACKING.md`.
 
 ### Data and auth foundations
 
@@ -72,13 +72,13 @@ Use this to dispatch tasks quickly.
 
 - "Add or modify product data fields" -> `backend/app/graphql/schema.py` + frontend `queries.ts` + consuming components
 - "Fix login/session behavior" -> `backend/app/utils/auth_utils.py`, `backend/app/graphql/schema.py` auth mutations, `frontend/src/features/auth/*`
-- "Improve AI output quality" -> prompt JSON files in `backend/app/prompts/*.mcp.json` + `ai_layer_service.py`
+- "Improve AI output quality" -> prompt JSON files in `backend/app/prompts/*.mcp.json` + `ai/layer.py`
 - "Document generation bugs" -> `manifest_manager.py`, `idea_utils.py`, target document service
-- "Public API key behavior" -> `backend/app/routes/api_v1_routes.py`, `backend/app/services/api_key_service.py`
-- "Internal website audit / GitHub issue sync" -> `backend/app/routes/website_testing_routes.py`, `backend/app/services/website_issue_sync_service.py`, `backend/scripts/run_website_issue_sync.py`, `.github/workflows/website-testing.yml`, MCP server files
-- "Internal survey insights / GitHub triage" -> `backend/app/routes/survey_ops_routes.py`, `backend/app/services/survey_ops_service.py`, `backend/app/services/github_issue_service.py`, `backend/scripts/run_survey_issue_sync.py`, `.github/workflows/survey-feedback.yml`, MCP server files
-- "Voice agent issues" -> `backend/app/routes/voice_agent_routes.py`, `backend/app/services/voice_agent_service.py`, frontend voice components
-- "Collaboration/messaging" -> GraphQL schema + `collaboration_service.py` or `messaging_service.py` + frontend feature components
+- "Public API key behavior" -> `backend/app/routes/api_v1_routes.py`, `backend/app/services/identity/api_keys.py`
+- "Internal website audit / GitHub issue sync" -> `backend/app/routes/website_testing_routes.py`, `backend/app/services/operations/website_issue_sync.py`, `backend/scripts/run_website_issue_sync.py`, `.github/workflows/website-testing.yml`, MCP server files
+- "Internal survey insights / GitHub triage" -> `backend/app/routes/survey_ops_routes.py`, `backend/app/services/operations/survey_ops.py`, `backend/app/services/integrations/github_issues.py`, `backend/scripts/run_survey_issue_sync.py`, `.github/workflows/survey-feedback.yml`, MCP server files
+- "Voice agent issues" -> `backend/app/routes/voice_agent_routes.py`, `backend/app/services/voice/agent.py`, frontend voice components
+- "Collaboration/messaging" -> GraphQL schema + `ideas/collaboration.py` or `social/messaging.py` + frontend feature components
 
 ## 4. High-Impact Workflows
 
@@ -112,7 +112,7 @@ Use this to dispatch tasks quickly.
 1. Use `POST /api/internal/website-testing/sync-issues` when you are inside the trusted agent loop and can send `X-Manifest-Agent-Key`.
 2. Use `audit_website_and_create_github_issues` from the MCP server when working from an external agent with the same internal secret.
 3. Use `.github/workflows/website-testing.yml` for scheduled or manual repository-native runs.
-4. Keep the shared behavior in `backend/app/services/website_issue_sync_service.py`; do not fork the audit logic.
+4. Keep the shared behavior in `backend/app/services/operations/website_issue_sync.py`; do not fork the audit logic.
 
 ### E) Run the survey feedback loop from an agent or workflow
 
@@ -121,7 +121,7 @@ Use this to dispatch tasks quickly.
 3. Use `summarize_survey_feedback` or `create_survey_feedback_github_issues` from the MCP server when working from an external agent.
 4. Use `POST /api/internal/production-signals/event` (or MCP `emit_production_signal`) for deduped production anomaly signals; see `docs/PRODUCTION_SIGNALS_OPS.md`.
 5. Use `.github/workflows/survey-feedback.yml` for scheduled or manual repository-native runs.
-6. Keep issue creation shared through `backend/app/services/github_issue_service.py`; do not duplicate label or de-duplication logic.
+6. Keep issue creation shared through `backend/app/services/integrations/github_issues.py`; do not duplicate label or de-duplication logic.
 
 ## 5. Non-Obvious Constraints and Pitfalls
 

@@ -77,7 +77,7 @@ def db_client():
 @pytest.fixture
 def mock_ai_router():
     """Mock AIRouter for AI tests."""
-    with patch("app.services.ai_router.AIRouter") as mock:
+    with patch("app.services.ai.router.AIRouter") as mock:
         mock_instance = MagicMock()
         mock_instance.is_available.return_value = True
         mock_instance.chat.return_value = "Mock response"
@@ -99,12 +99,12 @@ def mock_openai():
 
 @pytest.fixture(autouse=True)
 def _reset_shared_cache():
-    """The process-wide cache (app.services.cache_service) is keyed state
+    """The process-wide cache (app.services.shared.cache) is keyed state
     shared across tests — clear it so a value cached by one test (e.g. the
     voice agent's conversation context) can never satisfy a lookup in
     another."""
     try:
-        from app.services.cache_service import _reset_for_tests
+        from app.services.shared.cache import _reset_for_tests
 
         _reset_for_tests()
     except Exception:

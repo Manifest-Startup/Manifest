@@ -54,7 +54,7 @@ has a real-world caller from day one.
 ## Pricing
 
 Per-model rates live in
-[`backend/app/services/cost_tracking_service.py`](../backend/app/services/cost_tracking_service.py)
+[`backend/app/services/ai/cost_tracking.py`](../backend/app/services/ai/cost_tracking.py)
 under `PRICING_USD_PER_1M`. Unknown models fall back to a conservative
 $1.00 / $3.00 per 1M tokens — chosen to err on the side of slight
 over-billing rather than silent $0 events.
@@ -76,8 +76,8 @@ event row so finance can reconcile.
 ## How a new agent plugs in
 
 ```python
-from app.services import cost_tracking_service as cts
-from app.services.llm_usage_tap import pop_last_usage  # for inspection only
+from app.services.ai import cost_tracking as cts
+from app.services.ai.usage_tap import pop_last_usage  # for inspection only
 
 def run_my_new_agent(*, db, user_id, ai_layer, ...):
     run_id = cts.start_agent_run(
@@ -193,7 +193,7 @@ The block reasons (in order of precedence):
 
 ### Pre-run cost estimates
 
-[`ESTIMATED_COST_USD_PER_RUN`](../backend/app/services/cost_tracking_service.py)
+[`ESTIMATED_COST_USD_PER_RUN`](../backend/app/services/ai/cost_tracking.py)
 is the calibration table the guard uses to decide whether a run
 would exceed cap. p50 values per agent kind. Unknown kinds fall back
 to `DEFAULT_ESTIMATED_COST_USD_PER_RUN = $0.01`. When you add a new
