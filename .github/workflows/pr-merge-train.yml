@@ -1,0 +1,99 @@
+name: PR Merge Train (sweep open PRs into main)
+
+# Manifest PR Merge Train — the deterministic sibling of Autopilot.
+#
+# Autopilot fixes ISSUES and never touches `main`. This loop does the opposite:
+# it sweeps every OPEN PULL REQUEST into `main`, resolving the conflicts it can
+# resolve safely (regenerable lockfiles), running the same checks as `scripts/check.py`
+# runs, pushing, and deleting each merged branch — but NEVER a protected branch
+# (`main`, `autopilot`). Each push to `main` auto-releases; that is intentional
+# and human-authorized. See docs/AUTOPILOT.md → "PR Merge Train".
+#
+# Safety: a PR that cannot land cleanly-and-green is left untouched with an
+# explanatory comment, for a human. `main` never gets a red or guessed merge.
+#
+# The repo variable PR_MERGE_TRAIN_ENABLED must be "true" or every scheduled
+# run no-ops (manual dispatch always runs, so you can shadow it with dry_run).
+
+on:
+  schedule:
+    - cron: "37 */6 * * *"  # every 6h at :37; the kill switch governs real action
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Plan only — no merges, pushes, or deletes
+        required: false
+        default: true
+        type: boolean
+      pr:
+        description: Operate on a single PR number (blank = all open PRs)
+        required: false
+        type: string
+
+# One train at a time — never two runs racing to push `main`.
+concurrency:
+  group: pr-merge-train
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-train:
+    name: 🚆  PR Merge Train
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        vars.PR_MERGE_TRAIN_ENABLED == 'true'
+      }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_MERGE_TRAIN_ENABLED: ${{ vars.PR_MERGE_TRAIN_ENABLED || 'false' }}
+      PR_MERGE_TRAIN_PROTECTED: ${{ vars.PR_MERGE_TRAIN_PROTECTED || 'main,autopilot' }}
+      PR_MERGE_TRAIN_BASE: ${{ vars.PR_MERGE_TRAIN_BASE || 'main' }}
+      PR_MERGE_TRAIN_INCLUDE_DRAFTS: ${{ vars.PR_MERGE_TRAIN_INCLUDE_DRAFTS || 'false' }}
+      PR_MERGE_TRAIN_RUN_CHECKS: ${{ vars.PR_MERGE_TRAIN_RUN_CHECKS || 'true' }}
+    steps:
+      - name: Checkout repo (full history so merges work)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "manifest-merge-train[bot]"
+          git config user.email "manifest-merge-train@users.noreply.github.com"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node (for frontend checks + lockfile regen)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install backend deps + tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff
+
+      - name: Run the merge train
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+        run: |
+          ARGS="--repo ${{ github.repository }} --repo-root ${{ github.workspace }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ inputs.pr }}" ]; then
+            ARGS="$ARGS --pr ${{ inputs.pr }}"
+          fi
+          python backend/scripts/run_pr_merge_train.py $ARGS

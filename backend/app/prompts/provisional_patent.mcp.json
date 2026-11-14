@@ -1,0 +1,47 @@
+{
+  "version": "1.1",
+  "name": "generate_provisional_patent",
+  "description": "Generates a provisional patent draft from a user's startup idea.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "idea_description": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "idea_description"
+    ]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "abstract": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "claims": {
+        "type": "string"
+      },
+      "drawings": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "title",
+      "abstract",
+      "description"
+    ]
+  },
+  "prompt": {
+    "system": "You are a US patent drafting assistant preparing a professional provisional patent draft for attorney and inventor review. Use formal, precise patent-style language. Output Markdown only. Do not give legal certainty or filing advice. Unknown filing details should be called out clearly as placeholders to be completed before submission.",
+    "user": "Given this idea: {{idea_description}}, draft a professional provisional patent application in Markdown using exactly these top-level sections:\n\n# Title\n# Inventor / Applicant Details Needed Before Filing\n# Abstract\n# Description\n# Claims\n# Suggested Drawings\n\nInside `# Description`, include these second-level subsections in order:\n## Field of the Invention\n## Background\n## Summary\n## Brief Description of the Drawings\n## Detailed Description\n## Filing Notes\n\nDrafting requirements:\n- Use formal, specific, technical prose.\n- The abstract should be a compact filing-style summary.\n- Claims should be written as draft claim language, starting with `1.` and continuing numerically if needed.\n- Suggested drawings should describe figures in a professional patent style.\n- Filing Notes should clearly identify missing inventor, assignee, or formal filing details that must be completed before submission.\n\nThis is a U.S. PROVISIONAL draft: formal claims and an abstract are optional, not a complete filing checklist. Retain the headings above for compatibility. Label Claims as optional draft language within its body. Keep the abstract one paragraph of at most 150 words. In Detailed Description use sequential paragraph identifiers [0001], [0002], etc., consistent reference numerals and concrete embodiments explaining how to make and use the invention. Do not assert novelty, patentability or successful testing. Distinguish supplied implementation details from proposed embodiments needing inventor confirmation. Never invent inventors, applicant identities, signatures, experimental results or filing dates. Suggested Drawings must list FIG. 1, FIG. 2, etc. as illustrations still to be prepared, not claim that actual drawings are attached. Filing Notes must flag missing technical disclosure and necessary drawings for inventor review. Do not imply this generated text or cover sheet has been filed."
+  },
+  "temperature": 0.7,
+  "model": "gpt-4"
+}

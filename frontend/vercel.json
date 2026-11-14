@@ -1,0 +1,32 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run sync:docs && npm run build",
+  "outputDirectory": "build",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/graphql",
+      "destination": "https://api.manifeststartup.com/graphql"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.manifeststartup.com/api/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://api.manifeststartup.com/auth/:path*"
+    },
+    {
+      "source": "/generated/:path*",
+      "destination": "https://api.manifeststartup.com/generated/:path*"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "https://api.manifeststartup.com/socket.io/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

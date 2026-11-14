@@ -1,0 +1,21 @@
+# Robots.txt for Manifest Startup Platform
+# https://www.robotstxt.org/robotstxt.html
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /graphql
+
+# Public API description and docs (the API itself stays disallowed)
+Allow: /openapi.json
+Allow: /docs/api
+
+# Sitemap location
+Sitemap: https://manifeststartup.com/sitemap.xml
+
+Schemamap: https://manifeststartup.com/schema-map.xml
+
+# LLM-specific guidance file
+# See https://llmstxt.org for more information
+# LLMs and AI agents should also check /llms.txt for detailed guidance
+# and /agents.md for when-to-use guidance.

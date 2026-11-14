@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "type": "skill-md",
+      "url": "https://manifeststartup.com/skills/manifest-api/SKILL.md",
+      "digest": "sha256:b22b234c827dc2391e11acbd6c8c985b6954b8bf181f692605c8d4fe10b41731",
+      "name": "Manifest API integration",
+      "description": "Use Manifest's public REST API to create and manage startup ideas and generate draft business documents. Requires a Manifest API key."
+    }
+  ]
+}

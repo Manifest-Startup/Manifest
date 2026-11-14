@@ -1,0 +1,86 @@
+name: Autopilot Retro (self-tuning)
+
+# Weekly reflective pass for Manifest Autopilot. It reads the run journal
+# (docs/autopilot/JOURNAL.md) and updates the loop's playbook
+# (docs/autopilot/PLAYBOOK.md) — the prompt context every autopilot run reads.
+# This is how the loop gets *better* over time (merge rate up, wasted runs
+# down) WITHOUT the loop rewriting its own guardrail code: the main loop is
+# forbidden from touching docs/autopilot/** (it's on the denylist); only this
+# separate, human-reviewed job may.
+#
+# Output is a PR into the `autopilot` branch — a human still reviews the
+# playbook change before it takes effect.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Mondays 09:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: autopilot-retro
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  retro:
+    name: 🔁  Retro
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' || vars.AUTOPILOT_ENABLED == 'true' }}
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_DEV_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AUTOPILOT_BASE_BRANCH: ${{ vars.AUTOPILOT_BASE_BRANCH || 'autopilot' }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "manifest-autopilot[bot]"
+          git config user.email "manifest-autopilot@users.noreply.github.com"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Tune the playbook from the journal
+        run: |
+          BRANCH="autopilot/retro-$(date -u +%Y%m%d)"
+          git fetch origin "$AUTOPILOT_BASE_BRANCH" || true
+          git switch -c "$BRANCH" "origin/$AUTOPILOT_BASE_BRANCH" 2>/dev/null \
+            || git switch -c "$BRANCH"
+
+          codex exec --dangerously-bypass-approvals-and-sandbox \
+            --model "${{ vars.AUTOPILOT_MODEL || 'gpt-5-codex' }}" \
+            "Read docs/autopilot/JOURNAL.md and docs/autopilot/PLAYBOOK.md. \
+          The journal records every autopilot run (action, model, cost, outcome). \
+          Update ONLY docs/autopilot/PLAYBOOK.md to make the loop pick better work \
+          and waste fewer runs: capture which issue types tend to succeed vs. get \
+          guard-rejected or fail checks, note recurring failure causes, and refine \
+          the selection and implementation guidance accordingly. Keep it concise. \
+          Do NOT touch any file other than docs/autopilot/PLAYBOOK.md."
+
+          if git diff --quiet -- docs/autopilot/PLAYBOOK.md; then
+            echo "No playbook changes this week."
+            exit 0
+          fi
+          # Safety: this job may ONLY change the playbook.
+          if [ -n "$(git diff --name-only -- . ':!docs/autopilot/PLAYBOOK.md')" ]; then
+            echo "Retro tried to change files outside the playbook — aborting." >&2
+            git checkout -- .
+            exit 1
+          fi
+          git add docs/autopilot/PLAYBOOK.md
+          git commit -m "docs(autopilot): weekly playbook self-tuning [skip release]"
+          git push --force-with-lease origin "HEAD:$BRANCH"
+          gh pr create --base "$AUTOPILOT_BASE_BRANCH" --head "$BRANCH" \
+            --title "docs(autopilot): weekly playbook self-tuning" \
+            --body "Automated weekly retro: refined the autopilot playbook from the run journal. Review before merge." \
+            --label autopilot || true

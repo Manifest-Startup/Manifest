@@ -1,0 +1,1216 @@
+name: Security – SAST / SCA / SBOM / Secrets
+
+# Task #16 (Supply chain, CI/CD & responsible disclosure).
+#
+# IMPORTANT: All scanner *commands* exit non-zero on findings (no `|| true`)
+# so that flipping a gate to blocking is a single change: remove the
+# `continue-on-error: true` line on the surrounding step. While advisory,
+# `continue-on-error: true` lets the workflow turn green even when a scanner
+# fails.
+#
+# Findings are baselined in docs/security/FINDINGS_BACKLOG.md. Each gate is
+# flipped to blocking on the schedule documented in that file's
+# "Gate-flip schedule" table.
+#
+# Action SHA-pinning (defence against tag-repointing supply-chain attacks)
+# is tracked under SEC-073; Dependabot ("github-actions" ecosystem) covers
+# weekly major-version bumps in the meantime.
+
+on:
+  # Day-to-day checks run locally (`python3 scripts/check.py`). This scanner
+  # suite only runs for signed releases (release.yml calls it via
+  # workflow_call) or on demand from the Actions tab.
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  security-events: write   # required to upload SARIF to GitHub code scanning
+  actions: read
+  # `issues: write` is scoped to the `pager` job only (job-level
+  # permissions block) to keep scanner jobs at least-privilege.
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lockfile drift — fails closed if requirements.txt or package-lock.json
+  # is out-of-sync with the resolver. This is reproducibility hygiene, not
+  # advisory: a drifted lockfile silently invalidates every downstream
+  # scan (SCA, SBOM, license) by changing the actual installed graph.
+  # ---------------------------------------------------------------------------
+  lockfile-drift:
+    name: 🔒 Lockfile drift (pip + npm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Backend — pip dependency consistency
+        run: |
+          set -eu
+          # Install requirements.txt with full dependency resolution, then
+          # `pip check` asserts the resulting environment has no broken or
+          # conflicting transitive constraints. A non-zero exit here means
+          # the lockfile is no longer self-consistent (e.g., a pinned
+          # version was bumped without re-resolving its peers) and must be
+          # regenerated.
+          python -m pip install --upgrade pip==24.2
+          pip install -r backend/requirements.txt
+          pip check
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend — npm lockfile drift
+        # `npm ci` aborts non-zero if package.json and package-lock.json
+        # disagree on any version, hash, or peer constraint. This is the
+        # canonical "lockfile is out of date" guard.
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+  # ---------------------------------------------------------------------------
+  # Secret scanning — gitleaks across full history on PRs (depth=0).
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: 🔐 Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: gitleaks
+        run: |
+          mkdir -p reports/security
+          gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --report-format sarif \
+            --report-path reports/security/gitleaks.sarif \
+            --redact
+
+  # ---------------------------------------------------------------------------
+  # Python SAST — Bandit (OWASP) + Semgrep p/python + p/owasp-top-ten.
+  # ---------------------------------------------------------------------------
+  python-sast:
+    name: 🐍 Python SAST (bandit + semgrep)
+    runs-on: ubuntu-latest
+    # Per-step outcomes are forwarded to the pager job below so an
+    # advisory finding (where the step exits non-zero but
+    # `continue-on-error: true` masks the job result as success) still
+    # pages on-call. Without this, a brand-new HIGH+ CVE in an advisory
+    # scanner would only surface in the run log.
+    outputs:
+      findings: ${{ steps.summary.outputs.findings }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install scanners
+        run: |
+          python -m pip install --upgrade pip
+          pip install "bandit[toml]==1.7.9" "semgrep==1.86.0"
+
+      - name: Bandit (advisory — see docs/security/FINDINGS_BACKLOG.md)
+        id: bandit
+        continue-on-error: true   # remove to flip to blocking (SEC-061)
+        run: |
+          mkdir -p reports
+          # Always produce SARIF + JSON for upload, then re-run for human-
+          # readable console output. Each invocation exits non-zero on
+          # findings so that removing `continue-on-error` is the only change
+          # required to enforce the gate.
+          bandit -r backend/app -ll -ii -b backend/bandit-baseline.json \
+                 -f sarif -o reports/bandit.sarif
+          bandit -r backend/app -ll -ii -b backend/bandit-baseline.json \
+                 -f json -o reports/bandit.json
+          bandit -r backend/app -ll -ii -b backend/bandit-baseline.json
+
+      - name: Upload Bandit SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        with:
+          sarif_file: reports/bandit.sarif
+          category: bandit
+        continue-on-error: true   # SARIF upload failure must not mask the scan
+
+      - name: Semgrep (advisory)
+        id: semgrep
+        continue-on-error: true   # remove to flip to blocking (SEC-061)
+        env:
+          SEMGREP_RULES: >-
+            p/python
+            p/owasp-top-ten
+            p/security-audit
+            p/secrets
+        run: |
+          semgrep --error --sarif --output reports/semgrep.sarif \
+                  --metrics=off --timeout 90 \
+                  --exclude-rule python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure \
+                  backend/app
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        with:
+          sarif_file: reports/semgrep.sarif
+          category: semgrep-python
+        continue-on-error: true
+
+      - name: Upload SAST reports
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: python-sast-reports
+          path: reports/
+          retention-days: 30
+
+      - name: Summarize advisory scanner outcomes
+        id: summary
+        if: always()
+        env:
+          BANDIT: ${{ steps.bandit.outcome }}
+          SEMGREP: ${{ steps.semgrep.outcome }}
+        run: |
+          set -eu
+          # Each scanner step's `outcome` is the raw exit status of the
+          # step BEFORE `continue-on-error` is applied. We surface the
+          # set of advisory steps that exited non-zero so the `pager`
+          # job can page on findings even while the gate is still
+          # advisory. The job result itself stays `success` (this step
+          # never exits non-zero) so PR-time required checks remain
+          # un-affected.
+          FAILED=""
+          [ "$BANDIT"  = "failure" ] && FAILED="${FAILED}bandit "
+          [ "$SEMGREP" = "failure" ] && FAILED="${FAILED}semgrep "
+          FAILED="${FAILED% }"
+          echo "findings=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "::warning::Advisory python-sast findings (job stays green via continue-on-error): ${FAILED}"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Frontend SAST — Semgrep TypeScript/React + ESLint security rules.
+  # ESLint is already part of the project; this just adds a security profile.
+  # ---------------------------------------------------------------------------
+  frontend-sast:
+    name: ⚛️  Frontend SAST (semgrep + eslint-security)
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.summary.outputs.findings }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Install ESLint security plugins
+        working-directory: frontend
+        run: |
+          # Adds the eslint-plugin-security rules without modifying the
+          # baseline lint config; the next step runs ESLint with the security
+          # config layered on top.
+          npm install --no-save --no-audit --no-fund \
+            eslint-plugin-security@3.0.1 \
+            eslint-plugin-no-unsanitized@4.1.2
+
+      - name: ESLint security profile (advisory)
+        id: eslint
+        continue-on-error: true   # remove to flip to blocking (SEC-061)
+        working-directory: frontend
+        run: |
+          # Layer the security plugins on top of the project's existing
+          # ESLint config. `--no-eslintrc` is intentionally NOT used so the
+          # repo's rules still apply; `--rulesdir`-style overrides are
+          # injected via inline plugin/rule flags.
+          npx eslint src \
+            --ext .js,.jsx,.ts,.tsx \
+            --max-warnings 0 \
+            --no-error-on-unmatched-pattern \
+            --plugin security \
+            --plugin no-unsanitized \
+            --rule '{"security/detect-eval-with-expression":"error","security/detect-non-literal-require":"error","security/detect-child-process":"error","security/detect-buffer-noassert":"error","security/detect-pseudoRandomBytes":"error","no-unsanitized/method":"error","no-unsanitized/property":"error"}'
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install Semgrep
+        run: pip install "semgrep==1.86.0"
+
+      - name: Semgrep TS/React (advisory)
+        id: semgrep
+        continue-on-error: true   # remove to flip to blocking (SEC-061)
+        env:
+          SEMGREP_RULES: >-
+            p/typescript
+            p/react
+            p/javascript
+            p/owasp-top-ten
+            p/xss
+        run: |
+          mkdir -p reports
+          semgrep --error --sarif --output reports/semgrep-frontend.sarif \
+                  --metrics=off --timeout 90 frontend/src
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        with:
+          sarif_file: reports/semgrep-frontend.sarif
+          category: semgrep-frontend
+        continue-on-error: true
+
+      - name: Upload Frontend SAST reports
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: frontend-sast-reports
+          path: reports/
+          retention-days: 30
+
+      - name: Summarize advisory scanner outcomes
+        id: summary
+        if: always()
+        env:
+          ESLINT: ${{ steps.eslint.outcome }}
+          SEMGREP: ${{ steps.semgrep.outcome }}
+        run: |
+          set -eu
+          # See python-sast::summary for the rationale — surfaces
+          # advisory scanner findings to the pager job without flipping
+          # the job result.
+          FAILED=""
+          [ "$ESLINT"  = "failure" ] && FAILED="${FAILED}eslint-security "
+          [ "$SEMGREP" = "failure" ] && FAILED="${FAILED}semgrep "
+          FAILED="${FAILED% }"
+          echo "findings=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "::warning::Advisory frontend-sast findings (job stays green via continue-on-error): ${FAILED}"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Python SCA — pip-audit against requirements.txt (PyPI advisory + OSV).
+  # ---------------------------------------------------------------------------
+  python-sca:
+    name: 🐍 Python SCA (pip-audit)
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.summary.outputs.findings }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install "pip-audit==2.7.3"
+
+      - name: pip-audit (advisory)
+        id: pip-audit
+        continue-on-error: true   # remove to flip to blocking (SEC-059)
+        run: |
+          mkdir -p reports
+          pip-audit -r backend/requirements.txt \
+                    --strict \
+                    --format json --output reports/pip-audit.json
+          pip-audit -r backend/requirements.txt
+
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: pip-audit
+          path: reports/
+          retention-days: 30
+
+      - name: Summarize advisory scanner outcomes
+        id: summary
+        if: always()
+        env:
+          PIP_AUDIT: ${{ steps.pip-audit.outcome }}
+        run: |
+          set -eu
+          # See python-sast::summary for the rationale.
+          FAILED=""
+          [ "$PIP_AUDIT" = "failure" ] && FAILED="${FAILED}pip-audit "
+          FAILED="${FAILED% }"
+          echo "findings=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "::warning::Advisory python-sca findings (job stays green via continue-on-error): ${FAILED}"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Frontend SCA — `npm audit` against package-lock.json + OSV-Scanner.
+  # ---------------------------------------------------------------------------
+  frontend-sca:
+    name: ⚛️  Frontend SCA (npm audit + osv-scanner)
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.summary.outputs.findings }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm audit (advisory)
+        id: npm-audit
+        continue-on-error: true   # remove to flip to blocking (SEC-059)
+        working-directory: frontend
+        run: |
+          mkdir -p ../reports
+          # `npm audit` exits non-zero when findings >= --audit-level.
+          npm audit --omit=dev --audit-level=high --json \
+            > ../reports/npm-audit.json
+          npm audit --omit=dev --audit-level=high
+
+      - name: OSV-Scanner (advisory)
+        id: osv-scanner
+        continue-on-error: true   # remove to flip to blocking (SEC-059)
+        uses: google/osv-scanner-action/osv-scanner-action@19ec1116569a47416e11a45848722b1af31a857b  # v1.9.0
+        with:
+          scan-args: |-
+            --format=sarif
+            --output=reports/osv.sarif
+            --recursive
+            ./frontend
+            ./backend
+
+      - name: Upload OSV SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        with:
+          sarif_file: reports/osv.sarif
+          category: osv-scanner
+        continue-on-error: true
+
+      - name: Upload SCA reports
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: frontend-sca
+          path: reports/
+          retention-days: 30
+
+      - name: Summarize advisory scanner outcomes
+        id: summary
+        if: always()
+        env:
+          NPM_AUDIT: ${{ steps.npm-audit.outcome }}
+          OSV: ${{ steps.osv-scanner.outcome }}
+        run: |
+          set -eu
+          # See python-sast::summary for the rationale.
+          FAILED=""
+          [ "$NPM_AUDIT" = "failure" ] && FAILED="${FAILED}npm-audit "
+          [ "$OSV"       = "failure" ] && FAILED="${FAILED}osv-scanner "
+          FAILED="${FAILED% }"
+          echo "findings=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "::warning::Advisory frontend-sca findings (job stays green via continue-on-error): ${FAILED}"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # License scan — fail-closed allowlist enforcement (advisory mode for now).
+  # See docs/security/RELEASE_PLAYBOOK.md for the allowed-license policy.
+  # ---------------------------------------------------------------------------
+  license-scan:
+    name: 📜 License compliance (advisory)
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.summary.outputs.findings }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-licenses
+        run: |
+          pip install "pip-licenses==4.5.1"
+          pip install -r backend/requirements.txt
+
+      - name: Backend license inventory
+        id: backend-licenses
+        continue-on-error: true   # remove to flip to blocking (SEC-059)
+        run: |
+          mkdir -p reports
+          pip-licenses --format=json \
+            --with-urls --with-authors \
+            --output-file=reports/licenses-python.json
+          # `--fail-on` exits non-zero when any disallowed license is found.
+          pip-licenses --fail-on \
+            "GPL;LGPL;AGPL;SSPL;Commons-Clause;BUSL-1.1"
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps (deterministic)
+        # `npm ci` reads package-lock.json strictly and fails on drift,
+        # which is what license-checker / cyclonedx-npm need to walk a
+        # known-good module graph. Without it, npx-resolved tools see an
+        # empty node_modules and produce environment-sensitive output.
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Frontend license inventory
+        id: frontend-licenses
+        continue-on-error: true   # remove to flip to blocking (SEC-059)
+        working-directory: frontend
+        run: |
+          npx --yes license-checker --production --json \
+            > ../reports/licenses-frontend.json
+          # `--failOn` enforces the disallowed list; semicolon-delimited.
+          npx --yes license-checker --production \
+            --failOn "GPL;LGPL;AGPL;SSPL;Commons-Clause;BUSL-1.1"
+
+      - name: Upload license reports
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: license-reports
+          path: reports/
+          retention-days: 90
+
+      - name: Summarize advisory scanner outcomes
+        id: summary
+        if: always()
+        env:
+          BACKEND_LICENSES: ${{ steps.backend-licenses.outcome }}
+          FRONTEND_LICENSES: ${{ steps.frontend-licenses.outcome }}
+        run: |
+          set -eu
+          # See python-sast::summary for the rationale.
+          FAILED=""
+          [ "$BACKEND_LICENSES"  = "failure" ] && FAILED="${FAILED}backend-licenses "
+          [ "$FRONTEND_LICENSES" = "failure" ] && FAILED="${FAILED}frontend-licenses "
+          FAILED="${FAILED% }"
+          echo "findings=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "::warning::Advisory license-scan findings (job stays green via continue-on-error): ${FAILED}"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # SBOM — CycloneDX for python + node. Always non-blocking; release artifact.
+  # ---------------------------------------------------------------------------
+  sbom:
+    name: 📦 SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install cyclonedx tools
+        run: |
+          pip install "cyclonedx-bom==7.3.0"
+          pip install -r backend/requirements.txt
+
+      - name: Generate Python SBOM
+        run: |
+          mkdir -p sbom
+          cyclonedx-py environment \
+            --output-format JSON \
+            --output-file sbom/manifest-backend.cdx.json
+          cyclonedx-py environment \
+            --output-format XML \
+            --output-file sbom/manifest-backend.cdx.xml
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps (deterministic)
+        # cyclonedx-npm walks node_modules; without `npm ci` it would
+        # report against an empty graph. Required before flipping the
+        # SBOM gate to blocking.
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      # Omit Storybook / CLI-only deps from SBOM so cyclonedx-npm does not fail on
+      # npm ls peer-resolution quirks while prod runtime deps stay represented.
+      - name: Generate Frontend SBOM
+        working-directory: frontend
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm@1.19.3 \
+            --omit dev \
+            --package-lock-only \
+            --ignore-npm-errors \
+            --output-format JSON \
+            --output-file ../sbom/manifest-frontend.cdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: cyclonedx-sbom
+          path: sbom/
+          retention-days: 365   # retained for one full audit cycle
+
+  # ---------------------------------------------------------------------------
+  # Container hardening — Trivy + Hadolint on backend/dockerfile.
+  # ---------------------------------------------------------------------------
+  container-scan:
+    name: 🐳 Container scan (hadolint + trivy)
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.summary.outputs.findings }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - name: Hadolint (Dockerfile lint)
+        id: hadolint
+        continue-on-error: true   # remove to flip to blocking (SEC-062)
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf  # v3.1.0
+        with:
+          dockerfile: backend/dockerfile
+          format: sarif
+          output-file: hadolint.sarif
+          # `no-fail: false` makes the action exit non-zero on findings so
+          # removing `continue-on-error` is the only flip required.
+          no-fail: false
+
+      - name: Upload Hadolint SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        with:
+          sarif_file: hadolint.sarif
+          category: hadolint
+        continue-on-error: true
+
+      - name: Build image (no push)
+        run: |
+          docker build -t manifest-backend:ci -f backend/dockerfile backend/
+
+      - name: Trivy (advisory)
+        id: trivy
+        continue-on-error: true   # remove to flip to blocking (SEC-062)
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.24.0
+        with:
+          image-ref: manifest-backend:ci
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"   # non-zero on findings; gated by `continue-on-error`
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93  # v3.26.6
+        with:
+          sarif_file: trivy.sarif
+          category: trivy
+        continue-on-error: true
+
+      - name: Summarize advisory scanner outcomes
+        id: summary
+        if: always()
+        env:
+          HADOLINT: ${{ steps.hadolint.outcome }}
+          TRIVY: ${{ steps.trivy.outcome }}
+        run: |
+          set -eu
+          # See python-sast::summary for the rationale.
+          FAILED=""
+          [ "$HADOLINT" = "failure" ] && FAILED="${FAILED}hadolint "
+          [ "$TRIVY"    = "failure" ] && FAILED="${FAILED}trivy "
+          FAILED="${FAILED% }"
+          echo "findings=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "::warning::Advisory container-scan findings (job stays green via continue-on-error): ${FAILED}"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # On-call pager — mirrors the security-drift paging in
+  # `.github/workflows/governance-verify.yml` (Task #36 / SEC-070). The
+  # daily SCA / SAST / container scanners above are mostly advisory today
+  # (`continue-on-error: true`), so a brand-new HIGH+ CVE landing
+  # overnight only surfaces in the run log and (eventually) a failed
+  # required check on the next PR. Once a gate flips per the gate-flip
+  # schedule in docs/security/FINDINGS_BACKLOG.md, this job pages the
+  # security on-call rotation the same way governance drift does — a
+  # single `security-scan-failure` tracking issue + one PagerDuty
+  # incident per failing scanner, auto-resolved on the next green run.
+  # ---------------------------------------------------------------------------
+  pager:
+    name: 📟 Page on-call on scanner failure
+    runs-on: ubuntu-latest
+    needs:
+      - lockfile-drift
+      - secret-scan
+      - python-sast
+      - frontend-sast
+      - python-sca
+      - frontend-sca
+      - license-scan
+      - container-scan
+    permissions:
+      contents: read
+      issues: write
+    # Only page on the daily schedule, manual dispatch, and pushes to the
+    # default branch. PR runs already surface failures as required-check
+    # red — paging there would be noise. `workflow_call` from release.yml
+    # has its own release-failure path; we deliberately do not double-page.
+    if: >-
+      ${{ always() && (
+        github.event_name == 'schedule'
+        || github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+      ) }}
+    env:
+      # Two failure signals per scanner job:
+      #   * `<JOB>_RESULT` — the job's overall conclusion. Already-blocking
+      #     jobs (lockfile-drift, secret-scan) flip this to `failure` on
+      #     findings.
+      #   * `<JOB>_FINDINGS` — the per-job summary output that lists the
+      #     names of any *advisory* scanner steps that exited non-zero
+      #     (steps where `continue-on-error: true` masks the job result
+      #     as success). This is what makes the pager fire on a brand-new
+      #     HIGH+ CVE in (e.g.) pip-audit / npm audit / trivy *before*
+      #     the gate-flip schedule moves them to blocking.
+      LOCKFILE_DRIFT_RESULT: ${{ needs.lockfile-drift.result }}
+      SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
+      PYTHON_SAST_RESULT: ${{ needs.python-sast.result }}
+      PYTHON_SAST_FINDINGS: ${{ needs.python-sast.outputs.findings }}
+      FRONTEND_SAST_RESULT: ${{ needs.frontend-sast.result }}
+      FRONTEND_SAST_FINDINGS: ${{ needs.frontend-sast.outputs.findings }}
+      PYTHON_SCA_RESULT: ${{ needs.python-sca.result }}
+      PYTHON_SCA_FINDINGS: ${{ needs.python-sca.outputs.findings }}
+      FRONTEND_SCA_RESULT: ${{ needs.frontend-sca.result }}
+      FRONTEND_SCA_FINDINGS: ${{ needs.frontend-sca.outputs.findings }}
+      LICENSE_SCAN_RESULT: ${{ needs.license-scan.result }}
+      LICENSE_SCAN_FINDINGS: ${{ needs.license-scan.outputs.findings }}
+      CONTAINER_SCAN_RESULT: ${{ needs.container-scan.result }}
+      CONTAINER_SCAN_FINDINGS: ${{ needs.container-scan.outputs.findings }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Outbound paging webhook — secrets are shared with
+      # governance-verify.yml so a single on-call rotation handles both
+      # security-drift and security-scan-failure pages. See
+      # docs/security/INCIDENT_RESPONSE_RUNBOOK.md §"Scanner-failure
+      # paging" for wiring + ack/resolve procedure.
+      PAGER_WEBHOOK: ${{ secrets.SECURITY_PAGER_WEBHOOK }}
+      PAGER_ROUTING_KEY: ${{ secrets.SECURITY_PAGER_ROUTING_KEY }}
+      # Cap on how many pages a single `security.yml` run is allowed to
+      # emit. On a bad upstream day a single transitive CVE can trip
+      # `python-sca` + `frontend-sca` + `osv-scanner` (inside
+      # `frontend-sca`) plus `container-scan` simultaneously — that is
+      # effectively one upstream event, not four pages worth of on-call
+      # interrupts. When the failing-scanner count is **at or below**
+      # this cap we fire the existing per-scanner PD incidents (one
+      # `dedup_key` per scanner, ack/resolve granularity preserved).
+      # When the count **exceeds** this cap we collapse into a single
+      # `security.yml/rollup/<repo>` PD incident whose `custom_details`
+      # carries the per-scanner detail, and we deliberately do NOT fan
+      # out the per-scanner pages — see docs/security/INCIDENT_RESPONSE_RUNBOOK.md
+      # §"Scanner-failure paging" → "Page-volume cap" for the rationale
+      # and ack/resolve procedure. Override via the repo-level
+      # `SECURITY_PAGER_MAX_PER_RUN` variable; default 2.
+      MAX_PAGES_PER_RUN: ${{ vars.SECURITY_PAGER_MAX_PER_RUN || '2' }}
+    steps:
+      - name: Compute failed scanners
+        id: failed
+        run: |
+          set -eu
+          # A scanner job is treated as failed if EITHER:
+          #   * its job result is `failure` (already-blocking jobs:
+          #     lockfile-drift, secret-scan, or any advisory gate that
+          #     has since been flipped to blocking), OR
+          #   * its `findings` job output is non-empty (advisory steps
+          #     that exited non-zero — i.e. real findings — but whose
+          #     `continue-on-error: true` kept the job result `success`).
+          # Cancelled jobs (mid-run cancel-in-progress) are deliberately
+          # treated as inconclusive, not failure.
+          FAILED=""
+          mark() {
+            # $1 = scanner job name, $2 = job result, $3 = findings list
+            if [ "$2" = "failure" ] || [ -n "$3" ]; then
+              FAILED="${FAILED}$1 "
+            fi
+          }
+          mark "lockfile-drift"  "$LOCKFILE_DRIFT_RESULT"  ""
+          mark "secret-scan"     "$SECRET_SCAN_RESULT"     ""
+          mark "python-sast"     "$PYTHON_SAST_RESULT"     "$PYTHON_SAST_FINDINGS"
+          mark "frontend-sast"   "$FRONTEND_SAST_RESULT"   "$FRONTEND_SAST_FINDINGS"
+          mark "python-sca"      "$PYTHON_SCA_RESULT"      "$PYTHON_SCA_FINDINGS"
+          mark "frontend-sca"    "$FRONTEND_SCA_RESULT"    "$FRONTEND_SCA_FINDINGS"
+          mark "license-scan"    "$LICENSE_SCAN_RESULT"    "$LICENSE_SCAN_FINDINGS"
+          mark "container-scan"  "$CONTAINER_SCAN_RESULT"  "$CONTAINER_SCAN_FINDINGS"
+          FAILED="${FAILED% }"
+          echo "list=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ -n "$FAILED" ]; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Also surface per-job advisory finding detail for the issue
+          # body so on-call sees `python-sast (bandit, semgrep)` rather
+          # than just `python-sast`.
+          {
+            echo "python_sast_findings=${PYTHON_SAST_FINDINGS}"
+            echo "frontend_sast_findings=${FRONTEND_SAST_FINDINGS}"
+            echo "python_sca_findings=${PYTHON_SCA_FINDINGS}"
+            echo "frontend_sca_findings=${FRONTEND_SCA_FINDINGS}"
+            echo "license_scan_findings=${LICENSE_SCAN_FINDINGS}"
+            echo "container_scan_findings=${CONTAINER_SCAN_FINDINGS}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open / refresh `security-scan-failure` tracking issue
+        if: ${{ steps.failed.outputs.any == 'true' }}
+        id: issue
+        run: |
+          set -eu
+          # Mirror the single-open-issue convention from
+          # governance-verify.yml: collapse re-firings while the
+          # underlying scanner failure is being fixed so the inbox
+          # doesn't fill with one-per-day duplicates.
+          TITLE="Security scanner failure ($(date -u +%Y-%m-%d))"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          FAILED='${{ steps.failed.outputs.list }}'
+          PY_SAST_DETAIL='${{ steps.failed.outputs.python_sast_findings }}'
+          FE_SAST_DETAIL='${{ steps.failed.outputs.frontend_sast_findings }}'
+          PY_SCA_DETAIL='${{ steps.failed.outputs.python_sca_findings }}'
+          FE_SCA_DETAIL='${{ steps.failed.outputs.frontend_sca_findings }}'
+          LICENSE_DETAIL='${{ steps.failed.outputs.license_scan_findings }}'
+          CONTAINER_DETAIL='${{ steps.failed.outputs.container_scan_findings }}'
+          # Map of job → space-separated advisory-step detail. Used to
+          # render `python-sast (bandit, semgrep)` instead of a bare
+          # `python-sast` line in the issue body.
+          detail_for() {
+            case "$1" in
+              python-sast)    echo "$PY_SAST_DETAIL" ;;
+              frontend-sast)  echo "$FE_SAST_DETAIL" ;;
+              python-sca)     echo "$PY_SCA_DETAIL"  ;;
+              frontend-sca)   echo "$FE_SCA_DETAIL"  ;;
+              license-scan)   echo "$LICENSE_DETAIL" ;;
+              container-scan) echo "$CONTAINER_DETAIL" ;;
+              *) echo "" ;;
+            esac
+          }
+          BODY_FILE="$(mktemp)"
+          {
+            echo "Run: ${RUN_URL}"
+            echo "Triggered by: ${GITHUB_EVENT_NAME}"
+            echo ""
+            echo "The following scanner jobs failed in the latest \`security.yml\` run:"
+            for j in $FAILED; do
+              d="$(detail_for "$j" | tr -s ' ' ',' | sed 's/,$//')"
+              if [ -n "$d" ]; then
+                echo "- \`$j\` (advisory findings: \`$d\`)"
+              else
+                echo "- \`$j\`"
+              fi
+            done
+            echo ""
+            echo "Triage notes (see docs/security/INCIDENT_RESPONSE_RUNBOOK.md"
+            echo "§\"Scanner-failure paging\" for the full procedure):"
+            echo ""
+            echo "- **lockfile-drift** — \`requirements.txt\` / \`package-lock.json\`"
+            echo "  is out of sync with the resolver. Re-run the install and"
+            echo "  commit the regenerated lockfile (SEC-074)."
+            echo "- **secret-scan** — gitleaks found a credential in history."
+            echo "  Rotate the secret immediately per \`SECRET_ROTATION.md\`"
+            echo "  and scrub the commit (SEC-060)."
+            echo "- **python-sast / frontend-sast** — Bandit / Semgrep / ESLint"
+            echo "  flagged a HIGH+ finding. Open the SARIF in code scanning,"
+            echo "  fix or baseline with rationale (SEC-061)."
+            echo "- **python-sca / frontend-sca** — pip-audit / npm audit /"
+            echo "  osv-scanner reports a HIGH+ CVE in a pinned dependency."
+            echo "  Bump and re-lock; if no fix is available, file a dated"
+            echo "  waiver in \`FINDINGS_BACKLOG.md\` (SEC-059)."
+            echo "- **license-scan** — a transitive dep landed on the"
+            echo "  disallowed-license list. Replace it or get legal sign-off"
+            echo "  to update the allowlist (SEC-059)."
+            echo "- **container-scan** — Hadolint / Trivy flagged a HIGH+ image"
+            echo "  CVE or Dockerfile lint. Bump the base-image digest or fix"
+            echo "  the Dockerfile (SEC-062)."
+          } > "$BODY_FILE"
+
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --label security-scan-failure --state open \
+            --limit 1 --json number --jq '.[0].number' || echo "")
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body-file "$BODY_FILE"
+            echo "::notice::Updated existing security-scan-failure issue #${EXISTING}."
+            ISSUE_REF="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/issues/${EXISTING}"
+          else
+            # Idempotent label create — ignore "already exists" so the
+            # step works on fresh repos and forks.
+            gh label create security-scan-failure \
+              --repo "$GITHUB_REPOSITORY" \
+              --color B60205 \
+              --description "Daily security scanner failure detected by .github/workflows/security.yml" \
+              2>/dev/null || true
+            URL=$(gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" \
+              --body-file "$BODY_FILE" \
+              --label security-scan-failure)
+            echo "::notice::Filed new security-scan-failure issue: $URL"
+            ISSUE_REF="$URL"
+          fi
+          echo "ref=$ISSUE_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Page on-call (capped per run)
+        if: ${{ steps.failed.outputs.any == 'true' }}
+        env:
+          ISSUE_REF: ${{ steps.issue.outputs.ref }}
+        run: |
+          set -eu
+          if [ -z "${PAGER_WEBHOOK:-}" ]; then
+            echo "::warning::SECURITY_PAGER_WEBHOOK not configured — scanner failure surfaced via GitHub issue only."
+            exit 0
+          fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          FAILED='${{ steps.failed.outputs.list }}'
+          # Count failing scanners. Empty list cannot reach this step
+          # (gated by `steps.failed.outputs.any`), so COUNT >= 1.
+          COUNT=0
+          for j in $FAILED; do
+            COUNT=$((COUNT + 1))
+          done
+          # Validate the cap. A non-numeric / non-positive override
+          # would silently disable paging; refuse it instead so a
+          # mistyped repo variable surfaces as a CI failure rather than
+          # as silent on-call deafness.
+          case "${MAX_PAGES_PER_RUN}" in
+            ''|*[!0-9]*)
+              echo "::error::SECURITY_PAGER_MAX_PER_RUN must be a positive integer; got '${MAX_PAGES_PER_RUN}'."
+              exit 1 ;;
+          esac
+          if [ "${MAX_PAGES_PER_RUN}" -lt 1 ]; then
+            echo "::error::SECURITY_PAGER_MAX_PER_RUN must be >= 1; got '${MAX_PAGES_PER_RUN}'."
+            exit 1
+          fi
+          echo "::notice::Failed scanners: ${COUNT}; per-run page cap: ${MAX_PAGES_PER_RUN}."
+
+          # Helper: build the per-scanner advisory-detail string the
+          # same way the issue body does, so the rollup `custom_details`
+          # block matches what on-call sees in the tracking issue.
+          PY_SAST_DETAIL='${{ steps.failed.outputs.python_sast_findings }}'
+          FE_SAST_DETAIL='${{ steps.failed.outputs.frontend_sast_findings }}'
+          PY_SCA_DETAIL='${{ steps.failed.outputs.python_sca_findings }}'
+          FE_SCA_DETAIL='${{ steps.failed.outputs.frontend_sca_findings }}'
+          LICENSE_DETAIL='${{ steps.failed.outputs.license_scan_findings }}'
+          CONTAINER_DETAIL='${{ steps.failed.outputs.container_scan_findings }}'
+          detail_for() {
+            case "$1" in
+              python-sast)    echo "$PY_SAST_DETAIL" ;;
+              frontend-sast)  echo "$FE_SAST_DETAIL" ;;
+              python-sca)     echo "$PY_SCA_DETAIL"  ;;
+              frontend-sca)   echo "$FE_SCA_DETAIL"  ;;
+              license-scan)   echo "$LICENSE_DETAIL" ;;
+              container-scan) echo "$CONTAINER_DETAIL" ;;
+              *) echo "" ;;
+            esac
+          }
+
+          if [ "$COUNT" -gt "${MAX_PAGES_PER_RUN}" ]; then
+            # ---- Rollup path ----
+            # Collapse into one PD incident with all per-scanner detail
+            # in `custom_details.failed_scanners`. Stable repo-scoped
+            # dedup_key so multi-day bad-upstream events collapse onto
+            # the same rolled-up incident across daily re-runs (mirrors
+            # the per-scanner dedup behaviour). On-call still gets the
+            # full failed-scanner list from the tracking issue and the
+            # `custom_details` block — only the *page volume* is capped.
+            echo "::warning::Failing scanner count (${COUNT}) exceeds cap (${MAX_PAGES_PER_RUN}); collapsing into a single rollup page. Per-scanner dedup keys are NOT fired this run — see runbook §\"Page-volume cap\"."
+            DEDUP_KEY="security.yml/rollup/${GITHUB_REPOSITORY}"
+            TITLE="Security scanner failure: ${COUNT} scanners (rollup)"
+            # Build a JSON array of {scanner, advisory_findings} so PD
+            # / Opsgenie receivers render structured detail rather than
+            # a single concatenated string.
+            DETAILS_JSON='[]'
+            for j in $FAILED; do
+              d="$(detail_for "$j" | tr -s ' ' ',' | sed 's/,$//')"
+              DETAILS_JSON=$(echo "$DETAILS_JSON" | jq \
+                --arg s "$j" --arg d "$d" \
+                '. + [{scanner: $s, advisory_findings: $d}]')
+            done
+            FAILED_LIST_CSV=$(echo "$FAILED" | tr -s ' ' ',' | sed 's/,$//')
+            if [ -n "${PAGER_ROUTING_KEY:-}" ]; then
+              PAYLOAD=$(jq -n \
+                --arg rk "$PAGER_ROUTING_KEY" \
+                --arg dk "$DEDUP_KEY" \
+                --arg t  "$TITLE" \
+                --arg u  "$RUN_URL" \
+                --arg ir "$ISSUE_REF" \
+                --arg repo "$GITHUB_REPOSITORY" \
+                --arg csv "$FAILED_LIST_CSV" \
+                --argjson count "$COUNT" \
+                --argjson cap "${MAX_PAGES_PER_RUN}" \
+                --argjson details "$DETAILS_JSON" \
+                '{
+                  routing_key: $rk,
+                  event_action: "trigger",
+                  dedup_key: $dk,
+                  payload: {
+                    summary: $t,
+                    severity: "error",
+                    source: "security.yml",
+                    component: "rollup",
+                    group: $repo,
+                    class: "security-scan-failure",
+                    custom_details: {
+                      run_url: $u,
+                      tracking_issue: $ir,
+                      failed_count: $count,
+                      page_cap: $cap,
+                      failed_scanners_csv: $csv,
+                      failed_scanners: $details,
+                      note: "Rolled up because failed scanner count exceeded the per-run page cap. See runbook §Page-volume cap for ack/resolve procedure."
+                    }
+                  },
+                  links: [
+                    { href: $u,  text: "GitHub Actions run" },
+                    { href: $ir, text: "security-scan-failure tracking issue" }
+                  ]
+                }')
+            else
+              PAYLOAD=$(jq -n \
+                --arg t  "$TITLE" \
+                --arg u  "$RUN_URL" \
+                --arg dk "$DEDUP_KEY" \
+                --arg ir "$ISSUE_REF" \
+                --arg csv "$FAILED_LIST_CSV" \
+                --argjson count "$COUNT" \
+                --argjson cap "${MAX_PAGES_PER_RUN}" \
+                --argjson details "$DETAILS_JSON" \
+                '{
+                  title: $t,
+                  run_url: $u,
+                  tracking_issue: $ir,
+                  severity: "error",
+                  source: "security.yml",
+                  component: "rollup",
+                  dedup_key: $dk,
+                  event_action: "trigger",
+                  failed_count: $count,
+                  page_cap: $cap,
+                  failed_scanners_csv: $csv,
+                  failed_scanners: $details
+                }')
+            fi
+            curl -fsS -X POST "$PAGER_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              || echo "::warning::Pager webhook POST failed for rollup; relying on GitHub issue notification."
+
+            # ---- Longitudinal rollup signal ----
+            # Three sinks so on-call / security-owner can read "how often
+            # did the cap engage last quarter?" back out without having
+            # to scrape PagerDuty:
+            #   1. A structured `::notice title=pager-rollup-engaged::`
+            #      log line with key=value fields, greppable across the
+            #      Actions UI and any log-export sink.
+            #   2. A JSONL row appended to `reports/pager-rollup-metric.jsonl`,
+            #      uploaded as the `pager-rollup-metric` artifact below
+            #      (90-day retention) so a quarterly review can `gh run
+            #      download` across runs and `jq -s .` to aggregate.
+            #   3. A labelled comment on the `security-scan-failure`
+            #      tracking issue carrying the same row, prefixed with
+            #      the `<!-- pager-rollup-engaged -->` marker so the
+            #      whole history is greppable across closed issues via
+            #      `gh search issues`.
+            # See docs/security/INCIDENT_RESPONSE_RUNBOOK.md
+            # §"Page-volume cap" → "Reading the rollup signal" for the
+            # consumer-side procedure.
+            mkdir -p reports
+            TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            METRIC_JSON=$(jq -n -c \
+              --arg ts "$TS" \
+              --arg run_id "${GITHUB_RUN_ID}" \
+              --arg run_url "$RUN_URL" \
+              --arg repo "${GITHUB_REPOSITORY}" \
+              --arg event "pager-rollup-engaged" \
+              --arg csv "$FAILED_LIST_CSV" \
+              --argjson count "$COUNT" \
+              --argjson cap "${MAX_PAGES_PER_RUN}" \
+              --argjson scanners "$DETAILS_JSON" \
+              '{ts:$ts, event:$event, repo:$repo, run_id:$run_id, run_url:$run_url,
+                failed_count:$count, page_cap:$cap,
+                failed_scanners_csv:$csv, failed_scanners:$scanners}')
+            echo "$METRIC_JSON" >> reports/pager-rollup-metric.jsonl
+            echo "::notice title=pager-rollup-engaged::failed_count=${COUNT} page_cap=${MAX_PAGES_PER_RUN} scanners=${FAILED_LIST_CSV} run_url=${RUN_URL}"
+
+            # Tracking-issue comment. The HTML marker is intentionally
+            # the first line so a future `gh search issues` /
+            # `grep -l pager-rollup-engaged` finds every cap engagement
+            # without having to walk artifacts.
+            COMMENT_FILE="$(mktemp)"
+            {
+              echo "<!-- pager-rollup-engaged -->"
+              echo "**Page-volume cap engaged** (\`$TS\`)"
+              echo ""
+              echo "- Failed scanners: \`${COUNT}\` (cap: \`${MAX_PAGES_PER_RUN}\`)"
+              echo "- Scanners: \`${FAILED_LIST_CSV}\`"
+              echo "- Run: ${RUN_URL}"
+              echo ""
+              echo "Per-scanner pages were suppressed and a single \`security.yml/rollup/${GITHUB_REPOSITORY}\` PagerDuty incident was fired instead. See runbook §\"Page-volume cap\" → \"Reading the rollup signal\" for the longitudinal sinks (artifact \`pager-rollup-metric\`, log filter \`pager-rollup-engaged\`)."
+            } > "$COMMENT_FILE"
+            if [ -n "${ISSUE_REF:-}" ]; then
+              gh issue comment "$ISSUE_REF" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT_FILE" \
+                || echo "::warning::Failed to append pager-rollup-engaged comment to ${ISSUE_REF}; metric still emitted via artifact + log notice."
+            fi
+            exit 0
+          fi
+
+          # ---- Per-scanner path (count <= cap) ----
+          # One PagerDuty incident per failed scanner with a stable
+          # per-scanner dedup_key so a recurring CVE in (say) python-sca
+          # collapses onto the same incident across daily re-runs while
+          # an unrelated container-scan failure pages independently.
+          for j in $FAILED; do
+            DEDUP_KEY="security.yml/${j}/${GITHUB_REPOSITORY}"
+            TITLE="Security scanner failure: ${j}"
+            if [ -n "${PAGER_ROUTING_KEY:-}" ]; then
+              # PagerDuty Events API v2 schema, identical envelope to
+              # governance-verify.yml so the on-call rotation gets a
+              # consistent incident shape across both workflows.
+              PAYLOAD=$(jq -n \
+                --arg rk "$PAGER_ROUTING_KEY" \
+                --arg dk "$DEDUP_KEY" \
+                --arg t  "$TITLE" \
+                --arg u  "$RUN_URL" \
+                --arg ir "$ISSUE_REF" \
+                --arg repo "$GITHUB_REPOSITORY" \
+                --arg scanner "$j" \
+                '{
+                  routing_key: $rk,
+                  event_action: "trigger",
+                  dedup_key: $dk,
+                  payload: {
+                    summary: $t,
+                    severity: "error",
+                    source: "security.yml",
+                    component: $scanner,
+                    group: $repo,
+                    class: "security-scan-failure",
+                    custom_details: { run_url: $u, tracking_issue: $ir, scanner: $scanner }
+                  },
+                  links: [
+                    { href: $u,  text: "GitHub Actions run" },
+                    { href: $ir, text: "security-scan-failure tracking issue" }
+                  ]
+                }')
+            else
+              # Generic shape (Opsgenie custom-JSON / Slack / arbitrary
+              # receiver) — same keys as governance-verify.yml plus the
+              # `component` field so receivers can route per-scanner.
+              PAYLOAD=$(jq -n \
+                --arg t  "$TITLE" \
+                --arg u  "$RUN_URL" \
+                --arg dk "$DEDUP_KEY" \
+                --arg ir "$ISSUE_REF" \
+                --arg scanner "$j" \
+                '{
+                  title: $t,
+                  run_url: $u,
+                  tracking_issue: $ir,
+                  severity: "error",
+                  source: "security.yml",
+                  component: $scanner,
+                  dedup_key: $dk,
+                  event_action: "trigger"
+                }')
+            fi
+            curl -fsS -X POST "$PAGER_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              || echo "::warning::Pager webhook POST failed for ${j}; relying on GitHub issue notification."
+          done
+
+      - name: Upload pager rollup metric (longitudinal)
+        # Only emitted on runs where the page-volume cap engaged (the
+        # rollup branch above is the sole writer of this file). The
+        # 90-day retention is intentional: long enough for a quarterly
+        # review of cap-engagement frequency to inform whether the
+        # `SECURITY_PAGER_MAX_PER_RUN` default of 2 is still right.
+        # See docs/security/INCIDENT_RESPONSE_RUNBOOK.md
+        # §"Page-volume cap" → "Reading the rollup signal".
+        if: ${{ always() && hashFiles('reports/pager-rollup-metric.jsonl') != '' }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: pager-rollup-metric
+          path: reports/pager-rollup-metric.jsonl
+          retention-days: 90
+
+      - name: Auto-resolve `security-scan-failure` page on green run
+        # Symmetric to governance-verify's auto-resolve step. We only
+        # auto-close on the default branch so a green workflow_dispatch
+        # from a feature branch — which only proves *that branch* is
+        # clean — can't close the shared repo-level incident before the
+        # fix lands on `main`.
+        if: ${{ steps.failed.outputs.any == 'false' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        run: |
+          set -eu
+          OPEN=$(gh issue list --repo "$GITHUB_REPOSITORY" --label security-scan-failure --state open \
+            --limit 1 --json number --jq '.[0].number' || echo "")
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ -n "$OPEN" ]; then
+            gh issue comment "$OPEN" --repo "$GITHUB_REPOSITORY" --body \
+              "Auto-resolved by security.yml run ${RUN_URL} — all scanners green."
+            gh issue close "$OPEN" --repo "$GITHUB_REPOSITORY" --reason completed
+            echo "::notice::Closed security-scan-failure issue #${OPEN} (scanners green)."
+          fi
+
+          # Resolve every per-scanner PD incident on a green run. We
+          # don't track which dedup_keys are currently firing, so we
+          # resolve all known scanner keys; PD treats resolves on
+          # already-resolved keys as no-ops.
+          if [ -n "${PAGER_WEBHOOK:-}" ] && [ -n "${PAGER_ROUTING_KEY:-}" ]; then
+            # Resolve every per-scanner dedup_key plus the `rollup`
+            # dedup_key emitted by the page-volume cap. We don't track
+            # which key class actually fired on the prior bad day —
+            # PD treats resolves on already-resolved keys as no-ops, so
+            # blanket-resolving both shapes is safe and keeps a stuck
+            # rollup incident from outliving the green run.
+            for j in lockfile-drift secret-scan python-sast frontend-sast \
+                     python-sca frontend-sca license-scan container-scan \
+                     rollup; do
+              DEDUP_KEY="security.yml/${j}/${GITHUB_REPOSITORY}"
+              curl -fsS -X POST "$PAGER_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "$(jq -n --arg rk "$PAGER_ROUTING_KEY" --arg dk "$DEDUP_KEY" \
+                      '{routing_key:$rk, event_action:"resolve", dedup_key:$dk}')" \
+                || echo "::warning::Pager resolve POST failed for ${j}; ack the incident manually."
+            done
+          fi

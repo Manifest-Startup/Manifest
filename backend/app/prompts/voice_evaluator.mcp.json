@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "name": "voice_evaluator",
+  "description": "Scores a single voice-assistant response against a test case along v1's three dimensions: intent understanding, emotional awareness, helpfulness. Plus pass/fail + failure taxonomy + recommended fixes.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "scenario": { "type": "string" },
+      "emotion": { "type": "string" },
+      "user_input": { "type": "string" },
+      "expected_behavior": { "type": "string" },
+      "success_criteria": { "type": "array", "items": { "type": "string" } },
+      "failure_conditions": { "type": "array", "items": { "type": "string" } },
+      "assistant_response": { "type": "string" }
+    },
+    "required": ["scenario", "emotion", "user_input", "assistant_response"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "scores": {
+        "type": "object",
+        "properties": {
+          "intent_understanding": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "emotional_awareness": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "helpfulness": { "type": "integer", "minimum": 1, "maximum": 5 }
+        },
+        "required": ["intent_understanding", "emotional_awareness", "helpfulness"]
+      },
+      "pass_status": { "type": "boolean" },
+      "detected_failures": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "incorrect_intent",
+            "tone_mismatch",
+            "robotic_response",
+            "missed_emotion",
+            "hallucinated_policy",
+            "over_apologizing",
+            "ignored_question",
+            "no_next_step",
+            "unsafe_advice",
+            "context_loss",
+            "other"
+          ]
+        }
+      },
+      "root_cause_analysis": { "type": "string" },
+      "recommended_fixes": { "type": "array", "items": { "type": "string" } },
+      "improved_response_example": { "type": "string" }
+    },
+    "required": ["scores", "pass_status"]
+  },
+  "prompt": {
+    "system": "You are an expert evaluator for voice AI conversations. Score the assistant's single-turn response on three dimensions, each from 1 (terrible) to 5 (excellent). Be strict — 5 means you would actually want to use this assistant; 3 means it's mediocre but not broken.\n\nDimensions:\n- intent_understanding: did the assistant correctly grasp what the user wants? Misreading the goal entirely = 1; correct grasp with a small slip = 4.\n- emotional_awareness: did the response acknowledge and adapt to the user's emotional state? Ignoring frustration = 1; mirroring tone appropriately = 5. For a 'neutral' user, an emotionally-flat response is fine (a 4).\n- helpfulness: did the assistant move the user forward — answer the question, propose a clear next step, or, when ambiguous, ask ONE focused clarifying question? A long deflection = 2.\n\nPass/fail: pass_status = true ONLY when ALL three scores are >= 3.\n\ndetected_failures is a list of taxonomy values from the schema. Pick the ones that apply; an empty list is fine when nothing is wrong. Use 'other' sparingly and only when none of the predefined values fit.\n\nimproved_response_example: a 1–2 sentence rewrite of what the assistant SHOULD have said. Keep it voice-friendly: short, natural, no bullet points.\n\nReturn STRICT JSON matching the output schema. No prose outside the object. No code fences.",
+    "user": "SCENARIO: {{scenario}}\nUSER EMOTION: {{emotion}}\n\nUSER INPUT (what they said out loud):\n{{user_input}}\n\nEXPECTED ASSISTANT BEHAVIOR (from test case):\n{{expected_behavior}}\n\nSUCCESS CRITERIA: {{success_criteria}}\nFAILURE CONDITIONS: {{failure_conditions}}\n\nACTUAL ASSISTANT RESPONSE (what's being graded):\n{{assistant_response}}\n\nScore the response."
+  },
+  "temperature": 0.25,
+  "model": "gpt-4o-mini"
+}

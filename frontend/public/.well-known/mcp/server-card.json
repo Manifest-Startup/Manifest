@@ -1,0 +1,34 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+  "name": "com.manifeststartup/api",
+  "title": "Manifest API",
+  "version": "1.0.0",
+  "description": "Create startup ideas and generate draft business documents with Manifest.",
+  "websiteUrl": "https://manifeststartup.com/docs/api",
+  "icons": [
+    {
+      "src": "https://manifeststartup.com/logo512.png",
+      "mimeType": "image/png",
+      "sizes": ["512x512"]
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/Manifest-Startup/Manifest",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://manifeststartup.com/mcp",
+      "supportedProtocolVersions": ["2025-03-26", "2025-06-18"],
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Manifest API key as a Bearer token.",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

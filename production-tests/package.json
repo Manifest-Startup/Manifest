@@ -1,0 +1,16 @@
+{
+  "name": "manifest-production-tests",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Continuous Playwright smoke tests against the deployed Manifest site. Failures are posted to /api/internal/production-tests/results which dedupes and files GitHub issues. See docs/PRODUCTION_TESTING.md.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ci": "playwright test --reporter=line,./reporter/manifest-reporter.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "typescript": "^5.4.0"
+  }
+}

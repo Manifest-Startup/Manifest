@@ -1,0 +1,215 @@
+{
+  "version": "0.2.0",
+
+  // =========================
+  // 🚀 Compound Configurations
+  // =========================
+  // Compound configurations allow you to start multiple debug sessions at once.
+  // This is useful when you need to debug both backend and frontend simultaneously,
+  // or when you want to debug your backend along with integration tests.
+  // Each compound lists multiple individual configurations to launch together.
+  "compounds": [
+    {
+      "name": "Debug: Frontend & Backend",
+      // Launches both the backend FastAPI server and the React frontend app.
+      // Use this when you want to debug full-stack functionality locally.
+      "configurations": [
+        "Backend: Launch FastAPI",
+        "Frontend: Launch React"
+      ]
+    },
+    {
+      "name": "Debug: Frontend (Chrome) & Backend",
+      // Launches backend and frontend, but frontend is launched in Chrome with debugging enabled.
+      // Useful when you want to debug frontend JavaScript with Chrome DevTools while backend is running.
+      "configurations": [
+        "Backend: Launch FastAPI",
+        "Frontend: Debug React (Chrome)"
+      ]
+    },
+    {
+      "name": "Debug: Cypress & Backend",
+      // Launches backend and opens Cypress test runner for end-to-end testing.
+      // Use this to debug your backend API while running Cypress E2E tests on frontend.
+      "configurations": [
+        "Backend: Launch FastAPI",
+        "Tests: Debug Cypress"
+      ]
+    },
+    {
+      "name": "Debug: All (Frontend, Backend, Cypress, Tests)",
+      "configurations": [
+        "Tests: Debug Jest",
+        "Tests: Debug Pytest",
+        "Backend: Launch FastAPI",
+        "Tests: Debug Cypress"
+      ]
+    }
+  ],
+
+  // =========================
+  // ⚙️ Individual Configurations
+  // =========================
+  // Individual debug configurations define how to launch or attach to a single app or tool.
+  // They specify the debugger type, request type, program or module to run, arguments, and environment.
+  "configurations": [
+    {
+      "name": "Backend: Launch FastAPI",
+      // Runs the backend FastAPI server using 'uvicorn' ASGI server.
+      // Uses 'debugpy' adapter for Python debugging support.
+      // Arguments:
+      // - app.main:app : Specifies the ASGI app instance to run.
+      // - --reload : Enables auto-reload on code changes (development only).
+      // - --host 127.0.0.1 : Binds server to localhost.
+      // - --port 8000 : Runs server on port 8000.
+      // 'cwd' sets working directory to backend folder.
+      // 'envFile' loads environment variables from .env file.
+      // 'console' is set to integrated terminal so logs are visible.
+      // 'justMyCode' true means debugger will skip external library code.
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      }
+    },
+    {
+      "name": "Frontend: Launch React",
+      // Starts the React frontend development server using npm.
+      // Runs 'npm run start' inside the frontend folder.
+      // Opens integrated terminal to show logs.
+      // Use this to launch frontend app locally for development.
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal",
+      "skipFiles": ["node_modules/**"],
+      "env": {
+        "FAST_REFRESH": "false"
+      }
+    },
+    {
+      "name": "Frontend: Launch Storybook",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "storybook"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal",
+      "skipFiles": ["node_modules/**"]
+    },
+    {
+      "name": "Tests: Debug Pytest",
+      // Runs pytest tests located in backend/tests folder with debugging enabled.
+      // Uses debugpy adapter to attach debugger to test run.
+      // 'justMyCode' false allows stepping into dependencies if needed.
+      // Sets PYTHONPATH to backend folder so imports resolve correctly.
+      // Use this configuration to debug Python tests and inspect failures.
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "module": "pytest",
+      "args": [
+        "backend/tests"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      }
+    },
+    {
+      "name": "Frontend: Debug React (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "start-frontend",
+      "skipFiles": ["<node_internals>/**", "node_modules/**"]
+    },
+    {
+      "name": "Tests: Debug Jest",
+      // Runs Jest tests in frontend folder with debugging enabled.
+      // Runs 'npm run test -- --runInBand --watchAll=false' to run tests serially without watch mode.
+      // Opens integrated terminal for test output.
+      // 'internalConsoleOptions' set to never open debugger console automatically.
+      // Use this to debug frontend unit tests written in Jest.
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "test",
+        "--"
+      ],
+      "args": [
+        "--runInBand",
+        "--watchAll=false"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Tests: Debug Cypress",
+      // Launches Cypress test runner for end-to-end testing.
+      // Runs Cypress binary directly from node_modules.
+      // Opens Cypress Test Runner UI ('open' command).
+      // 'preLaunchTask' starts frontend server before Cypress opens.
+      // Use this to debug E2E tests interacting with frontend and backend.
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "program": "${workspaceFolder}/frontend/node_modules/cypress/bin/cypress",
+      "args": [
+        "open"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "preLaunchTask": "start-frontend"
+    },
+    {
+      "type": "msedge",
+      "name": "Frontend: Debug React (Edge)",
+      // Launches Microsoft Edge browser with remote debugging enabled on port 9222.
+      // Opens frontend app at localhost:3000.
+      // 'webRoot' points to frontend folder for source mapping.
+      // 'preLaunchTask' ensures frontend server is running before launching Edge.
+      // 'presentation.hidden' true hides this launch from UI to avoid clutter.
+      // Use this to debug frontend code using Edge DevTools.
+      "request": "launch",
+      "runtimeArgs": [
+        "--remote-debugging-port=9222"
+      ],
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "start-frontend",
+      "presentation": {
+        "hidden": true
+      }
+    }
+  ]
+}

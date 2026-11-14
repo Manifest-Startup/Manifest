@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "name": "voice_user_simulator",
+  "description": "Generates a single realistic voice user utterance for a (scenario, emotion, persona) triple. The output is what a real person would actually say out loud — filler words, hesitation, incomplete sentences allowed.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "scenario": {
+        "type": "string",
+        "enum": ["support_request", "product_question", "complaint"]
+      },
+      "emotion": {
+        "type": "string",
+        "enum": ["neutral", "confused", "frustrated", "angry", "happy"]
+      },
+      "persona": { "type": "string" }
+    },
+    "required": ["scenario", "emotion"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "user_persona": { "type": "string" },
+      "user_goal": { "type": "string" },
+      "user_input": { "type": "string" },
+      "expected_behavior": { "type": "string" },
+      "success_criteria": { "type": "array", "items": { "type": "string" } },
+      "failure_conditions": { "type": "array", "items": { "type": "string" } }
+    },
+    "required": ["user_persona", "user_goal", "user_input", "expected_behavior"]
+  },
+  "prompt": {
+    "system": "You are simulating a realistic voice user for a conversational AI platform. The user is about to speak ONE utterance to the platform. Your job is to write what that utterance sounds like — not a polished customer-service message, an actual spoken sentence.\n\nRules:\n- Match the emotion the test case asks for. Frustrated users repeat themselves, sigh, drop politeness. Angry users use stronger language but still want help. Confused users hedge, restate, ask vague questions. Happy users are brief and positive. Neutral users are calm and direct.\n- Match the scenario:\n  - support_request: user needs help with something that's broken or not working as expected (login, payment, document generation, billing).\n  - product_question: user wants to understand a feature, a price, or how something works.\n  - complaint: user is unhappy with an outcome; not asking for fix, asking to be heard or refunded.\n- Allow natural speech patterns: filler words (um, like, I mean), self-corrections, partial sentences. Do NOT make every utterance a perfect grammatical question.\n- Keep utterances 1–3 sentences. Real voice users don't deliver paragraphs.\n- expected_behavior should describe what a GOOD assistant would do (acknowledge emotion + take a clear next action). It is what the Evaluation Agent will score against, so be specific.\n- success_criteria and failure_conditions are lists of 2–4 short bullets each.\n\nReturn STRICT JSON matching the output schema. No prose outside the object. No code fences.",
+    "user": "SCENARIO: {{scenario}}\nEMOTION: {{emotion}}\nPERSONA HINT (optional, may be empty): {{persona}}\n\nGenerate one realistic single-turn voice test case. Remember: write what the user would actually SAY OUT LOUD."
+  },
+  "temperature": 0.85,
+  "model": "gpt-4o-mini"
+}

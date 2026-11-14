@@ -1,0 +1,70 @@
+{
+  "name": "manifest-dev-tools",
+  "displayName": "Manifest Dev Tools",
+  "description": "Cursor and VS Code helper commands for the Manifest web app and MCP package.",
+  "version": "0.1.0",
+  "publisher": "manifest-startup",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.146.0"
+  },
+  "overrides": {
+    "brace-expansion": "^5.0.6",
+    "fast-uri": "^3.1.2",
+    "js-yaml": "^4.2.0",
+    "markdown-it": "^14.2.0",
+    "tmp": "^0.2.6",
+    "uuid": "^11.1.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:manifestDev.openMcpSetup",
+    "onCommand:manifestDev.startBackend",
+    "onCommand:manifestDev.startFrontend",
+    "onCommand:manifestDev.startFullStack"
+  ],
+  "main": "./dist/src/extension.js",
+  "scripts": {
+    "compile": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p ./",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "vitest run",
+    "package:dry-run": "vsce package --allow-missing-repository --skip-license"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manifest-startup/manifest.git",
+    "directory": "extensions/manifest-dev"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "manifestDev.openMcpSetup",
+        "title": "Manifest: Open MCP Setup"
+      },
+      {
+        "command": "manifestDev.startBackend",
+        "title": "Manifest: Start Backend"
+      },
+      {
+        "command": "manifestDev.startFrontend",
+        "title": "Manifest: Start Frontend"
+      },
+      {
+        "command": "manifestDev.startFullStack",
+        "title": "Manifest: Start Full Stack"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "@types/vscode": "^1.146.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.2",
+    "@typescript-eslint/parser": "^8.72.2",
+    "@vscode/vsce": "^3.9.2",
+    "eslint": "^10.14.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  }
+}

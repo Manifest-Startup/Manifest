@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Manifest README banner</title>
+<!-- Same fonts as manifeststartup.com: Manrope for UI and headlines, Newsreader for the editorial accent. -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@1,6..72,500;1,6..72,600&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff; --panel: #ffffff; --tint: #f7f7f5;
+    --ink: #16212c; --ink-2: #566170; --ink-3: #7b8694;
+    --border: #e7e7e5; --border-2: #d4d4d1;
+    --accent: #2f62e8; --accent-soft: #ecf1ff; --success: #079455;
+    --grid: rgba(22, 33, 44, 0.045);
+    --warn-bg: #fffaeb; --warn-border: #fde68a; --warn-ink: #b54708;
+    --mark-bg: #16212c; --mark-ink: #ffffff;
+    --shadow: 0 28px 80px -40px rgba(15, 23, 42, 0.34), 0 16px 28px -20px rgba(15, 23, 42, 0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10151c; --panel: #141a22; --tint: #171d26;
+      --ink: #f5f7fa; --ink-2: #b7c1cb; --ink-3: #8f99a5;
+      --border: rgba(148, 163, 184, 0.18); --border-2: rgba(148, 163, 184, 0.28);
+      --accent: #8faeff; --accent-soft: rgba(143, 174, 255, 0.12); --success: #7be0b4;
+      --grid: rgba(255, 255, 255, 0.04);
+      --warn-bg: rgba(250, 204, 21, 0.08); --warn-border: rgba(250, 204, 21, 0.3); --warn-ink: #fcd34d;
+      --mark-bg: #f5f7fa; --mark-ink: #10151c;
+      --shadow: 0 28px 80px -36px rgba(0, 0, 0, 0.55), 0 12px 24px -16px rgba(0, 0, 0, 0.34);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    width: 1600px; height: 600px; overflow: hidden; position: relative; color: var(--ink); font-family: Manrope, system-ui, sans-serif;
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
+      var(--bg);
+  }
+  .copy { position: absolute; left: 110px; top: 86px; width: 720px; }
+  .top { display: flex; align-items: center; gap: 22px; }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .mark { width: 46px; height: 46px; border-radius: 12px; background: var(--mark-bg); color: var(--mark-ink); display: grid; place-items: center; font-size: 20px; font-weight: 700; }
+  .pill { display: inline-flex; align-items: center; gap: 10px; padding: 7px 15px; border: 1px solid var(--warn-border); border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 13.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .eyebrow { margin: 52px 0 14px; color: var(--accent); font-size: 19px; font-weight: 600; }
+  h1 { margin: 0; font-size: 92px; line-height: 1.02; letter-spacing: -0.045em; font-weight: 600; }
+  h1 em { font-family: Newsreader, Georgia, serif; font-style: italic; font-weight: 500; letter-spacing: -0.03em; color: var(--accent); }
+  .lede { margin: 26px 0 0; color: var(--ink-2); font-size: 25px; line-height: 1.45; }
+
+  /* Signature motif: an idea note that becomes a Business Model Canvas. */
+  .note { position: absolute; left: 900px; top: 70px; width: 300px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--tint); }
+  .label { color: var(--ink-3); font-size: 12.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .note p { margin: 8px 0 0; font-size: 17px; font-weight: 600; line-height: 1.4; }
+  .link { position: absolute; left: 1030px; top: 196px; }
+  .canvas { position: absolute; left: 960px; top: 250px; width: 540px; padding: 18px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); }
+  .canvas .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .canvas .head b { font-size: 16px; font-weight: 700; }
+  .chip { padding: 4px 10px; border-radius: 999px; background: var(--tint); color: var(--ink-3); font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; }
+  .bmc { display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: 62px 62px 50px; gap: 6px; }
+  .cell { border: 1px solid var(--border); border-radius: 9px; padding: 7px 9px; font-size: 11.5px; font-weight: 700; color: var(--ink-2); line-height: 1.25; display: flex; flex-direction: column; justify-content: space-between; }
+  .cell i { display: block; height: 5px; border-radius: 9px; background: var(--border-2); width: 70%; }
+  .cell i + i { width: 46%; margin-top: 4px; }
+  .kp { grid-column: 1 / 3; grid-row: 1 / 3; }
+  .ka { grid-column: 3 / 5; grid-row: 1; }
+  .kr { grid-column: 3 / 5; grid-row: 2; }
+  .vp { grid-column: 5 / 7; grid-row: 1 / 3; background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .vp i { background: var(--accent); opacity: 0.45; }
+  .cr { grid-column: 7 / 9; grid-row: 1; }
+  .ch { grid-column: 7 / 9; grid-row: 2; }
+  .cs { grid-column: 9 / 11; grid-row: 1 / 3; }
+  .co { grid-column: 1 / 6; grid-row: 3; }
+  .rs { grid-column: 6 / 11; grid-row: 3; }
+  .done { margin-top: 12px; display: flex; gap: 8px; }
+  .done span { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; font-weight: 600; }
+  .done span::before { content: "✓"; color: var(--success); font-weight: 800; }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <div class="top"><div class="brand"><span class="mark">M</span>Manifest</div><span class="pill">Demo · In development</span></div>
+    <p class="eyebrow">Ideas, made actionable</p>
+    <h1>Turn your idea<br>into a <em>plan.</em></h1>
+    <p class="lede">One workspace for the canvas, research,<br>documents and pitch, with founders in control.</p>
+  </div>
+
+  <div class="note" aria-hidden="true">
+    <div class="label">Idea · demo</div>
+    <p>Help neighbors share extra home-cooked meals nearby.</p>
+  </div>
+  <svg class="link" width="60" height="56" viewBox="0 0 60 56" aria-hidden="true">
+    <path d="M 10 2 C 10 30, 40 22, 40 48" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="5 6" stroke-linecap="round"/>
+    <path d="M 32 42 L 40 52 L 48 42" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="canvas" aria-hidden="true">
+    <div class="head"><b>Business Model Canvas</b><span class="chip">DRAFT</span></div>
+    <div class="bmc">
+      <div class="cell kp">Key partners<span><i></i><i></i></span></div>
+      <div class="cell ka">Key activities<span><i></i></span></div>
+      <div class="cell kr">Key resources<span><i></i></span></div>
+      <div class="cell vp">Value proposition<span><i></i><i></i></span></div>
+      <div class="cell cr">Relationships<span><i></i></span></div>
+      <div class="cell ch">Channels<span><i></i></span></div>
+      <div class="cell cs">Customer segments<span><i></i><i></i></span></div>
+      <div class="cell co">Cost structure<span><i></i></span></div>
+      <div class="cell rs">Revenue streams<span><i></i></span></div>
+    </div>
+    <div class="done"><span>Market brief</span><span>Business model</span><span>Pitch outline</span></div>
+  </div>
+</body>
+</html>

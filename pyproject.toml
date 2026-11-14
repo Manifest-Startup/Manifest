@@ -1,0 +1,120 @@
+[project]
+name = "manifest-dev"
+version = "0.1.0"
+description = "Developer bootstrap CLI for the Manifest full-stack workspace."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+manifest-dev = "manifest_dev.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/manifest_dev"]
+
+[tool.uv]
+package = false
+
+# --- Code quality tooling -------------------------------------------------
+# ruff handles linting + import sorting; black handles formatting; mypy
+# enforces gradual typing on the backend. Keep configs centralized here so
+# pre-commit, CI, and editor integrations all read from one place.
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [
+    "frontend",
+    "supabase",
+    ".venv",
+    "node_modules",
+    "build",
+    "dist",
+    "docs/backend-coverage",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "C90",  # mccabe complexity
+]
+ignore = [
+    "E501",  # line length handled by black
+    "B008",  # FastAPI uses Depends() in defaults intentionally
+    # Stylistic SIM rules that conflict with this codebase's consistent
+    # use of nested `with` / explicit try-except-pass for clarity.
+    # Not bug-catchers; revisit if the team agrees to adopt them.
+    "SIM117",  # combine nested `with` statements
+    "SIM105",  # use contextlib.suppress instead of try-except-pass
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/**" = ["B011"]
+"mcp_server/tests/**" = ["B011"]
+"tests/**" = ["B011"]
+# E402 (module-level import not at top): the files below interleave imports
+# with side-effecting setup (sys.path, env detection, lazy imports inside
+# wrappers) intentionally. Refactoring would change runtime semantics.
+"backend/app/graphql/schema.py" = ["E402"]
+"backend/app/main.py" = ["E402"]
+"backend/app/routes/customer_routes.py" = ["E402"]
+"backend/app/security/config.py" = ["E402"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+extend-exclude = '''
+/(
+    frontend
+  | supabase
+  | \.venv
+  | node_modules
+  | build
+  | dist
+  | docs/backend-coverage
+)/
+'''
+
+[tool.mypy]
+python_version = "3.10"
+files = ["backend/app", "mcp_server/src", "src/manifest_dev"]
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+strict_equality = true
+exclude = [
+    "backend/tests/",
+    "mcp_server/tests/",
+    "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "strawberry.*",
+    "openai.*",
+    "google.*",
+    "supabase.*",
+    "perplexity.*",
+]
+ignore_missing_imports = true

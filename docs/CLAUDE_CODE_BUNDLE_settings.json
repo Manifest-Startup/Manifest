@@ -1,0 +1,57 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -m pytest *)",
+      "Bash(python -m pytest *)",
+      "Bash(pytest *)",
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(npm ci)",
+      "Bash(npm install *)",
+      "Bash(npm audit *)",
+      "Bash(npm view *)",
+      "Bash(pip install *)",
+      "Bash(pip-audit *)",
+      "Bash(ruff *)",
+      "Bash(black *)",
+      "Bash(mypy *)",
+      "Bash(pre-commit *)",
+      "Bash(gitleaks *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git stash *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find . *)",
+      "Bash(ls *)",
+      "Bash(cat .gitleaks.toml)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'f=\"$CLAUDE_TOOL_FILE_PATH\"; case \"$f\" in *backend/app/services/ai_*|*backend/app/prompts/*) echo \"[REQUIRE] AI Layer change — verify prompt caching, model choice, and cost (manifest-pitch-reel-cost-guard, /claude-api).\" ;; *backend/app/auth/*|*backend/app/security/*|*backend/app/services/payment*|*backend/app/services/legal*) echo \"[REQUIRE] Sensitive surface change — run /security-review on staged diff before commit.\" ;; *supabase/migrations/*) echo \"[REQUIRE] Migration touched — review lock impact and rewrite rules before commit (manifest-supabase-migration-safety).\" ;; *backend/app/graphql/*|*schema.graphql) echo \"[REQUIRE] GraphQL contract may have changed — run manifest-docs-sync to keep docs/ aligned.\" ;; *backend/app/guest_session*|*backend/app/services/guest*) echo \"[REQUIRE] Guest session logic touched — run manifest-guest-session-guard and add/update tests.\" ;; *backend/*.py) echo \"[hint] Run /simplify; if you also touched the AI Layer also run /claude-api.\" ;; *frontend/src/components/*.tsx) echo \"[hint] Run /simplify; consider an a11y check on interactive components.\" ;; esac'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || exit 0; staged=$(git diff --cached --name-only 2>/dev/null); if [ -z \"$staged\" ]; then exit 0; fi; if echo \"$staged\" | grep -qE \"(auth|security|services/payment|services/legal|guest_session|schema\\.graphql)\"; then echo \"[gate] Sensitive files staged — run /security-review before committing.\"; fi; if echo \"$staged\" | grep -qE \"(schema\\.graphql|backend/app/routes|\\.env\\.example)\"; then echo \"[gate] Public contract changed — run manifest-docs-sync to update docs/.\"; fi; exit 0'"
+          }
+        ]
+      }
+    ]
+  }
+}

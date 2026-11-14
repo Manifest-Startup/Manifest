@@ -1,0 +1,725 @@
+name: Release – sign + SBOM + provenance
+
+# Task #16 + Task #27 / SEC-057. Triggered on every annotated, signed
+# `vX.Y.Z` tag. See docs/security/RELEASE_PLAYBOOK.md for the
+# operator-facing playbook and docs/security/SLSA_PROVENANCE.md for the
+# verification recipe.
+#
+# Outputs (per release):
+#   - GitHub Release with the backend container reference, the frontend
+#     asset tarball, both CycloneDX SBOMs, and the in-toto SLSA v1.0
+#     provenance for both artifacts.
+#   - Container image at ghcr.io/<owner>/manifest-backend:<tag> signed with
+#     Sigstore Cosign keyless mode (OIDC identity = this workflow run).
+#   - Frontend tarball signed as a Sigstore blob (keyless) with the
+#     `.sig` and `.pem` published as release assets, and a SLSA v1.0
+#     provenance attestation for the tarball digest.
+#   - Build provenance attached to both artifacts via
+#     actions/attest-build-provenance (GitHub-hosted SLSA L3 builder).
+#     We deliberately use this GitHub-native attestor instead of the
+#     `slsa-framework/slsa-github-generator` reusable workflow referenced
+#     in RELEASE_PLAYBOOK.md: both produce SLSA v1.0 in-toto attestations
+#     against the same builder ID, and the GitHub-native attestor avoids
+#     the extra cross-repo `uses:` surface (one less pinned external
+#     workflow to track per SEC-073). The verifier recipe in
+#     SLSA_PROVENANCE.md is identical for both.
+#   - CycloneDX SBOM attached to both artifacts and uploaded as release
+#     assets.
+#   - A gated `deploy-production` job that runs against the
+#     `production` GitHub Environment (two human approvers + short-lived
+#     OIDC-federated cloud credentials per BRANCH_PROTECTION.md §4.1)
+#     and re-verifies cosign signature + SBOM attestation + provenance
+#     attestation against the registry / release before any deploy step
+#     runs. Failure of any verification aborts the deploy.
+#
+# All third-party actions are SHA-pinned (SEC-073). Bumps go through
+# Dependabot ("github-actions" ecosystem) and are reviewed by
+# @Manifest-Startup/security per CODEOWNERS.
+
+on:
+  push:
+    tags:
+      # GitHub Actions tag filters use glob patterns, not regex.
+      # `v*.*.*` matches `vMAJOR.MINOR.PATCH`; the optional `-beta.N`
+      # variant is matched separately. The signed-tag verification
+      # step in the `security-baseline` job is the real authenticity
+      # control, so the trigger glob can stay deliberately broad —
+      # an unsigned `v0.0.0-test` tag will simply fail closed on the
+      # signature check rather than ship anything.
+      - "v*.*.*"
+      - "v*.*.*-beta.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to (re-)release"
+        required: true
+        type: string
+
+permissions:
+  # Workflow-level default: read-only. Each job below escalates only the
+  # specific scopes it actually needs (least-privilege per job).
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 0. Resolve the release tag exactly once.
+  #
+  #    Every other job consumes `needs.resolve-tag.outputs.value`.
+  #    `github.ref_name` is unsafe for `workflow_dispatch` reruns (it
+  #    expands to the workflow file ref, not the input tag), so we
+  #    centralise the resolution here and pass it through outputs to
+  #    keep all downstream artifact names + verification paths in sync.
+  # ---------------------------------------------------------------------------
+  resolve-tag:
+    name: 🏷  Resolve release tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      value: ${{ steps.tag.outputs.value }}
+    steps:
+      - id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          TAG="${GITHUB_REF##refs/tags/}"
+          [ -n "${INPUT_TAG:-}" ] && TAG="$INPUT_TAG"
+          if [ -z "$TAG" ] || [ "$TAG" = "$GITHUB_REF" ]; then
+            echo "::error::Could not resolve a release tag from push or workflow_dispatch input."
+            exit 1
+          fi
+          # Hard guard against the dispatch-ref-divergence bug: when
+          # workflow_dispatch is used, the operator must dispatch the
+          # workflow *from the tag ref itself* (e.g. the `gh workflow
+          # run release.yml --ref vX.Y.Z` form), not from `main` with
+          # an arbitrary `inputs.tag`. Otherwise the reusable
+          # `security.yml` (which inherits the dispatch ref context)
+          # would scan a different SHA than the one we sign and ship,
+          # silently breaking the "re-run security against the tag SHA
+          # before anything ships" guarantee.
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            EXPECTED="refs/tags/${TAG}"
+            if [ "$GITHUB_REF" != "$EXPECTED" ]; then
+              echo "::error::workflow_dispatch ref ($GITHUB_REF) does not match inputs.tag ($TAG)."
+              echo "::error::Re-dispatch with --ref ${TAG} so security.yml runs against the tag SHA."
+              exit 1
+            fi
+          fi
+          echo "value=$TAG" >>"$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 1. Re-run the security baseline against the tag SHA before anything ships.
+  # ---------------------------------------------------------------------------
+  # Step 1a — invoke the full security scanner suite as a reusable
+  # workflow against the tag SHA. This is the gate that ensures we never
+  # ship a release whose commit fails SAST/SCA/secret/license/container
+  # checks, even if someone managed to push a tag bypassing the regular
+  # PR scan path.
+  revalidate-security:
+    name: 🛡  Re-run SAST/SCA/secret/license/container suite on tag SHA
+    # The reusable workflow inherits the caller's ref context, so the
+    # `resolve-tag` job (above) hard-fails any workflow_dispatch where
+    # `inputs.tag` does not match the dispatch ref. That guarantees this
+    # security run executes against the same SHA that `release-container`
+    # and `release-frontend` will check out, sign, and ship.
+    needs: [resolve-tag]
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: ./.github/workflows/security.yml
+    secrets: inherit
+
+  # Step 1b — verify the tag's PGP signature against the authorised
+  # release-signers keyring and refuse to release otherwise.
+  verify-tag-signature:
+    name: ✍️  Verify signed release tag
+    runs-on: ubuntu-latest
+    needs: [resolve-tag]
+    permissions:
+      contents: read   # only needs to read the tag + verify its signature
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          ref: ${{ needs.resolve-tag.outputs.value }}
+          # We need the tag object itself, not just the commit, for
+          # signature verification. `fetch-depth: 0` + `fetch-tags: true`
+          # ensures the annotated/signed tag object is present locally.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Import trusted release-signing pubkeys
+        env:
+          # ASCII-armored PGP public keys for every authorised release
+          # signer, concatenated. Provisioned per
+          # docs/security/SECRET_ROTATION.md §6 and rotated on personnel
+          # change. The workflow refuses to run if missing — release
+          # signing is a hard control, not a soft one.
+          RELEASE_SIGNERS_PUBKEYS: ${{ secrets.RELEASE_SIGNERS_PUBKEYS }}
+        run: |
+          set -eu
+          if [ -z "${RELEASE_SIGNERS_PUBKEYS:-}" ]; then
+            echo "::error::Secret RELEASE_SIGNERS_PUBKEYS is not configured. See docs/security/SECRET_ROTATION.md §6. Refusing to release."
+            exit 1
+          fi
+          mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+          printf '%s\n' "$RELEASE_SIGNERS_PUBKEYS" | gpg --batch --import
+          # List imported fingerprints so the run is auditable.
+          gpg --batch --list-keys --fingerprint --with-colons \
+            | awk -F: '$1=="fpr" {print $10}'
+
+      - name: Verify tag is signed by an authorised release signer
+        env:
+          TAG: ${{ needs.resolve-tag.outputs.value }}
+        run: |
+          set -eu
+          # `git verify-tag` exits non-zero on unsigned tags or on a
+          # signature whose key is not in the keyring we just populated.
+          # We capture stderr for the audit log so a failed release tells
+          # the operator exactly why (bad sig vs unknown signer vs
+          # unsigned tag).
+          if ! git verify-tag "$TAG" 2> verify.err; then
+            echo "::error::Tag $TAG failed signature verification. Refusing to release."
+            cat verify.err
+            exit 1
+          fi
+          cat verify.err
+
+  # ---------------------------------------------------------------------------
+  # 2. Build the backend container, push to ghcr, sign, attest, SBOM.
+  # ---------------------------------------------------------------------------
+  release-container:
+    name: 🐳 Build, push, sign & attest backend container
+    runs-on: ubuntu-latest
+    needs: [resolve-tag, revalidate-security, verify-tag-signature]
+    permissions:
+      contents: read         # checkout source
+      packages: write        # push image to ghcr.io
+      id-token: write        # keyless cosign + provenance OIDC token
+      attestations: write    # attest-build-provenance writes attestations
+    outputs:
+      image_digest: ${{ steps.push.outputs.digest }}
+      image_ref: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          ref: ${{ needs.resolve-tag.outputs.value }}
+
+      - name: Compute image metadata
+        id: meta
+        env:
+          TAG: ${{ needs.resolve-tag.outputs.value }}
+        run: |
+          OWNER="$(echo "${GITHUB_REPOSITORY%/*}" | tr '[:upper:]' '[:lower:]')"
+          REF="ghcr.io/${OWNER}/manifest-backend:${TAG}"
+          echo "tags=${REF}" >>"$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db  # v3.6.1
+
+      - name: Login to ghcr
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Build & push
+        id: push
+        run: |
+          docker buildx build \
+            --file backend/dockerfile \
+            --tag "${{ steps.meta.outputs.tags }}" \
+            --push \
+            --provenance=true \
+            --sbom=true \
+            --metadata-file metadata.json \
+            backend/
+          DIGEST="$(jq -r '."containerimage.digest"' metadata.json)"
+          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@4959ce089c160fddf62f7b42464195ba1a56d382  # v3.6.0
+        with:
+          cosign-release: "v2.4.0"
+
+      - name: Sign image (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes \
+            "${{ steps.meta.outputs.tags }}@${{ steps.push.outputs.digest }}"
+
+      - name: Attest build provenance (SLSA v1.0)
+        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6f3abbf17002c  # v1.4.3
+        with:
+          subject-name: ${{ steps.meta.outputs.tags }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          mkdir -p sbom
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/sbom:/out" \
+            anchore/syft:v1.14.0@sha256:f73604d3dc671f09772684b45f35b6646022f0ace6dff42d18fe4c528c098918 \
+              "${{ steps.meta.outputs.tags }}@${{ steps.push.outputs.digest }}" \
+              -o cyclonedx-json=/out/manifest-backend.cdx.json
+
+      - name: Attach SBOM to image
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attest --yes \
+            --type cyclonedx \
+            --predicate sbom/manifest-backend.cdx.json \
+            "${{ steps.meta.outputs.tags }}@${{ steps.push.outputs.digest }}"
+
+      - name: Upload SBOM as release artifact
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: cyclonedx-sbom-${{ needs.resolve-tag.outputs.value }}
+          path: sbom/
+          retention-days: 365
+
+  # ---------------------------------------------------------------------------
+  # 2b. Build the frontend asset bundle, sign it as a Sigstore blob, and
+  #     produce a SLSA v1.0 provenance attestation for its tarball digest.
+  # ---------------------------------------------------------------------------
+  release-frontend:
+    name: 🌐 Build, sign & attest frontend bundle
+    runs-on: ubuntu-latest
+    needs: [resolve-tag, revalidate-security, verify-tag-signature]
+    permissions:
+      contents: read         # checkout
+      id-token: write        # keyless cosign + provenance OIDC token
+      attestations: write    # attest-build-provenance
+    outputs:
+      tarball_sha256: ${{ steps.pack.outputs.sha256 }}
+      tarball_name: ${{ steps.pack.outputs.name }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          ref: ${{ needs.resolve-tag.outputs.value }}
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6  # v4.0.4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install + build frontend
+        # `npm ci` enforces lockfile fidelity (the same drift gate runs
+        # in security.yml::lockfile-drift). The build is deterministic
+        # given the lockfile + pinned node version, so the resulting
+        # tarball digest is the supply-chain identity we sign + attest.
+        working-directory: frontend
+        run: |
+          set -eu
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Pack tarball + record digest
+        id: pack
+        env:
+          TAG: ${{ needs.resolve-tag.outputs.value }}
+        # Reproducibly tar the build/ directory: deterministic mtime,
+        # owner/group, and sort order so two builds of the same source
+        # produce byte-identical tarballs whose sha256 we can publish.
+        run: |
+          set -eu
+          NAME="manifest-frontend-${TAG}.tar.gz"
+          mkdir -p release
+          tar \
+            --sort=name \
+            --owner=0 --group=0 --numeric-owner \
+            --mtime='UTC 2020-01-01' \
+            -czf "release/${NAME}" \
+            -C frontend build
+          SHA="$(sha256sum "release/${NAME}" | awk '{print $1}')"
+          echo "name=${NAME}" >>"$GITHUB_OUTPUT"
+          echo "sha256=${SHA}" >>"$GITHUB_OUTPUT"
+          # Persist a sidecar checksum file for verifiers.
+          echo "${SHA}  ${NAME}" > "release/${NAME}.sha256"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@4959ce089c160fddf62f7b42464195ba1a56d382  # v3.6.0
+        with:
+          cosign-release: "v2.4.0"
+
+      - name: Sign frontend tarball (keyless blob signing)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        # `cosign sign-blob` produces a detached signature + Fulcio cert
+        # that any consumer can verify via the same OIDC identity regex
+        # used for the container image. Both `.sig` and `.pem` ship as
+        # release assets so verification is fully self-contained.
+        run: |
+          set -eu
+          NAME="${{ steps.pack.outputs.name }}"
+          cosign sign-blob --yes \
+            --output-signature "release/${NAME}.sig" \
+            --output-certificate "release/${NAME}.pem" \
+            "release/${NAME}"
+
+      - name: Attest frontend tarball provenance (SLSA v1.0)
+        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6f3abbf17002c  # v1.4.3
+        with:
+          subject-name: ${{ steps.pack.outputs.name }}
+          subject-digest: sha256:${{ steps.pack.outputs.sha256 }}
+
+      - name: Generate frontend CycloneDX SBOM
+        run: |
+          set -eu
+          mkdir -p sbom
+          # Run Syft against the source tree (npm/yarn manifests) — this
+          # captures the full transitive dependency graph that produced
+          # the signed tarball.
+          docker run --rm \
+            -v "$PWD:/src" \
+            -v "$PWD/sbom:/out" \
+            anchore/syft:v1.14.0@sha256:f73604d3dc671f09772684b45f35b6646022f0ace6dff42d18fe4c528c098918 \
+              dir:/src/frontend \
+              -o cyclonedx-json=/out/manifest-frontend.cdx.json
+
+      - name: Upload frontend release bundle
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: frontend-release-${{ needs.resolve-tag.outputs.value }}
+          path: |
+            release/
+            sbom/manifest-frontend.cdx.json
+          retention-days: 365
+
+  # ---------------------------------------------------------------------------
+  # 3. Verification step — runs the same recipe a customer would use, to
+  #    fail-fast on broken signatures or provenance before a human sees the
+  #    release.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: 🔎 Verify cosign + SLSA provenance (container + frontend)
+    runs-on: ubuntu-latest
+    needs: [resolve-tag, release-container, release-frontend]
+    permissions:
+      contents: read         # cosign verify is purely read-only
+      id-token: write        # cosign uses OIDC for verification context
+      attestations: read     # gh attestation verify reads attestations
+    steps:
+      - uses: sigstore/cosign-installer@4959ce089c160fddf62f7b42464195ba1a56d382  # v3.6.0
+        with:
+          cosign-release: "v2.4.0"
+
+      - name: Verify container cosign signature
+        run: |
+          cosign verify \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Verify container CycloneDX SBOM attestation
+        run: |
+          cosign verify-attestation \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            --type cyclonedx \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Verify container SLSA build provenance
+        # The SLSA v1.0 in-toto provenance attestation that
+        # actions/attest-build-provenance pushed alongside the image.
+        # Aborting here means the image was not produced by this
+        # workflow on this tag.
+        run: |
+          cosign verify-attestation \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            --type slsaprovenance \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Download frontend release bundle
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          name: frontend-release-${{ needs.resolve-tag.outputs.value }}
+          path: frontend-release/
+
+      - name: Verify frontend tarball blob signature
+        # Re-verifies the detached cosign blob signature against the
+        # tarball digest. Aborts the release if either the tarball or
+        # the signature has been tampered with after upload.
+        run: |
+          set -eu
+          NAME="${{ needs.release-frontend.outputs.tarball_name }}"
+          cosign verify-blob \
+            --signature "frontend-release/release/${NAME}.sig" \
+            --certificate "frontend-release/release/${NAME}.pem" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "frontend-release/release/${NAME}"
+
+      - name: Verify frontend SLSA build provenance
+        # `gh attestation verify` validates the SLSA v1.0 attestation
+        # that release-frontend pushed via attest-build-provenance,
+        # binding the tarball's sha256 to this repo + workflow. This
+        # is the frontend equivalent of cosign verify-attestation
+        # --type slsaprovenance for the container image.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          NAME="${{ needs.release-frontend.outputs.tarball_name }}"
+          gh attestation verify "frontend-release/release/${NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --predicate-type "https://slsa.dev/provenance/v1" \
+            --cert-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --cert-identity-regex "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@"
+
+      - name: Re-check frontend tarball sha256
+        # Belt-and-braces: confirm the digest the cosign cert and the
+        # SLSA attestation were bound to matches the bytes on disk. A
+        # mismatch here means the release-frontend job emitted
+        # inconsistent outputs and we must not deploy.
+        run: |
+          set -eu
+          NAME="${{ needs.release-frontend.outputs.tarball_name }}"
+          EXPECTED="${{ needs.release-frontend.outputs.tarball_sha256 }}"
+          ACTUAL="$(sha256sum "frontend-release/release/${NAME}" | awk '{print $1}')"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::Frontend tarball digest drift: expected $EXPECTED, got $ACTUAL"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 4. Publish the GitHub Release with everything attached.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: 📝 Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [resolve-tag, release-container, release-frontend, verify]
+    permissions:
+      contents: write        # `gh release create` writes a release
+    outputs:
+      release_url: ${{ steps.url.outputs.value }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - name: Download backend SBOM artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          name: cyclonedx-sbom-${{ needs.resolve-tag.outputs.value }}
+          path: sbom/
+
+      - name: Download frontend release bundle
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          name: frontend-release-${{ needs.resolve-tag.outputs.value }}
+          path: frontend-release/
+
+      - name: Create release notes
+        env:
+          TAG: ${{ needs.resolve-tag.outputs.value }}
+        run: |
+          cat > NOTES.md <<EOF
+          # Manifest \`${TAG}\`
+
+          ## Backend container
+          - \`${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}\`
+
+          ## Frontend bundle
+          - \`${{ needs.release-frontend.outputs.tarball_name }}\`
+          - sha256: \`${{ needs.release-frontend.outputs.tarball_sha256 }}\`
+
+          ## Verify
+          See [docs/security/SLSA_PROVENANCE.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/security/SLSA_PROVENANCE.md)
+          for the recipe. TL;DR:
+
+          \`\`\`bash
+          # Backend container
+          cosign verify ${{ needs.release-container.outputs.image_ref }} \\
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+          # Frontend bundle
+          cosign verify-blob \\
+            --signature ${{ needs.release-frontend.outputs.tarball_name }}.sig \\
+            --certificate ${{ needs.release-frontend.outputs.tarball_name }}.pem \\
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \\
+            ${{ needs.release-frontend.outputs.tarball_name }}
+          \`\`\`
+
+          ## Provenance + SBOM
+          Both artifacts have CycloneDX SBOMs and SLSA v1.0 provenance
+          attestations attached.
+          EOF
+
+      - name: Publish release (idempotent for workflow_dispatch reruns)
+        id: url
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve-tag.outputs.value }}
+        run: |
+          set -eu
+          # Collect every release asset in one place so the create/edit
+          # branches below stay symmetric.
+          mkdir -p assets
+          cp sbom/* assets/
+          cp frontend-release/release/* assets/
+          cp frontend-release/sbom/* assets/
+          # If the release already exists (manual rerun via
+          # workflow_dispatch), edit the notes in place and re-upload
+          # assets with --clobber so the operator gets a clean
+          # idempotent rerun rather than a hard failure on
+          # `gh release create`.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists; updating in place."
+            gh release edit "$TAG" \
+              --title "Manifest $TAG" \
+              --notes-file NOTES.md
+            gh release upload "$TAG" assets/* --clobber
+          else
+            gh release create "$TAG" \
+              --title "Manifest $TAG" \
+              --notes-file NOTES.md \
+              assets/*
+          fi
+          URL="$(gh release view "$TAG" --json url -q .url)"
+          echo "value=$URL" >>"$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 5. Production deploy gate.
+  #
+  #    Runs in the `production` GitHub Environment (BRANCH_PROTECTION.md
+  #    §4.1): two human approvers + short-lived OIDC-federated cloud
+  #    credentials, no long-lived secrets. The job re-verifies the
+  #    cosign signature, CycloneDX SBOM attestation, and SLSA build
+  #    provenance for both artifacts against the published release
+  #    *as the deployer would*. Any verification failure aborts the
+  #    deploy before any cloud credential is exchanged.
+  #
+  #    The cloud-side deploy step is intentionally a placeholder
+  #    (`echo`) until the production cloud target lands (tracked under
+  #    SEC-063 — OIDC-federated cloud creds). The verification, gating,
+  #    and audit trail are the controls Task #27 is closing; the cloud
+  #    invocation is a downstream wiring exercise, not a release-process
+  #    control.
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    name: 🚀 Deploy to production (verified)
+    runs-on: ubuntu-latest
+    needs: [resolve-tag, release-container, release-frontend, publish]
+    environment:
+      name: production
+      url: ${{ needs.publish.outputs.release_url }}
+    permissions:
+      contents: read         # read the release / source
+      id-token: write        # OIDC token for cloud federation + cosign
+      attestations: read     # gh attestation verify reads attestations
+    steps:
+      - uses: sigstore/cosign-installer@4959ce089c160fddf62f7b42464195ba1a56d382  # v3.6.0
+        with:
+          cosign-release: "v2.4.0"
+
+      # ---- Re-verify backend container --------------------------------------
+      - name: Verify backend container signature
+        run: |
+          cosign verify \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Verify backend container SBOM attestation
+        run: |
+          cosign verify-attestation \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            --type cyclonedx \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Verify backend container SLSA provenance
+        # `cosign verify-attestation --type slsaprovenance` reads the
+        # in-toto provenance attestation that attest-build-provenance
+        # pushed alongside the image. Aborting here means the image we
+        # are about to deploy was not produced by this workflow.
+        run: |
+          cosign verify-attestation \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            --type slsaprovenance \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      # ---- Re-verify frontend bundle ----------------------------------------
+      - name: Download frontend release bundle
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          name: frontend-release-${{ needs.resolve-tag.outputs.value }}
+          path: frontend-release/
+
+      - name: Verify frontend tarball blob signature
+        run: |
+          set -eu
+          NAME="${{ needs.release-frontend.outputs.tarball_name }}"
+          cosign verify-blob \
+            --signature "frontend-release/release/${NAME}.sig" \
+            --certificate "frontend-release/release/${NAME}.pem" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "frontend-release/release/${NAME}"
+
+      - name: Verify frontend SLSA build provenance
+        # Validates the SLSA v1.0 attestation against the tarball
+        # sha256 before the deploy step runs. Aborts the deploy if the
+        # tarball did not come from this repo + workflow.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          NAME="${{ needs.release-frontend.outputs.tarball_name }}"
+          gh attestation verify "frontend-release/release/${NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --predicate-type "https://slsa.dev/provenance/v1" \
+            --cert-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --cert-identity-regex "^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@"
+
+      - name: Verify SBOM presence (backend + frontend)
+        # The deploy gate refuses to ship if either SBOM is missing or
+        # malformed — this is the auditable evidence customers and SOC 2
+        # reviewers rely on to enumerate what we deployed.
+        run: |
+          set -eu
+          # Frontend SBOM ships in the release bundle. Assert it is
+          # present, non-empty, and CycloneDX-shaped.
+          FE_SBOM="frontend-release/sbom/manifest-frontend.cdx.json"
+          if [ ! -s "$FE_SBOM" ]; then
+            echo "::error::Frontend CycloneDX SBOM missing or empty at $FE_SBOM"
+            exit 1
+          fi
+          if ! jq -e '.bomFormat == "CycloneDX"' "$FE_SBOM" >/dev/null; then
+            echo "::error::Frontend SBOM at $FE_SBOM is not a CycloneDX document"
+            exit 1
+          fi
+          # Backend SBOM lives as an OCI attestation; pull it down,
+          # assert non-empty, and stash it for the deployer-side audit
+          # log.
+          cosign download attestation \
+            --predicate-type https://cyclonedx.org/bom \
+            "${{ needs.release-container.outputs.image_ref }}@${{ needs.release-container.outputs.image_digest }}" \
+            > backend.cdx.attestation.json
+          if [ ! -s backend.cdx.attestation.json ]; then
+            echo "::error::Backend CycloneDX SBOM attestation is missing or empty"
+            exit 1
+          fi
+
+      # ---- Cloud deploy -----------------------------------------------------
+      # Placeholder. Real wiring lands with SEC-063 (OIDC-federated cloud
+      # creds). Until then, reaching this step is itself the control:
+      # the two-approver `production` environment gate and every
+      # verification above must have passed.
+      - name: Deploy (placeholder — gated on SEC-063 cloud wiring)
+        run: |
+          echo "::notice::All release artifacts re-verified against ${{ needs.publish.outputs.release_url }}."
+          echo "::notice::Awaiting SEC-063 OIDC-federated cloud credentials before invoking the cloud deploy step."

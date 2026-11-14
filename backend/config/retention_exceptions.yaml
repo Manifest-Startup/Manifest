@@ -1,0 +1,4 @@
+# Active retention exception register.
+# Format documented in docs/security/RETENTION_EXCEPTIONS.md.
+# Empty list = no exceptions; default schedule applies in full.
+exceptions: []

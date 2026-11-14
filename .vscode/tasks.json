@@ -1,0 +1,58 @@
+{
+  // VS Code task configuration file
+  // This file defines reusable tasks that can be run before or during debugging.
+  // Tasks can automate shell commands, start dev servers, clean up processes, etc.
+
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // 🧹 Task: Clean up old Unix socket files
+      // This task deletes .sock files left behind in temp directories.
+      // It's helpful for resolving issues caused by lingering socket files from past runs.
+      "label": "clean-up",
+      "type": "shell",
+      "command": "find /var/folders/ -name '*.sock' -delete || true",
+      "problemMatcher": []
+    },
+    {
+      // 🔪 Task: Kill previous instance of frontend dev server
+      // Ensures port 3000 is free by killing any process using it.
+      // Prevents "port already in use" errors when restarting the frontend.
+      "label": "kill-previous-instance",
+      "type": "shell",
+      "command": "lsof -ti:3000 | xargs kill -9 || true",
+      "problemMatcher": []
+    },
+    {
+      // 🚀 Task: Start the React frontend development server
+      // Runs `npm start` in the frontend directory.
+      // Sets BROWSER=none to prevent Create React App from launching a new browser tab.
+      // This is important to avoid multiple Chrome windows when debugging with VS Code.
+      "label": "start-frontend",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend", // Change directory to 'frontend' before running
+        "env": {
+          "BROWSER": "none" // Prevent CRA from auto-opening the browser
+        }
+      },
+      "isBackground": true, // Run as background task so debugging can proceed
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": ".*", // Generic match for any output (required placeholder)
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting the development server.*", // Detect when dev server begins
+          "endsPattern": ".*Compiled successfully.*" // Detect when dev server is ready
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "name": "generate_bmc_section",
+  "description": "Generates a single Business Model Canvas section for an idea, threading qualification results and any already-generated sibling sections so the agent's output is internally consistent with the rest of the canvas.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "section_name": {
+        "type": "string",
+        "enum": [
+          "key_partners",
+          "key_activities",
+          "key_resources",
+          "value_propositions",
+          "customer_relationships",
+          "channels",
+          "customer_segments",
+          "cost_structure",
+          "revenue_streams"
+        ]
+      },
+      "idea_description": { "type": "string" },
+      "qualification_summary": {
+        "type": "string",
+        "description": "Plain-language summary of the qualification session: score, key strengths, key risks. May be empty if no qualification was run."
+      },
+      "sibling_sections": {
+        "type": "object",
+        "description": "Map of section_name → existing markdown content for any already-generated sibling sections. The agent should keep its output consistent with these."
+      }
+    },
+    "required": ["section_name", "idea_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "section_name": { "type": "string" },
+      "content": {
+        "type": "string",
+        "description": "Markdown content for this BMC section. 80-200 words. Use bullet points or short paragraphs. Be specific and operational, not aspirational."
+      },
+      "needs_user_review": {
+        "type": "boolean",
+        "description": "Set true when the agent is making non-obvious assumptions the user should confirm (e.g. picked a specific customer segment without strong signal in the idea)."
+      },
+      "rationale": {
+        "type": "string",
+        "description": "One-paragraph explanation of why the content is shaped this way. Not shown to the user by default; used for debug + admin dashboards."
+      }
+    },
+    "required": ["section_name", "content"]
+  },
+  "prompt": {
+    "system": "You are one of Manifest's Business Model Canvas sub-agents. You generate ONE named section of the canvas — not the whole thing.\n\nRules:\n- Write tight, operational markdown. 80-200 words. Bullet points are fine.\n- Be specific. Where it helps, name real-world tools/platforms/vendors a founder could actually pick (e.g. Stripe, Slack, GitHub, HubSpot, Plaid, Twilio, AWS, Vercel). Avoid vague placeholders like 'TBD' or 'various'.\n- When sibling sections are provided, KEEP YOUR OUTPUT CONSISTENT with them — e.g. if customer_segments already identifies indie game devs, value_propositions should speak to indie game devs.\n- Respect qualification signal: if the founder has low budget, do not propose a section that requires a $1M sales team.\n- Set needs_user_review=true when you make a non-obvious assumption the user should confirm.\n- Return STRICT JSON matching the output schema. No prose outside the JSON. No code fences.",
+    "user": "SECTION: {{section_name}}\n\nIDEA:\n{{idea_description}}\n\nQUALIFICATION SUMMARY:\n{{qualification_summary}}\n\nSIBLING SECTIONS (already generated; keep your output consistent with these):\n{{sibling_sections_block}}\n\nReturn ONLY the JSON object described in the output schema."
+  },
+  "temperature": 0.55,
+  "model": "gpt-4o-mini"
+}

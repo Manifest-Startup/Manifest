@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Manifest API access tiers and rate limits for API-key-backed public REST usage." />
+    <link rel="canonical" href="https://manifeststartup.com/pricing" />
+    <title>Manifest API pricing and limits</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "Manifest API access",
+        "description": "API-key-backed access to the Manifest public REST API. These tiers apply to API usage, not the web workspace.",
+        "url": "https://manifeststartup.com/pricing",
+        "brand": { "@type": "Brand", "name": "Manifest" },
+        "offers": {
+          "@type": "AggregateOffer",
+          "priceCurrency": "USD",
+          "lowPrice": "0",
+          "highPrice": "99",
+          "offerCount": "3",
+          "offers": [
+            { "@type": "Offer", "name": "Free API tier", "price": "0", "priceCurrency": "USD" },
+            { "@type": "Offer", "name": "Starter API tier", "price": "29", "priceCurrency": "USD" },
+            { "@type": "Offer", "name": "Pro API tier", "price": "99", "priceCurrency": "USD" }
+          ]
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Manifest API pricing and rate limits</h1>
+      <p>These prices and configured request limits apply to API-key-backed public REST usage only. They are separate from the Manifest web workspace. Confirm current availability in your Manifest account before choosing a tier.</p>
+      <table>
+        <thead><tr><th>API tier</th><th>Price (USD/month)</th><th>Requests/month</th><th>Requests/minute</th></tr></thead>
+        <tbody>
+          <tr><td>Free</td><td>$0</td><td>1,000</td><td>10</td></tr>
+          <tr><td>Starter</td><td>$29</td><td>10,000</td><td>60</td></tr>
+          <tr><td>Pro</td><td>$99</td><td>100,000</td><td>300</td></tr>
+          <tr><td>Enterprise</td><td>Custom</td><td>Unlimited</td><td>1,000</td></tr>
+        </tbody>
+      </table>
+      <p>Limits are per API key. Requests over the per-minute or monthly limit may receive HTTP 429. See the <a href="/docs/api">API reference</a> and <a href="/pricing.md">Markdown pricing details</a>.</p>
+      <p><a href="/">Manifest home</a> · <a href="/auth">Open the workspace</a></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,85 @@
+name: Security Autofix (patch vulns automatically)
+
+# Manifest Security Autofix — the third autopilot-family loop.
+#
+# Autopilot fixes issues; the Merge Train sweeps PRs into main; this loop
+# patches SECURITY ALERTS the moment the cron catches them, with no human in
+# the loop — so fixes ship even overnight with your laptop closed:
+#   * npm manifests → `npm audit fix` (non-breaking only)
+#   * pip manifests → bump requirements.txt pins to the patched version read
+#     from the repo's live Dependabot alerts
+# then it runs the deployable-tree gate and, if green, pushes to `main`
+# (auto-releasing). See docs/AUTOPILOT.md → "Security Autofix".
+#
+# This complements (does not replace) Dependabot: Dependabot opens alert PRs
+# for direct deps; this loop patches the transitive CVEs Dependabot can't open
+# a clean PR for, and lands everything without waiting for review.
+#
+# The repo variable SECURITY_AUTOFIX_ENABLED must be "true" or scheduled runs
+# no-op. Manual dispatch always runs (default dry_run=true to shadow first).
+
+on:
+  schedule:
+    - cron: "47 */3 * * *"  # every 3h at :47 — tight window from alert to fix
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Plan only — apply fixes locally but do not push
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: security-autofix
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: read
+
+jobs:
+  autofix:
+    name: 🛡️  Security Autofix
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        vars.SECURITY_AUTOFIX_ENABLED == 'true'
+      }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SECURITY_AUTOFIX_ENABLED: ${{ vars.SECURITY_AUTOFIX_ENABLED || 'false' }}
+      SECURITY_AUTOFIX_PUSH: ${{ vars.SECURITY_AUTOFIX_PUSH || 'direct' }}
+      SECURITY_AUTOFIX_BASE: ${{ vars.SECURITY_AUTOFIX_BASE || 'main' }}
+    steps:
+      - name: Checkout repo (full history so the push works)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "manifest-security-autofix[bot]"
+          git config user.email "manifest-security-autofix@users.noreply.github.com"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run security autofix
+        run: |
+          ARGS="--repo ${{ github.repository }} --repo-root ${{ github.workspace }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python backend/scripts/run_security_autofix.py $ARGS

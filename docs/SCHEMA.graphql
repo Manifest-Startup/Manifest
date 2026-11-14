@@ -1,0 +1,231 @@
+# Manifest GraphQL Schema
+# Auto-generated reference for the Manifest API
+# Version: 1.0.0
+
+# ============================================
+# TYPES
+# ============================================
+
+type User {
+  userId: String!
+  email: String!
+  createdAt: DateTime!
+  username: String
+  firstName: String
+  lastName: String
+  country: String
+  bio: String
+  address: String
+  state: String
+  gravatarHash: String
+  profilePictureUrl: String
+}
+
+type Idea {
+  ideaId: String!
+  userId: String!
+  title: String!
+  description: String
+  createdAt: DateTime!
+  pitchDeck: String
+  productRequirementsDocument: String
+  provisionalPatent: String
+  businessModelCanvas: String
+}
+
+type AuthUser {
+  userId: String!
+  email: String!
+  token: String!
+}
+
+type Integration {
+  integrationId: String!
+  userId: String!
+  serviceName: String!
+  serviceId: String!
+  accessToken: String
+  refreshToken: String
+  expiresAt: DateTime
+  connectedAt: DateTime!
+  metadata: String
+}
+
+type PitchDeckOutput {
+  pitchDeck: String!
+}
+
+type GenerationJob {
+  id: String!
+  status: String!
+  documentTypes: [String!]!
+  ideaId: String
+  errorMessage: String
+  createdAt: String
+  updatedAt: String
+}
+
+type EnqueueJobResult {
+  jobId: String!
+  status: String!
+}
+
+type ProductRequirementsDocumentOutput {
+  productRequirementsDocument: String!
+}
+
+type ProvisionalPatentOutput {
+  provisionalPatent: String!
+  coversheetPdf: String
+  specificationPdf: String
+}
+
+type SimilarIdeas {
+  similarIdeas: String!
+}
+
+type Patent {
+  patentId: String!
+  title: String!
+  description: String
+  createdAt: DateTime!
+}
+
+type ExportResult {
+  content: String!
+  format: String!
+  filename: String!
+}
+
+type ImportResult {
+  importedCount: Int!
+  skippedCount: Int!
+  errors: [String!]!
+}
+
+type ContactForm {
+  firstName: String!
+  lastName: String!
+  email: String!
+  message: String!
+}
+
+# ============================================
+# INPUT TYPES
+# ============================================
+
+input AccountUpdateInput {
+  email: String
+  username: String
+  firstName: String
+  lastName: String
+  country: String
+  bio: String
+  address: String
+  state: String
+  profilePictureUrl: String
+}
+
+input ConnectIntegrationInput {
+  serviceId: String!
+  accessToken: String
+  refreshToken: String
+  expiresAt: DateTime
+  metadata: String
+}
+
+input ContactFormInput {
+  firstName: String!
+  lastName: String!
+  email: String!
+  message: String!
+}
+
+# ============================================
+# QUERIES
+# ============================================
+
+type Query {
+  # Get current authenticated user
+  me: User!
+  
+  # Get account details for current user
+  account: User!
+  
+  # Get current user profile (returns null if not authenticated)
+  profile: AuthUser
+  
+  # List all ideas for current user
+  ideas: [Idea!]!
+
+  # Poll the status of an async document-generation job (owner-only)
+  generationJob(jobId: String!): GenerationJob
+
+  # Get a specific idea by ID
+  idea(ideaId: String!): Idea!
+  
+  # Get pitch deck for an idea
+  pitchDeck(ideaId: String!): PitchDeckOutput!
+  
+  # Get product requirements document for an idea
+  productRequirementsDocument(ideaId: String!): ProductRequirementsDocumentOutput!
+  
+  # Get provisional patent for an idea (includes PDF URLs)
+  provisionalPatent(ideaId: String!): ProvisionalPatentOutput!
+  
+  # Find similar ideas using AI
+  findSimilarIdeas(ideaDescription: String!): SimilarIdeas!
+  
+  # List all patents (placeholder)
+  patents: [Patent!]!
+  
+  # List all connected integrations
+  integrations: [Integration!]!
+  
+  # Get a specific integration by service ID
+  integration(serviceId: String!): Integration
+}
+
+# ============================================
+# MUTATIONS
+# ============================================
+
+type Mutation {
+  # Authentication
+  signupUser(email: String!, password: String!): AuthUser!
+  loginUser(email: String!, password: String!): AuthUser!
+  logoutUser: Boolean!
+  
+  # Ideas CRUD
+  createIdea(title: String!, description: String): Idea!
+  updateIdea(ideaId: String!, title: String, description: String): Idea!
+  deleteIdea(ideaId: String!): Boolean!
+  
+  # AI Document Generation
+  generatePitchDeck(ideaId: String!, description: String!): PitchDeckOutput!
+  generateProductRequirementsDocument(ideaId: String!, description: String!): ProductRequirementsDocumentOutput!
+  generateProvisionalPatent(ideaId: String!, description: String!): ProvisionalPatentOutput!
+  runBackgroundTasks(ideaId: String!, description: String!): Boolean!
+  # Durable, restart-safe generation queue (poll generationJob for status)
+  enqueueBackgroundTasks(ideaId: String!, documentTypes: [String!]!, idempotencyKey: String): EnqueueJobResult!
+
+  # Account Management
+  updateAccount(input: AccountUpdateInput!): User!
+  
+  # Integrations
+  connectIntegration(input: ConnectIntegrationInput!): Integration!
+  disconnectIntegration(serviceId: String!): Boolean!
+  
+  # Import/Export
+  exportIdeas(format: String!): ExportResult!
+  importIdeas(fileContent: String!, fileFormat: String!, filename: String!): ImportResult!
+  
+  # Contact
+  submitContactForm(input: ContactFormInput!): Boolean!
+}
+
+# ============================================
+# SCALARS
+# ============================================
+
+scalar DateTime

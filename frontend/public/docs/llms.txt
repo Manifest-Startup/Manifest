@@ -1,0 +1,10 @@
+# Manifest documentation
+
+Agent-readable documentation for founders and developers using Manifest.
+
+- [Founder guide](https://manifeststartup.com/docs/guide)
+- [API reference](https://manifeststartup.com/docs/api)
+- [Markdown API reference](https://manifeststartup.com/docs/api.md)
+- [Agent guide](https://manifeststartup.com/agents.md)
+- [Terms](https://manifeststartup.com/legal/terms.md)
+- [Privacy](https://manifeststartup.com/legal/privacy.md)

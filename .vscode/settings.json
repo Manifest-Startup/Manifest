@@ -1,0 +1,17 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/backend/app"
+  ],
+  "workbench.colorTheme": "Visual Studio Light - C++",
+  "window.autoDetectColorScheme": true,
+  "workbench.preferredLightColorTheme": "Default Dark Modern",
+  "search.useGlobalIgnoreFiles": true,
+  "search.useParentIgnoreFiles": true,
+  "search.exclude": {
+    "**/node_modules": false
+  },
+  "cursorpyright.analysis.extraPaths": [
+    "${workspaceFolder}/backend/app"
+  ]
+}

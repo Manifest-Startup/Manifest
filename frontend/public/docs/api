@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Manifest API reference for managing startup ideas and generating business documents with REST or MCP.">
+  <link rel="canonical" href="https://manifeststartup.com/docs/api">
+  <title>Manifest API reference</title>
+</head>
+<body>
+  <main>
+    <p><a href="/">Manifest</a> / API</p>
+    <h1>Manifest API reference</h1>
+    <p>The Manifest API lets an authenticated user manage their own startup ideas and generate draft business documents. Use the REST API or the Streamable HTTP MCP server.</p>
+    <ul>
+      <li><a href="/openapi.json">OpenAPI 3.1 specification</a></li>
+      <li><a href="/docs/api.md">Markdown API reference</a></li>
+      <li><a href="/pricing">API plans and rate limits</a></li>
+      <li><a href="/auth.md">Authentication and API key setup</a></li>
+      <li><a href="/mcp">Manifest MCP server</a></li>
+    </ul>
+    <h2>Authentication</h2>
+    <p>Except for <code>GET /api/v1/</code>, send a Manifest API key in <code>Authorization: Bearer manifest_sk_…</code>. Create a key in the signed-in account's API access settings and grant only the scopes needed: <code>ideas.read</code> for reading or <code>ideas.write</code> for creating, editing, deleting, and generating documents. Keys can access only ideas owned by their account.</p>
+    <h2>REST operations</h2>
+    <ul>
+      <li><code>GET /api/v1/ideas</code> lists the key owner's ideas.</li>
+      <li><code>POST /api/v1/ideas</code> creates an idea from a title and optional description.</li>
+      <li><code>GET /api/v1/ideas/{idea_id}</code> retrieves one owned idea.</li>
+      <li><code>PATCH /api/v1/ideas/{idea_id}</code> updates its title or description.</li>
+      <li><code>DELETE /api/v1/ideas/{idea_id}</code> permanently deletes an idea; confirm with the user first.</li>
+      <li><code>POST /api/v1/ideas/{idea_id}/generate</code> generates a business model canvas, pitch deck, PRD, or provisional patent draft.</li>
+      <li><code>GET /api/v1/usage</code> returns account usage and plan limits.</li>
+    </ul>
+    <h2>MCP</h2>
+    <p>Connect to <code>https://manifeststartup.com/mcp</code> using Streamable HTTP. Send the same API key as an Authorization Bearer header. The MCP tools mirror the REST operations and use the same key scopes and ownership checks.</p>
+    <h2>Errors and limits</h2>
+    <p>Errors are JSON. A <code>401</code> means the key is missing or invalid; a <code>403</code> means the key lacks a required scope or the resource is not owned by its account; a <code>429</code> means a rate or monthly limit was reached. Back off before retrying a rate-limited request. Generated documents are drafts for review, not legal, financial, or investment advice.</p>
+  </main>
+</body>
+</html>

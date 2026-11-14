@@ -1,0 +1,113 @@
+name: Autopilot (self-improvement loop)
+
+# Manifest Autopilot — the 24/7 autonomous self-improvement loop.
+#
+# Every hour (and on manual dispatch) this picks ONE high-value open issue,
+# implements the fix with the OpenAI Codex CLI in headless mode, runs the same
+# checks scripts/check.py runs, and opens an auto-merging PR into the protected
+# `autopilot` branch — never `main` (which auto-releases on every push). A
+# human promotes `autopilot` -> `main` on their own cadence.
+#
+# Spend is the only knob: a hard daily budget gate ($30 by default) in
+# run_autopilot_agent.py exits the run as a no-op once the day's cap is hit.
+# The repo variable AUTOPILOT_ENABLED must be "true" or every run no-ops.
+#
+# See docs/AUTOPILOT.md for setup (secrets, the `autopilot` branch + its
+# protection rule) and the operator runbook.
+
+on:
+  schedule:
+    - cron: "17 * * * *"  # hourly at :17; the budget gate throttles real spend
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Force a specific issue (blank = auto-select)
+        required: false
+        type: string
+      dry_run:
+        description: Plan + run checks but open no PR
+        required: false
+        default: false
+        type: boolean
+      daily_cap_usd:
+        description: Override the daily budget cap for this run
+        required: false
+        type: string
+
+# Only one autopilot run at a time — never two bots racing on the same branch.
+concurrency:
+  group: autopilot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  improve:
+    name: 🤖  Autopilot
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Hard gate: the loop is off unless the repo variable says otherwise.
+    # (A scheduled run with the var unset/false still starts the job but the
+    # script no-ops immediately; the explicit check here saves the minutes.)
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        vars.AUTOPILOT_ENABLED == 'true'
+      }}
+    env:
+      # Codex CLI engine — wired from the org-level OPENAI_DEV_KEY secret.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_DEV_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AUTOPILOT_ENABLED: ${{ vars.AUTOPILOT_ENABLED || 'false' }}
+      AUTOPILOT_DAILY_USD: ${{ inputs.daily_cap_usd || vars.AUTOPILOT_DAILY_USD || '30' }}
+      AUTOPILOT_PER_RUN_USD: ${{ vars.AUTOPILOT_PER_RUN_USD || '3' }}
+      AUTOPILOT_MODEL: ${{ vars.AUTOPILOT_MODEL || 'gpt-5-codex' }}
+      AUTOPILOT_BASE_BRANCH: ${{ vars.AUTOPILOT_BASE_BRANCH || 'autopilot' }}
+      AUTOPILOT_MAX_FILES: ${{ vars.AUTOPILOT_MAX_FILES || '12' }}
+      AUTOPILOT_MAX_LINES: ${{ vars.AUTOPILOT_MAX_LINES || '600' }}
+      AUTOPILOT_AUTOMERGE: ${{ vars.AUTOPILOT_AUTOMERGE || 'false' }}
+    steps:
+      - name: Checkout repo (full history for worktrees)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "manifest-autopilot[bot]"
+          git config user.email "manifest-autopilot@users.noreply.github.com"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node (for frontend checks)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install backend deps + tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff
+          npm install -g @openai/codex
+
+      - name: Run autopilot
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+        run: |
+          ARGS="--repo ${{ github.repository }} --repo-root ${{ github.workspace }}"
+          if [ -n "${{ inputs.issue_number }}" ]; then
+            ARGS="$ARGS --issue-number ${{ inputs.issue_number }}"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python backend/scripts/run_autopilot_agent.py $ARGS

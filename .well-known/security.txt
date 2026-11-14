@@ -1,0 +1,31 @@
+# Manifest — security.txt (RFC 9116)
+# https://www.rfc-editor.org/rfc/rfc9116
+#
+# Last updated: 2026-04-19
+# This file is the canonical RFC-9116 security.txt for manifeststartup.com
+# and all Manifest products. It MUST be served from:
+#   https://manifeststartup.com/.well-known/security.txt
+#   https://api.manifeststartup.com/.well-known/security.txt
+# A copy lives at frontend/public/.well-known/security.txt for the SPA.
+
+Contact: mailto:security@manifeststartup.com
+Contact: https://github.com/Manifest-Startup/Manifest/security/advisories/new
+Expires: 2027-04-19T00:00:00.000Z
+# Encryption: pending — the production PGP key is generated in a
+# hardware-backed signing ceremony per docs/security/SECRET_ROTATION.md §6.
+# Until then, use the GitHub private advisory channel above for reports
+# containing exploit details. RFC 9116 marks Encryption optional, so we
+# omit it rather than advertise an endpoint that does not yet exist.
+Acknowledgments: https://github.com/Manifest-Startup/Manifest/blob/main/docs/security/HALL_OF_FAME.md
+Preferred-Languages: en
+Canonical: https://manifeststartup.com/.well-known/security.txt
+Policy: https://github.com/Manifest-Startup/Manifest/blob/main/SECURITY.md
+Hiring: https://manifeststartup.com/careers
+
+# Notes for researchers:
+#   - Coordinated disclosure SLA, scope, and safe-harbor terms are defined in
+#     SECURITY.md. Please read it before testing.
+#   - Out-of-scope assets and prohibited activities are listed in SECURITY.md §2.
+#   - The PGP fingerprint will be published alongside pgp-key.asc once the
+#     ceremony is complete; verify out of band before transmitting PII or
+#     exploit details.

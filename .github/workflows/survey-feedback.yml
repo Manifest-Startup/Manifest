@@ -1,0 +1,76 @@
+name: Internal Survey Feedback Loop
+
+on:
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: Rolling number of days to summarize
+        required: false
+        default: "90"
+        type: string
+      max_issues:
+        description: Maximum number of issues to create
+        required: false
+        default: "6"
+        type: string
+      min_theme_count:
+        description: Minimum recurring signal count before an issue is created
+        required: false
+        default: "2"
+        type: string
+      dry_run:
+        description: Generate candidates without creating GitHub issues
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "0 15 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: internal-survey-feedback-loop
+  cancel-in-progress: false
+
+jobs:
+  analyze-survey-feedback:
+    name: Analyze Manifest survey feedback and sync GitHub issues
+    runs-on: ubuntu-latest
+
+    env:
+      WINDOW_DAYS: ${{ github.event.inputs.window_days || '90' }}
+      MAX_ISSUES: ${{ github.event.inputs.max_issues || '6' }}
+      MIN_THEME_COUNT: ${{ github.event.inputs.min_theme_count || '2' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+      MANIFEST_GITHUB_REPO: ${{ github.repository }}
+      MANIFEST_GITHUB_TOKEN: ${{ github.token }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - name: Set up Python
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run internal survey feedback loop
+        run: |
+          PYTHONPATH=backend python backend/scripts/run_survey_issue_sync.py \
+            --window-days "$WINDOW_DAYS" \
+            --max-issues "$MAX_ISSUES" \
+            --min-theme-count "$MIN_THEME_COUNT" \
+            $(if [ "$DRY_RUN" = "true" ]; then echo "--dry-run"; fi) | tee survey-feedback-sync.json
+
+      - name: Upload survey summary
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: internal-survey-feedback-loop
+          path: survey-feedback-sync.json

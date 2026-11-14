@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="description" content="Manifest helps founders turn startup ideas into structured business plans, pitch decks, product requirements and patent drafts." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Manifest — AI startup workspace" />
+    <meta property="og:description" content="Turn startup ideas into structured business plans, pitch decks, product requirements and patent drafts." />
+    <meta property="og:url" content="https://manifeststartup.com/" />
+    <meta property="og:image" content="https://manifeststartup.com/logo512.png" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://manifeststartup.com/" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM site guide" />
+    <link rel="alternate" type="text/markdown" href="/index.md" title="Markdown homepage" />
+    <link rel="service-desc" type="application/vnd.oai.openapi+json;version=3.1" href="/openapi.json" />
+    <link rel="api-catalog" href="/.well-known/api-catalog" />
+    <script type="module" src="/webmcp.js"></script>
+    <title>Manifest — Turn your startup idea into a plan</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "@id": "https://manifeststartup.com/#organization",
+        "name": "Manifest",
+        "url": "https://manifeststartup.com/",
+        "description": "Manifest is an AI workspace that helps founders turn startup ideas into business plans and supporting documents.",
+        "email": "hello@manifeststartup.com",
+        "sameAs": ["https://github.com/Manifest-Startup"],
+        "knowsAbout": ["startup planning", "business model canvases", "pitch decks", "product requirements documents", "provisional patent drafts"]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "Manifest API access",
+        "description": "Free and paid API-key-backed access tiers for the Manifest public REST API.",
+        "url": "https://manifeststartup.com/pricing",
+        "offers": {
+          "@type": "AggregateOffer",
+          "priceCurrency": "USD",
+          "lowPrice": "0",
+          "highPrice": "99",
+          "offerCount": "3"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <main id="manifest-static-shell" class="manifest-static-shell">
+        <h1>Turn your startup idea into a plan</h1>
+        <p>Manifest helps founders turn a raw startup idea into a structured workspace and a set of practical drafts. Describe the idea, then develop its business model canvas, pitch deck, product requirements document and provisional patent draft. Review and edit generated content before you rely on it. Manifest is currently a demo and its materials are not legal, financial or investment advice.</p>
+        <h2>Explore Manifest</h2>
+        <ul>
+          <li><a href="/auth">Open the Manifest workspace</a></li>
+          <li><a href="/docs/guide">Read the founder guide</a></li>
+          <li><a href="/docs/api">Read the REST API reference</a></li>
+          <li><a href="/pricing">API pricing and rate limits</a></li>
+          <li><a href="/agents.md">Read agent instructions</a></li>
+          <li><a href="/llms.txt">See machine-readable site guidance</a></li>
+          <li><a href="/about">About Manifest</a> · <a href="/contact">Contact</a></li>
+          <li><a href="https://github.com/Manifest-Startup">Manifest on GitHub</a></li>
+          <li><a href="/legal/privacy">Privacy</a> · <a href="/legal/terms">Terms</a></li>
+        </ul>
+        <p>JavaScript enables the interactive workspace. The public API lets an API key owner manage their own startup ideas and request document generation.</p>
+      </main>
+    </div>
+    <script src="/spa-shell-bootstrap.js"></script>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

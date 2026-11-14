@@ -1,0 +1,23 @@
+# Base image
+# Pinned by digest for SEC-073 (supply-chain): tag-only references are
+# vulnerable to upstream tag repointing. Refresh via Dependabot
+# (docker ecosystem in `.github/dependabot.yml`).
+FROM node:18-bookworm-slim@sha256:f9ab18e354e6855ae56ef2b290dd225c1e51a564f87584b9bd21dd651838830e
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first to leverage Docker cache
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the app
+COPY . .
+
+# Expose the development server port
+EXPOSE 3000
+
+# Start the CRA dev server
+CMD ["npm", "start"]

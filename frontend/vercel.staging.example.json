@@ -1,0 +1,30 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "comment": "Example for parallel QA — copy to vercel.json on a branch and replace BACKEND_HOST with your Render staging service.",
+  "rewrites": [
+    {
+      "source": "/graphql",
+      "destination": "https://BACKEND_HOST.onrender.com/graphql"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://BACKEND_HOST.onrender.com/api/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://BACKEND_HOST.onrender.com/auth/:path*"
+    },
+    {
+      "source": "/generated/:path*",
+      "destination": "https://BACKEND_HOST.onrender.com/generated/:path*"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "https://BACKEND_HOST.onrender.com/socket.io/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

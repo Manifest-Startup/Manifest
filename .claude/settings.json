@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -m pytest tests/test_utils/test_idea_utils.py tests/test_document_generation.py -v --override-ini=\"addopts=\")"
+    ]
+  }
+}

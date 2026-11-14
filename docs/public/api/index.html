@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manifest API Docs</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    header { background: linear-gradient(135deg, #0284c7, #2563eb); color: white; padding: 36px 24px; }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    section { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    h1, h2, h3 { margin-top: 0; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow-x: auto; }
+    ul { padding-left: 18px; }
+    .note { font-size: 0.9rem; color: #64748b; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Manifest API</h1>
+    <p>Last verified against code on May 1, 2026.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>API Surfaces</h2>
+      <ul>
+        <li><code>/graphql</code>: Primary application API (session/JWT auth) — includes ideas, messaging, pitch reels (<code>pitchReelsFeed</code> includes <code>ideaId</code> for linked ideas, <code>togglePublishIdea</code>), social graph, and try-before-signup flows (<code>startGuestSession</code>, <code>mergeGuestWorkspace</code>, <code>profile.isGuest</code>)</li>
+        <li><code>/api/v1/*</code>: Public REST API (API key auth)</li>
+        <li><code>/api/keys/*</code>: API key management (session/JWT auth)</li>
+        <li><code>/api/voice-agent/*</code>: Voice assistant REST API (session/JWT auth)</li>
+        <li><code>/api/internal/survey-ops/*</code>: Internal survey analytics and GitHub triage loop for trusted agents</li>
+        <li><code>/api/internal/production-signals/*</code>: Deduped production anomaly ingest; optional GitHub issues (see <code>docs/PRODUCTION_SIGNALS_OPS.md</code>)</li>
+      </ul>
+      <p class="note">Pitch reel video after publish: <code>GOOGLE_API_KEY</code> (Gemini/Veo), optional <code>PITCH_REEL_VIDEO_MODE=disabled</code> on serverless, and production DB migrations for <code>pitch_reels</code> — see <a href="../../API.md">API.md</a> (production checklist).</p>
+    </section>
+
+    <section>
+      <h2>Authentication</h2>
+      <h3>Session/JWT</h3>
+      <p>Used by GraphQL and most app REST routes:</p>
+      <pre><code>Authorization: Bearer &lt;jwt&gt;</code></pre>
+      <p>Cookies <code>access_token</code> and <code>session_token</code> are also accepted.</p>
+
+      <h3>API Key</h3>
+      <p>Used by <code>/api/v1/*</code>:</p>
+      <pre><code>Authorization: Bearer manifest_sk_xxx</code></pre>
+    </section>
+
+    <section>
+      <h2>Common Endpoints</h2>
+      <ul>
+        <li><code>POST /graphql</code></li>
+        <li><code>query surveyInsights(windowDays)</code> — aggregate discovery + product feedback (roles, value props, goals, satisfaction/ease, themes)</li>
+        <li><code>GET /api/v1/ideas</code></li>
+        <li><code>POST /api/v1/ideas</code></li>
+        <li><code>GET /api/voice-agent/capabilities</code></li>
+        <li><code>POST /api/voice-agent/start</code></li>
+        <li><code>POST /api/voice-agent/process</code></li>
+        <li><code>POST /api/internal/survey-ops/summary</code> (trusted internal loop)</li>
+        <li><code>POST /api/internal/production-signals/event</code> (trusted internal loop)</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Full Docs</h2>
+      <ul>
+        <li><a href="../../API.md">Full API Reference</a></li>
+        <li><a href="../../VOICE_AGENT_API.md">Voice Agent API Details</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

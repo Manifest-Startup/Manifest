@@ -1,0 +1,12 @@
+{
+  "plugins": {
+    "supabase": {
+      "enabled": true,
+      "projectRef": "faoydojkdqjqudizxxej",
+      "readOnly": true
+    },
+    "render": {
+      "enabled": true
+    }
+  }
+}

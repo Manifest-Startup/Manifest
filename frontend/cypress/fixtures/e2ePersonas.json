@@ -1,0 +1,72 @@
+[
+  {
+    "slug": "alice-chen",
+    "displayName": "Alice Chen",
+    "email": "e2e.alice-chen@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "AI workflow founder testing early-stage collaboration loops."
+  },
+  {
+    "slug": "bob-okonkwo",
+    "displayName": "Bob Okonkwo",
+    "email": "e2e.bob-okonkwo@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Fintech operator validating investor-style discovery flows."
+  },
+  {
+    "slug": "carla-rivera",
+    "displayName": "Carla Rivera",
+    "email": "e2e.carla-rivera@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Product strategist exercising social feed and messaging features."
+  },
+  {
+    "slug": "devon-park",
+    "displayName": "Devon Park",
+    "email": "e2e.devon-park@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Technical founder stress-testing repeated platform sign-ins."
+  },
+  {
+    "slug": "elena-petrov",
+    "displayName": "Elena Petrov",
+    "email": "e2e.elena-petrov@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Marketplace founder reviewing comment and follow behavior."
+  },
+  {
+    "slug": "farah-nasir",
+    "displayName": "Farah Nasir",
+    "email": "e2e.farah-nasir@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Operator persona validating inbox and conversation reliability."
+  },
+  {
+    "slug": "gabriel-santos",
+    "displayName": "Gabriel Santos",
+    "email": "e2e.gabriel-santos@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Growth founder focused on pitch reel engagement actions."
+  },
+  {
+    "slug": "harper-james",
+    "displayName": "Harper James",
+    "email": "e2e.harper-james@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Venture scout persona exercising invest and save flows."
+  },
+  {
+    "slug": "isaac-lee",
+    "displayName": "Isaac Lee",
+    "email": "e2e.isaac-lee@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Repeat founder testing authentication and discover navigation."
+  },
+  {
+    "slug": "jules-anders",
+    "displayName": "Jules Anders",
+    "email": "e2e.jules-anders@manifeststartup.com",
+    "password": "Mnfst_E2e_CI_9x!",
+    "persona": "Angel-investor persona checking social proof and messaging."
+  }
+]

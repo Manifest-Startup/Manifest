@@ -1,0 +1,53 @@
+# Manifest
+
+> Manifest (https://manifeststartup.com) is an AI-powered workspace that turns a founder's raw startup idea into structured, investor-ready documents: a business model canvas, a pitch deck, a product requirements document and a provisional patent draft. Manifest is in development; the public site is a demo preview and is not yet operational for real business decisions.
+
+## When to use Manifest
+
+- A user wants to turn a startup or product idea into a business model canvas, pitch deck, PRD or provisional patent draft.
+- A user with a Manifest account wants an agent to create, list, update or delete their ideas, or generate documents for them, through the REST API (API key required).
+- Do not use Manifest for legal, tax, financial or investment advice; its documents are AI drafts for the founder to review.
+
+Full guidance for agents: [Agent guide](https://manifeststartup.com/agents.md)
+
+## API
+
+- [API reference](https://manifeststartup.com/docs/api.md): authentication (`Authorization: Bearer manifest_sk_...`), endpoints, errors and limits
+- [Authentication guide](https://manifeststartup.com/auth.md): API-key setup, scopes, and safe handling
+- [OpenAPI specification](https://manifeststartup.com/openapi.json): machine-readable description of `/api/v1`
+- [Manifest MCP server](https://manifeststartup.com/mcp): Streamable HTTP tools for authenticated idea and document operations; use your Manifest API key as a Bearer token
+- [MCP server card](https://manifeststartup.com/.well-known/mcp/server-card.json)
+- [Manifest documentation MCP server](https://manifeststartup.com/docs/mcp): read-only tools for API, pricing, and product documentation
+- [Documentation MCP server card](https://manifeststartup.com/.well-known/mcp/docs-server-card.json)
+- [API catalog](https://manifeststartup.com/.well-known/api-catalog): RFC 9727 linkset
+- [API pricing](https://manifeststartup.com/pricing)
+- [Pricing and API limits](https://manifeststartup.com/pricing.md)
+- [AR discovery catalog](https://manifeststartup.com/.well-known/ard.json)
+
+## Section indexes
+
+- [Documentation index](https://manifeststartup.com/docs/llms.txt)
+- [API index](https://manifeststartup.com/api/llms.txt)
+
+## Pages (Markdown versions)
+
+- [Home](https://manifeststartup.com/index.md): what Manifest does
+- [About](https://manifeststartup.com/about.md): the company and product principles
+- [Contact](https://manifeststartup.com/contact.md): general, privacy and security contacts
+- [Documentation hub](https://manifeststartup.com/docs.md)
+- [Privacy policy](https://manifeststartup.com/legal/privacy.md)
+- [Terms of service](https://manifeststartup.com/legal/terms.md)
+
+Every documented HTML page above also has a `.md` version or answers `Accept: text/markdown` with Markdown. Discovery endpoints are listed separately by URL.
+
+## Contact
+
+- General and integration questions: hello@manifeststartup.com
+- [Manifest on GitHub](https://github.com/Manifest-Startup)
+- [Coding agent guide](https://github.com/Manifest-Startup/Manifest/blob/main/AGENTS.md)
+- [Portable agent plugin manifest](https://github.com/Manifest-Startup/Manifest/blob/main/plugin.json)
+
+## Optional
+
+- [User guide](https://manifeststartup.com/docs/guide): how founders use the workspace (needs JavaScript)
+- [Sitemap](https://manifeststartup.com/sitemap.xml)

@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "name": "partner_discovery",
+  "description": "Given a startup idea (and optional BMC key_partners context), produce a ranked list of real-world partner candidates with integration metadata. v1 is LLM-only — no web grounding.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "idea_description": { "type": "string" },
+      "qualification_summary": {
+        "type": "string",
+        "description": "Optional plain-language summary of the user's qualification session (score, strengths, risks). Helps the agent calibrate to the user's actual budget + execution ability."
+      },
+      "existing_key_partners_section": {
+        "type": "string",
+        "description": "Markdown of the BMC key_partners section if it has been generated. The agent should stay consistent with categories named there."
+      },
+      "max_candidates": { "type": "integer", "minimum": 4, "maximum": 20 }
+    },
+    "required": ["idea_description"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "candidates": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "website": { "type": "string" },
+            "category": { "type": "string" },
+            "why_relevant": { "type": "string" },
+            "suggested_use": { "type": "string" },
+            "integration_type": {
+              "type": "string",
+              "enum": ["api", "mcp", "sdk", "webhook", "zapier", "manual", "unknown"]
+            },
+            "data_required": { "type": "string" },
+            "actions_possible": { "type": "string" },
+            "pricing_notes": { "type": "string" },
+            "risk_notes": { "type": "string" },
+            "implementation_difficulty": { "type": "string", "enum": ["low", "medium", "high"] },
+            "recommended_next_step": { "type": "string" },
+            "relevance_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "confidence": { "type": "string", "enum": ["low", "medium", "high"] }
+          },
+          "required": ["name", "category", "integration_type"]
+        }
+      }
+    },
+    "required": ["candidates"]
+  },
+  "prompt": {
+    "system": "You are Manifest's partner-discovery agent. Given a startup idea, propose REAL-WORLD partner candidates a founder could actually integrate with for the MVP.\n\nRules:\n- Only name companies/tools you are confident actually exist. Never invent vendors.\n- For each candidate, fill: name, website (apex domain only, no http://), category (e.g. 'Payments', 'Auth', 'Email', 'Analytics', 'AI inference', 'KYC', 'Marketplaces'), why_relevant (one sentence), suggested_use (one sentence), integration_type (api / mcp / sdk / webhook / zapier / manual / unknown), data_required, actions_possible, pricing_notes (free tier? per-call? per-seat?), risk_notes (vendor lock-in, compliance, etc.), implementation_difficulty (low/medium/high), recommended_next_step.\n- relevance_score is 0–100; rank candidates by it.\n- Spread categories — don't return six payments providers; cover the breadth of the idea.\n- For integration_type, prefer 'api' / 'mcp' / 'sdk' when the vendor publishes one. 'manual' is acceptable for non-technical partners (e.g. lawyers, design firms). 'unknown' should be rare.\n- Calibrate to the user's qualification signal if provided: low budget → favor free tiers and Zapier-style integrations, not enterprise sales.\n- Return STRICT JSON matching the output schema. No prose outside the object. No code fences.",
+    "user": "STARTUP IDEA:\n{{idea_description}}\n\nQUALIFICATION SUMMARY:\n{{qualification_summary}}\n\nEXISTING KEY PARTNERS SECTION (from BMC; stay consistent with categories named here):\n{{existing_key_partners_section}}\n\nReturn at most {{max_candidates}} candidates in your JSON output. Higher relevance_score = better fit."
+  },
+  "temperature": 0.45,
+  "model": "gpt-4o-mini"
+}

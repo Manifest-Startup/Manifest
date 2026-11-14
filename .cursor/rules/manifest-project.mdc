@@ -1,0 +1,51 @@
+---
+description: Manifest stack boundaries, UX defaults, and pointers to repo docs for every session
+alwaysApply: true
+---
+
+# Manifest project context
+
+## Always load
+
+- Treat `docs/AI_AGENT_BASE_PROMPT.md` as the canonical AI agent base prompt for this repository.
+- For Manifest feature work, apply the Cursor project skill at `.cursor/skills/manifest-dev-prompt/SKILL.md`.
+- Use `docs/PROMPT_TEMPLATE.md` for short per-task prompts instead of pasting long repeated instructions.
+
+## Stack and boundaries
+
+- **Backend**: FastAPI; GraphQL contract and resolvers in `backend/app/graphql/schema.py`; orchestration in `backend/app/managers/manifest_manager.py`; business logic in `backend/app/services/`.
+- **Frontend**: React, Apollo Client, Redux patterns per existing code; primary tree under `frontend/src/`.
+- **Details**: See root `AGENTS.md`, `docs/AI_AGENT_BASE_PROMPT.md`, and `docs/ARCHITECTURE_REFERENCE.md` before large or cross-layer changes.
+
+## UX and product defaults
+
+- Prefer **fewer primary actions** and **progressive disclosure**; avoid piling buttons and options that raise cognitive load and onboarding friction.
+- Reuse existing layout, typography, and shared components so the UI stays **consistent and centralized** rather than one-off styling.
+
+## Change discipline
+
+- Keep diffs **focused** on the requested behavior; avoid drive-by refactors.
+- Follow `docs/CONTRIBUTING_AGENTS.md` (GraphQL naming, auth, guest gating where relevant — see `AGENTS.md` guest section).
+- **Documentation**: Update `docs/` when behavior or public contracts change — not on every cosmetic edit. API surface changes belong in `docs/API.md` (and related agent/MCP docs when those contracts change).
+
+## Releases — every push to `main` cuts a SemVer release
+
+`.github/workflows/auto-release.yml` runs on every push to `main`, computes the next SemVer version from Conventional Commits since the last `vX.Y.Z` tag, and creates a categorized GitHub Release. Phrase commits accordingly:
+
+- `feat:` / `feat(<scope>):` → minor (🚀 Features)
+- `feat!:` / `BREAKING CHANGE:` → **major** (⚠️ Breaking changes)
+- `fix:` / `fix(<scope>):` → patch (🐛 Bug fixes)
+- `fix(security):` / `security:` → patch (🔒 Security)
+- `perf:` → patch (⚡ Performance)
+- `chore(deps):` / `chore(deps-dev):` → patch (📦 Dependencies)
+- `chore:` / `docs:` / `test:` / `ci:` / `build:` / `style:` → **no release** (skipped automatically)
+
+Split mixed changes across commits — categorization is per-commit. Opt out of a single push with `[skip release]` in the subject. Reserve `git tag -s vX.Y.Z` for releases that need the SLSA L3 / SBOM / Cosign pipeline in `release.yml`. Full rule is in `AGENTS.md` § "Release cadence — every push to `main` cuts a SemVer release" and the validator script lives at `.github/scripts/auto_release.py`.
+
+## Testing expectations
+
+- Use **proportionate** tests: targeted pytest/Jest for small fixes; broader coverage for features touching auth, GraphQL, or critical flows. Align with CI jobs in `.github/workflows/main.yml`. See `docs/CONTRIBUTING_AGENTS.md` and `docs/PROMPT_TEMPLATE.md`.
+
+## Do not
+
+- Paste or rely on a single mega-prompt for architecture: it lives in **repo docs** and this rule instead.

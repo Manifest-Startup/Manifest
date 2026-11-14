@@ -1,0 +1,89 @@
+version: 2
+
+# Task #16 — Supply chain.
+# - Weekly cadence on every ecosystem we ship.
+# - GitHub Actions ecosystem is added so transitive workflow actions get
+#   pinned-by-SHA bumps automatically (mitigates the action-tag-repointing
+#   class of supply-chain attacks).
+# - Docker ecosystem covers the backend image base + any compose file changes.
+# - Grouped updates reduce review fatigue without losing per-CVE visibility.
+# - `open-pull-requests-limit: 10` keeps the queue manageable; raise only
+#   after CI security gates flip to blocking (FINDINGS_BACKLOG: SEC-059/SEC-060/SEC-061).
+
+updates:
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "python", "security-review"]
+    reviewers:
+      - "Manifest-Startup/security"
+      - "Manifest-Startup/backend"
+    groups:
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+      python-security:
+        applies-to: "security-updates"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "javascript", "security-review"]
+    reviewers:
+      - "Manifest-Startup/security"
+      - "Manifest-Startup/frontend"
+    groups:
+      js-minor-and-patch:
+        update-types: ["minor", "patch"]
+      js-security:
+        applies-to: "security-updates"
+
+  - package-ecosystem: "npm"
+    directory: "/extensions/manifest-dev"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "extension"]
+
+  # GitHub Actions — weekly bumps reduce the exposure window for tag-
+  # repointing attacks (tj-actions / reviewdog class). Full SHA pinning of
+  # every action is tracked separately under SEC-073; once enabled,
+  # Dependabot will keep the SHA pins fresh.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "ci", "security-review"]
+    reviewers:
+      - "Manifest-Startup/security"
+
+  # Backend container base image (python:3.13-slim-bookworm pin).
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "docker", "security-review"]
+    reviewers:
+      - "Manifest-Startup/security"
+      - "Manifest-Startup/platform"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "docker"]

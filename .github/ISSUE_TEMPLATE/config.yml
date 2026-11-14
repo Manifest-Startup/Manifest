@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Manifest docs
+    url: https://github.com/Manifest-Startup/Manifest/tree/main/docs
+    about: Read the maintained docs hub before opening an issue.
+  - name: Security disclosure
+    url: https://github.com/Manifest-Startup/Manifest/blob/main/SECURITY.md
+    about: Report vulnerabilities per SECURITY.md (do not file public issues for sensitive reports).

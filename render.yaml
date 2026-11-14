@@ -1,0 +1,93 @@
+# Render Blueprint — Manifest backend (staging / production).
+# Docs: docs/RENDER_DEPLOYMENT.md
+# Production: Cloudflare edge Worker -> manifest-backend (free). Staging services below are optional.
+
+services:
+  # Production backend behind the Cloudflare edge Worker (deploy/cloudflare).
+  # This web service still has a public onrender.com hostname; EDGE_SHARED_SECRET
+  # makes the Worker the only trusted route for protected application requests.
+  # Free plan: sleeps after 15 idle minutes; the Worker's 10-minute cron ping
+  # keeps it warm (one service fits the 750 free instance-hours/month).
+  # Moving hosts later = deploy this same image elsewhere and change the
+  # Worker's BACKEND_ORIGIN. See docs/CLOUDFLARE_MIGRATION.md.
+  - type: web
+    name: manifest-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: backend
+    dockerfilePath: ./dockerfile
+    dockerContext: .
+    healthCheckPath: /ping
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_FORMAT
+        value: json
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: PORT
+        value: "8000"
+      # Safe only because EDGE_SHARED_SECRET makes the backend reject requests
+      # that did not come through the Worker (app/security/edge_guard.py).
+      - key: UVICORN_FORWARDED_ALLOW_IPS
+        value: "*"
+      - key: EDGE_SHARED_SECRET
+        sync: false
+      - key: APP_BASE_URL
+        value: https://manifeststartup.com
+      - key: FRONTEND_ORIGINS
+        value: https://manifeststartup.com,https://www.manifeststartup.com
+      - key: AI_MODEL
+        value: gpt-4o-mini
+      # Secrets: copy the exact values from Replit Secrets (never commit them).
+      # Every MANIFEST_KEK_V<n> that ever encrypted rows must be carried over,
+      # or those rows become unreadable.
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MANIFEST_KEK_PROVIDER
+        value: env
+      - key: MANIFEST_KEK_ACTIVE_VERSION
+        value: "1"
+      - key: MANIFEST_KEK_V1
+        generateValue: true
+      - key: MFA_ENCRYPTION_KEY
+        generateValue: true
+      - key: MANIFEST_PRIVACY_IP_HASH_SALT
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      # OAuth provider credentials are optional until their integrations are
+      # enabled, but must be configured for the corresponding callback flows.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+
+  # Staging/worker services were removed to keep the deployment free and to
+  # follow the one-production(+optional sandbox) convention. Recreate a sandbox
+  # from git history (render.yaml before the Cloudflare migration) if needed.

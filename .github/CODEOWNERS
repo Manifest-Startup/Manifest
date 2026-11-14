@@ -1,0 +1,70 @@
+# CODEOWNERS — Task #16 (Supply chain, CI/CD & responsible disclosure).
+#
+# Required reviewers for security-sensitive paths. Branch-protection should be
+# configured to enforce CODEOWNERS review on all PRs that touch these areas.
+# See docs/security/BRANCH_PROTECTION.md for the settings-as-code reference.
+#
+# Format:  <pattern>  <owner1> <owner2> ...
+# Owners must be teams, not individuals, so coverage survives staff churn.
+#
+# All listed paths have been verified to exist in the tree as of 2026-04-19.
+# Drift between this file and the real tree is a SEC-058 finding.
+
+# Default fallback — every PR gets at least one core review.
+*                                       @Manifest-Startup/core
+
+# CI/CD pipeline + supply-chain configuration.
+/.github/                               @Manifest-Startup/security @Manifest-Startup/platform
+/.github/workflows/                     @Manifest-Startup/security @Manifest-Startup/platform
+/.github/dependabot.yml                 @Manifest-Startup/security
+/.github/CODEOWNERS                     @Manifest-Startup/security
+
+# Pre-commit, secret scanning, signing config.
+/.pre-commit-config.yaml                @Manifest-Startup/security
+/.gitleaks.toml                         @Manifest-Startup/security
+
+# Container + runtime hardening.
+/backend/dockerfile                     @Manifest-Startup/security @Manifest-Startup/platform
+/docker-compose.yml                     @Manifest-Startup/platform
+/build.sh                               @Manifest-Startup/platform
+/scripts/                               @Manifest-Startup/platform
+
+# Lockfiles — gates supply-chain risk; security must review every bump.
+/backend/requirements.txt               @Manifest-Startup/security @Manifest-Startup/backend
+/frontend/package.json                  @Manifest-Startup/security @Manifest-Startup/frontend
+/frontend/package-lock.json             @Manifest-Startup/security @Manifest-Startup/frontend
+
+# Authn/authz, sessions, crypto, secrets.
+/backend/app/auth/                      @Manifest-Startup/security
+/backend/app/security/                  @Manifest-Startup/security
+/backend/app/services/api_key_service.py @Manifest-Startup/security
+/backend/app/services/security_audit_service.py @Manifest-Startup/security
+/backend/app/services/admin_audit_service.py    @Manifest-Startup/security
+/backend/app/config/                    @Manifest-Startup/security
+
+# Privacy, DSAR, consent (Task #15 surface).
+/backend/app/routes/dsar_routes.py             @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/routes/dsar_admin_routes.py       @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/routes/privacy_routes.py          @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/routes/trust_center_routes.py     @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/dsar_workflow_service.py @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/privacy_consent_service.py @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/privacy_jurisdiction.py  @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/privacy_policy_service.py @Manifest-Startup/security @Manifest-Startup/legal
+/legal/                                 @Manifest-Startup/legal
+
+# Audit logging + IR runbooks.
+/backend/app/security/audit_chain.py    @Manifest-Startup/security
+/backend/app/security/audit_sink.py     @Manifest-Startup/security
+/backend/app/security/audit_retention.py @Manifest-Startup/security
+/backend/app/security/audit_detections.py @Manifest-Startup/security
+/backend/app/security/audit_verifier.py @Manifest-Startup/security
+/docs/security/                         @Manifest-Startup/security
+/docs/security/INCIDENT_RESPONSE_RUNBOOK.md @Manifest-Startup/security
+/docs/security/SOC2_READINESS.md        @Manifest-Startup/security
+/docs/security/HIPAA_PROGRAM.md         @Manifest-Startup/security @Manifest-Startup/legal
+
+# Public disclosure surface — researchers contact these owners.
+/SECURITY.md                            @Manifest-Startup/security
+/.well-known/security.txt               @Manifest-Startup/security
+/frontend/public/.well-known/security.txt @Manifest-Startup/security

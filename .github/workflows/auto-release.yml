@@ -1,0 +1,78 @@
+name: Auto-release on push to main
+
+# Cuts a SemVer release for every push to `main` whose commit history (since
+# the last `vX.Y.Z` tag) contains at least one user-visible Conventional
+# Commit. Bump rule:
+#   - `feat!:` / `BREAKING CHANGE`           → major
+#   - `feat:`                                → minor
+#   - `fix:` / `perf:` / `security:` / `revert:` / `refactor:`
+#                                            → patch
+#   - only `chore:` / `docs:` / `test:` / `ci:` / `build:` / `style:`
+#                                            → skipped (no release)
+#
+# Authors can opt out per push by adding `[skip release]` to the HEAD commit
+# message (works the same as the standard `[skip ci]` token elsewhere).
+#
+# The lightweight tag created here intentionally bypasses the heavy
+# `release.yml` signing/SBOM/provenance pipeline (which is gated on signed
+# tags via `security-baseline`). Reserve manual `git tag -s vX.Y.Z` releases
+# for cuts that need the SLSA L3 attestation chain — see
+# `docs/security/RELEASE_PLAYBOOK.md`.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # required to push tags and create releases
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  auto-release:
+    name: 🏷  Compute version + cut release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip release]')"
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          fetch-depth: 0   # need full history to walk commits since last tag
+
+      - uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Plan next release
+        id: plan
+        run: python3 .github/scripts/auto_release.py plan
+        env:
+          GITHUB_OUTPUT: ${{ github.env }}
+
+      - name: Skip — no user-visible commits since last release
+        if: steps.plan.outputs.bump == 'none'
+        run: |
+          echo "::notice::No feat/fix/perf/security/refactor/revert commits since the last tag. Skipping release."
+
+      - name: Tag + release
+        if: steps.plan.outputs.bump != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_TAG: ${{ steps.plan.outputs.next_tag }}
+          PREV_TAG: ${{ steps.plan.outputs.prev_tag }}
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Build the release body from the same script so the planning + the
+          # cut share one source of truth.
+          python3 .github/scripts/auto_release.py notes > /tmp/notes.md
+
+          gh release create "$NEXT_TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$NEXT_TAG" \
+            --latest \
+            --notes-file /tmp/notes.md
+          echo "::notice::Released $NEXT_TAG (previous: $PREV_TAG)."

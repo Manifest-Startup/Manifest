@@ -1,0 +1,83 @@
+name: Production Smoke Tests
+
+# Continuous Playwright smoke tests against the deployed Manifest site.
+# Each test posts its result to the deployed backend at
+# /api/internal/production-tests/results, which dedupes and (on failure)
+# files a GitHub issue. See docs/PRODUCTION_TESTING.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Public URL to test against
+        required: false
+        default: https://manifeststartup.com
+        type: string
+  schedule:
+    # Every six hours, offset 7m to dodge the top-of-hour CI rush.
+    - cron: "7 */6 * * *"
+  # These checks exercise the currently deployed public origin. Branch-level
+  # behavior is covered by scripts/check.py and must not be inferred from production.
+
+concurrency:
+  group: production-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MANIFEST_TEST_TARGET_URL: ${{ inputs.target_url || vars.MANIFEST_TEST_TARGET_URL || 'https://manifeststartup.com' }}
+      MANIFEST_INTERNAL_API_URL: ${{ vars.MANIFEST_INTERNAL_API_URL || inputs.target_url || vars.MANIFEST_TEST_TARGET_URL || 'https://manifeststartup.com' }}
+      MANIFEST_AGENT_LOOP_SECRET: ${{ secrets.MANIFEST_AGENT_LOOP_SECRET }}
+      MANIFEST_TEST_ENVIRONMENT: ${{ github.event_name == 'pull_request' && 'pr' || 'production' }}
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: production-tests/package.json
+
+      - name: Install Playwright deps
+        working-directory: production-tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Run smoke suite
+        id: pwtests
+        working-directory: production-tests
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: production-tests/playwright-report
+          retention-days: 7
+
+      - name: Upload traces and videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ github.run_id }}
+          path: production-tests/test-results
+          retention-days: 7
+
+      - name: Mark job result
+        if: steps.pwtests.outcome == 'failure'
+        run: |
+          echo "::error::Production smoke tests failed — see GitHub Issues labeled 'automated-test' for deduped reports."
+          exit 1

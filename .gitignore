@@ -1,0 +1,81 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+frontend/node_modules/
+node_modules/
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+frontend/build/
+frontend/dist/
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.env
+*.venv
+venv/
+.env
+
+# pytest
+.pytest_cache/
+
+*storybook.log
+storybook-static
+
+# Replit
+.pythonlibs/
+/tmp/logs/
+*.replit
+.claude/worktrees/
+.claude/worktrees/suspicious-panini/
+
+# Test coverage outputs
+backend/.coverage
+docs/backend-coverage/
+.coverage
+
+# Local tool environments, caches and generated reports (never commit)
+.venv*/
+.pip-audit-cache/
+docs/coverage/
+frontend/coverage/
+.ruff_cache/
+.lighthouseci/
+*.vsix
+# Code knowledge graph (rebuilt locally by scripts/codegraph/build.py)
+.codegraph/
+docs/test-report.html
+docs/performance/
+frontend/test-results.json
+frontend/test-output.txt
+
+# Runtime output (generated PDFs, user exports) never belongs in git
+generated/
+data_exports/
+.playwright-cli/
+**/xcuserdata/
+docs/**/*.docx
+docs/**/*.xlsx
+docs/**/*.pptx
+docs/**/*.pdf
+docs/**/*.wav
+docs/**/*.mov
+frontend/public/videos/founders-video.mov
+frontend/cypress/screenshots/

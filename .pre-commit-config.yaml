@@ -1,0 +1,49 @@
+# Pre-commit hooks.
+# Secrets scanning, formatting, linting, type checking — all enforced before
+# commits land. Install:  pip install pre-commit && pre-commit install
+# Run all:  pre-commit run --all-files
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        args: ["--config=.gitleaks.toml", "--redact"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: detect-private-key
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      - id: end-of-file-fixer
+        exclude: '\.snap$|\.lock$|\.local/'
+      - id: trailing-whitespace
+        exclude: '\.snap$|\.local/'
+
+  # Backend Python: lint + format + import-sort via ruff, then black for layout.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^(backend|mcp_server|src/manifest_dev|tests)/.*\.py$
+      - id: ruff-format
+        files: ^(backend|mcp_server|src/manifest_dev|tests)/.*\.py$
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.10.0
+    hooks:
+      - id: black
+        files: ^(backend|mcp_server|src/manifest_dev|tests)/.*\.py$
+
+  # Type checking on the backend service surface (gradual; will tighten over time).
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^backend/app/.*\.py$
+        additional_dependencies:
+          - pydantic>=2
+          - types-requests
+          - types-PyYAML
+        args: ["--config-file=pyproject.toml"]

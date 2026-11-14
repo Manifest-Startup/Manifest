@@ -1,0 +1,60 @@
+# gitleaks config — Task #12 secrets scanner
+# Run locally:  gitleaks detect --config=.gitleaks.toml --redact -v
+# Run in CI:    gitleaks detect --config=.gitleaks.toml --redact --exit-code 1
+
+title = "Manifest secrets baseline"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rules layered on top of the gitleaks default ruleset
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "manifest-api-key"
+description = "Manifest internal API key (manifest_sk_*)"
+regex = '''manifest_sk_[a-f0-9]{32,128}'''
+tags = ["key", "manifest"]
+
+[[rules]]
+id = "manifest-kek"
+description = "Manifest KEK (base64-url encoded 32-byte key)"
+regex = '''(?i)MANIFEST_KEK_V[0-9]+\s*[:=]\s*['"]?[A-Za-z0-9+/_-]{40,}={0,2}'''
+entropy = 3.0
+tags = ["key", "manifest", "kek"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API key"
+regex = '''sk-[A-Za-z0-9]{20,}'''
+tags = ["key", "openai"]
+
+[[rules]]
+id = "private-key-block"
+description = "PEM private key"
+regex = '''-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----'''
+tags = ["key", "asymmetric"]
+
+# ---------------------------------------------------------------------------
+# Allow-list — paths/strings that are OK to commit (test fixtures, docs that
+# reference key shapes by example).
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "Manifest allow-list"
+paths = [
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)docs/security/.*\.md$''',
+  '''(^|/)\.local/.*''',
+  '''(^|/)\.replit''',
+  '''(^|/)attached_assets/.*''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)pnpm-lock\.yaml$''',
+]
+# Strings the team has reviewed and confirmed are safe.
+regexes = [
+  '''sk-test-[A-Za-z0-9]+''',         # placeholder OpenAI keys in test settings
+  '''manifest_sk_test_[a-f0-9]+''',  # placeholder API keys in tests
+  '''AKIAIOSFODNN7EXAMPLE''',         # AWS doc example
+]

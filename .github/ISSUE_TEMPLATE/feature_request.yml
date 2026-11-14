@@ -1,0 +1,37 @@
+name: Feature request
+description: Capture a new product or engineering feature with user value, rollout scope, and success criteria.
+title: "[Feature]: "
+labels:
+  - feature
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What friction or missed opportunity are we addressing?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed solution
+      description: Describe the intended behavior, data flow, or UX.
+    validations:
+      required: true
+  - type: textarea
+    id: user_value
+    attributes:
+      label: User value
+      description: How does this reduce friction, increase trust, or improve outcomes for founders/investors?
+    validations:
+      required: true
+  - type: textarea
+    id: success_metrics
+    attributes:
+      label: Success metrics
+      description: Include product, reliability, privacy, or performance signals if relevant.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and rollout notes
+      description: Mention migrations, docs, analytics, legal review, or API changes.

@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "name": "idea_qualification_turn",
+  "description": "One turn of the conversational qualification agent: extract structured fields from the latest user reply, then either ask the next best question or mark the session complete with a score.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "initial_idea_text": { "type": "string" },
+      "transcript": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "role": { "type": "string", "enum": ["assistant", "user"] },
+            "content": { "type": "string" }
+          },
+          "required": ["role", "content"]
+        }
+      },
+      "known_fields": {
+        "type": "object",
+        "description": "Whatever has already been extracted in prior turns; nulls for unknown."
+      },
+      "turn_count": { "type": "integer" }
+    },
+    "required": ["initial_idea_text", "transcript", "known_fields", "turn_count"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "extracted_fields": {
+        "type": "object",
+        "description": "Fields the agent could infer from the latest user reply. Only include fields you are confident about. Use the same keys as known_fields.",
+        "properties": {
+          "user_seriousness": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "user_domain_knowledge": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "user_goals": { "type": ["string", "null"] },
+          "user_budget": { "type": ["string", "null"] },
+          "user_timeline": { "type": ["string", "null"] },
+          "user_execution_ability": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "idea_market_need": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "idea_target_customer": { "type": ["string", "null"] },
+          "idea_feasibility": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "idea_defensibility": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "idea_revenue_potential": { "type": ["integer", "null"], "minimum": 1, "maximum": 10 },
+          "idea_competition": { "type": ["string", "null"] },
+          "idea_risks": { "type": ["string", "null"] }
+        }
+      },
+      "decision": { "type": "string", "enum": ["ask_again", "complete"] },
+      "next_question": {
+        "type": ["string", "null"],
+        "description": "Required if decision == 'ask_again'. A single warm, specific question that targets the highest-value unknown field. One question at a time."
+      },
+      "qualification_score": {
+        "type": ["integer", "null"],
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Required if decision == 'complete'. 0–100 composite score."
+      },
+      "qualification_explanation": {
+        "type": ["string", "null"],
+        "description": "Required if decision == 'complete'. 2–4 sentence rationale for the score, plain language."
+      }
+    },
+    "required": ["extracted_fields", "decision"]
+  },
+  "prompt": {
+    "system": "You are Manifest's idea-qualification agent. Your job in each turn is twofold:\n\n1. EXTRACT any structured fields you can infer from the LATEST user reply (do not re-extract what is already known; only fill nulls). Be conservative — if a value is not clearly supported by the user's words, leave it null. Integer scores are 1–10. String fields should be 1–2 sentences.\n\n2. DECIDE whether to ask one more question or finish. Finish (`decision = \"complete\"`) when you have at least 8 of the 13 fields populated AND you have enough signal to give a credible 0–100 score, OR when turn_count >= 8. Otherwise (`decision = \"ask_again\"`) generate the single best next question targeting the highest-value unknown.\n\nQuestion style: warm, plain language, one question at a time, no jargon, no preamble. Do not stack multiple questions. Avoid yes/no; prefer questions that elicit a one-paragraph answer.\n\nScoring rubric when decision = \"complete\":\n- 80–100: serious founder + strong idea + clear market\n- 60–79: workable but with gaps\n- 40–59: significant risk on user OR idea side\n- 0–39: not yet ready\n\nReturn STRICT JSON matching the output schema. No prose outside the JSON. No code fences.",
+    "user": "INITIAL IDEA:\n{{initial_idea_text}}\n\nKNOWN FIELDS (null = unknown):\n{{known_fields_json}}\n\nTRANSCRIPT (turn_count = {{turn_count}}):\n{{transcript_text}}\n\nReturn ONLY the JSON object described in the output schema."
+  },
+  "temperature": 0.4,
+  "model": "gpt-4o-mini"
+}

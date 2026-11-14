@@ -1,0 +1,16 @@
+{
+  "//": "Language-server config for Python (Pyright / Pylance / Claude Code pyright-lsp). Strictness lives in mypy; this file only makes navigation and imports resolve.",
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "include": ["backend", "mcp_server/src", "mcp_server/tests", "src", "scripts", "main.py"],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.venv*", "frontend", "generated", "docs"],
+  "executionEnvironments": [
+    { "root": "backend", "extraPaths": ["backend", "backend/scripts"] },
+    { "root": "mcp_server", "extraPaths": ["mcp_server/src"] },
+    { "root": "src", "extraPaths": ["src"] },
+    { "root": "scripts", "extraPaths": ["backend", "scripts"] }
+  ],
+  "reportMissingModuleSource": "none"
+}

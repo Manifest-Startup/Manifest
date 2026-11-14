@@ -1,0 +1,9 @@
+# Manifest REST API
+
+Agent-readable resources for integrating with the Manifest public REST API.
+
+- [API reference](https://manifeststartup.com/docs/api)
+- [OpenAPI 3.1 document](https://manifeststartup.com/openapi.json)
+- [Agent guide](https://manifeststartup.com/agents.md) (authentication and scoped API-key use)
+- [API tier pricing and limits](https://manifeststartup.com/pricing.md)
+- [RFC 9727 API catalog](https://manifeststartup.com/.well-known/api-catalog)

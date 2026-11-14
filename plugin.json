@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "manifest-api",
+  "version": "1.0.0",
+  "description": "Guidance for agents using Manifest's public REST API to manage startup ideas and generate business documents.",
+  "homepage": "https://manifeststartup.com/agents.md",
+  "repository": "https://github.com/Manifest-Startup/Manifest",
+  "keywords": ["manifest", "startup", "ideas", "pitch-deck", "api"]
+}

@@ -1,0 +1,18 @@
+# Manifest — security.txt (RFC 9116)
+# https://www.rfc-editor.org/rfc/rfc9116
+#
+# Served by the SPA at https://manifeststartup.com/.well-known/security.txt.
+# Keep in sync with /.well-known/security.txt at the repository root and with
+# any reverse-proxy / CDN rewrites.
+
+Contact: mailto:security@manifeststartup.com
+Contact: https://github.com/Manifest-Startup/Manifest/security/advisories/new
+Expires: 2027-04-19T00:00:00.000Z
+# Encryption: pending — see SECURITY.md §8 / SECRET_ROTATION.md §6.
+# Omitted (rather than advertised pre-ceremony) per RFC 9116, which marks
+# the field optional.
+Acknowledgments: https://github.com/Manifest-Startup/Manifest/blob/main/docs/security/HALL_OF_FAME.md
+Preferred-Languages: en
+Canonical: https://manifeststartup.com/.well-known/security.txt
+Policy: https://github.com/Manifest-Startup/Manifest/blob/main/SECURITY.md
+Hiring: https://manifeststartup.com/careers

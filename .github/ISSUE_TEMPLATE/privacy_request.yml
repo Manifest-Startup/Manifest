@@ -1,0 +1,48 @@
+name: Privacy / compliance request
+description: Track GDPR, CPRA, data-retention, consent, or customer-data handling work.
+title: "[Privacy]: "
+labels:
+  - privacy
+  - compliance
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: Request
+      description: What privacy, consent, or data-governance work is needed?
+    validations:
+      required: true
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: Request type
+      options:
+        - Consent UX
+        - Tracking / analytics
+        - Data retention
+        - Deletion / export
+        - Vendor / subprocessors
+        - Policy / docs
+        - Incident / remediation
+    validations:
+      required: true
+  - type: textarea
+    id: data_categories
+    attributes:
+      label: Data categories affected
+      description: Note identifiers, contact info, behavioral analytics, sensitive data, or audit records involved.
+  - type: textarea
+    id: legal_context
+    attributes:
+      label: Legal or policy context
+      description: Reference GDPR, CPRA, regional requirements, DPA updates, or internal policy expectations.
+  - type: textarea
+    id: engineering_scope
+    attributes:
+      label: Engineering scope
+      description: Include endpoints, tables, docs, or UI surfaces that need to change.
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Which tests, QA checks, or evidence should prove this request is complete?

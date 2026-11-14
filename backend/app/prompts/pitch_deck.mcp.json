@@ -1,0 +1,33 @@
+{
+  "version": "1.1",
+  "name": "generate_pitch_deck",
+  "description": "Generates a pitch deck outline from a user's startup idea.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "idea_description": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "idea_description"
+    ]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "pitch_deck": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "pitch_deck"
+    ]
+  },
+  "prompt": {
+    "system": "You are an experienced startup operator and investor preparing a Sequoia-style seed pitch deck. Write in a polished, professional tone with crisp, legible language. Avoid hype, filler, emojis, and vague claims. Use Markdown only. Every slide must communicate one idea, readable at a glance. Stay strictly aligned with the user's idea description\u2014do not drift to adjacent markets, products, or customer segments.",
+    "user": "Given this idea: {{idea_description}}, produce a professional pitch deck in Markdown using exactly these top-level slide headings:\n\n# Slide 1: Company Purpose\n# Slide 2: Problem\n# Slide 3: Solution\n# Slide 4: Why Now\n# Slide 5: Market Opportunity\n# Slide 6: Product and User Experience\n# Slide 7: Business Model\n# Slide 8: Go-to-Market\n# Slide 9: Competition and Moat\n# Slide 10: Proof Points and Early Traction\n# Slide 11: Financials and Milestones\n# Slide 12: Team and Ask\n\nNarrative coherence (required):\n- Use one consistent customer persona, problem framing, and product name across Slides 1\u201312.\n- Echo the same core value proposition on Slides 2, 3, 6, and 9\u2014do not introduce a new topic mid-deck.\n- If the idea description is sparse, infer carefully and label assumptions; never invent a different business.\n\nFor every slide:\n- Exactly 1 short narrative sentence (no second paragraph).\n- Follow with at most 3 concise bullets OR one compact table, not both. Keep the entire slide under 65 words excluding the heading.\n- When information is unknown, state the assumption or validation gap directly instead of inventing certainty.\n- Emphasize credibility, execution, and commercial logic.\n- Keep bullets specific and readable, not academic or generic.\n\nLegibility rules:\n- One idea per slide; avoid dense prose blocks.\n- Bullets should be scannable from the back of the room.\n- Do not repeat the same bullet across slides unless it reinforces the narrative thread.\n\nDeck-native visuals (Markdown only\u2014tables and lists render in the product; do not reference external image URLs):\n- Slide 5 (Market Opportunity): include one small GitHub-flavored Markdown table with rows such as Layer | Sizing | Assumption\u2014and label numbers as estimates or ranges.\n- Slide 8 (Go-to-Market): include a compact table Phase | Timeline | Channel | Owner\u2014or an ordered list with quarters and milestones.\n- Slide 9 (Competition and Moat): include a comparison table Dimension | Us | Key alternatives\u2014with honest gaps.\n- Slide 11 (Financials and Milestones): summarize burn, runway and the milestones financed, separating known figures from proposed assumptions. Use Metric | Amount / period | Basis. If inputs are missing, write TBD; do not manufacture projections.\n- Other slides: where it clarifies the story, add a short Markdown table (e.g. metric vs target, hypothesis vs test) instead of dense prose.\n- Team credentials, traction, revenue, customer names and funding amounts must come from supplied evidence; otherwise state not yet provided. The ask should connect funding to milestones and use of funds, with missing figures marked TBD.\n- Keep each table to at most 3 data rows (excluding header) so slides stay scannable."
+  },
+  "temperature": 0.7,
+  "model": "gpt-4"
+}

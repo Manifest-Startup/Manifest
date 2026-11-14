@@ -1,0 +1,420 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useSearchParams } from 'react-router-dom';
+import { useMessage } from 'features/notifications/context/MessageContext';
+import { trackEvent } from 'features/analytics/projectAnalytics';
+import { GET_INTEGRATIONS, CONNECT_INTEGRATION, DISCONNECT_INTEGRATION } from 'features/core/apollo/queries';
+import { 
+  HiSearch,
+  HiOutlineCheckCircle,
+  HiXCircle
+} from 'react-icons/hi';
+import {
+  getIntegrationCatalogEntry,
+  integrationCatalog,
+  integrationCategories,
+  type IntegrationAvailability,
+  type IntegrationCatalogEntry,
+} from 'features/account/lib/integrationsCatalog';
+
+// Placeholder icon component for missing icons
+const PlaceholderIcon: React.FC<{ className?: string; letter: string }> = ({ className, letter }) => (
+  <span className={className} style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+    {letter}
+  </span>
+);
+
+// Wrapper components for react-icons v5 compatibility
+const CheckIcon: React.FC<{ className?: string }> = ({ className }) => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - react-icons v5 type compatibility
+  return <HiOutlineCheckCircle className={className} />;
+};
+
+const SearchIcon: React.FC<{ className?: string }> = ({ className }) => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - react-icons v5 type compatibility
+  return <HiSearch className={className} />;
+};
+
+const XIcon: React.FC<{ className?: string }> = ({ className }) => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - react-icons v5 type compatibility
+  return <HiXCircle className={className} />;
+};
+
+interface Integration {
+  id: IntegrationCatalogEntry['id'];
+  name: IntegrationCatalogEntry['name'];
+  description: IntegrationCatalogEntry['description'];
+  icon: IntegrationCatalogEntry['icon'];
+  category: IntegrationCatalogEntry['category'];
+  connected: boolean;
+  brandColor: IntegrationCatalogEntry['brandColor'];
+  availability: IntegrationAvailability;
+}
+
+
+interface IntegrationCardProps {
+  integration: Integration;
+  onToggle: (id: string, connected: boolean) => void;
+  isConnecting?: boolean;
+}
+
+const IntegrationCard: React.FC<IntegrationCardProps> = ({ 
+  integration, 
+  onToggle,
+  isConnecting = false 
+}) => {
+  const IconComponent = integration.icon;
+  
+  return (
+    <div className="manifest-card group relative flex h-full min-w-0 flex-col p-4">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div 
+            className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white"
+            style={{ backgroundColor: integration.brandColor }}
+          >
+            {IconComponent ? (
+              React.createElement(IconComponent as React.ComponentType<{ className?: string }>, {
+                className: "w-6 h-6",
+              })
+            ) : (
+              <PlaceholderIcon className="text-lg font-bold" letter={integration.name.charAt(0)} />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-theme-primary text-base truncate">
+              {integration.name}
+            </h4>
+            {integration.connected && (
+              <div className="flex items-center gap-1 mt-1">
+                <CheckIcon className="w-4 h-4 text-green-700 dark:text-green-400" />
+                <span className="text-xs text-green-700 dark:text-green-400 font-medium">Connected</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <p className="text-sm text-theme-secondary mb-4 flex-1 leading-relaxed">
+        {integration.description}
+      </p>
+      
+      {integration.availability === 'coming_soon' && !integration.connected ? (
+        <div
+          className="w-full py-2.5 px-4 rounded-lg text-sm font-medium border border-dashed border-theme-primary bg-theme-tertiary text-theme-secondary text-center select-none"
+          aria-label={`${integration.name} integration coming soon`}
+          data-testid={`integration-coming-soon-${integration.id}`}
+        >
+          Coming soon
+        </div>
+      ) : (
+        <button
+          onClick={() => onToggle(integration.id, integration.connected)}
+          disabled={isConnecting}
+          className={`manifest-control w-full ${integration.connected ? 'manifest-control-secondary' : 'manifest-control-primary'}`}
+        >
+          {isConnecting
+            ? 'Connecting...'
+            : integration.connected
+              ? 'Disconnect'
+              : 'Connect'
+          }
+        </button>
+      )}
+    </div>
+  );
+};
+
+const IntegrationsSection: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [connectingId, setConnectingId] = useState<string | null>(null);
+  const integrationRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const { setMessage } = useMessage();
+  const focusIntegrationId = searchParams.get('focusIntegration')?.trim().toLowerCase() || '';
+  
+  const { data: integrationsData, loading: integrationsLoading, refetch } = useQuery(GET_INTEGRATIONS);
+  const [connectIntegration] = useMutation(CONNECT_INTEGRATION, {
+    refetchQueries: [{ query: GET_INTEGRATIONS }],
+  });
+  const [disconnectIntegration] = useMutation(DISCONNECT_INTEGRATION, {
+    refetchQueries: [{ query: GET_INTEGRATIONS }],
+  });
+
+  const connectedIntegrations = new Set(
+    integrationsData?.integrations?.map((integration: any) => integration.serviceId) || []
+  );
+
+  const integrationsWithStatus: Integration[] = integrationCatalog.map(integration => ({
+    ...integration,
+    availability: integration.availability ?? 'available',
+    connected: connectedIntegrations.has(integration.id),
+  }));
+
+  useEffect(() => {
+    if (!focusIntegrationId) {
+      return;
+    }
+
+    const focusIntegration = getIntegrationCatalogEntry(focusIntegrationId);
+    if (!focusIntegration) {
+      return;
+    }
+
+    setSelectedCategory(focusIntegration.category);
+    setSearchQuery(focusIntegration.name);
+  }, [focusIntegrationId]);
+
+  const filteredIntegrations = integrationsWithStatus.filter(integration => {
+    const matchesCategory = selectedCategory === 'All' || integration.category === selectedCategory;
+    const matchesSearch = integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         integration.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const handleToggle = async (integrationId: string, isConnected: boolean) => {
+    if (isConnected) {
+      await handleDisconnect(integrationId);
+    } else {
+      await handleConnect(integrationId);
+    }
+  };
+
+  const handleConnect = async (integrationId: string) => {
+    setConnectingId(integrationId);
+    trackEvent('integration_connect_started', { service: integrationId });
+    try {
+      setMessage(`Initiating connection to ${integrationId}...`, 'info');
+      
+      const response = await fetch(`/auth/${integrationId}/start`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await response.json()
+        : { detail: 'Unexpected response from auth service.' };
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `Failed to start ${integrationId} connection.`);
+      }
+      
+      if (data.error === 'not_configured') {
+        await connectIntegration({
+          variables: {
+            input: {
+              serviceId: integrationId,
+              accessToken: null,
+              refreshToken: null,
+              expiresAt: null,
+              metadata: null,
+            }
+          }
+        });
+        setMessage(`${integrationId} integration saved. OAuth will be available soon.`, 'success');
+        trackEvent('integration_connect_outcome', {
+          service: integrationId,
+          outcome: 'saved_without_oauth',
+          oauth: false,
+        });
+        refetch();
+        setConnectingId(null);
+        return;
+      }
+      
+      if (data.auth_url) {
+        const width = 600;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          data.auth_url,
+          `oauth_${integrationId}`,
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+        );
+        
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data?.type === 'oauth_callback') {
+            window.removeEventListener('message', handleMessage);
+            if (event.data.status === 'success') {
+              setMessage(`Successfully connected to ${event.data.provider}`, 'success');
+              trackEvent('integration_connect_outcome', {
+                service: integrationId,
+                outcome: 'success',
+                oauth: true,
+              });
+              refetch();
+            } else {
+              setMessage(`Failed to connect: ${event.data.message}`, 'error');
+              trackEvent('integration_connect_outcome', {
+                service: integrationId,
+                outcome: 'failure',
+                oauth: true,
+              });
+            }
+            setConnectingId(null);
+          }
+        };
+        
+        window.addEventListener('message', handleMessage);
+        
+        const checkClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', handleMessage);
+            setConnectingId(null);
+            refetch();
+          }
+        }, 500);
+        
+        return;
+      }
+      
+      throw new Error(data.detail || 'Failed to start OAuth flow');
+    } catch (error: any) {
+      console.error('Failed to connect integration:', error);
+      trackEvent('integration_connect_outcome', {
+        service: integrationId,
+        outcome: 'failure',
+        oauth: false,
+      });
+      setMessage(`Failed to connect to ${integrationId}: ${error.message}`, 'error');
+      setConnectingId(null);
+    }
+  };
+
+  const handleDisconnect = async (integrationId: string) => {
+    setConnectingId(integrationId);
+    try {
+      await disconnectIntegration({
+        variables: { serviceId: integrationId }
+      });
+      setMessage(`Successfully disconnected from ${integrationId}`, 'success');
+      trackEvent('integration_disconnect_outcome', {
+        service: integrationId,
+        outcome: 'success',
+      });
+      refetch();
+    } catch (error: any) {
+      console.error('Failed to disconnect integration:', error);
+      trackEvent('integration_disconnect_outcome', {
+        service: integrationId,
+        outcome: 'failure',
+      });
+      setMessage(`Failed to disconnect from ${integrationId}: ${error.message}`, 'error');
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
+  const groupedIntegrations = filteredIntegrations.reduce((acc, integration) => {
+    if (!acc[integration.category]) {
+      acc[integration.category] = [];
+    }
+    acc[integration.category].push(integration);
+    return acc;
+  }, {} as Record<string, Integration[]>);
+
+  useEffect(() => {
+    if (!focusIntegrationId) {
+      return;
+    }
+
+    const targetCard = integrationRefs.current[focusIntegrationId];
+    if (!targetCard) {
+      return;
+    }
+
+    if (typeof targetCard.scrollIntoView === 'function') {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusIntegrationId, filteredIntegrations]);
+
+  return (
+    <section className="manifest-panel p-4 sm:p-5">
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold mb-2 text-theme-primary tracking-tight">
+          Integrations
+        </h2>
+        <p className="text-sm text-theme-secondary leading-relaxed">
+          Connect the tools you use to build your startup.
+        </p>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative mb-6">
+        <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <input
+          type="text"
+          placeholder="Search integrations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="manifest-field pl-12"
+          aria-label="Search integrations"
+        />
+      </div>
+
+      {/* Category Filter */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        {integrationCategories.map((category) => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            aria-pressed={selectedCategory === category}
+            className={`manifest-control ${selectedCategory === category ? 'manifest-control-primary' : 'manifest-control-secondary'}`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      {/* Integrations Grid */}
+      <div className="space-y-8">
+        {Object.entries(groupedIntegrations).map(([category, categoryIntegrations]) => (
+          <div key={category}>
+            <h3 className="text-lg font-semibold mb-4 text-theme-primary">{category}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categoryIntegrations.map((integration) => (
+                <div
+                  key={integration.id}
+                  ref={(element) => {
+                    integrationRefs.current[integration.id] = element;
+                  }}
+                  data-integration-id={integration.id}
+                >
+                  <IntegrationCard
+                    integration={integration}
+                    onToggle={handleToggle}
+                    isConnecting={connectingId === integration.id}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {integrationsLoading && (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="text-theme-secondary mt-4">Loading integrations...</p>
+        </div>
+      )}
+
+      {!integrationsLoading && filteredIntegrations.length === 0 && (
+        <div className="text-center py-12">
+          <XIcon className="mx-auto w-12 h-12 text-gray-300 mb-4" />
+          <p className="text-theme-secondary font-medium">No integrations found matching your search.</p>
+        </div>
+      )}
+    </section>
+  );
+};
+
+export default IntegrationsSection;
