@@ -6,18 +6,10 @@ from app.utils.logger import logger
 
 class ConsultantAgreement:
     def __init__(self, model, **kwargs):
-        logger.info(
-            "ConsultantAgreement Object created."
-        )  # Logging the creation of a new ConsultantAgreement object
-        self.model = model  # Assigning the model to the object
-
-        # Assigning the consultant name from the kwargs or setting it to "Default Consultant" if not provided
+        logger.info("ConsultantAgreement Object created.")
+        self.model = model
         self._consultant_name = kwargs.get("consultant_name", "Default Consultant")
-
-        # Assigning the company name from the kwargs or setting it to "Default Company" if not provided
         self._company_name = kwargs.get("company_name", "Default Company")
-
-        # Getting the start date from kwargs
         start_date_str = kwargs.get("start_date")
         if start_date_str:
             try:
@@ -29,8 +21,6 @@ class ConsultantAgreement:
         else:
             # If no start date is provided, setting the start date to the current date and time
             self._start_date = datetime.now()
-
-        # Getting the end date from kwargs
         end_date_str = kwargs.get("end_date")
         if end_date_str:
             try:
@@ -50,7 +40,6 @@ class ConsultantAgreement:
         self._intellectual_property_clause = ""
         self._termination_conditions = ""
 
-    # Auto-generated properties using AutoProperty descriptor
     consultant_name = AutoProperty("consultant_name")
     company_name = AutoProperty("company_name")
     start_date = AutoProperty("start_date")
@@ -62,7 +51,6 @@ class ConsultantAgreement:
     termination_conditions = AutoProperty("termination_conditions")
 
     def display_agreement(self):
-        # Logging the display of the agreement details
         logger.info(
             f"=== Consultant Agreement between {self.company_name} and {self.consultant_name} ==="
         )

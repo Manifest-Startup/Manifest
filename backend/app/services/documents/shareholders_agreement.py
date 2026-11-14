@@ -4,10 +4,8 @@ from app.utils.logger import logger
 
 class ShareholdersAgreement:
     def __init__(self, model, **kwargs):
-        # Logging the initialization of the ShareholdersAgreement object
         logger.info("Initializing ShareholdersAgreement object.")
         self.model = model
-        # Setting default values for the required fields if not provided
         self._company_name = kwargs.get("company_name", "Tech Ventures Inc.")
         self._business_address = kwargs.get(
             "business_address", "789 Innovation Blvd, San Francisco, CA"
@@ -35,7 +33,6 @@ class ShareholdersAgreement:
             "The company will be dissolved upon unanimous shareholder agreement or court order.",
         )
 
-    # Auto-generated properties using AutoProperty descriptor
     company_name = AutoProperty("company_name")
     business_address = AutoProperty("business_address")
     shareholders = AutoProperty("shareholders")
@@ -46,7 +43,6 @@ class ShareholdersAgreement:
     termination_conditions = AutoProperty("termination_conditions")
 
     def display_info(self):
-        # Logging the details of the Shareholders Agreement
         logger.info("=== Shareholders Agreement ===")
         logger.info(f"Company Name                : {self.company_name}")
         logger.info(f"Business Address            : {self.business_address}")

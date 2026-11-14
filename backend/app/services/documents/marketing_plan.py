@@ -17,7 +17,6 @@ class MarketingPlan:
         self._budget = 0.0  # Initialize budget to 0.0
         self._kpis = []  # Initialize empty list for KPIs
 
-    # Auto-generated properties using AutoProperty descriptor
     product_name = AutoProperty("product_name")
     year = AutoProperty("year")
     target_markets = AutoProperty("target_markets")

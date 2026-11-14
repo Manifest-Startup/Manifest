@@ -5,9 +5,7 @@ from app.utils.logger import logger
 
 class EmployeeContract:
     def __init__(self, model, **kwargs):
-        logger.info(
-            "EmployeeContract Object created."
-        )  # Logging the creation of EmployeeContract object
+        logger.info("EmployeeContract Object created.")
         self.model = model
         self._employee_name = kwargs.get(
             "employee_name", "Default Employee"
@@ -124,7 +122,7 @@ class EmployeeContract:
         self._termination_conditions = value
 
     def add_benefit(self, benefit):
-        logger.info(f"Adding benefit: {benefit}")  # Logging the benefit being added
+        logger.info(f"Adding benefit: {benefit}")
         self._benefits.append(benefit)  # Adding the benefit to the benefits list
 
     def display_contract(self):
@@ -145,7 +143,7 @@ class EmployeeContract:
 
 class OfferLetter:
     def __init__(self, model, **kwargs):
-        logger.info("OfferLetter Object created.")  # Logging the creation of OfferLetter object
+        logger.info("OfferLetter Object created.")
         self.model = model
         self._employee_name = kwargs.get(
             "employee_name", "Default Candidate"

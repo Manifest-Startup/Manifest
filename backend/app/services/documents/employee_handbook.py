@@ -55,7 +55,6 @@ class EmployeeHandbook:
         Parameters:
         - policy (str): Description of the attendance policy.
         """
-        # Set the "Attendance Policy" section to the provided policy
         self.sections["Attendance Policy"] = policy
 
     def set_leave_policy(self, policy):
@@ -65,7 +64,6 @@ class EmployeeHandbook:
         Parameters:
         - policy (str): Description of the leave policy.
         """
-        # Set the "Leave Policy" section to the provided policy
         self.sections["Leave Policy"] = policy
 
     def add_workplace_rule(self, rule):
@@ -85,7 +83,6 @@ class EmployeeHandbook:
         Parameters:
         - policy (str): Description of the termination policy.
         """
-        # Set the "Termination Policy" section to the provided policy
         self.sections["Termination Policy"] = policy
 
     def display_handbook(self):

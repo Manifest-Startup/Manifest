@@ -32,8 +32,6 @@ class ProductRoadmap:
             completion_date = datetime.strptime(estimated_completion, "%Y-%m-%d")
         except ValueError:
             return "Invalid date format. Please use 'YYYY-MM-DD'."
-
-        # Create a new milestone dictionary
         milestone = {
             "Milestone Name": milestone_name,
             "Description": description,

@@ -37,7 +37,6 @@ class SalesContract:
         self._warranties = []
         self._termination_conditions = ""
 
-    # Auto-generated properties using AutoProperty descriptor
     seller_name = AutoProperty("seller_name")
     buyer_name = AutoProperty("buyer_name")
     effective_date = AutoProperty("effective_date")
@@ -51,8 +50,6 @@ class SalesContract:
     def add_product_or_service(self, name, description, quantity, unit_price):
         if quantity <= 0 or unit_price <= 0:
             return "Quantity and unit price must be positive."
-
-        # Create a new product/service dictionary
         product = {
             "Name": name,
             "Description": description,

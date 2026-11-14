@@ -1,32 +1,20 @@
 from app.utils.auto_property import AutoProperty
 from app.utils.logger import logger
+from app.utils.redaction import mask
 
 
 class BankAccount:
     def __init__(self, model, **kwargs):
-        logger.info(
-            "BankAccount Object created."
-        )  # Logging the creation of a new BankAccount object
-        self.model = model  # Assigning the model to the object
-
-        # Assigning the account holder name from the kwargs or setting it to "Default Account Holder" if not provided
+        logger.info("BankAccount Object created.")
+        self.model = model
         self._account_holder_name = kwargs.get(
             "account_holder_name", kwargs.get("account_holder", "Default Account Holder")
         )
-
-        # Assigning the bank name from the kwargs or setting it to "Default Bank" if not provided
         self._bank_name = kwargs.get("bank_name", "Default Bank")
-
-        # Assigning the account type from the kwargs or setting it to "Checking" if not provided
         self._account_type = kwargs.get("account_type", "Checking")
-
-        # Assigning the routing number from the kwargs or setting it to "123456789" if not provided
         self._routing_number = kwargs.get("routing_number", "123456789")
-
-        # Assigning the balance from the kwargs or setting it to 0.0 if not provided
         self._balance = kwargs.get("balance", 0.0)
 
-    # Auto-generated properties using AutoProperty descriptor
     account_holder_name = AutoProperty("account_holder_name")
     bank_name = AutoProperty("bank_name")
     account_type = AutoProperty("account_type")
@@ -61,12 +49,11 @@ class BankAccount:
         return f"${amount:.2f} has been withdrawn. New balance: ${self.balance:.2f}"
 
     def display_info(self):
-        # Logging the details of the bank account
         logger.info("=== Bank Account Information ===")
         logger.info(f"Account Holder Name : {self.account_holder_name}")
         logger.info(f"Bank Name           : {self.bank_name}")
         logger.info(f"Account Type        : {self.account_type}")
-        logger.info(f"Routing Number      : {self.routing_number}")
+        logger.info(f"Routing Number      : {mask(self.routing_number)}")
 
     def validate(self):
         # Validate required fields to ensure all fields are completed and valid

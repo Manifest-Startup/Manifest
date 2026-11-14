@@ -1,33 +1,21 @@
 from app.utils.auto_property import AutoProperty
 from app.utils.logger import logger
+from app.utils.redaction import mask
 
 
 class EINService:
     def __init__(self, model, **kwargs):
-        logger.info("EINService Object created.")  # Logging the creation of a new EINService object
-        self.model = model  # Assigning the model to the object
-
-        # Assigning the business name from the kwargs or setting it to "Default Business" if not provided
+        logger.info("EINService Object created.")
+        self.model = model
         self._business_name = kwargs.get("business_name", "Default Business")
-
-        # Assigning the business address from the kwargs or setting it to "Default Address" if not provided
         self._business_address = kwargs.get("business_address", "Default Address")
-
-        # Assigning the business type from the kwargs or setting it to "LLC" if not provided
         self._business_type = kwargs.get("business_type", "LLC")
-
-        # Assigning the responsible party name from the kwargs or setting it to "Default Owner" if not provided
         self._responsible_party_name = kwargs.get("responsible_party_name", "Default Owner")
-
-        # Assigning the responsible party SSN from the kwargs or setting it to "123-45-6789" if not provided
         self._responsible_party_ssn = kwargs.get("responsible_party_ssn", "123-45-6789")
-
-        # Assigning the responsible party address from the kwargs or setting it to "Default Owner Address" if not provided
         self._responsible_party_address = kwargs.get(
             "responsible_party_address", "Default Owner Address"
         )
 
-    # Auto-generated properties using AutoProperty descriptor
     business_name = AutoProperty("business_name")
     business_address = AutoProperty("business_address")
     business_type = AutoProperty("business_type")
@@ -36,13 +24,12 @@ class EINService:
     responsible_party_address = AutoProperty("responsible_party_address")
 
     def display_info(self):
-        # Logging the details of the EIN application
         logger.info("=== EIN Application ===")
         logger.info(f"Business Name              : {self.business_name}")
         logger.info(f"Business Address           : {self.business_address}")
         logger.info(f"Business Type              : {self.business_type}")
         logger.info(f"Responsible Party Name     : {self.responsible_party_name}")
-        logger.info(f"Responsible Party SSN      : {self.responsible_party_ssn}")
+        logger.info(f"Responsible Party SSN      : {mask(self.responsible_party_ssn)}")
         logger.info(f"Responsible Party Address  : {self.responsible_party_address}")
 
     def validate(self):

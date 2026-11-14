@@ -33,8 +33,6 @@ class InvestmentAgreement:
         # Check if investment amount and equity percentage are positive
         if investment_amount <= 0 or equity_percentage <= 0:
             return "Investment amount and equity percentage must be positive."
-
-        # Create a new investment agreement
         agreement = {
             "Investor Name": investor_name,
             "Investment Amount": investment_amount,

@@ -357,7 +357,6 @@ def generate_background_tasks(  # noqa: C901
         # This prevents race conditions where multiple tasks overwrite each other's idea state
         with _manifest_manager_lock:
             logger.info(f"[Lock] Acquired lock for idea_id {idea_id}")
-            # Set the idea description and update the manifest
             manifest_manager.set_idea(idea_description)
 
             # Verify the idea description was set correctly before proceeding

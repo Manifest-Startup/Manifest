@@ -28,9 +28,7 @@ class CostStructure(BaseComponent):
         Uses the AI layer to generate a cost breakdown based on the idea description.
         This is the primary method used in production.
         """
-        logger.info(
-            "Generating cost structure using AI layer."
-        )  # Logging the start of cost generation
+        logger.info("Generating cost structure using AI layer.")
         prompt = self._cost_prompt_template.format(
             idea_description=idea_description
         )  # Formatting the prompt with the provided idea description
@@ -38,7 +36,7 @@ class CostStructure(BaseComponent):
             [{"role": "user", "content": prompt}], format_type="markdown"
         )  # Generating the cost breakdown using the AI layer
         self._value = content  # Updating the cost elements with the generated content
-        return self._value  # Returning the generated cost elements
+        return self._value
 
     def add_cost(self, cost):
         # Add a new cost item to the list.

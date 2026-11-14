@@ -6,13 +6,9 @@ from app.utils.logger import logger
 
 class StandardOperatingProcedure:
     def __init__(self, model, **kwargs):
-        logger.info(
-            "StandardOperatingProcedure Object created."
-        )  # Logging the creation of SOP object
-        self.model = model  # Assigning model
-        # Assigning procedure_name, default is "Default Procedure"
+        logger.info("StandardOperatingProcedure Object created.")
+        self.model = model
         self._procedure_name = kwargs.get("procedure_name", "Default Procedure")
-        # Assigning department, default is "Default Department"
         self._department = kwargs.get("department", "Default Department")
 
         # Getting effective_date from kwargs
@@ -27,8 +23,6 @@ class StandardOperatingProcedure:
         else:
             # If effective_date is not provided, assign current date and time
             self._effective_date = datetime.now()
-
-        # Assigning version, default is "1.0"
         self._version = kwargs.get("version", "1.0")
         # Initializing steps, responsibilities and reviewers as empty lists
         self._steps = []
@@ -37,7 +31,6 @@ class StandardOperatingProcedure:
         # Initializing approval_requirements as empty string
         self._approval_requirements = ""
 
-    # Auto-generated properties using AutoProperty descriptor
     procedure_name = AutoProperty("procedure_name")
     department = AutoProperty("department")
     effective_date = AutoProperty("effective_date")

@@ -6,8 +6,6 @@ from app.services.canvas.cost_structure import CostStructure
 from app.services.canvas.customer_relationships import CustomerRelationships
 from app.services.canvas.customer_segments import CustomerSegments
 from app.services.canvas.key_activities import KeyActivities
-
-# Importing all the services required for the Business Model Canvas
 from app.services.canvas.key_partners import KeyPartners
 from app.services.canvas.key_resources import KeyResources
 from app.services.canvas.revenue_streams import RevenueStreams
@@ -45,7 +43,6 @@ class BusinessModelCanvas:
         self._summary = None  # Stores full BMC markdown summary
         logger.info("[BMC] Successfully initialized all nine BMC components")
 
-    # Auto-generated properties using descriptors
     key_partners = AutoProperty("key_partners")
     key_activities = AutoProperty("key_activities")
     key_resources = AutoProperty("key_resources")

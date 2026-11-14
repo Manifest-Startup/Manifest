@@ -5,9 +5,7 @@ from app.utils.logger import logger
 
 class NonDisclosureAgreement:
     def __init__(self, model, **kwargs):
-        logger.info(
-            "NonDisclosureAgreement Object created."
-        )  # Logging the creation of NonDisclosureAgreement object
+        logger.info("NonDisclosureAgreement Object created.")
         self.model = model
         effective_date_str = kwargs.get("effective_date")
         if effective_date_str:

@@ -5,7 +5,7 @@ from app.utils.logger import logger
 
 class PrivacyPolicy:
     def __init__(self, model, **kwargs):
-        logger.info("PrivacyPolicy Object created.")  # Logging the creation of PrivacyPolicy object
+        logger.info("PrivacyPolicy Object created.")
         self.model = model
         self.company_name = kwargs.get(
             "company_name", "Default Company"
@@ -35,7 +35,7 @@ class PrivacyPolicy:
 
     @data_collection.setter
     def data_collection(self, value):
-        logger.info(f"Setting data_collection: {value}")  # Logging the setting of data_collection
+        logger.info(f"Setting data_collection: {value}")
         self._data_collection = value
 
     @property
@@ -45,7 +45,7 @@ class PrivacyPolicy:
 
     @data_usage.setter
     def data_usage(self, value):
-        logger.info(f"Setting data_usage: {value}")  # Logging the setting of data_usage
+        logger.info(f"Setting data_usage: {value}")
         self._data_usage = value
 
     @property
@@ -55,7 +55,7 @@ class PrivacyPolicy:
 
     @data_sharing.setter
     def data_sharing(self, value):
-        logger.info(f"Setting data_sharing: {value}")  # Logging the setting of data_sharing
+        logger.info(f"Setting data_sharing: {value}")
         self._data_sharing = value
 
     @property
@@ -65,7 +65,7 @@ class PrivacyPolicy:
 
     @user_rights.setter
     def user_rights(self, value):
-        logger.info(f"Setting user_rights: {value}")  # Logging the setting of user_rights
+        logger.info(f"Setting user_rights: {value}")
         self._user_rights = value
 
     @property
@@ -75,13 +75,10 @@ class PrivacyPolicy:
 
     @security_measures.setter
     def security_measures(self, value):
-        logger.info(
-            f"Setting security_measures: {value}"
-        )  # Logging the setting of security_measures
+        logger.info(f"Setting security_measures: {value}")
         self._security_measures = value
 
     def display_privacy_policy(self):
-        # Logging the display of privacy policy details
         logger.info(f"=== Privacy Policy of {self.company_name} ===")
         logger.info(f"Effective Date       : {self.effective_date.strftime('%Y-%m-%d')}")
         logger.info(f"Data Collection: {self.data_collection}")
@@ -93,9 +90,7 @@ class PrivacyPolicy:
 
 class TermsOfService:
     def __init__(self, model, **kwargs):
-        logger.info(
-            "TermsOfService Object created."
-        )  # Logging the creation of TermsOfService object
+        logger.info("TermsOfService Object created.")
         self.model = model
         self.company_name = kwargs.get(
             "company_name", "Default Company"
@@ -125,7 +120,7 @@ class TermsOfService:
 
     @user_obligations.setter
     def user_obligations(self, value):
-        logger.info(f"Setting user_obligations: {value}")  # Logging the setting of user_obligations
+        logger.info(f"Setting user_obligations: {value}")
         self._user_obligations = value
 
     @property
@@ -135,7 +130,7 @@ class TermsOfService:
 
     @acceptable_use.setter
     def acceptable_use(self, value):
-        logger.info(f"Setting acceptable_use: {value}")  # Logging the setting of acceptable_use
+        logger.info(f"Setting acceptable_use: {value}")
         self._acceptable_use = value
 
     @property
@@ -145,7 +140,7 @@ class TermsOfService:
 
     @liability.setter
     def liability(self, value):
-        logger.info(f"Setting liability: {value}")  # Logging the setting of liability
+        logger.info(f"Setting liability: {value}")
         self._liability = value
 
     @property
@@ -155,9 +150,7 @@ class TermsOfService:
 
     @account_termination.setter
     def account_termination(self, value):
-        logger.info(
-            f"Setting account_termination: {value}"
-        )  # Logging the setting of account_termination
+        logger.info(f"Setting account_termination: {value}")
         self._account_termination = value
 
     @property
@@ -167,11 +160,10 @@ class TermsOfService:
 
     @other_terms.setter
     def other_terms(self, value):
-        logger.info(f"Setting other_terms: {value}")  # Logging the setting of other_terms
+        logger.info(f"Setting other_terms: {value}")
         self._other_terms = value
 
     def display_terms_of_service(self):
-        # Logging the display of terms of service details
         logger.info(f"=== Terms of Service of {self.company_name} ===")
         logger.info(f"Effective Date       : {self.effective_date.strftime('%Y-%m-%d')}")
         logger.info(f"User Obligations: {self.user_obligations}")

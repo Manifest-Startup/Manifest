@@ -26,7 +26,6 @@ class ArticlesOfIncorporation:
         self._registered_agent = kwargs.get("registered_agent", "John Doe")
         self._shares_authorized = kwargs.get("shares_authorized", 10000)
         self._incorporator_name = kwargs.get("incorporator_name", "Jane Smith")
-        # Logging the initialization of the ArticlesOfIncorporation
         logger.info(f"Initialized ArticlesOfIncorporation for business '{self._business_name}'")
 
     @property
@@ -81,7 +80,6 @@ class ArticlesOfIncorporation:
         """
         Show the details of the Articles of Incorporation.
         """
-        # Logging the details of the Articles of Incorporation
         logger.info("=== Articles of Incorporation ===")
         logger.info(f"Business Name        : {self.business_name}")
         logger.info(f"Business Purpose     : {self.business_purpose}")
