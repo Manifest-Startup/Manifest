@@ -20,7 +20,7 @@ session that touches code under any of these roots:
 - `backend/app/routes/` — REST endpoints
 - `backend/app/auth/`, `backend/app/security/` — auth and security
 - `backend/app/prompts/` — AI prompts
-- `frontend/src/features/`, `frontend/src/components/` — UI
+- `frontend/src/features/<feature>/` — UI (shared primitives in `features/common-ui/`)
 - `mcp_server/` — MCP bridge
 - `supabase/migrations/` — schema migrations
 

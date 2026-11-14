@@ -27,9 +27,6 @@ Manifest is a full-stack platform with four main execution paths:
 ### Backend orchestration and AI
 
 - Primary orchestrator in production path: `backend/app/managers/manifest_manager.py`
-- Legacy/refactor prototype (not active in `main.py`):
-  - `backend/app/managers/manifest_manager_refactored.py`
-  - `backend/app/managers/service_registry.py`
 - AI abstraction:
   - `backend/app/services/ai/layer.py`
   - `backend/app/services/ai/router.py`
@@ -133,7 +130,6 @@ Use this to dispatch tasks quickly.
 - Website issue sync is internal-only and requires `MANIFEST_AGENT_LOOP_SECRET` (or `AGENT_LOOP_SECRET`) plus backend GitHub credentials (`MANIFEST_GITHUB_TOKEN` or `GITHUB_TOKEN`) and repo configuration.
 - Survey feedback automation uses the same internal secret and GitHub credential pattern, and also requires a real `DATABASE_URL` because `survey_responses` live in Postgres.
 - Production signals require `DATABASE_URL` and the `production_signal_state` migration; GitHub issue creation is opt-in per request and uses the same token/repo env vars as other internal loops.
-- `manifest_manager_refactored.py` is present but not wired in `main.py`.
 
 ## 6. Quality Gate Before Merging
 
