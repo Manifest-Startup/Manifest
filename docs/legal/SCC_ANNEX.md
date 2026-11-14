@@ -2,7 +2,7 @@
 
 > Annex to the Standard Contractual Clauses (Commission Implementing
 > Decision (EU) 2021/914), incorporated by reference in the DPA at
-> `legal/DPA_TEMPLATE.md`. Customer-specific values are filled in on
+> `docs/legal/DPA_TEMPLATE.md`. Customer-specific values are filled in on
 > contract execution. Last revision: 2026-04-19.
 
 ## Module selection

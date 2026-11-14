@@ -46,17 +46,17 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: production-tests/package.json
+          cache-dependency-path: tests/production/package.json
 
       - name: Install Playwright deps
-        working-directory: production-tests
+        working-directory: tests/production
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
       - name: Run smoke suite
         id: pwtests
-        working-directory: production-tests
+        working-directory: tests/production
         run: npx playwright test
         continue-on-error: true
 
@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ github.run_id }}
-          path: production-tests/playwright-report
+          path: tests/production/playwright-report
           retention-days: 7
 
       - name: Upload traces and videos
@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-traces-${{ github.run_id }}
-          path: production-tests/test-results
+          path: tests/production/test-results
           retention-days: 7
 
       - name: Mark job result

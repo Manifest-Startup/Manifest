@@ -623,7 +623,7 @@ than waiting for the next scheduled tick.
    - **`container-scan`** — Hadolint / Trivy flagged a HIGH+ image
      CVE (Trivy, `--severity CRITICAL,HIGH --ignore-unfixed`) or a
      Dockerfile lint regression (Hadolint). Bump the base-image
-     digest in `backend/dockerfile` (or `frontend/dockerfile`) or fix
+     digest in `backend/Dockerfile` (or `frontend/dockerfile`) or fix
      the Dockerfile rule (SEC-062).
 
 ### Resolve a `security-scan-failure` page

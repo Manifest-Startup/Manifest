@@ -45,7 +45,7 @@ Where personal data is transferred from the EEA, UK or Switzerland to
 a third country without an adequacy decision, the Standard Contractual
 Clauses (SCCs) — Module 2 (controller-to-processor) or Module 3
 (processor-to-processor) — apply, with the parameters in Annex III
-(`legal/SCC_ANNEX.md`). The UK Addendum and Swiss amendments apply as
+(`docs/legal/SCC_ANNEX.md`). The UK Addendum and Swiss amendments apply as
 relevant.
 
 ## 5. Data-subject requests
@@ -104,4 +104,4 @@ scanning in CI, 24/7 incident response.
 
 ### Annex III — SCC parameters
 
-See `legal/SCC_ANNEX.md`.
+See `docs/legal/SCC_ANNEX.md`.

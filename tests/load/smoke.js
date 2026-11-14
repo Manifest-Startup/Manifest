@@ -6,9 +6,9 @@
 // Run locally (install k6: https://k6.io/docs/get-started/installation/):
 //   BASE_URL=https://staging.manifeststartup.com \
 //   GRAPHQL_URL=https://staging-api.manifeststartup.com/graphql \
-//   k6 run loadtest/smoke.js
+//   k6 run tests/load/smoke.js
 //
-// CI gate (example): k6 run --quiet loadtest/smoke.js — non-zero exit if a
+// CI gate (example): k6 run --quiet tests/load/smoke.js — non-zero exit if a
 // threshold is breached. Point it at a *staging* deploy, never prod.
 //
 // Env:

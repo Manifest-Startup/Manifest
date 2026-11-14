@@ -14,7 +14,7 @@ overview; see linked policies for detail.
 ## 2. BAA
 
 A signed BAA is required *before* PHI is processed. The current
-template lives at `legal/BAA_TEMPLATE.md`. Customer-redlined BAAs are
+template lives at `docs/legal/BAA_TEMPLATE.md`. Customer-redlined BAAs are
 stored in the contracts vault under `legal/baa/`.
 
 ## 3. Administrative safeguards (§164.308)

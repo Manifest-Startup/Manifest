@@ -27,7 +27,7 @@ See also: [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md), [RENDER_DEPLOYMENT.md]
 | Layer | Path | Notes |
 |-------|------|-------|
 | Frontend | `frontend/` | Vite 7, React 19; build output **`build/`** |
-| Backend | `backend/` | FastAPI + GraphQL; Docker image in `backend/dockerfile` |
+| Backend | `backend/` | FastAPI + GraphQL; Docker image in `backend/Dockerfile` |
 | Migrations | `supabase/migrations/` | Apply to Supabase when cutting over from Replit Postgres |
 | Local dev | `manifest-dev setup` / `manifest-dev start` | See [LOCAL_DEV_WITHOUT_REPLIT.md](./LOCAL_DEV_WITHOUT_REPLIT.md) |
 

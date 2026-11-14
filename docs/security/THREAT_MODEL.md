@@ -228,7 +228,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | I | TestSettings hardcodes `"test-session-secret"` — fine for tests, but the existence of any string default is risky if env-detection ever flips. | L | SEC-055 |
 | I | `.env` based; no vault, no rotation playbook, no commit-time secret scanner enforced. | H | SEC-056 |
 
-### 4.15 CI/CD and supply chain (`.github/workflows/`, `pyproject.toml`, `backend/dockerfile`)
+### 4.15 CI/CD and supply chain (`.github/workflows/`, `pyproject.toml`, `backend/Dockerfile`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|

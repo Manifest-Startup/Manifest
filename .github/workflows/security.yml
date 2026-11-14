@@ -587,7 +587,7 @@ jobs:
           retention-days: 365   # retained for one full audit cycle
 
   # ---------------------------------------------------------------------------
-  # Container hardening — Trivy + Hadolint on backend/dockerfile.
+  # Container hardening — Trivy + Hadolint on backend/Dockerfile.
   # ---------------------------------------------------------------------------
   container-scan:
     name: 🐳 Container scan (hadolint + trivy)
@@ -602,7 +602,7 @@ jobs:
         continue-on-error: true   # remove to flip to blocking (SEC-062)
         uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf  # v3.1.0
         with:
-          dockerfile: backend/dockerfile
+          dockerfile: backend/Dockerfile
           format: sarif
           output-file: hadolint.sarif
           # `no-fail: false` makes the action exit non-zero on findings so
@@ -619,7 +619,7 @@ jobs:
 
       - name: Build image (no push)
         run: |
-          docker build -t manifest-backend:ci -f backend/dockerfile backend/
+          docker build -t manifest-backend:ci -f backend/Dockerfile backend/
 
       - name: Trivy (advisory)
         id: trivy

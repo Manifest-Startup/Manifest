@@ -26,7 +26,8 @@ logger.info("idea_utils loaded with PostgreSQL database")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 GENERATED_PDF_ROOT = PROJECT_ROOT / "generated" / "pdfs"
-USPTO_COVERSHEET_TEMPLATE = PROJECT_ROOT / "legal" / "uspto_forms" / "sb0016.pdf"
+# Bundled with the backend so it ships in the Docker image (only backend/ is copied).
+USPTO_COVERSHEET_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "uspto" / "sb0016.pdf"
 
 # Lock to serialize access to manifest_manager during document generation
 # This prevents race conditions when multiple ideas are being processed concurrently

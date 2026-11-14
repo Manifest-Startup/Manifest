@@ -24,7 +24,7 @@ roadmap.
   - `GET /recent` — recent runs for ops
   - `GET /stats` — rolling pass/fail roll-up
   - Authenticated via `X-Manifest-Agent-Key`.
-- Playwright suite at `production-tests/` with:
+- Playwright suite at `tests/production/` with:
   - `playwright.config.ts` — chromium-only baseline, retries=1 in CI,
     traces + screenshots + videos on failure, custom reporter wired in
     automatically.

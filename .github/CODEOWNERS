@@ -24,9 +24,8 @@
 /.gitleaks.toml                         @Manifest-Startup/security
 
 # Container + runtime hardening.
-/backend/dockerfile                     @Manifest-Startup/security @Manifest-Startup/platform
+/backend/Dockerfile                     @Manifest-Startup/security @Manifest-Startup/platform
 /docker-compose.yml                     @Manifest-Startup/platform
-/build.sh                               @Manifest-Startup/platform
 /scripts/                               @Manifest-Startup/platform
 
 # Lockfiles — gates supply-chain risk; security must review every bump.

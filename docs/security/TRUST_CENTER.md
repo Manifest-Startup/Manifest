@@ -68,6 +68,6 @@ See `docs/privacy/SUB_PROCESSORS.md`. Customers are notified at least
 - `docs/privacy/BREACH_NOTIFICATION.md`
 - `docs/security/HIPAA_PROGRAM.md`
 - `docs/security/DATA_RETENTION.md`
-- `legal/BAA_TEMPLATE.md`
-- `legal/DPA_TEMPLATE.md`
-- `legal/SCC_ANNEX.md`
+- `docs/legal/BAA_TEMPLATE.md`
+- `docs/legal/DPA_TEMPLATE.md`
+- `docs/legal/SCC_ANNEX.md`

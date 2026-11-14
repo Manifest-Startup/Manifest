@@ -9,7 +9,7 @@ column whenever a phase lands.
 
 | Phase | Status | Notes |
 |---|---|---|
-| 1 Measurement | ✅ shipped | k6 (`loadtest/`), this doc, size-limit CI gates |
+| 1 Measurement | ✅ shipped | k6 (`tests/load/`), this doc, size-limit CI gates |
 | 2 Async I/O | ✅ shipped (partial) | `AIRouter.achat`, doc-gen resolvers off the loop, multi-worker uvicorn. Remaining: native AsyncOpenAI, port read resolvers to `execute_raw_async` (behind `ASYNC_DB`) |
 | 3 Job queue | ✅ shipped (code) | `generation_jobs` + worker + `enqueueBackgroundTasks`/`generationJob`. **Activate:** apply migration, deploy `manifest-generation-worker`, point producers at it |
 | 4 Caching | ✅ shipped | `cache_service` (Redis when `REDIS_URL` set, else in-process). Remaining: edge GraphQL cache / persisted queries |
@@ -26,7 +26,7 @@ Operator activation flags (all default-safe): `WEB_CONCURRENCY`, `REDIS_URL`,
 | Metric | Budget | Enforced by |
 |---|---|---|
 | Static/cached page paint (LCP) | < 1.0s p75 | Lighthouse CI (`lighthouserc.cjs`) |
-| Cached GraphQL reads | < 50ms p95 edge / < 150ms p95 origin | `loadtest/smoke.js` (k6) |
+| Cached GraphQL reads | < 50ms p95 edge / < 150ms p95 origin | `tests/load/smoke.js` (k6) |
 | Uncached GraphQL reads | < 400ms p95 | k6 |
 | GraphQL mutations (non-AI) | < 600ms p95 | k6 |
 | AI generation | first token < 1.5s, streamed | manual / RUM |
@@ -90,7 +90,7 @@ cd frontend && npx lhci autorun
 # Load test against a STAGING deploy (never prod)
 BASE_URL=https://staging.manifeststartup.com \
 GRAPHQL_URL=https://staging-api.manifeststartup.com/graphql \
-k6 run loadtest/smoke.js
+k6 run tests/load/smoke.js
 ```
 
 ## Re-run cadence
