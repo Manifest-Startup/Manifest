@@ -10,11 +10,11 @@ const safeLoad = (video: HTMLVideoElement) => {
   }
 };
 
-type PitchShortsVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src"> & {
+type PitchReelVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src"> & {
   src?: string;
 };
 
-const PitchShortsVideo = forwardRef<HTMLVideoElement, PitchShortsVideoProps>(({ src, ...props }, forwardedRef) => {
+const PitchReelVideo = forwardRef<HTMLVideoElement, PitchReelVideoProps>(({ src, ...props }, forwardedRef) => {
   const innerRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -108,6 +108,6 @@ const PitchShortsVideo = forwardRef<HTMLVideoElement, PitchShortsVideoProps>(({ 
   );
 });
 
-PitchShortsVideo.displayName = "PitchShortsVideo";
+PitchReelVideo.displayName = "PitchReelVideo";
 
-export default PitchShortsVideo;
+export default PitchReelVideo;

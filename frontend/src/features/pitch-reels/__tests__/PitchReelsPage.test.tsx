@@ -12,7 +12,7 @@ import { MockedProvider } from "@apollo/client/testing/react";
 import { userVar } from "features/core/apollo/localState";
 import { GET_PITCH_REELS_FEED } from "features/core/apollo/queries";
 
-import PitchShortsPage from "../PitchShortsPage";
+import PitchReelsPage from "../PitchReelsPage";
 
 const buildReel = (overrides: Record<string, unknown> = {}) => ({
   __typename: "PitchReel",
@@ -86,7 +86,7 @@ const renderShorts = () =>
         watchQuery: { fetchPolicy: "no-cache" },
       }}
     >
-      <PitchShortsPage />
+      <PitchReelsPage />
     </MockedProvider>,
   );
 
@@ -99,7 +99,7 @@ const renderShortsWithMocks = (mocks: any[]) =>
         watchQuery: { fetchPolicy: "no-cache" },
       }}
     >
-      <PitchShortsPage />
+      <PitchReelsPage />
     </MockedProvider>,
   );
 
@@ -163,7 +163,7 @@ jest.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-describe("PitchShortsPage", () => {
+describe("PitchReelsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.localStorage.clear();
@@ -229,7 +229,7 @@ describe("PitchShortsPage", () => {
           },
         ]}
       >
-        <PitchShortsPage />
+        <PitchReelsPage />
       </MockedProvider>,
     );
     expect(screen.getByText("Previously loaded pitch")).toBeInTheDocument();
@@ -412,7 +412,7 @@ describe("PitchShortsPage", () => {
           watchQuery: { fetchPolicy: "no-cache" },
         }}
       >
-        <PitchShortsPage />
+        <PitchReelsPage />
       </MockedProvider>,
     );
 
@@ -448,7 +448,7 @@ describe("PitchShortsPage", () => {
           watchQuery: { fetchPolicy: "no-cache" },
         }}
       >
-        <PitchShortsPage />
+        <PitchReelsPage />
       </MockedProvider>,
     );
 

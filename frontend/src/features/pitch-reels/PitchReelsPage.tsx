@@ -19,7 +19,7 @@ import { subscribeToVoiceShortsCommand } from "features/voice/voiceCommandEvents
 
 import { htmlToPlainText } from "./htmlToPlainText";
 import { mapPitchReelToShortClip } from "./mapPitchReelToShortClip";
-import PitchShortsVideo from "./PitchShortsVideo";
+import PitchReelVideo from "./PitchReelVideo";
 import type { ShortClip } from "./types";
 import { usePersistentShortsState } from "./usePersistentShortsState";
 
@@ -27,7 +27,7 @@ const InvestmentModal = lazy(
   () => import("features/investments/components/InvestmentModal"),
 );
 
-const logger = createLogger("PitchShortsPage");
+const logger = createLogger("PitchReelsPage");
 const INITIAL_FEED_LIMIT = 12;
 const FEED_PAGE_SIZE = 12;
 const MAX_FEED_LIMIT = 48;
@@ -239,7 +239,7 @@ type ClipPlainText = {
   descriptionPlain: string;
 };
 
-const PitchShortsPage: React.FC = () => {
+const PitchReelsPage: React.FC = () => {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<Array<HTMLElement | null>>([]);
@@ -784,7 +784,7 @@ const PitchShortsPage: React.FC = () => {
                 >
                   {hasVideo ? (
                     <>
-                      <PitchShortsVideo
+                      <PitchReelVideo
                         ref={(element) => {
                           videoRefs.current[index] = element;
                         }}
@@ -1025,4 +1025,4 @@ const PitchShortsPage: React.FC = () => {
   );
 };
 
-export default PitchShortsPage;
+export default PitchReelsPage;

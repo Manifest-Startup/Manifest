@@ -7,7 +7,7 @@
  * when you change the selection set of its document.
  */
 import type { GuestSessionPayload } from "features/auth/guestSessionBootstrap";
-import type { PitchReelFeedRow } from "features/pitchshorts/mapPitchReelToShortClip";
+import type { PitchReelFeedRow } from "features/pitch-reels/mapPitchReelToShortClip";
 
 // ------------------------------ Ideas ------------------------------------
 

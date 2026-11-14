@@ -4,7 +4,7 @@ Vite + React + TypeScript single-page app talking to the backend through Apollo 
 
 ## Layout (parent → child)
 
-- `src/features/<feature>/` — one folder per product area (`ideas`, `voice`, `pitchshorts`, `auth`, `account`, `messaging`, …), each with `components/`, optional `hooks/`, `utils/`, `__tests__/`.
+- `src/features/<feature>/` — one folder per product area (`ideas`, `voice`, `pitch-reels`, `auth`, `account`, `messaging`, …), each with `components/`, optional `hooks/`, `utils/`, `__tests__/`.
 - `src/features/core/` — shared infrastructure: `apollo/client.ts` (client, auth/CSRF headers), `apollo/queries.ts` (**every** GraphQL document lives here), `apollo/localState.ts`, error handling.
 - `src/features/common-ui/` — shared primitives (`Button`, `Input`, `TextArea`, `PageHeader`, icons). Reuse before creating a new primitive.
 - Imports use `baseUrl: src` (`import x from "features/core/logError"`) or relative paths; there are no `@alias/*` paths.

@@ -25,7 +25,7 @@ import { FloatingVoiceButton } from "features/voice";
 import ProductFeedbackSurveyPrompt from "features/feedback/ProductFeedbackSurveyPrompt";
 import ResearchSurveyPage from "features/survey/ResearchSurveyPage";
 import ProductFeedbackSurveyPage from "features/survey/ProductFeedbackSurveyPage";
-import PitchShortsPage from "features/pitchshorts/PitchShortsPage";
+import PitchReelsPage from "features/pitch-reels/PitchReelsPage";
 import MessagesPage from "features/messaging/components/MessagesPage";
 import PrivacyConsentBanner from "features/privacy/PrivacyConsentBanner";
 
@@ -87,7 +87,7 @@ const AppIOS: React.FC = () => {
               <Route path="/contact" element={<CompanyInfoPage />} />
               <Route path="/messages/:conversationId" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
               <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
-              <Route path="/pitch-reels" element={<PrivateRoute><PitchShortsPage /></PrivateRoute>} />
+              <Route path="/pitch-reels" element={<PrivateRoute><PitchReelsPage /></PrivateRoute>} />
               <Route path="/shorts" element={<Navigate to="/pitch-reels" replace />} />
               <Route path="/discover" element={<Navigate to="/pitch-reels" replace />} />
               <Route path="/pitch-shorts" element={<Navigate to="/pitch-reels" replace />} />
