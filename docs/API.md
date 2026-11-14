@@ -52,7 +52,7 @@ Two auth mechanisms are used in this codebase.
 
 Used by GraphQL resolvers and most app REST routes.
 
-Accepted token locations (`backend/app/utils/auth_utils.py`):
+Accepted token locations (`backend/app/auth/current_user.py`):
 
 - `session_token` cookie
 - `access_token` cookie

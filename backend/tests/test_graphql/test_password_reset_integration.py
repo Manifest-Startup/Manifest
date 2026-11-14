@@ -27,9 +27,9 @@ from app.auth.replit_auth import SESSION_SECRET, create_session_token
 from app.db.database import get_db_connection
 from app.graphql.schema import Mutation
 from app.services.identity import password_reset as prs
-from app.utils import auth_utils
-from app.utils.password_utils import hash_password, verify_password
-from app.utils.reset_token_utils import hash_token
+from app.auth import current_user as auth_utils
+from app.security.passwords import hash_password, verify_password
+from app.services.identity.reset_tokens import hash_token
 
 
 pytestmark = pytest.mark.skipif(
@@ -247,7 +247,7 @@ def capture_token(monkeypatch):
     """Wrap ``generate_reset_token`` so the test can read the raw token
     that the resolver hands to the email layer."""
     captured: Dict[str, str] = {}
-    from app.utils import reset_token_utils
+    from app.services.identity import reset_tokens as reset_token_utils
 
     real = reset_token_utils.generate_reset_token
 

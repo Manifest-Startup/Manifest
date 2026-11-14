@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from app.db.database import InMemoryDatabaseClient
 from app.services.documents.demo_documents import DemoDocumentBundle
-from app.utils.idea_utils import (
+from app.services.ideas.document_generation import (
     GENERATED_PDF_ROOT,
     USPTO_COVERSHEET_TEMPLATE,
     generate_background_tasks,
@@ -45,7 +45,7 @@ def _patent_markdown():
 
 
 def test_generate_background_tasks_no_description():
-    with patch("app.utils.idea_utils.logger.info") as mock_log:
+    with patch("app.services.ideas.document_generation.logger.info") as mock_log:
         generate_background_tasks(None, "idea-1")
         mock_log.assert_called_with("No description provided for idea_id idea-1. Skipping background generation.")
 
@@ -53,13 +53,13 @@ def test_generate_background_tasks_no_description():
 def test_generate_background_tasks_error_handling():
     db_cm, conn, cursor = _mock_db_connection()
 
-    with patch("app.main.manifest_manager") as mock_manager, \
-         patch("app.utils.idea_utils.logger.error") as mock_error, \
-         patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-         patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-         patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+    with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+         patch("app.services.ideas.document_generation.logger.error") as mock_error, \
+         patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+         patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+         patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
          patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-         patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+         patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
         mock_manager.update.side_effect = Exception("Test exception")
         mock_manager.get_similar_ideas.return_value = None
         mock_manager.bmc.summary = None
@@ -80,12 +80,12 @@ def test_generate_background_tasks_error_handling():
 def test_generate_background_tasks_success():
     db_cm, conn, cursor = _mock_db_connection()
 
-    with patch("app.main.manifest_manager") as mock_manager, \
-         patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-         patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-         patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+    with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+         patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+         patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+         patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
          patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-         patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+         patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
         mock_manager.get_similar_ideas.return_value = "similar ideas markdown"
         mock_manager.bmc.summary = "bmc markdown"
         mock_manager.generate_pitch_deck.return_value = "pitch deck"
@@ -113,9 +113,9 @@ def test_generate_background_tasks_uses_demo_documents_when_ai_unavailable():
         provisional_patent="# Title\nDemo invention\n# Abstract\nDemo abstract\n# Description\nDemo description\n# Claims\nDemo claims\n# Suggested Drawings\nDemo drawings",
     )
 
-    with patch("app.main.manifest_manager") as mock_manager, \
-         patch("app.utils.idea_utils.build_demo_documents", return_value=demo_documents), \
-         patch("app.utils.idea_utils.get_db_connection", return_value=db_cm):
+    with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+         patch("app.services.ideas.document_generation.build_demo_documents", return_value=demo_documents), \
+         patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm):
         mock_manager.ai_layer.is_available.return_value = False
 
         generate_background_tasks("test description", "idea-1")
@@ -146,10 +146,10 @@ def test_generate_background_tasks_persists_to_in_memory_database_when_sql_is_un
         }
     ).execute()
 
-    with patch("app.main.manifest_manager") as mock_manager, \
-         patch("app.utils.idea_utils.build_demo_documents", return_value=demo_documents), \
-         patch("app.utils.idea_utils.create_database_client", return_value=db_client), \
-         patch("app.utils.idea_utils.get_db_connection", side_effect=RuntimeError("DATABASE_URL environment variable is not set")):
+    with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+         patch("app.services.ideas.document_generation.build_demo_documents", return_value=demo_documents), \
+         patch("app.services.ideas.document_generation.create_database_client", return_value=db_client), \
+         patch("app.services.ideas.document_generation.get_db_connection", side_effect=RuntimeError("DATABASE_URL environment variable is not set")):
         mock_manager.ai_layer.is_available.return_value = False
 
         generate_background_tasks("test description", "idea-1")
@@ -162,8 +162,8 @@ def test_generate_background_tasks_persists_to_in_memory_database_when_sql_is_un
 
 
 def test_upload_pdf_to_supabase_storage_falls_back_to_local_when_unconfigured():
-    with patch("app.utils.idea_utils._supabase_configured", return_value=False), \
-         patch("app.utils.idea_utils.store_pdf_file", return_value="/generated/pdfs/patents/path/file.pdf") as store_mock:
+    with patch("app.services.ideas.document_generation._supabase_configured", return_value=False), \
+         patch("app.services.ideas.document_generation.store_pdf_file", return_value="/generated/pdfs/patents/path/file.pdf") as store_mock:
         url = upload_pdf_to_supabase_storage("/tmp/test.pdf", "patents", "path/file.pdf")
 
     assert url == "/generated/pdfs/patents/path/file.pdf"
@@ -174,8 +174,8 @@ def test_upload_pdf_to_supabase_storage_uploads_when_configured(tmp_path):
     pdf_file = tmp_path / "test.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 test")
 
-    with patch("app.utils.idea_utils._supabase_configured", return_value=True), \
-         patch("app.utils.idea_utils._upload_pdf_to_supabase", return_value="https://supabase.example.com/storage/v1/object/public/patents/path/file.pdf") as supabase_mock:
+    with patch("app.services.ideas.document_generation._supabase_configured", return_value=True), \
+         patch("app.services.ideas.document_generation._upload_pdf_to_supabase", return_value="https://supabase.example.com/storage/v1/object/public/patents/path/file.pdf") as supabase_mock:
         url = upload_pdf_to_supabase_storage(str(pdf_file), "patents", "path/file.pdf")
 
     assert url == "https://supabase.example.com/storage/v1/object/public/patents/path/file.pdf"
@@ -192,7 +192,7 @@ def test_store_pdf_file_uses_generated_pdf_root(tmp_path, monkeypatch):
     source.write_bytes(b"%PDF-1.4 sample")
 
     storage_root = tmp_path / "generated" / "pdfs"
-    monkeypatch.setattr("app.utils.idea_utils.GENERATED_PDF_ROOT", storage_root)
+    monkeypatch.setattr("app.services.ideas.document_generation.GENERATED_PDF_ROOT", storage_root)
 
     url = store_pdf_file(str(source), "patents", "idea-1/specification.pdf")
 
@@ -215,18 +215,18 @@ def test_generate_background_tasks_persists_patent_pdf_urls_to_served_directory(
     ).execute()
 
     storage_root = tmp_path / "generated" / "pdfs"
-    monkeypatch.setattr("app.utils.idea_utils.GENERATED_PDF_ROOT", storage_root)
+    monkeypatch.setattr("app.services.ideas.document_generation.GENERATED_PDF_ROOT", storage_root)
 
     def _write_pdf(path, *args, **kwargs):
         with open(path, "wb") as handle:
             handle.write(b"%PDF-1.4 test")
 
-    with patch("app.main.manifest_manager") as mock_manager, \
-         patch("app.utils.idea_utils.create_database_client", return_value=db_client), \
-         patch("app.utils.idea_utils.get_db_connection", side_effect=RuntimeError("DATABASE_URL environment variable is not set")), \
-         patch("app.utils.idea_utils._supabase_configured", return_value=False), \
-         patch("app.utils.patent_pdf_utils.generate_specification_pdf", side_effect=_write_pdf), \
-         patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf", side_effect=lambda template, output, fields: _write_pdf(output)), \
+    with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+         patch("app.services.ideas.document_generation.create_database_client", return_value=db_client), \
+         patch("app.services.ideas.document_generation.get_db_connection", side_effect=RuntimeError("DATABASE_URL environment variable is not set")), \
+         patch("app.services.ideas.document_generation._supabase_configured", return_value=False), \
+         patch("app.services.documents.patent_pdf.generate_specification_pdf", side_effect=_write_pdf), \
+         patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf", side_effect=lambda template, output, fields: _write_pdf(output)), \
          patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls:
         mock_manager.ai_layer.is_available.return_value = True
         mock_manager.get_similar_ideas.return_value = "similar"
@@ -270,7 +270,7 @@ def test_generate_patent_pdfs_uploads_and_saves_to_db(tmp_path, monkeypatch):
     ).execute()
 
     storage_root = tmp_path / "generated" / "pdfs"
-    monkeypatch.setattr("app.utils.idea_utils.GENERATED_PDF_ROOT", storage_root)
+    monkeypatch.setattr("app.services.ideas.document_generation.GENERATED_PDF_ROOT", storage_root)
 
     def _write_pdf(path, *args, **kwargs):
         with open(path, "wb") as f:
@@ -281,11 +281,11 @@ def test_generate_patent_pdfs_uploads_and_saves_to_db(tmp_path, monkeypatch):
         "# Description", "Desc text", "# Claims", "Claim 1",
     ])
 
-    with patch("app.utils.idea_utils.create_database_client", return_value=db_client), \
-         patch("app.utils.idea_utils.get_db_connection", side_effect=RuntimeError("no db")), \
-         patch("app.utils.idea_utils._supabase_configured", return_value=False), \
-         patch("app.utils.patent_pdf_utils.generate_specification_pdf", side_effect=_write_pdf), \
-         patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf", side_effect=lambda t, o, f: _write_pdf(o)):
+    with patch("app.services.ideas.document_generation.create_database_client", return_value=db_client), \
+         patch("app.services.ideas.document_generation.get_db_connection", side_effect=RuntimeError("no db")), \
+         patch("app.services.ideas.document_generation._supabase_configured", return_value=False), \
+         patch("app.services.documents.patent_pdf.generate_specification_pdf", side_effect=_write_pdf), \
+         patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf", side_effect=lambda t, o, f: _write_pdf(o)):
         spec_url, cover_url = generate_patent_pdfs("idea-1", "u1", patent_draft)
 
     assert spec_url is not None
@@ -312,12 +312,12 @@ def test_generate_patent_pdfs_uploads_to_supabase_when_configured(tmp_path):
 
     owner_profile = {"first_name": "Test", "last_name": "Owner", "email": "owner@example.com"}
 
-    with patch("app.utils.idea_utils._supabase_configured", return_value=True), \
-         patch("app.utils.idea_utils._upload_pdf_to_supabase", return_value="https://sb.example.com/storage/v1/object/public/patents/x/spec.pdf") as mock_upload, \
-         patch("app.utils.idea_utils._upsert_patent_pdfs") as mock_upsert, \
-         patch("app.utils.idea_utils._get_idea_owner_profile", return_value=owner_profile), \
-         patch("app.utils.patent_pdf_utils.generate_specification_pdf", side_effect=_write_pdf), \
-         patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf", side_effect=lambda t, o, f: _write_pdf(o)):
+    with patch("app.services.ideas.document_generation._supabase_configured", return_value=True), \
+         patch("app.services.ideas.document_generation._upload_pdf_to_supabase", return_value="https://sb.example.com/storage/v1/object/public/patents/x/spec.pdf") as mock_upload, \
+         patch("app.services.ideas.document_generation._upsert_patent_pdfs") as mock_upsert, \
+         patch("app.services.ideas.document_generation._get_idea_owner_profile", return_value=owner_profile), \
+         patch("app.services.documents.patent_pdf.generate_specification_pdf", side_effect=_write_pdf), \
+         patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf", side_effect=lambda t, o, f: _write_pdf(o)):
         spec_url, cover_url = generate_patent_pdfs("idea-1", "u1", patent_draft)
 
     assert spec_url == "https://sb.example.com/storage/v1/object/public/patents/x/spec.pdf"
@@ -330,8 +330,8 @@ def test_generate_patent_pdfs_uploads_to_supabase_when_configured(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_upload_pdf_to_supabase_sends_file_and_returns_public_url(tmp_path):
-    from app.utils.idea_utils import _upload_pdf_to_supabase
-    import app.utils.idea_utils as _idea_utils_mod
+    from app.services.ideas.document_generation import _upload_pdf_to_supabase
+    import app.services.ideas.document_generation as _idea_utils_mod
 
     pdf_file = tmp_path / "test.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 test")
@@ -344,8 +344,8 @@ def test_upload_pdf_to_supabase_sends_file_and_returns_public_url(tmp_path):
     mock_req.get.return_value = bucket_resp
     mock_req.post.return_value = upload_resp
 
-    with patch("app.utils.idea_utils._supabase_storage_url", return_value="https://proj.supabase.co"), \
-         patch("app.utils.idea_utils._supabase_api_key", return_value="service-key"), \
+    with patch("app.services.ideas.document_generation._supabase_storage_url", return_value="https://proj.supabase.co"), \
+         patch("app.services.ideas.document_generation._supabase_api_key", return_value="service-key"), \
          patch.object(_idea_utils_mod, "_requests", mock_req):
         url = _upload_pdf_to_supabase(str(pdf_file), "patents", "uid/specification.pdf")
 

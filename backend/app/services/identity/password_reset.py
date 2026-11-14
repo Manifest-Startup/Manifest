@@ -12,8 +12,8 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from app.db.database import get_database_url, get_db_connection
+from app.services.identity.reset_tokens import generate_reset_token, hash_token
 from app.utils.logger import logger
-from app.utils.reset_token_utils import generate_reset_token, hash_token
 
 RESET_TOKEN_TTL_MINUTES = 30
 MIN_PASSWORD_LENGTH = 8

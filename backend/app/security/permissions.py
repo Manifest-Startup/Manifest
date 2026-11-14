@@ -17,8 +17,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from app.auth.current_user import require_user_id
 from app.db.database import get_db_connection
-from app.routes.dependencies import require_user_id
 from app.utils.logger import logger
 from fastapi import Depends, HTTPException, Request
 

@@ -51,8 +51,8 @@ def _user_key_for_request(request: Any) -> str | None:
         return cached if isinstance(cached, str) else None
     key = None
     try:
+        from app.auth.current_user import get_current_user_id_optional
         from app.services.ai.user_keys import load_user_key
-        from app.utils.auth_utils import get_current_user_id_optional
 
         user_id = get_current_user_id_optional(request)
         if user_id:

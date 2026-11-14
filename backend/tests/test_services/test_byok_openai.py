@@ -42,7 +42,7 @@ def test_no_key_anywhere_means_ai_unavailable():
 
 
 def test_signed_in_users_own_key_is_used(monkeypatch):
-    monkeypatch.setattr("app.utils.auth_utils.get_current_user_id_optional", lambda req: "user-1")
+    monkeypatch.setattr("app.auth.current_user.get_current_user_id_optional", lambda req: "user-1")
     monkeypatch.setattr(user_ai_key_service, "load_user_key", lambda uid: USER_KEY if uid == "user-1" else None)
     token = ai_credentials._request.set(_fake_request())
     try:
@@ -54,7 +54,7 @@ def test_signed_in_users_own_key_is_used(monkeypatch):
 
 def test_user_key_beats_platform_key_and_pinned_key_beats_both(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-platform-" + "c" * 30)
-    monkeypatch.setattr("app.utils.auth_utils.get_current_user_id_optional", lambda req: "user-1")
+    monkeypatch.setattr("app.auth.current_user.get_current_user_id_optional", lambda req: "user-1")
     monkeypatch.setattr(user_ai_key_service, "load_user_key", lambda uid: USER_KEY)
     token = ai_credentials._request.set(_fake_request())
     try:

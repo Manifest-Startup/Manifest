@@ -10,6 +10,16 @@ from typing import Any, Optional
 from urllib.parse import unquote, urlparse
 
 import strawberry
+from app.auth.current_user import (
+    DEMO_MODE,
+    DEMO_USER_EMAIL,
+    DEMO_USER_ID,
+    DEMO_USER_PASSWORD,
+    generate_demo_token,
+    get_current_session_id_optional,
+    get_current_user_id,
+    get_current_user_id_optional,
+)
 from app.graphql.error_masking import infrastructure_error_masker
 from app.graphql.pitch_reel_types import (
     PitchReel,
@@ -47,16 +57,6 @@ from app.services.identity.totp_mfa import (
 )
 from app.services.operations.survey_ops import survey_ops_service
 from app.services.shared import cache as cache_service
-from app.utils.auth_utils import (
-    DEMO_MODE,
-    DEMO_USER_EMAIL,
-    DEMO_USER_ID,
-    DEMO_USER_PASSWORD,
-    generate_demo_token,
-    get_current_session_id_optional,
-    get_current_user_id,
-    get_current_user_id_optional,
-)
 from app.utils.logger import logger
 from fastapi import HTTPException
 
@@ -80,7 +80,7 @@ def _set_ai_cache(namespace: str, value: str, result: Any) -> None:
 
 def _generate_documents_for_idea(idea_id: str, description: str):
     """Generate all documents (BMC, pitch deck, PRD, patent) for an idea using AI and save to DB."""
-    from app.utils.idea_utils import generate_background_tasks
+    from app.services.ideas.document_generation import generate_background_tasks
 
     generate_background_tasks(description, idea_id)
 
@@ -95,7 +95,7 @@ def _start_background_generation(idea_id: str, description: str | None) -> bool:
 
 
 def _get_pitch_deck(description: str) -> str:
-    from app.main import manifest_manager
+    from app.managers.manifest_manager import manifest_manager
 
     manifest_manager.set_idea(description)
     if manifest_manager.ai_layer.is_available():
@@ -108,7 +108,7 @@ def _get_pitch_deck(description: str) -> str:
 
 
 def _get_product_requirements_document(description: str) -> str:
-    from app.main import manifest_manager
+    from app.managers.manifest_manager import manifest_manager
 
     manifest_manager.set_idea(description)
     if manifest_manager.ai_layer.is_available():
@@ -121,7 +121,7 @@ def _get_product_requirements_document(description: str) -> str:
 
 
 def _get_provisional_patent(description: str) -> str:
-    from app.main import manifest_manager
+    from app.managers.manifest_manager import manifest_manager
 
     manifest_manager.set_idea(description)
     if manifest_manager.ai_layer.is_available():
@@ -434,7 +434,7 @@ def _generate_universal_search_summary(
     published_ideas: list["UniversalSearchIdeaResult"],
     web_summary: str | None,
 ) -> str | None:
-    from app.main import manifest_manager
+    from app.managers.manifest_manager import manifest_manager
 
     if not manifest_manager.ai_layer.is_available():
         return None
@@ -1104,7 +1104,7 @@ def _load_user_auth_record(user_id: str) -> dict[str, object] | None:
 
 
 def _require_password_if_present(user_id: str, password: str | None) -> None:
-    from app.utils.password_utils import verify_password
+    from app.security.passwords import verify_password
 
     user_row = _load_user_auth_record(user_id)
     if not user_row:
@@ -2282,7 +2282,7 @@ class Query:
     async def find_similar_ideas(
         self, info: strawberry.Info, idea_description: str
     ) -> SimilarIdeas:
-        from app.main import manifest_manager
+        from app.managers.manifest_manager import manifest_manager
 
         normalized_description = (idea_description or "").strip()
         cached_result = _get_ai_cache("find_similar_ideas", normalized_description)
@@ -2592,7 +2592,7 @@ class Query:
                 cached_web = _get_ai_cache("universal_search_web", search_query)
 
                 if cached_web is None:
-                    from app.main import manifest_manager
+                    from app.managers.manifest_manager import manifest_manager
 
                     def perform_web_search() -> dict[str, Any] | None:
                         if not manifest_manager.ai_layer.is_available():
@@ -4132,7 +4132,7 @@ class Mutation:
         spec_pdf_url = None
         coversheet_pdf_url = None
         try:
-            from app.utils.idea_utils import generate_patent_pdfs
+            from app.services.ideas.document_generation import generate_patent_pdfs
 
             spec_pdf_url, coversheet_pdf_url = generate_patent_pdfs(idea_id, user_id, draft)
         except Exception as exc:
@@ -4171,7 +4171,7 @@ class Mutation:
         from app.auth.replit_auth import create_session_token
         from app.db.database import get_db_connection
         from app.security.account_lockout import is_locked, record_failure, record_success
-        from app.utils.password_utils import verify_password
+        from app.security.passwords import verify_password
 
         logger.info(f"[login_user] Attempting login for email: {email}")
         request_ip = _request_ip(info)
@@ -4315,8 +4315,8 @@ class Mutation:
 
         from app.auth.replit_auth import create_session_token
         from app.db.database import get_db_connection
+        from app.security.passwords import hash_password
         from app.services.identity.password_reset import validate_password_for_user
-        from app.utils.password_utils import hash_password
 
         # Enforce composition + breached-password (HIBP) policy at signup so
         # we never create an account with a credential that is already in a
@@ -4702,12 +4702,12 @@ class Mutation:
             raise Exception("Password reset is not available in demo mode.")
 
         from app.auth.replit_auth import create_session_token
+        from app.security.passwords import hash_password
         from app.services.identity.password_reset import (
             check_reset_attempt_rate_limit,
             consume_token_and_reset_password,
             validate_password_strength,
         )
-        from app.utils.password_utils import hash_password
 
         request = info.context.get("request")
         client = getattr(request, "client", None) if request else None
@@ -5038,13 +5038,13 @@ class Mutation:
         """
         import base64
 
+        from app.auth.current_user import get_current_session_id_optional
         from app.security.step_up import (
             DEFAULT_TTL_SECONDS,
             _recent_login_satisfies,
             has_recent_step_up,
         )
         from app.services.ideas.import_export import ImportExportService
-        from app.utils.auth_utils import get_current_session_id_optional
 
         request = info.context["request"]
         user_id = get_current_user_id(request)
@@ -5513,7 +5513,7 @@ class Mutation:
     async def continue_idea_qualification(
         self, info: strawberry.Info, session_id: str, user_message: str
     ) -> IdeaQualificationSession:
-        from app.main import manifest_manager
+        from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.ai import idea_qualification as qs
 
@@ -5565,7 +5565,7 @@ class Mutation:
     async def regenerate_bmc_section(
         self, info: strawberry.Info, idea_id: str, section_name: str
     ) -> BmcSection:
-        from app.main import manifest_manager
+        from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.canvas import orchestrator as bmc
 
@@ -5605,7 +5605,7 @@ class Mutation:
     async def regenerate_all_bmc_sections(
         self, info: strawberry.Info, idea_id: str
     ) -> list[BmcSection]:
-        from app.main import manifest_manager
+        from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.canvas import orchestrator as bmc
 
@@ -5658,7 +5658,7 @@ class Mutation:
 
         Returns the candidates persisted on this run (ranked).
         """
-        from app.main import manifest_manager
+        from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.ideas import partner_discovery as pd
 
@@ -5760,7 +5760,7 @@ class Mutation:
         own cost-tracked agent_run so the spend shows up on the
         operator's billing dashboard.
         """
-        from app.main import manifest_manager
+        from app.managers.manifest_manager import manifest_manager
         from app.services.voice import evaluation as vts
 
         user_id = get_current_user_id(info.context["request"])

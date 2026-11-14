@@ -156,7 +156,7 @@ async def test_update_idea_saves_required_skills():
     mock_collab.check_access = AsyncMock(return_value=True)
 
     import app.services.ideas.collaboration as _collab_mod
-    import app.utils.idea_utils as _idea_utils_mod
+    import app.services.ideas.document_generation as _idea_utils_mod
     _orig_collab = _collab_mod.create_collaboration_service
     _orig_bg = _idea_utils_mod.generate_background_tasks
     _collab_mod.create_collaboration_service = lambda _db: mock_collab
@@ -190,7 +190,7 @@ async def test_update_idea_skips_required_skills_when_none():
     mock_collab.check_access = AsyncMock(return_value=True)
 
     import app.services.ideas.collaboration as _collab_mod
-    import app.utils.idea_utils as _idea_utils_mod
+    import app.services.ideas.document_generation as _idea_utils_mod
     _orig_collab = _collab_mod.create_collaboration_service
     _orig_bg = _idea_utils_mod.generate_background_tasks
     _collab_mod.create_collaboration_service = lambda _db: mock_collab

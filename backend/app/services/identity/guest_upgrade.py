@@ -8,8 +8,8 @@ from typing import Any
 
 from app.db.database import get_db_connection
 from app.services.identity.guest_workspace import fetch_user_is_guest
+from app.services.identity.reset_tokens import generate_reset_token, hash_token
 from app.utils.logger import logger
-from app.utils.reset_token_utils import generate_reset_token, hash_token
 
 GUEST_UPGRADE_TOKEN_TTL_MINUTES = 60
 
@@ -90,11 +90,11 @@ def complete_guest_upgrade(  # noqa: C901
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Validate token + password policy; upgrade guest row. Returns (payload_dict, error_message)."""
 
+    from app.security.passwords import hash_password
     from app.services.identity.password_reset import (
         check_guest_upgrade_attempt_rate_limit,
         validate_password_for_user,
     )
-    from app.utils.password_utils import hash_password
 
     if not check_guest_upgrade_attempt_rate_limit(request_ip):
         return None, "Too many attempts. Try again later."

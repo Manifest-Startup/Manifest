@@ -1796,7 +1796,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/auth_utils.py": {
+    "backend/app/auth/current_user.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1809,7 +1809,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/idea_utils.py": {
+    "backend/app/services/ideas/document_generation.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 4,
@@ -1848,7 +1848,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/password_utils.py": {
+    "backend/app/security/passwords.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1861,7 +1861,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/patent_pdf_utils.py": {
+    "backend/app/services/documents/patent_pdf.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1874,7 +1874,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/posthog_config.py": {
+    "backend/app/services/integrations/analytics.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1887,7 +1887,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/reset_token_utils.py": {
+    "backend/app/services/identity/reset_tokens.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -2231,7 +2231,7 @@
       "code": "225                 values.append(idea_id)\n226                 cur.execute(f\"UPDATE ideas SET {', '.join(set_clauses)} WHERE idea_id = %s\", values)\n227                 conn.commit()\n",
       "col_offset": 28,
       "end_col_offset": 91,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2251,7 +2251,7 @@
       "code": "243                 cur.execute(\n244                     f\"\"\"\n245                         INSERT INTO {table_name} (idea_id, user_id, description)\n246                         VALUES (%s, %s, %s)\n247                         ON CONFLICT (idea_id) DO UPDATE SET description = EXCLUDED.description\n248                     \"\"\",\n249                     (idea_id, user_id, description),\n",
       "col_offset": 20,
       "end_col_offset": 23,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2275,7 +2275,7 @@
       "code": "626 \n627     spec_pdf_path = f\"/tmp/specification_{idea_id}.pdf\"\n628     try:\n",
       "col_offset": 20,
       "end_col_offset": 55,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 377,
@@ -2295,7 +2295,7 @@
       "code": "636 \n637     coversheet_pdf_path = f\"/tmp/coversheet_{idea_id}.pdf\"\n638     try:\n",
       "col_offset": 26,
       "end_col_offset": 58,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 377,

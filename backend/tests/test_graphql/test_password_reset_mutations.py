@@ -19,8 +19,8 @@ import pytest
 from app.auth.replit_auth import SESSION_SECRET, create_session_token
 from app.graphql.schema import Mutation
 from app.services.identity import password_reset as prs
-from app.utils import auth_utils
-from app.utils.reset_token_utils import generate_reset_token, hash_token
+from app.auth import current_user as auth_utils
+from app.services.identity.reset_tokens import generate_reset_token, hash_token
 
 
 def _run(coro):
@@ -224,7 +224,7 @@ def test_reset_password_invalid_token_raises():
     info, _ = _make_info(ip="10.1.1.1")
     with _patched_connection([None]):  # SELECT returns nothing
         with patch(
-            "app.utils.password_utils.hash_password", side_effect=_hash_pw
+            "app.security.passwords.hash_password", side_effect=_hash_pw
         ):
             with pytest.raises(Exception, match="invalid or has expired"):
                 _run(
@@ -243,7 +243,7 @@ def test_reset_password_expired_token_raises():
         "used_at": None,
     }
     with _patched_connection([expired_row]):
-        with patch("app.utils.password_utils.hash_password", side_effect=_hash_pw):
+        with patch("app.security.passwords.hash_password", side_effect=_hash_pw):
             with pytest.raises(Exception, match="invalid or has expired"):
                 _run(
                     Mutation().reset_password(
@@ -261,7 +261,7 @@ def test_reset_password_already_used_token_raises():
         "used_at": datetime.now(timezone.utc) - timedelta(seconds=5),
     }
     with _patched_connection([used_row]):
-        with patch("app.utils.password_utils.hash_password", side_effect=_hash_pw):
+        with patch("app.security.passwords.hash_password", side_effect=_hash_pw):
             with pytest.raises(Exception, match="invalid or has expired"):
                 _run(
                     Mutation().reset_password(
@@ -272,7 +272,7 @@ def test_reset_password_already_used_token_raises():
 
 def test_reset_password_weak_password_raises():
     info, _ = _make_info(ip="10.1.1.4")
-    with patch("app.utils.password_utils.hash_password", side_effect=_hash_pw):
+    with patch("app.security.passwords.hash_password", side_effect=_hash_pw):
         with pytest.raises(Exception, match="8 characters"):
             _run(Mutation().reset_password(info, token="anything", new_password="x1"))
 
@@ -293,7 +293,7 @@ def test_reset_password_happy_path_returns_fresh_token():
     ]
     with _patched_connection(rows):
         with patch(
-            "app.utils.password_utils.hash_password", side_effect=_hash_pw
+            "app.security.passwords.hash_password", side_effect=_hash_pw
         ), patch(
             "app.services.identity.password_reset.get_password_changed_at_epoch",
             return_value=9999999999,
@@ -415,7 +415,7 @@ def test_fresh_session_token_accepted():
     with patch(
         "app.services.identity.password_reset.get_password_changed_at_epoch",
         return_value=2000,
-    ), patch("app.utils.auth_utils.is_session_active", return_value=True):
+    ), patch("app.auth.current_user.is_session_active", return_value=True):
         result = auth_utils.get_current_user_id(request)
     assert result == user_id
 

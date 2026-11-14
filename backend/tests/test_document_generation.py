@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import MagicMock, Mock, patch, AsyncMock
-from app.utils.idea_utils import generate_background_tasks
+from app.services.ideas.document_generation import generate_background_tasks
 
 
 def _mock_db_connection():
@@ -30,14 +30,14 @@ def _patent_markdown():
 class TestBackgroundTaskGeneration:
 
     def test_skips_when_no_description(self):
-        with patch("app.utils.idea_utils.logger.info") as mock_log:
+        with patch("app.services.ideas.document_generation.logger.info") as mock_log:
             generate_background_tasks(None, "idea-1")
             mock_log.assert_called_with(
                 "No description provided for idea_id idea-1. Skipping background generation."
             )
 
     def test_skips_when_empty_description(self):
-        with patch("app.utils.idea_utils.logger.info") as mock_log:
+        with patch("app.services.ideas.document_generation.logger.info") as mock_log:
             generate_background_tasks("", "idea-1")
             mock_log.assert_called_with(
                 "No description provided for idea_id idea-1. Skipping background generation."
@@ -46,13 +46,13 @@ class TestBackgroundTaskGeneration:
     def test_handles_manifest_manager_error(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.logger.error") as mock_error, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.logger.error") as mock_error, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
             mock_manager.update.side_effect = Exception("AI service down")
             mock_manager.get_similar_ideas.return_value = None
             mock_manager.bmc.summary = None
@@ -71,12 +71,12 @@ class TestBackgroundTaskGeneration:
     def test_generates_all_documents(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "## Similar Ideas\n- Idea A\n- Idea B"
             mock_manager.bmc.summary = "## Key Partners\nPartner A\n## Value Propositions\nValue B"
@@ -99,12 +99,12 @@ class TestBackgroundTaskGeneration:
     def test_bmc_generation_stored_in_db(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             bmc_content = "## Key Partners\n- AWS\n## Key Activities\n- Development"
             mock_manager.get_similar_ideas.return_value = "similar"
@@ -126,12 +126,12 @@ class TestBackgroundTaskGeneration:
     def test_pitch_deck_generation_stored_in_db(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "similar"
             mock_manager.bmc.summary = "bmc"
@@ -152,12 +152,12 @@ class TestBackgroundTaskGeneration:
     def test_prd_generation_stored_in_db(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "similar"
             mock_manager.bmc.summary = "bmc"
@@ -178,12 +178,12 @@ class TestBackgroundTaskGeneration:
     def test_patent_generation_stored_in_db(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.get_similar_ideas.return_value = "similar"
             mock_manager.bmc.summary = "bmc"
@@ -204,12 +204,12 @@ class TestBackgroundTaskGeneration:
     def test_patent_pdf_generation_receives_parsed_sections(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf") as mock_generate_specification_pdf, \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf") as mock_generate_specification_pdf, \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.ai_layer.is_available.return_value = True
             mock_manager.get_similar_ideas.return_value = "similar"
@@ -242,12 +242,12 @@ class TestBackgroundTaskGeneration:
             "country": "USA",
         }]
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf") as mock_fill_coversheet, \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf") as mock_fill_coversheet, \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             mock_manager.ai_layer.is_available.return_value = True
             mock_manager.get_similar_ideas.return_value = "similar"
@@ -279,12 +279,12 @@ class TestBackgroundTaskGeneration:
     def test_similar_ideas_stored_in_db(self):
         db_cm, conn, cursor = _mock_db_connection()
 
-        with patch("app.main.manifest_manager") as mock_manager, \
-             patch("app.utils.idea_utils.get_db_connection", return_value=db_cm), \
-             patch("app.utils.patent_pdf_utils.generate_specification_pdf"), \
-             patch("app.utils.patent_pdf_utils.fill_coversheet_with_pypdf"), \
+        with patch("app.managers.manifest_manager.manifest_manager") as mock_manager, \
+             patch("app.services.ideas.document_generation.get_db_connection", return_value=db_cm), \
+             patch("app.services.documents.patent_pdf.generate_specification_pdf"), \
+             patch("app.services.documents.patent_pdf.fill_coversheet_with_pypdf"), \
              patch("app.services.documents.provisional_patent.ProvisionalPatent") as mock_patent_cls, \
-             patch("app.utils.idea_utils.upload_pdf_to_supabase_storage", return_value=None):
+             patch("app.services.ideas.document_generation.upload_pdf_to_supabase_storage", return_value=None):
 
             similar_content = "## Similar Ideas\n- Competitor A\n- Competitor B"
             mock_manager.get_similar_ideas.return_value = similar_content

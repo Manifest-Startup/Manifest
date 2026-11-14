@@ -651,3 +651,8 @@ class ManifestManager:
         """
         logger.info("Retrieving Product Requirements Document.")
         return self.product_requirements_document.summary
+
+
+# The process-wide manager. Creating it is cheap: services are built lazily
+# from the factories above on first use, after settings have loaded.
+manifest_manager = ManifestManager()

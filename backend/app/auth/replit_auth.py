@@ -247,7 +247,7 @@ def get_current_user_from_session(request: Request) -> dict[str, Any] | None:
 
     # Reject any token that was issued before the user's most recent
     # password change (e.g. after a successful password reset). Mirrors
-    # the same check enforced by ``app.utils.auth_utils``.
+    # the same check enforced by ``app.auth.current_user``.
     user_id = payload.get("sub") or payload.get("user_id")
     session_id = payload.get("sid")
     if user_id and session_id and not is_session_active(str(session_id), str(user_id)):

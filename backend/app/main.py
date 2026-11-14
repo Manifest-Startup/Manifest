@@ -35,10 +35,10 @@ from app.services.compliance.privacy_consent import (
     analytics_enabled_for_cookie_header,
     analytics_enabled_for_request,
 )
+from app.services.ideas.document_generation import generate_background_tasks
+from app.services.integrations.analytics import capture_event
 from app.services.web.spa_fallback import register_spa_fallback
-from app.utils.idea_utils import generate_background_tasks
 from app.utils.logger import logger
-from app.utils.posthog_config import capture_event
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -278,10 +278,7 @@ setup_metrics(app)
 # --------------------------
 # Import Managers
 # --------------------------
-from app.managers.manifest_manager import ManifestManager
 
-# Create shared instance of ManifestManager
-manifest_manager = ManifestManager()  # Instantiate ManifestManager
 
 # --------------------------
 # Import and include routes

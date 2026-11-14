@@ -25,24 +25,13 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable, Iterable
-from contextvars import ContextVar
 from typing import Any
+
+from app.utils.request_context import _request_id_ctx
 
 REQUEST_ID_HEADER = "X-Request-Id"
 _REQUEST_ID_HEADER_BYTES = b"x-request-id"
 _REQUEST_ID_MAX_LEN = 128
-
-_request_id_ctx: ContextVar[str | None] = ContextVar("manifest_request_id", default=None)
-
-
-def get_request_id() -> str | None:
-    """Return the request ID bound to the current task/request, if any.
-
-    Safe to call from anywhere — returns ``None`` outside an HTTP request
-    (e.g. in startup hooks, background threads not seeded with the ctx).
-    """
-
-    return _request_id_ctx.get()
 
 
 def _normalize_incoming(raw: bytes) -> str:

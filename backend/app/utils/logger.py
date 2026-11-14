@@ -35,6 +35,8 @@ import time
 import traceback
 from typing import Any
 
+from app.utils.request_context import get_request_id
+
 _LOG_LEVEL = (os.getenv("LOG_LEVEL") or "INFO").strip().upper()
 _LOG_FORMAT = (os.getenv("LOG_FORMAT") or "text").strip().lower()
 
@@ -113,11 +115,6 @@ class JsonFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        # Import here to avoid a circular import: request_id has no deps,
-        # but importing this module at request_id load time would create
-        # a hot loop on first cold start.
-        from app.middleware.request_id import get_request_id
-
         payload: dict[str, Any] = {
             "timestamp": _format_timestamp(record.created),
             "severity": record.levelname,

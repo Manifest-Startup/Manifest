@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.auth.current_user import get_current_session_id_optional
 from app.routes.dependencies import require_user_id
 from app.security.step_up import record_step_up
 from app.services.compliance.security_audit import record_security_event
@@ -23,7 +24,6 @@ from app.services.identity.webauthn import (
     revoke_credential,
     webauthn_enabled,
 )
-from app.utils.auth_utils import get_current_session_id_optional
 from app.utils.logger import logger
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 

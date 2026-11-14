@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.graphql.schema import Query
-from app.utils.auth_utils import generate_demo_token
+from app.auth.current_user import generate_demo_token
 
 
 @pytest.mark.asyncio

@@ -211,3 +211,8 @@ def get_current_session_id_optional(request: Request) -> str | None:
         return None
     session_id = payload.get("sid")
     return str(session_id) if session_id else None
+
+
+def require_user_id(request: Request) -> str:
+    """FastAPI dependency: the signed-in user's id, or HTTP 401."""
+    return get_current_user_id(request)

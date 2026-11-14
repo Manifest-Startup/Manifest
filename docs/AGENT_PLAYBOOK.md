@@ -48,7 +48,7 @@ Manifest is a full-stack platform with four main execution paths:
 ### Data and auth foundations
 
 - Database client + in-memory fallback: `backend/app/db/database.py`
-- Auth token parsing + demo mode: `backend/app/utils/auth_utils.py`
+- Auth token parsing + demo mode: `backend/app/auth/current_user.py`
 - Replit OAuth/session flow: `backend/app/auth/replit_auth.py`, `backend/app/routes/auth_routes.py`
 
 ### Frontend app shell and state
@@ -71,7 +71,7 @@ Manifest is a full-stack platform with four main execution paths:
 Use this to dispatch tasks quickly.
 
 - "Add or modify product data fields" -> `backend/app/graphql/schema.py` + frontend `queries.ts` + consuming components
-- "Fix login/session behavior" -> `backend/app/utils/auth_utils.py`, `backend/app/graphql/schema.py` auth mutations, `frontend/src/features/auth/*`
+- "Fix login/session behavior" -> `backend/app/auth/current_user.py`, `backend/app/graphql/schema.py` auth mutations, `frontend/src/features/auth/*`
 - "Improve AI output quality" -> prompt JSON files in `backend/app/prompts/*.mcp.json` + `ai/layer.py`
 - "Document generation bugs" -> `manifest_manager.py`, `idea_utils.py`, target document service
 - "Public API key behavior" -> `backend/app/routes/api_v1_routes.py`, `backend/app/services/identity/api_keys.py`
@@ -87,7 +87,7 @@ Use this to dispatch tasks quickly.
 1. Add/extend backend service under `backend/app/services/`.
 2. Register in `backend/app/managers/manifest_manager.py`.
 3. Add GraphQL resolver(s) in `backend/app/graphql/schema.py`.
-4. If background-generated, integrate in `backend/app/utils/idea_utils.py`.
+4. If background-generated, integrate in `backend/app/services/ideas/document_generation.py`.
 5. Add frontend GraphQL operation in `frontend/src/features/core/apollo/queries.ts`.
 6. Add UI surface in ideas display components.
 7. Add backend tests and frontend rendering tests.
@@ -125,7 +125,7 @@ Use this to dispatch tasks quickly.
 
 ## 5. Non-Obvious Constraints and Pitfalls
 
-- `main.py` uses a singleton `ManifestManager`; background document generation serializes access with `_manifest_manager_lock` in `backend/app/utils/idea_utils.py`.
+- `main.py` uses a singleton `ManifestManager`; background document generation serializes access with `_manifest_manager_lock` in `backend/app/services/ideas/document_generation.py`.
 - `updateIdea` GraphQL mutation rejects empty/meaningless HTML description updates (intentional guardrail).
 - `runBackgroundTasks` mutation returns immediately; document generation is asynchronous.
 - Without `DATABASE_URL`, backend may run with in-memory DB and demo auth behavior.

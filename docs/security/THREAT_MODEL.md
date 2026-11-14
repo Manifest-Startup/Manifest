@@ -128,7 +128,7 @@ Severity scale: **C**ritical / **H**igh / **M**edium / **L**ow. Each row links t
 | T | Reset tokens are SHA-256 hashed, single-use, 30-min TTL, atomic consume — **good**. | — | (control) |
 | I | Rate-limit fallback degrades to in-memory bucket on shared-backend errors (logged loudly, but limit becomes per-process). Acceptable with monitoring; documented. | L | SEC-024 |
 
-### 4.4 Sessions (`backend/app/services/identity/sessions.py`, `backend/app/utils/auth_utils.py`)
+### 4.4 Sessions (`backend/app/services/identity/sessions.py`, `backend/app/auth/current_user.py`)
 
 | STRIDE | Threat | Severity | Finding |
 |--------|--------|----------|---------|

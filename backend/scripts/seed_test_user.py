@@ -13,7 +13,7 @@ if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 
 from app.db.database import get_db_connection
-from app.utils.password_utils import hash_password
+from app.security.passwords import hash_password
 
 repo_root = script_dir.parent.parent
 root_env = repo_root / ".env"

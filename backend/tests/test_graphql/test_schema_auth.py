@@ -4,7 +4,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 from app.graphql.schema import Mutation
-from app.utils.password_utils import hash_password
+from app.security.passwords import hash_password
 
 
 def _mock_db_conn_with_cursor(cursor: MagicMock):

@@ -262,7 +262,7 @@ def get_redirect_uri(request: Request, provider: str) -> str:
 
 def get_user_id_from_request(request: Request) -> str | None:
     """Extract user ID from request token."""
-    from app.utils.auth_utils import get_current_user_id
+    from app.auth.current_user import get_current_user_id
 
     try:
         return get_current_user_id(request)

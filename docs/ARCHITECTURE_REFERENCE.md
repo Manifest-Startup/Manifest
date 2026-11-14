@@ -78,7 +78,7 @@ Triggered by GraphQL `runBackgroundTasks` or Socket event.
 
 Flow:
 
-1. Spawn thread (`backend/app/utils/idea_utils.py`)
+1. Spawn thread (`backend/app/services/ideas/document_generation.py`)
 2. Acquire `_manifest_manager_lock`
 3. Set idea on singleton manager
 4. Generate similar ideas, BMC, pitch deck, PRD, patent artifacts
@@ -97,7 +97,7 @@ This allows local/demo execution without external DB, but state is non-persisten
 
 ## Auth and Session Model
 
-Primary token parsing logic: `backend/app/utils/auth_utils.py`.
+Primary token parsing logic: `backend/app/auth/current_user.py`.
 
 Token accepted from:
 

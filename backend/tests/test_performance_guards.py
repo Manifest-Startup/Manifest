@@ -180,7 +180,7 @@ async def test_find_similar_ideas_latency_is_ai_delay_plus_small_overhead(monkey
         set_idea=lambda description: None,
         get_similar_ideas=lambda: "cached similar ideas",
     )
-    monkeypatch.setitem(sys.modules, "app.main", SimpleNamespace(manifest_manager=fake_manager))
+    monkeypatch.setattr("app.managers.manifest_manager.manifest_manager", fake_manager)
 
     query = Query()
     description = f"latency test idea {time.time_ns()}"

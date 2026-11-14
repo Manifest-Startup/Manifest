@@ -7,13 +7,13 @@ having to fully re-login.
 
 from __future__ import annotations
 
+from app.auth.current_user import get_current_session_id_optional
 from app.db.database import get_db_connection
 from app.routes.dependencies import require_user_id
+from app.security.passwords import verify_password
 from app.security.step_up import DEFAULT_TTL_SECONDS, record_step_up
 from app.services.compliance.security_audit import record_security_event
-from app.utils.auth_utils import get_current_session_id_optional
 from app.utils.logger import logger
-from app.utils.password_utils import verify_password
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 

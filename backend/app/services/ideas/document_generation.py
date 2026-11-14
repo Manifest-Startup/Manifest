@@ -15,6 +15,7 @@ try:
 except ImportError:
     _requests = None  # type: ignore[assignment]
 
+from app.assets import ASSETS_DIR
 from app.db.database import create_database_client, get_db_connection
 from app.services.documents.demo_documents import build_demo_documents
 from app.utils.logger import logger
@@ -24,10 +25,11 @@ if os.path.exists(".env"):
 
 logger.info("idea_utils loaded with PostgreSQL database")
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = (
+    Path(__file__).resolve().parents[4]
+)  # repository root (generated/ lives here locally)
 GENERATED_PDF_ROOT = PROJECT_ROOT / "generated" / "pdfs"
-# Bundled with the backend so it ships in the Docker image (only backend/ is copied).
-USPTO_COVERSHEET_TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "uspto" / "sb0016.pdf"
+USPTO_COVERSHEET_TEMPLATE = ASSETS_DIR / "uspto" / "sb0016.pdf"
 
 # Lock to serialize access to manifest_manager during document generation
 # This prevents race conditions when multiple ideas are being processed concurrently
@@ -327,7 +329,7 @@ def _extract_markdown_section(section, text):
 def generate_background_tasks(  # noqa: C901
     idea_description, idea_id, sio=None, sid=None, loop=None
 ):
-    from app.main import manifest_manager  # moved import here to avoid circular import
+    from app.managers.manifest_manager import manifest_manager
 
     if not idea_description:
         logger.info(
@@ -666,7 +668,10 @@ def generate_patent_pdfs(idea_id: str, user_id: str, patent_draft: str, owner_pr
     Supabase Storage (or local fallback), persist URLs to the intellectual_properties table,
     and return (spec_pdf_url, coversheet_pdf_url).  Either value may be None on failure.
     """
-    from app.utils.patent_pdf_utils import fill_coversheet_with_pypdf, generate_specification_pdf
+    from app.services.documents.patent_pdf import (
+        fill_coversheet_with_pypdf,
+        generate_specification_pdf,
+    )
 
     title = _extract_markdown_section("Title", patent_draft)
     abstract = _extract_markdown_section("Abstract", patent_draft)

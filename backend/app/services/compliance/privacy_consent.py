@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+from app.auth.current_user import get_current_user_id_optional
 from app.db.database import get_database_url, get_db_connection
-from app.utils.auth_utils import get_current_user_id_optional
 from app.utils.logger import logger
 from fastapi import Request, Response
 
