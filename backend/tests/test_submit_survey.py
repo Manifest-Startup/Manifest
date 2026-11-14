@@ -76,7 +76,7 @@ async def test_submit_survey_product_feedback_requires_auth(mock_request):
 @pytest.mark.asyncio
 async def test_submit_survey_product_feedback_serializes_answers_when_authenticated(mock_request):
     from app.graphql.schema import Mutation, SubmitSurveyInput
-    from app.utils.auth_utils import generate_demo_token
+    from app.auth.current_user import generate_demo_token
 
     db, chain = _mutation_db()
     token = generate_demo_token("user-123", "hello@example.com")

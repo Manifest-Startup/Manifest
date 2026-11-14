@@ -9,7 +9,7 @@ This document captures **operational** guidance for CDN/WAF placement and an inv
 **Goals**
 
 - Mitigate credential stuffing, scraping, and volumetric abuse before traffic hits the origin.
-- Reduce load on Postgres-backed rate limiting ([`RateLimitService`](backend/app/services/rate_limit_service.py)) under attack.
+- Reduce load on Postgres-backed rate limiting ([`RateLimitService`](backend/app/services/shared/rate_limit.py)) under attack.
 
 **Practices**
 

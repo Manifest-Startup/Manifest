@@ -14,7 +14,7 @@ Primary source files:
 - `backend/app/routes/ops_internal_routes.py`
 - `backend/app/routes/voice_agent_routes.py`
 - `backend/app/routes/dependencies.py`
-- `backend/app/services/privacy_consent_service.py`
+- `backend/app/services/compliance/privacy_consent.py`
 
 ## API Surfaces
 
@@ -52,7 +52,7 @@ Two auth mechanisms are used in this codebase.
 
 Used by GraphQL resolvers and most app REST routes.
 
-Accepted token locations (`backend/app/utils/auth_utils.py`):
+Accepted token locations (`backend/app/auth/current_user.py`):
 
 - `session_token` cookie
 - `access_token` cookie
@@ -189,7 +189,7 @@ Ideas and generation:
 Idea qualification:
 
 - `startIdeaQualification(initialIdeaText)` — opens a new multi-turn qualification session, seeds the opening question, returns the `IdeaQualificationSession`. Also opens an `agent_runs` row linked to the session so cost can be tracked. Permission: `ideas.write`.
-- `continueIdeaQualification(sessionId, userMessage)` — advances the session by one turn. Calls the LLM to extract structured fields from the latest reply and either asks the next best question or completes the session with a 0–100 score + explanation. Completes automatically after 8 turns. Each LLM-calling turn logs one `agent_cost_events` row via the `llm_usage_tap`. See `backend/app/services/idea_qualification_service.py` and the prompt at `backend/app/prompts/idea_qualification.mcp.json`. Permission: `ideas.write`.
+- `continueIdeaQualification(sessionId, userMessage)` — advances the session by one turn. Calls the LLM to extract structured fields from the latest reply and either asks the next best question or completes the session with a 0–100 score + explanation. Completes automatically after 8 turns. Each LLM-calling turn logs one `agent_cost_events` row via the `llm_usage_tap`. See `backend/app/services/ai/idea_qualification.py` and the prompt at `backend/app/prompts/idea_qualification.mcp.json`. Permission: `ideas.write`.
 
 Billing (variable-cost cap):
 
@@ -415,7 +415,7 @@ Requires a token with **Issues** and **Projects** write access.
 3. **Frontend** — `REACT_APP_API_URL` (and related `REACT_APP_SUPABASE_*`) must target the same production API and Supabase project.
 4. **`GOOGLE_API_KEY`** — optional in production; without it, reels use a built-in placeholder video but still appear in the feed.
 5. **Background worker** — video generation uses an in-process **daemon thread**. On platforms that freeze or recycle the process immediately after each request, prefer `PITCH_REEL_VIDEO_MODE=disabled` or run a long-lived API worker; do not rely on the thread finishing on ephemeral serverless instances.
-6. **Generated video files** — by default, successful jobs write MP4s under `generated/pdfs/pitch-reels/` on the API host. Ephemeral disks lose these files after deploy; static/CDN frontends may not serve that path. For durable URLs, plan object storage (e.g. Supabase Storage) and public URLs—see `pitch_reel_video_worker.py`.
+6. **Generated video files** — by default, successful jobs write MP4s under `generated/pdfs/pitch-reels/` on the API host. Ephemeral disks lose these files after deploy; static/CDN frontends may not serve that path. For durable URLs, plan object storage (e.g. Supabase Storage) and public URLs—see `pitch_reels/video_worker.py`.
 
 ## Minimal GraphQL Example
 

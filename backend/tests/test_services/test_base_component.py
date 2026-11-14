@@ -1,4 +1,4 @@
-from app.services.base_component import BaseComponent
+from app.services.canvas.section_base import BaseComponent
 
 
 class DummyComponent(BaseComponent):

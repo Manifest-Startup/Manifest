@@ -29,7 +29,7 @@ from collections.abc import Callable
 from typing import Any
 
 from app.db.database import create_database_client
-from app.services import job_service
+from app.services.ideas import generation_jobs as job_service
 from app.utils.logger import logger
 
 # document_type -> generator(description) -> str. Lazy imports keep the heavy

@@ -4,7 +4,7 @@ Tests for Social Graph Service
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
-from app.services.social_graph_service import SocialGraphService, create_social_graph_service
+from app.services.social.graph import SocialGraphService, create_social_graph_service
 
 
 def create_mock_db():

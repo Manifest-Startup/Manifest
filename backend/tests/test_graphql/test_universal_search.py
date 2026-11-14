@@ -200,7 +200,7 @@ def test_universal_search_returns_internal_and_published_matches():
 
 
 def test_universal_search_includes_web_results_and_ai_summary():
-    from app.main import manifest_manager
+    from app.managers.manifest_manager import manifest_manager
 
     my_ideas_table = _build_table([])
     public_ideas_table = _build_table([])

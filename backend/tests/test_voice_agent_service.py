@@ -51,10 +51,10 @@ def _build_mock_db():
 
 
 def _import_voice_agent_module():
-    sys.modules.pop("app.services.ai_router", None)
-    sys.modules.pop("app.services.voice_agent_service", None)
+    sys.modules.pop("app.services.ai.router", None)
+    sys.modules.pop("app.services.voice.agent", None)
     with patch.dict(sys.modules, {"openai": SimpleNamespace(OpenAI=MagicMock())}):
-        return importlib.import_module("app.services.voice_agent_service")
+        return importlib.import_module("app.services.voice.agent")
 
 
 class TestVoiceAgentService:
@@ -517,7 +517,7 @@ class TestVoiceContextCache:
             return voice_agent_module.VoiceAgentService()
 
     def test_second_load_hits_cache_not_db(self, service):
-        from app.services.cache_service import _reset_for_tests
+        from app.services.shared.cache import _reset_for_tests
 
         _reset_for_tests()
         db = _build_mock_db()
@@ -529,7 +529,7 @@ class TestVoiceContextCache:
         assert second == first
 
     def test_cached_context_is_isolated_from_caller_mutation(self, service):
-        from app.services.cache_service import _reset_for_tests
+        from app.services.shared.cache import _reset_for_tests
 
         _reset_for_tests()
         db = _build_mock_db()
@@ -540,7 +540,7 @@ class TestVoiceContextCache:
         assert "onboarding_mode" not in second
 
     def test_cache_disabled_via_env(self, service, monkeypatch):
-        from app.services.cache_service import _reset_for_tests
+        from app.services.shared.cache import _reset_for_tests
 
         _reset_for_tests()
         monkeypatch.setenv("VOICE_CONTEXT_CACHE_TTL_SECONDS", "0")

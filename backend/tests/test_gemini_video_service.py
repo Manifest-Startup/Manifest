@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from app.services import gemini_video_service as gvs
+from app.services.pitch_reels import gemini_video as gvs
 
 
 def test_build_pitch_prompt_includes_title_and_description():

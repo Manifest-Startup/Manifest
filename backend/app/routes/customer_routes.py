@@ -20,7 +20,7 @@ import os
 from uuid import uuid4
 
 from app.db.database import get_database_url, get_db_connection
-from app.services.privacy_consent_service import analytics_enabled_for_request
+from app.services.compliance.privacy_consent import analytics_enabled_for_request
 from fastapi import Request, Response
 
 

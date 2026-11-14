@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import json
 
-from app.services.website_issue_sync_service import website_issue_sync_service
+from app.services.operations.website_issue_sync import website_issue_sync_service
 
 
 def parse_args() -> argparse.Namespace:

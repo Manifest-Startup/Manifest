@@ -11,7 +11,7 @@ Cloudflare Worker `manifest-production`  (deploy/cloudflare, Workers Free)
   ├─ /generated/pdfs/*  → Supabase Storage public URLs (legacy file links)
   └─ /graphql /socket.io /api /auth /scim /trust /ping /health*  → BACKEND_ORIGIN
                                                                      │
-                                         FastAPI Docker image (backend/dockerfile)
+                                         FastAPI Docker image (backend/Dockerfile)
                                          on Render free: `manifest-backend`
                                                                      │
                                          Supabase (free): Postgres + Storage

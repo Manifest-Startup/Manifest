@@ -1,6 +1,6 @@
 import json
 
-from app.services.business_model_canvas_service import BusinessModelCanvas
+from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
 
 class DummyAI:
@@ -47,7 +47,7 @@ def test_update_generates_components():
 
 
 def test_cost_structure_plain_object():
-    from app.services.business_model_canvas_service import BusinessModelCanvas
+    from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
     class DummyModel:
         pass
@@ -61,7 +61,7 @@ def test_cost_structure_plain_object():
 def test_cost_structure_stringified_json():
     import json
 
-    from app.services.business_model_canvas_service import BusinessModelCanvas
+    from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
     class DummyModel:
         pass
@@ -91,7 +91,7 @@ def test_cost_structure_stringified_json():
 def test_cost_structure_nested_stringified_json():
     import json
 
-    from app.services.business_model_canvas_service import BusinessModelCanvas
+    from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
     class DummyModel:
         pass
@@ -121,7 +121,7 @@ def test_cost_structure_nested_stringified_json():
 
 
 def test_cost_structure_invalid_json():
-    from app.services.business_model_canvas_service import BusinessModelCanvas
+    from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
     class DummyModel:
         pass

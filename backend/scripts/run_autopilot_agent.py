@@ -515,7 +515,7 @@ def spent_today_usd() -> float:
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # backend/
         from app.db.database import create_database_client
-        from app.services import cost_tracking_service as cts
+        from app.services.ai import cost_tracking as cts
     except Exception as exc:  # pragma: no cover - import guard
         print(f"[autopilot] cost ledger import failed, failing closed: {exc}", file=sys.stderr)
         return float("inf")
@@ -537,7 +537,7 @@ def record_spend(*, model: str, input_tokens: int, output_tokens: int, note: str
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
         from app.db.database import create_database_client
-        from app.services import cost_tracking_service as cts
+        from app.services.ai import cost_tracking as cts
     except Exception as exc:  # pragma: no cover
         print(f"[autopilot] cannot record spend (import): {exc}", file=sys.stderr)
         return 0.0

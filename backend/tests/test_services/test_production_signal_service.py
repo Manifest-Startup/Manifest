@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services.production_signal_service import ProductionSignalService
+from app.services.operations.production_signals import ProductionSignalService
 
 
 def _db():

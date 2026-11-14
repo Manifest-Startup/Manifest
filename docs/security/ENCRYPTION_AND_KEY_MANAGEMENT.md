@@ -26,9 +26,9 @@ Implementation: `backend/app/security/crypto.py` and
 |---------|-----------|-------|
 | Symmetric encryption | AES-256-GCM (`cryptography.hazmat.primitives.ciphers.aead.AESGCM`) | 256-bit keys, 96-bit random nonce, 128-bit tag |
 | Random nonce | `os.urandom(12)` | Per-row, never reused |
-| Password hashing | bcrypt (cost 12) | `app.utils.password_utils` |
+| Password hashing | bcrypt (cost 12) | `app.security.passwords` |
 | API key hashing | bcrypt (after SHA-256 normalisation, see `api_key_service`) | SHA-256 fallback for legacy rows |
-| Reset token hashing | SHA-256 of high-entropy token | `app.utils.reset_token_utils` |
+| Reset token hashing | SHA-256 of high-entropy token | `app.services.identity.reset_tokens` |
 | TOTP secret | `pgp_sym_encrypt` w/ `MFA_ENCRYPTION_KEY` | Pre-existing, see `totp_mfa_service` |
 
 We deliberately use **AES-GCM, not GCM-SIV**: nonces are random and never
@@ -101,7 +101,7 @@ even an attacker holding both the database backups and the active KEK
 cannot read the data.
 
 This is the primary mechanism behind
-`app.services.tenant_purge_service.purge_user_data` (the GDPR Art. 17 /
+`app.services.compliance.tenant_purge.purge_user_data` (the GDPR Art. 17 /
 CCPA §1798.105 endpoint). The plaintext rows are also deleted/tombstoned
 in the same transaction as defence-in-depth.
 

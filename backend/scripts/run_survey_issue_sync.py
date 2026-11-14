@@ -7,7 +7,7 @@ import asyncio
 import json
 
 from app.db.database import create_database_client
-from app.services.survey_ops_service import survey_ops_service
+from app.services.operations.survey_ops import survey_ops_service
 
 
 def parse_args() -> argparse.Namespace:

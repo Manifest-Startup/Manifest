@@ -13,7 +13,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import idea_qualification_service as qs
+from app.services.ai import idea_qualification as qs
 
 
 @pytest.fixture

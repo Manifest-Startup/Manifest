@@ -8,15 +8,16 @@ from types import SimpleNamespace
 
 import pytest
 from app.graphql.error_masking import should_mask_error
-from app.services import ai_credentials, user_ai_key_service
-from app.services.ai_credentials import (
+from app.services.ai import credentials as ai_credentials
+from app.services.ai import user_keys as user_ai_key_service
+from app.services.ai.credentials import (
     MISSING_KEY_MESSAGE,
     MissingOpenAIKeyError,
     current_openai_key,
     start_thread_with_current_key,
     use_openai_key,
 )
-from app.services.ai_router import AIRouter
+from app.services.ai.router import AIRouter
 from graphql import GraphQLError
 
 USER_KEY = "sk-user-" + "a" * 32
@@ -41,7 +42,7 @@ def test_no_key_anywhere_means_ai_unavailable():
 
 
 def test_signed_in_users_own_key_is_used(monkeypatch):
-    monkeypatch.setattr("app.utils.auth_utils.get_current_user_id_optional", lambda req: "user-1")
+    monkeypatch.setattr("app.auth.current_user.get_current_user_id_optional", lambda req: "user-1")
     monkeypatch.setattr(user_ai_key_service, "load_user_key", lambda uid: USER_KEY if uid == "user-1" else None)
     token = ai_credentials._request.set(_fake_request())
     try:
@@ -53,7 +54,7 @@ def test_signed_in_users_own_key_is_used(monkeypatch):
 
 def test_user_key_beats_platform_key_and_pinned_key_beats_both(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-platform-" + "c" * 30)
-    monkeypatch.setattr("app.utils.auth_utils.get_current_user_id_optional", lambda req: "user-1")
+    monkeypatch.setattr("app.auth.current_user.get_current_user_id_optional", lambda req: "user-1")
     monkeypatch.setattr(user_ai_key_service, "load_user_key", lambda uid: USER_KEY)
     token = ai_credentials._request.set(_fake_request())
     try:

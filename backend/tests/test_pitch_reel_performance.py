@@ -3,7 +3,7 @@
 import time
 from unittest.mock import MagicMock
 
-from app.services.pitch_reel_service import PitchReelService
+from app.services.pitch_reels.service import PitchReelService
 
 
 def test_upsert_reel_mocked_completes_quickly():

@@ -21,9 +21,8 @@ import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
+from app.auth.current_user import get_current_session_id_optional, require_user_id
 from app.db.database import get_db_connection
-from app.routes.dependencies import require_user_id
-from app.utils.auth_utils import get_current_session_id_optional
 from app.utils.logger import logger
 from fastapi import Depends, HTTPException, Request
 

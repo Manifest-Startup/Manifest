@@ -13,8 +13,8 @@ from typing import Any, TypedDict
 
 from app.db.database import db_client
 from app.managers.manifest_manager import ManifestManager
-from app.services.api_key_service import api_key_service, api_usage_service
-from app.services.provisional_patent_service import ProvisionalPatent
+from app.services.documents.provisional_patent import ProvisionalPatent
+from app.services.identity.api_keys import api_key_service, api_usage_service
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import JSONResponse
@@ -349,7 +349,7 @@ async def update_idea(
 
         if idea.title is not None or idea.description is not None:
             try:
-                from app.services.collaboration_service import create_collaboration_service
+                from app.services.ideas.collaboration import create_collaboration_service
 
                 collab = create_collaboration_service(db_client)
                 await collab.maybe_record_auto_version_after_user_edit(

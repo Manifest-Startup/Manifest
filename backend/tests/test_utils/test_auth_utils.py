@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 import jwt
 
-from app.utils.auth_utils import (
+from app.auth.current_user import (
     SUPABASE_JWT_SECRET,
     get_current_user_id,
 )
@@ -75,7 +75,7 @@ def test_get_current_user_id_expired_token():
 
 def test_get_current_user_id_demo_mode(monkeypatch):
     monkeypatch.setenv("DEMO_MODE", "1")
-    from app.utils import auth_utils
+    from app.auth import current_user as auth_utils
 
     auth_utils = importlib.reload(auth_utils)
     token = auth_utils.generate_demo_token("demo-user", "demo@example.com")
@@ -95,7 +95,7 @@ def test_demo_user_credentials_fall_back_when_env_keys_are_empty_strings(monkeyp
     monkeypatch.setenv("DEMO_USER_EMAIL", "")
     monkeypatch.setenv("DEMO_USER_PASSWORD", "")
 
-    import app.utils.auth_utils as au
+    import app.auth.current_user as au
 
     reloaded = importlib.reload(au)
     assert reloaded.DEMO_USER_EMAIL == "hello@manifeststartup.com"

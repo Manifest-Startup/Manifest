@@ -36,6 +36,7 @@ def _make_record(
         msg=msg,
         args=(),
         exc_info=None,
+        func="boot",
     )
     if extra:
         for key, value in extra.items():
@@ -46,12 +47,12 @@ def _make_record(
 def test_emits_core_fields():
     payload = _emit(_make_record(msg="boot complete"))
 
-    assert payload["level"] == "INFO"
+    assert payload["severity"] == "INFO"
     assert payload["logger"] == "manifest.test"
-    assert payload["msg"] == "boot complete"
-    assert payload["line"] == 42
-    assert payload["file"].endswith("test_json_logging.py")
-    assert payload["ts"].endswith("Z"), "timestamps are UTC ISO-8601 with millis"
+    assert payload["message"] == "boot complete"
+    assert payload["code.line.number"] == 42
+    assert payload["code.file.path"].endswith("test_json_logging.py")
+    assert payload["timestamp"].endswith("Z"), "timestamps are UTC ISO-8601 with millis"
 
 
 def test_merges_extra_fields_into_top_level_json():
@@ -112,21 +113,21 @@ def test_extras_do_not_clobber_generated_payload_keys():
         msg="actual",
         extra={
             "logger": "shadowed",
-            "ts": "fake-ts",
-            "level": "DEBUG",
-            "file": "fake.py",
-            "line": -1,
+            "timestamp": "fake-ts",
+            "severity": "DEBUG",
+            "code.file.path": "fake.py",
+            "code.line.number": -1,
         },
     )
     payload = _emit(record)
 
     assert payload["logger"] == "manifest.test"
-    assert payload["level"] == "INFO"
-    assert payload["ts"].endswith("Z")
-    assert payload["ts"] != "fake-ts"
-    assert payload["file"].endswith("test_json_logging.py")
-    assert payload["line"] == 42
-    assert payload["msg"] == "actual"
+    assert payload["severity"] == "INFO"
+    assert payload["timestamp"].endswith("Z")
+    assert payload["timestamp"] != "fake-ts"
+    assert payload["code.file.path"].endswith("test_json_logging.py")
+    assert payload["code.line.number"] == 42
+    assert payload["message"] == "actual"
 
 
 def test_includes_exception_traceback_when_present():
@@ -144,8 +145,9 @@ def test_includes_exception_traceback_when_present():
         )
 
     payload = _emit(record)
-    assert "ValueError" in payload["exc"]
-    assert "explode" in payload["exc"]
+    assert payload["exception.type"] == "ValueError"
+    assert "ValueError" in payload["exception.stacktrace"]
+    assert "explode" in payload["exception.message"]
 
 
 def test_middleware_import_path_does_not_break_logger_import():
@@ -159,3 +161,11 @@ def test_middleware_import_path_does_not_break_logger_import():
     # importable in isolation without circular import errors.
     assert RequestIDMiddleware is not None
     assert JsonFormatter is not None
+
+
+def test_identifies_the_service_with_opentelemetry_resource_fields():
+    payload = _emit(_make_record(msg="hello"))
+    assert payload["service.name"]
+    assert payload["service.version"]
+    assert payload["deployment.environment.name"]
+    assert payload["code.function.name"] == "boot"

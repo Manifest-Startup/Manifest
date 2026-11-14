@@ -5,7 +5,7 @@ Implements the formal entry points required by GDPR Arts. 15-21 and
 CCPA / CPRA §§1798.100-1798.130. Every endpoint is authenticated, rate
 limited at the route layer (T19), audited via the chained security log
 (T14) and — for the destructive paths — backed by the crypto-shred
-primitive in ``app.services.tenant_purge_service`` (T3).
+primitive in ``app.services.compliance.tenant_purge`` (T3).
 
 Endpoints
 ---------
@@ -47,11 +47,11 @@ from app.db.database import get_database_url, get_db_connection
 from app.routes.dependencies import require_user_id
 from app.security.rate_limit_policies import TIER_AUTH, enforce_rate_limit
 from app.security.step_up import require_recent_auth
-from app.services.retention_exception_register import (
+from app.services.compliance.retention_exceptions import (
     public_view as retention_exceptions_public_view,
 )
-from app.services.security_audit_service import record_security_event
-from app.services.tenant_purge_service import purge_tenant
+from app.services.compliance.security_audit import record_security_event
+from app.services.compliance.tenant_purge import purge_tenant
 from app.utils.logger import logger
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
@@ -263,7 +263,7 @@ def _resolve_jurisdiction(request: Request) -> str | None:
     on any error so a self-service flow still completes (with the
     default 30d GDPR window)."""
     try:
-        from app.services.privacy_jurisdiction import resolve_default_consent_for
+        from app.services.compliance.privacy_jurisdiction import resolve_default_consent_for
 
         return resolve_default_consent_for(request).jurisdiction
     except Exception:  # pragma: no cover
@@ -294,7 +294,7 @@ def _record_workflow_row(
     persist_error: str | None = None
     new_id: str | None = None
     try:
-        from app.services.dsar_workflow_service import open_request as _open_dsar
+        from app.services.compliance.dsar_workflow import open_request as _open_dsar
 
         new_id = _open_dsar(
             request_type=request_type,

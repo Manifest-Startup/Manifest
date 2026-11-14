@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
-from app.services.provisional_patent_service import ProvisionalPatent
+from app.services.documents.provisional_patent import ProvisionalPatent
 
 @pytest.fixture
 def mock_model():

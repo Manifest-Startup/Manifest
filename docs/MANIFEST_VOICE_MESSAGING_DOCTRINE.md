@@ -1,6 +1,6 @@
 # Manifest Voice Agent — messaging doctrine
 
-This document defines how Manifest Voice should **sound and behave** in spoken interactions: landing onboarding, guest tryout, and workspace sessions. It complements implementation details in `backend/app/services/voice_agent_service.py` and the client voice stack under `frontend/src/features/voice/`.
+This document defines how Manifest Voice should **sound and behave** in spoken interactions: landing onboarding, guest tryout, and workspace sessions. It complements implementation details in `backend/app/services/voice/agent.py` and the client voice stack under `frontend/src/features/voice/`.
 
 ## Principles
 

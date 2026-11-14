@@ -4,7 +4,7 @@ import { useReactiveVar } from "@apollo/client/react";
 import { userVar } from "features/core/apollo/localState";
 import { safeNavigate } from 'utils/safeNavigate';
 import { useMessage } from "features/notifications/context/MessageContext";
-import { loadPitchShortsPage } from "features/pitchshorts/loadPitchShortsPage";
+import { loadPitchReelsPage } from "features/pitch-reels/loadPitchReelsPage";
 
 interface TabItem {
   label: string;
@@ -83,7 +83,7 @@ const IOSTabBar: React.FC = () => {
 
   const prefetchTab = (path: string) => {
     if (path === "/pitch-reels" || path === "/shorts") {
-      void loadPitchShortsPage();
+      void loadPitchReelsPage();
     }
   };
 

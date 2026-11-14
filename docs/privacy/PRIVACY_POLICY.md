@@ -253,6 +253,6 @@ For full transparency, the following documents are available:
 - Breach Notification Procedure: `docs/privacy/BREACH_NOTIFICATION.md`
 - Data Retention Schedule: `docs/security/DATA_RETENTION.md`
 - HIPAA Program: `docs/security/HIPAA_PROGRAM.md`
-- DPA (template): `legal/DPA_TEMPLATE.md`
-- BAA (template): `legal/BAA_TEMPLATE.md`
-- SCC Annex (template): `legal/SCC_ANNEX.md`
+- DPA (template): `docs/legal/DPA_TEMPLATE.md`
+- BAA (template): `docs/legal/BAA_TEMPLATE.md`
+- SCC Annex (template): `docs/legal/SCC_ANNEX.md`

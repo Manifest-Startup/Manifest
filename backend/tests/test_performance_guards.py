@@ -6,9 +6,9 @@ import pytest
 
 from app.db.database import InMemoryDatabaseClient, begin_query_metrics, end_query_metrics
 from app.graphql.schema import Query
-from app.services.investment_service import InvestmentService
-from app.services.messaging_service import MessagingService
-from app.services.social_graph_service import SocialGraphService
+from app.services.social.investments import InvestmentService
+from app.services.social.messaging import MessagingService
+from app.services.social.graph import SocialGraphService
 
 
 def _seed_users(store, count=60):
@@ -180,7 +180,7 @@ async def test_find_similar_ideas_latency_is_ai_delay_plus_small_overhead(monkey
         set_idea=lambda description: None,
         get_similar_ideas=lambda: "cached similar ideas",
     )
-    monkeypatch.setitem(sys.modules, "app.main", SimpleNamespace(manifest_manager=fake_manager))
+    monkeypatch.setattr("app.managers.manifest_manager.manifest_manager", fake_manager)
 
     query = Query()
     description = f"latency test idea {time.time_ns()}"

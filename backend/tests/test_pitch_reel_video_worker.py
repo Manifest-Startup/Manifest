@@ -3,8 +3,8 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import app.services.pitch_reel_video_worker as worker
-from app.services.pitch_reel_media_service import PublishedPitchReelMedia
+import app.services.pitch_reels.video_worker as worker
+from app.services.pitch_reels.media import PublishedPitchReelMedia
 
 
 def test_run_pitch_reel_video_job_without_google_key_sets_ready_placeholder(monkeypatch):
@@ -15,7 +15,7 @@ def test_run_pitch_reel_video_job_without_google_key_sets_ready_placeholder(monk
 
     with patch.object(worker, "create_database_client", return_value=MagicMock()):
         with patch.object(worker, "create_pitch_reel_service", mock_create_svc):
-            from app.services.pitch_reel_service import USER_REEL_PLACEHOLDER_VIDEO
+            from app.services.pitch_reels.service import USER_REEL_PLACEHOLDER_VIDEO
 
             worker.run_pitch_reel_video_job("reel-uuid", "Title", "Desc")
 

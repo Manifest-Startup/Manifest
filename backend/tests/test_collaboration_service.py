@@ -5,7 +5,7 @@ Tests for team collaboration, access management, and version control functionali
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime, timedelta, timezone
-from app.services.collaboration_service import CollaborationService, create_collaboration_service
+from app.services.ideas.collaboration import CollaborationService, create_collaboration_service
 
 
 class MockQueryResponse:

@@ -21,9 +21,9 @@ _BACKEND = os.path.abspath(os.path.join(_HERE, os.pardir))
 if _BACKEND not in sys.path:
     sys.path.insert(0, _BACKEND)
 
-from app.services.breach_timer_service import find_due as find_due_breach  # noqa: E402
-from app.services.dsar_workflow_service import find_overdue  # noqa: E402
-from app.services.security_audit_service import record_security_event  # noqa: E402
+from app.services.compliance.breach_timers import find_due as find_due_breach  # noqa: E402
+from app.services.compliance.dsar_workflow import find_overdue  # noqa: E402
+from app.services.compliance.security_audit import record_security_event  # noqa: E402
 from app.utils.logger import logger  # noqa: E402
 
 

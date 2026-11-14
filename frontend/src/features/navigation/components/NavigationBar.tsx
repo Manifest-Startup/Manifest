@@ -9,7 +9,7 @@ import Button from "features/common-ui/Button";
 import { accountVar, userVar } from "features/core/apollo/localState";
 import { useMessage } from "features/notifications/context/MessageContext";
 import { getAvatarUrl } from "features/account/utils/gravatar";
-import { loadPitchShortsPage } from "features/pitchshorts/loadPitchShortsPage";
+import { loadPitchReelsPage } from "features/pitch-reels/loadPitchReelsPage";
 import { safeNavigate } from "utils/safeNavigate";
 import UniversalSearch from "./UniversalSearch";
 
@@ -79,7 +79,7 @@ const NavigationBar: React.FC = () => {
 
   const prefetchRoute = useCallback((path: string) => {
     if (path === "/pitch-reels" || path === "/shorts") {
-      void loadPitchShortsPage();
+      void loadPitchReelsPage();
     }
   }, []);
 

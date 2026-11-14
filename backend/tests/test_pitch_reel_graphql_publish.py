@@ -16,7 +16,7 @@ async def test_pitch_reels_feed_calls_list_feed_with_viewer_id_kwarg():
 
     with patch("app.graphql.schema.get_current_user_id", return_value="viewer-uuid-1"):
         with patch(
-            "app.services.pitch_reel_service.create_pitch_reel_service",
+            "app.services.pitch_reels.service.create_pitch_reel_service",
             return_value=mock_service,
         ):
             from app.graphql.schema import Query
@@ -74,13 +74,13 @@ async def test_toggle_publish_idea_publish_path_upserts_reel_and_schedules_video
     mock_reel_svc.upsert_reel_for_published_idea.return_value = ("reel-uuid-9", True)
 
     with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
-        with patch("app.services.guest_workspace_service.fetch_user_is_guest", return_value=False):
+        with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
             with patch(
-                "app.services.pitch_reel_service.create_pitch_reel_service",
+                "app.services.pitch_reels.service.create_pitch_reel_service",
                 return_value=mock_reel_svc,
             ):
                 with patch(
-                    "app.services.pitch_reel_video_worker.schedule_pitch_reel_video_generation",
+                    "app.services.pitch_reels.video_worker.schedule_pitch_reel_video_generation",
                 ) as mock_schedule:
                     with patch.dict("os.environ", {"PITCH_REEL_VIDEO_MODE": "thread"}, clear=False):
                         from app.graphql.schema import Mutation
@@ -122,13 +122,13 @@ async def test_toggle_publish_idea_respects_pitch_reel_video_mode_disabled(monke
     mock_reel_svc.upsert_reel_for_published_idea.return_value = ("reel-x", True)
 
     with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
-        with patch("app.services.guest_workspace_service.fetch_user_is_guest", return_value=False):
+        with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
             with patch(
-                "app.services.pitch_reel_service.create_pitch_reel_service",
+                "app.services.pitch_reels.service.create_pitch_reel_service",
                 return_value=mock_reel_svc,
             ):
                 with patch(
-                    "app.services.pitch_reel_video_worker.schedule_pitch_reel_video_generation",
+                    "app.services.pitch_reels.video_worker.schedule_pitch_reel_video_generation",
                 ) as mock_schedule:
                     from app.graphql.schema import Mutation
 
@@ -155,13 +155,13 @@ async def test_toggle_publish_idea_unpublish_calls_unpublish_reel():
     mock_reel_svc = MagicMock()
 
     with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
-        with patch("app.services.guest_workspace_service.fetch_user_is_guest", return_value=False):
+        with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
             with patch(
-                "app.services.pitch_reel_service.create_pitch_reel_service",
+                "app.services.pitch_reels.service.create_pitch_reel_service",
                 return_value=mock_reel_svc,
             ):
                 with patch(
-                    "app.services.pitch_reel_video_worker.schedule_pitch_reel_video_generation",
+                    "app.services.pitch_reels.video_worker.schedule_pitch_reel_video_generation",
                 ) as mock_schedule:
                     from app.graphql.schema import Mutation
 

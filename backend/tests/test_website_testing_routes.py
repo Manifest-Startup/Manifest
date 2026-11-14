@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.main import fastapi_app
 import app.routes.website_testing_routes as website_testing_routes
-from app.services.website_issue_sync_service import WebsiteIssueSyncConfigurationError
+from app.services.operations.website_issue_sync import WebsiteIssueSyncConfigurationError
 
 
 def test_sync_website_issues_route_returns_service_payload():

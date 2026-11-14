@@ -39,7 +39,6 @@ Full dark mode support across all iOS components with system preference synchron
 - `IOSIdeasPage`: iOS-styled ideas list with publish tick indicators and idea detail view
 - `IOSAuthForm`: iOS-styled authentication form
 - `IOSAccountPage`: Full-featured account page with portfolio/settings tabs
-- `IOSPitchShortsPage`: iOS-styled pitch shorts page
 
 ### Utilities
 - `deviceDetection.ts`: Device type detection and responsive utilities

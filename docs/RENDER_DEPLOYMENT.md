@@ -4,7 +4,7 @@ Render hosts the FastAPI backend behind the Cloudflare Worker. Replit remains th
 
 ## Blueprint
 
-[`render.yaml`](../render.yaml) defines one free-plan production web service using [`backend/dockerfile`](../backend/dockerfile). The Render Blueprint has been planned in the Manifest workspace. Review the current plan in the Render Dashboard before applying it. Render may assign a different service name or hostname; use the actual `onrender.com` hostname as `BACKEND_ORIGIN` in [`wrangler.jsonc`](../deploy/cloudflare/wrangler.jsonc).
+[`render.yaml`](../render.yaml) defines one free-plan production web service using [`backend/Dockerfile`](../backend/Dockerfile). The Render Blueprint has been planned in the Manifest workspace. Review the current plan in the Render Dashboard before applying it. Render may assign a different service name or hostname; use the actual `onrender.com` hostname as `BACKEND_ORIGIN` in [`wrangler.jsonc`](../deploy/cloudflare/wrangler.jsonc).
 
 The web service still has a public Render hostname. `EDGE_SHARED_SECRET` must be set to the same random value on Render and the Worker before treating the origin as protected; the backend intentionally leaves health probes open.
 

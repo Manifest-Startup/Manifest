@@ -5,7 +5,7 @@ Based on a detailed review of the Manifest codebase, including the frontend setu
 ## 🔴 Critical Issues Identified
 
 ### 1. Synchronous LLM Calls Blocking the Event Loop (Backend)
-FastAPI is an asynchronous framework designed to handle thousands of concurrent requests by non-blocking I/O. However, the core AI service (`AILayer` in `backend/app/services/ai_layer_service.py`) uses synchronous methods (`self.router.chat(...)`) to communicate with OpenAI.
+FastAPI is an asynchronous framework designed to handle thousands of concurrent requests by non-blocking I/O. However, the core AI service (`AILayer` in `backend/app/services/ai/layer.py`) uses synchronous methods (`self.router.chat(...)`) to communicate with OpenAI.
 *   **The Problem:** When a user requests a document generation (e.g., Pitch Deck, PRD, or Legal Document), the HTTP request blocks the FastAPI worker thread for the entire duration of the LLM generation (which can take 10-30+ seconds). Under moderate load, the server will quickly run out of worker threads, causing all subsequent requests to hang and timeout.
 *   **Performance Impact:** Severe degradation under load; poor Time to First Byte (TTFB).
 

@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import production_test_service as pts
+from app.services.operations import production_tests as pts
 
 
 @pytest.fixture

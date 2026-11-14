@@ -3,13 +3,8 @@
 import hmac
 import os
 
-from app.utils.auth_utils import get_current_user_id
+from app.auth.current_user import require_user_id
 from fastapi import Depends, HTTPException, Request
-
-
-def require_user_id(request: Request) -> str:
-    """Resolve the authenticated user id from request auth context."""
-    return get_current_user_id(request)
 
 
 def require_admin(request: Request, user_id: str = Depends(require_user_id)) -> str:
@@ -25,14 +20,14 @@ def require_admin(request: Request, user_id: str = Depends(require_user_id)) -> 
     Heavy lifting delegates to the dedicated modules so this stays a
     thin orchestration layer.
     """
+    from app.auth.current_user import get_current_session_id_optional
     from app.security.permissions import resolve_principal
     from app.security.step_up import (
         DEFAULT_TTL_SECONDS,
         _recent_login_satisfies,
         has_recent_step_up,
     )
-    from app.services.totp_mfa_service import get_user_mfa_status
-    from app.utils.auth_utils import get_current_session_id_optional
+    from app.services.identity.totp_mfa import get_user_mfa_status
 
     principal = resolve_principal(user_id)
     if not principal.is_admin:

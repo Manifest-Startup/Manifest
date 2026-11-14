@@ -64,5 +64,5 @@ Adding a new column that holds C3 or C4 data requires:
 1. An entry in this table BEFORE the migration is merged.
 2. If C4: field-level encryption via `app.security.crypto.encrypt_field` and
    a per-tenant DEK from `app.security.tenant_keys.get_or_create_tenant_dek`.
-3. Inclusion in `app.services.tenant_purge_service.USER_DATA_PURGE_PLAN`
+3. Inclusion in `app.services.compliance.tenant_purge.USER_DATA_PURGE_PLAN`
    when the data is per-user.

@@ -7,7 +7,7 @@ import json
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import bug_fix_service as bfs
+from app.services.operations import bug_fix as bfs
 
 
 @pytest.fixture

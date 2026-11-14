@@ -7,9 +7,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import admin_cost_service as acs
-from app.services import cost_tracking_service as cts
-from app.services import production_test_service as pts
+from app.services.ai import admin_costs as acs
+from app.services.ai import cost_tracking as cts
+from app.services.operations import production_tests as pts
 
 
 @pytest.fixture

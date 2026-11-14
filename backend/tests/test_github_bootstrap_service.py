@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from app.services.github_bootstrap_service import _plain_text_from_html, _validate_repo_name, create_private_repo_for_idea
+from app.services.integrations.github_bootstrap import _plain_text_from_html, _validate_repo_name, create_private_repo_for_idea
 
 
 def test_plain_text_from_html_strips_tags():
@@ -39,7 +39,7 @@ def test_create_private_repo_missing_token():
     assert code == "github_auth"
 
 
-@patch("app.services.github_bootstrap_service.httpx.Client")
+@patch("app.services.integrations.github_bootstrap.httpx.Client")
 def test_create_private_repo_success(mock_client_cls):
     db = MagicMock()
 

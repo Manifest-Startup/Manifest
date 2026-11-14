@@ -24,9 +24,8 @@
 /.gitleaks.toml                         @Manifest-Startup/security
 
 # Container + runtime hardening.
-/backend/dockerfile                     @Manifest-Startup/security @Manifest-Startup/platform
+/backend/Dockerfile                     @Manifest-Startup/security @Manifest-Startup/platform
 /docker-compose.yml                     @Manifest-Startup/platform
-/build.sh                               @Manifest-Startup/platform
 /scripts/                               @Manifest-Startup/platform
 
 # Lockfiles — gates supply-chain risk; security must review every bump.
@@ -37,9 +36,9 @@
 # Authn/authz, sessions, crypto, secrets.
 /backend/app/auth/                      @Manifest-Startup/security
 /backend/app/security/                  @Manifest-Startup/security
-/backend/app/services/api_key_service.py @Manifest-Startup/security
-/backend/app/services/security_audit_service.py @Manifest-Startup/security
-/backend/app/services/admin_audit_service.py    @Manifest-Startup/security
+/backend/app/services/identity/api_keys.py @Manifest-Startup/security
+/backend/app/services/compliance/security_audit.py @Manifest-Startup/security
+/backend/app/services/compliance/admin_audit.py    @Manifest-Startup/security
 /backend/app/config/                    @Manifest-Startup/security
 
 # Privacy, DSAR, consent (Task #15 surface).
@@ -47,10 +46,10 @@
 /backend/app/routes/dsar_admin_routes.py       @Manifest-Startup/security @Manifest-Startup/legal
 /backend/app/routes/privacy_routes.py          @Manifest-Startup/security @Manifest-Startup/legal
 /backend/app/routes/trust_center_routes.py     @Manifest-Startup/security @Manifest-Startup/legal
-/backend/app/services/dsar_workflow_service.py @Manifest-Startup/security @Manifest-Startup/legal
-/backend/app/services/privacy_consent_service.py @Manifest-Startup/security @Manifest-Startup/legal
-/backend/app/services/privacy_jurisdiction.py  @Manifest-Startup/security @Manifest-Startup/legal
-/backend/app/services/privacy_policy_service.py @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/compliance/dsar_workflow.py @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/compliance/privacy_consent.py @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/compliance/privacy_jurisdiction.py  @Manifest-Startup/security @Manifest-Startup/legal
+/backend/app/services/documents/privacy_policy.py @Manifest-Startup/security @Manifest-Startup/legal
 /legal/                                 @Manifest-Startup/legal
 
 # Audit logging + IR runbooks.

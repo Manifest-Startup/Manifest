@@ -1,7 +1,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
-from app.utils.patent_pdf_utils import (
+from app.services.documents.patent_pdf import (
     DEFAULT_COVERSHEET_OVERLAY_MAP,
     _fit_coversheet_lines,
     fill_coversheet_with_pypdf,
@@ -25,8 +25,8 @@ def test_generate_specification_pdf(tmpdir):
     # but for now, we'll just check that it was created.
 
 
-@patch("app.utils.patent_pdf_utils.PdfReader")
-@patch("app.utils.patent_pdf_utils.PdfWriter")
+@patch("app.services.documents.patent_pdf.PdfReader")
+@patch("app.services.documents.patent_pdf.PdfWriter")
 def test_fill_coversheet_with_pypdf(mock_writer, mock_reader, tmpdir):
     """Test filling a coversheet PDF."""
     original_pages = [MagicMock(), MagicMock(), MagicMock()]

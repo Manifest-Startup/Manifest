@@ -8,13 +8,13 @@ Used by the Account Settings UI.
 from app.routes.dependencies import require_user_id
 from app.security.permissions import filter_api_key_scopes
 from app.security.step_up import require_recent_auth
-from app.services.api_key_service import (
+from app.services.compliance.security_audit import record_security_event
+from app.services.identity.api_keys import (
     DEFAULT_API_KEY_SCOPES,
     BillingTier,
     api_key_service,
     api_usage_service,
 )
-from app.services.security_audit_service import record_security_event
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field

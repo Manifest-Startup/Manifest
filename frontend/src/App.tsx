@@ -15,7 +15,7 @@ import AiKeyRequiredNotice from "features/ai/AiKeyRequiredNotice";
 import { MessageProvider } from "features/notifications/context/MessageContext";
 import { detectDevice } from "features/ios/utils/deviceDetection";
 import { getViewMode, shouldShowIOSView } from "features/ios/utils/viewMode";
-import { loadPitchShortsPage } from "features/pitchshorts/loadPitchShortsPage";
+import { loadPitchReelsPage } from "features/pitch-reels/loadPitchReelsPage";
 import PrivacyConsentBanner from "features/privacy/PrivacyConsentBanner";
 import { usePrivacyConsent } from "features/privacy/PrivacyConsentContext";
 
@@ -27,7 +27,7 @@ const PrivateRoute = lazy(() => import("features/auth/components/PrivateRoute"))
 const GuestSessionBanner = lazy(() => import("features/auth/components/GuestSessionBanner"));
 const IdeasPage = lazy(() => import("features/ideas/components/IdeasPage"));
 const IdeaQualificationPage = lazy(() => import("features/ideas/components/IdeaQualificationPage"));
-const PitchShortsPage = lazy(loadPitchShortsPage);
+const PitchReelsPage = lazy(loadPitchReelsPage);
 const MessagesPage = lazy(() => import("features/messaging/components/MessagesPage"));
 const LearnMorePage = lazy(() => import("features/marketing/components/LearnMorePage"));
 const AccountPage = lazy(() => import("features/account/components/AccountPage"));
@@ -179,7 +179,7 @@ const App = () => {
                     <Route path="/messages/:conversationId" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
                     <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
                     {/* Pitch Reels: canonical URL is /pitch-reels (regression #25 — the user-facing label has always been "Pitch Reels"; /shorts was an internal name). The legacy paths redirect so external bookmarks keep working. */}
-                    <Route path="/pitch-reels" element={<PrivateRoute><PitchShortsPage /></PrivateRoute>} />
+                    <Route path="/pitch-reels" element={<PrivateRoute><PitchReelsPage /></PrivateRoute>} />
                     <Route path="/shorts" element={<Navigate to="/pitch-reels" replace />} />
                     <Route path="/discover" element={<Navigate to="/pitch-reels" replace />} />
                     <Route path="/pitch-shorts" element={<Navigate to="/pitch-reels" replace />} />

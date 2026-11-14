@@ -4,7 +4,7 @@ Tests for Investment Service
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime
-from app.services.investment_service import InvestmentService, create_investment_service
+from app.services.social.investments import InvestmentService, create_investment_service
 
 
 def create_mock_db():

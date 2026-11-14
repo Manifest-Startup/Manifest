@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.services.messaging_service import MessagingService
+from app.services.social.messaging import MessagingService
 
 
 class MockQueryResponse:

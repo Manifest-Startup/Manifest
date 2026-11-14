@@ -17,7 +17,7 @@ services:
     region: oregon
     branch: main
     rootDir: backend
-    dockerfilePath: ./dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /ping
     autoDeploy: true

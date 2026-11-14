@@ -323,7 +323,7 @@ def _emit_detection(
     metadata: dict | None = None,
 ) -> None:
     # Imported lazily to avoid a circular import (security_audit_service -> audit_detections).
-    from app.services.security_audit_service import record_security_event
+    from app.services.compliance.security_audit import record_security_event
 
     try:
         record_security_event(

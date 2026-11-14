@@ -1,4 +1,4 @@
-from app.services.demo_document_service import build_demo_documents
+from app.services.documents.demo_documents import build_demo_documents
 
 
 def test_build_demo_documents_returns_expected_sections():

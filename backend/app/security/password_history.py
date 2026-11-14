@@ -7,8 +7,8 @@ verifies any new candidate against the most recent entries.
 from __future__ import annotations
 
 from app.db.database import get_db_connection
+from app.security.passwords import hash_password, verify_password
 from app.utils.logger import logger
-from app.utils.password_utils import hash_password, verify_password
 
 HISTORY_DEPTH = 5
 

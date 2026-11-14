@@ -22,4 +22,4 @@ python3 scripts/codegraph/query.py --help                 # all commands
 
 Name matching is textual, so `unused` and `orphans` are candidate lists: confirm with `rg` before deleting. Symbols registered by decorators, and files loaded by config (jest, Docker, workflows, `wrangler.jsonc`), entry points and `__mocks__` are excluded on purpose. Extend `ENTRY_PATTERNS` in `query.py` when a new kind of runtime-loaded file appears.
 
-Tests: `python3 -m pytest tests/test_codegraph.py -q`.
+Tests: `python3 -m pytest tests/tooling/test_codegraph.py -q`.

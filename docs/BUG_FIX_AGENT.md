@@ -36,7 +36,7 @@ backend/scripts/run_bugfix_agent.py
    └────────────┘   └─────────┘   └───────────────┘
                                           │
                                           ▼
-                            backend/app/services/bug_fix_service.py
+                            backend/app/services/operations/bug_fix.py
                                           │
                                           ▼
                             Postgres: bug_fix_attempts
@@ -49,7 +49,7 @@ backend is the source of truth for persistence.
 
 - `bug_fix_attempts` table
   ([`migration`](../supabase/migrations/20260522210000_bug_fix_attempts.sql)).
-- [`backend/app/services/bug_fix_service.py`](../backend/app/services/bug_fix_service.py)
+- [`backend/app/services/operations/bug_fix.py`](../backend/app/services/operations/bug_fix.py)
   with `record_attempt`, `list_recent_attempts`, `get_attempt_stats`.
 - Internal route
   [`POST /api/internal/bug-fix/attempts`](../backend/app/routes/bug_fix_routes.py)

@@ -3,7 +3,7 @@ import json
 import tarfile
 import zipfile
 
-from app.services.import_export_service import ImportExportService
+from app.services.ideas.import_export import ImportExportService
 
 
 class _UnavailableAIRouter:

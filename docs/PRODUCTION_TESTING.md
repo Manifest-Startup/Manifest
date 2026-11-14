@@ -16,7 +16,7 @@ roadmap.
   [`20260522150000_production_test_runs.sql`](../supabase/migrations/20260522150000_production_test_runs.sql).
 - `production_test_service` — record, dispatch, dedupe, stats.
   Plugs into the existing
-  [`GitHubIssueService`](../backend/app/services/github_issue_service.py)
+  [`GitHubIssueService`](../backend/app/services/integrations/github_issues.py)
   so failure-issue creation uses the same dedupe rules as the website-
   audit and survey-feedback loops.
 - Internal REST surface at `/api/internal/production-tests`:
@@ -24,7 +24,7 @@ roadmap.
   - `GET /recent` — recent runs for ops
   - `GET /stats` — rolling pass/fail roll-up
   - Authenticated via `X-Manifest-Agent-Key`.
-- Playwright suite at `production-tests/` with:
+- Playwright suite at `tests/production/` with:
   - `playwright.config.ts` — chromium-only baseline, retries=1 in CI,
     traces + screenshots + videos on failure, custom reporter wired in
     automatically.

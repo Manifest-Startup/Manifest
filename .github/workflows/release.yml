@@ -232,7 +232,7 @@ jobs:
         id: push
         run: |
           docker buildx build \
-            --file backend/dockerfile \
+            --file backend/Dockerfile \
             --tag "${{ steps.meta.outputs.tags }}" \
             --push \
             --provenance=true \

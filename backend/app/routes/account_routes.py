@@ -4,7 +4,7 @@ import uuid
 
 from app.db.database import create_database_client
 from app.routes.dependencies import require_user_id
-from app.utils.idea_utils import (
+from app.services.ideas.document_generation import (
     GENERATED_PDF_ROOT,
     _supabase_configured,
     upload_bytes_to_supabase,

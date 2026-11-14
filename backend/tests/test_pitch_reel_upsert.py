@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from app.services.pitch_reel_service import PitchReelService, USER_REEL_PLACEHOLDER_VIDEO
+from app.services.pitch_reels.service import PitchReelService, USER_REEL_PLACEHOLDER_VIDEO
 
 
 def test_unpublish_reel_for_idea_updates_row():

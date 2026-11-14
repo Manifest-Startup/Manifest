@@ -1,4 +1,4 @@
-from app.services.idea_service import Idea
+from app.services.ideas.service import Idea
 
 
 class DummyAI:

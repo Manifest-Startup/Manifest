@@ -17,8 +17,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from app.auth.current_user import require_user_id
 from app.db.database import get_db_connection
-from app.routes.dependencies import require_user_id
 from app.utils.logger import logger
 from fastapi import Depends, HTTPException, Request
 
@@ -226,7 +226,7 @@ def require_admin(principal: Principal = Depends(get_principal)) -> Principal:
     if not principal.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     try:
-        from app.services.totp_mfa_service import get_user_mfa_status
+        from app.services.identity.totp_mfa import get_user_mfa_status
 
         if not get_user_mfa_status(principal.user_id).get("enabled"):
             raise HTTPException(

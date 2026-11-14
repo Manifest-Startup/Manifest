@@ -21,8 +21,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import bmc_orchestrator_service as bmc
-from app.services import llm_usage_tap
+from app.services.canvas import orchestrator as bmc
+from app.services.ai import usage_tap as llm_usage_tap
 
 
 @pytest.fixture

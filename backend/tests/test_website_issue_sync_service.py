@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
-from app.services.website_issue_sync_service import (
+from app.services.operations.website_issue_sync import (
     WebsiteIssueSyncConfigurationError,
     WebsiteIssueSyncService,
 )
@@ -146,7 +146,7 @@ async def test_audit_website_creates_github_issues(monkeypatch, fake_router):
         }
     )
 
-    monkeypatch.setattr("app.services.website_issue_sync_service.httpx.AsyncClient", lambda *args, **kwargs: fake_client)
+    monkeypatch.setattr("app.services.operations.website_issue_sync.httpx.AsyncClient", lambda *args, **kwargs: fake_client)
     monkeypatch.setenv("MANIFEST_GITHUB_TOKEN", "ghs_test")
 
     service = WebsiteIssueSyncService(router=fake_router)
@@ -185,7 +185,7 @@ async def test_audit_website_dry_run_skips_github_creation(monkeypatch):
     router = MagicMock()
     router.is_available.return_value = False
 
-    monkeypatch.setattr("app.services.website_issue_sync_service.httpx.AsyncClient", lambda *args, **kwargs: fake_client)
+    monkeypatch.setattr("app.services.operations.website_issue_sync.httpx.AsyncClient", lambda *args, **kwargs: fake_client)
     service = WebsiteIssueSyncService(router=router)
 
     result = await service.audit_website_and_sync_issues(
@@ -220,7 +220,7 @@ async def test_audit_website_requires_github_token_when_creating(monkeypatch):
     router = MagicMock()
     router.is_available.return_value = False
 
-    monkeypatch.setattr("app.services.website_issue_sync_service.httpx.AsyncClient", lambda *args, **kwargs: fake_client)
+    monkeypatch.setattr("app.services.operations.website_issue_sync.httpx.AsyncClient", lambda *args, **kwargs: fake_client)
     monkeypatch.delenv("MANIFEST_GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 

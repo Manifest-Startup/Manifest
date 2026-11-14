@@ -37,13 +37,13 @@ class TestAIRouterConfig:
 
     def test_init_without_api_key(self):
         with patch.dict(os.environ, {}, clear=True):
-            from app.services.ai_router import AIRouter
+            from app.services.ai.router import AIRouter
 
             router = AIRouter(api_key=None)
             assert not router.is_available()
 
     def test_init_with_explicit_api_key(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         assert router.is_available()
@@ -51,25 +51,25 @@ class TestAIRouterConfig:
 
     def test_init_with_env_api_key(self):
         with patch.dict(os.environ, {"OPENAI_API_KEY": "env-test-key"}):
-            from app.services.ai_router import AIRouter
+            from app.services.ai.router import AIRouter
 
             router = AIRouter()
             assert router.api_key == "env-test-key"
 
     def test_custom_model_is_respected(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test", model="gpt-4.1-mini")
         assert router.model == "gpt-4.1-mini"
 
     def test_default_model(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test")
         assert router.model == "gpt-4o-mini"
 
     def test_prepare_messages_from_string(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test")
         messages = router._prepare_messages("Hello", system_prompt="You are helpful.")
@@ -80,7 +80,7 @@ class TestAIRouterConfig:
         ]
 
     def test_prepare_messages_from_list_with_system_prompt(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test")
         messages = router._prepare_messages(
@@ -92,7 +92,7 @@ class TestAIRouterConfig:
         assert "System" in messages[0]["content"]
 
     def test_close_releases_client(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test")
         mock_client = MagicMock()
@@ -109,7 +109,7 @@ class TestAIRouterChat:
 
     def test_chat_requires_configuration(self, monkeypatch):
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key=None)
         router.api_key = None
@@ -118,7 +118,7 @@ class TestAIRouterChat:
             router.chat("Hello")
 
     def test_chat_success(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -132,7 +132,7 @@ class TestAIRouterChat:
         assert call_kwargs["messages"] == [{"role": "user", "content": "Hello"}]
 
     def test_chat_uses_response_format_when_provided(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -144,7 +144,7 @@ class TestAIRouterChat:
         assert call_kwargs["response_format"] == {"type": "json_object"}
 
     def test_chat_retries_on_failure(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key", max_retries=2)
         router._client = MagicMock()
@@ -153,7 +153,7 @@ class TestAIRouterChat:
             _chat_response("Recovered"),
         ]
 
-        with patch("app.services.ai_router.time.sleep") as sleep:
+        with patch("app.services.ai.router.time.sleep") as sleep:
             result = router.chat("Hello")
 
         assert result == "Recovered"
@@ -161,7 +161,7 @@ class TestAIRouterChat:
         sleep.assert_called_once()
 
     def test_chat_json_success(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -170,14 +170,14 @@ class TestAIRouterChat:
         assert router.chat_json("Return JSON") == {"key": "value"}
 
     def test_chat_json_handles_code_block_wrapped_json(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         with patch.object(router, "chat", return_value='```json\n{"key": "value"}\n```'):
             assert router.chat_json("Return JSON") == {"key": "value"}
 
     def test_chat_stream_yields_chunks(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -195,7 +195,7 @@ class TestAIRouterEmbeddings:
 
     def test_embed_requires_configuration(self, monkeypatch):
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key=None)
         router.api_key = None
@@ -204,7 +204,7 @@ class TestAIRouterEmbeddings:
             router.embed("Hello")
 
     def test_embed_single_text(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -213,7 +213,7 @@ class TestAIRouterEmbeddings:
         assert router.embed("Hello") == [[0.1, 0.2, 0.3]]
 
     def test_embed_multiple_texts(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -231,7 +231,7 @@ class TestAIRouterTTS:
 
     def test_tts_requires_configuration(self, monkeypatch):
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key=None)
         router.api_key = None
@@ -239,7 +239,7 @@ class TestAIRouterTTS:
         assert router.tts("Hello") is None
 
     def test_tts_returns_none_for_empty_text(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
 
@@ -248,7 +248,7 @@ class TestAIRouterTTS:
 
     @pytest.mark.parametrize("model", ["gpt-4o-mini-tts", "gpt-4o-mini-tts-2025-12-15"])
     def test_tts_success(self, model):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -268,7 +268,7 @@ class TestAIRouterTTS:
         assert call_kwargs["instructions"] == "Warm and conversational"
 
     def test_tts_truncates_long_text(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -281,7 +281,7 @@ class TestAIRouterTTS:
 
     def test_tts_omits_instructions_for_low_latency_model(self):
         """tts-1 rejects `instructions`; the router must drop it so the fast path works."""
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -300,7 +300,7 @@ class TestAIRouterTTS:
         assert "instructions" not in call_kwargs
 
     def test_tts_default_voice_is_nova(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -317,7 +317,7 @@ class TestAIRouterWebSearch:
 
     def test_web_search_requires_configuration(self, monkeypatch):
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key=None)
         router.api_key = None
@@ -326,7 +326,7 @@ class TestAIRouterWebSearch:
             router.web_search("test query")
 
     def test_web_search_success(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -345,7 +345,7 @@ class TestAIRouterWebSearch:
         assert call_kwargs["web_search_options"] == {}
 
     def test_web_search_json_success(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -364,7 +364,7 @@ class TestAIRouterWebSearch:
         assert call_kwargs["web_search_options"] == {}
 
     def test_web_search_custom_model(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -376,7 +376,7 @@ class TestAIRouterWebSearch:
         assert call_kwargs["model"] == "gpt-4o-search-preview"
 
     def test_web_search_retries_on_failure(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key", max_retries=2)
         router._client = MagicMock()
@@ -385,7 +385,7 @@ class TestAIRouterWebSearch:
             _chat_response("Recovered"),
         ]
 
-        with patch("app.services.ai_router.time.sleep") as sleep:
+        with patch("app.services.ai.router.time.sleep") as sleep:
             result = router.web_search("query")
 
         assert result["content"] == "Recovered"
@@ -397,14 +397,14 @@ class TestAIRouterHealthCheck:
     """Health checks should be lightweight and defensive."""
 
     def test_health_check_success(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         with patch.object(router, "chat", return_value="OK"):
             assert router.health_check() is True
 
     def test_health_check_failure(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         with patch.object(router, "chat", side_effect=RuntimeError("boom")):
@@ -415,7 +415,7 @@ class TestAIRouterModels:
     """Model defaults should stay OpenAI-only."""
 
     def test_default_models_defined(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         assert AIRouter.DEFAULT_CHAT_MODEL == "gpt-4o-mini"
         assert AIRouter.DEFAULT_EMBEDDING_MODEL == "text-embedding-3-small"
@@ -423,7 +423,7 @@ class TestAIRouterModels:
         assert AIRouter.DEFAULT_WEB_SEARCH_MODEL == "gpt-4o-mini-search-preview"
 
     def test_fallback_models_are_openai_only(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         assert AIRouter.FALLBACK_MODELS == ["gpt-4o-mini", "gpt-4.1-mini"]
         assert AIRouter.WEB_SEARCH_FALLBACK_MODELS == [
@@ -440,7 +440,7 @@ class TestAIRouterIntegration:
         reason="OPENAI_API_KEY not set for live chat",
     )
     def test_real_chat(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter()
         response = router.chat("Say test and nothing else.", max_tokens=10)
@@ -452,7 +452,7 @@ class TestAIRouterIntegration:
         reason="OPENAI_API_KEY not set for live health check",
     )
     def test_real_health_check(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter()
         assert isinstance(router.health_check(), bool)
@@ -462,12 +462,12 @@ class TestAIRouterSingleton:
     """Singleton availability."""
 
     def test_singleton_exists(self):
-        from app.services.ai_router import ai_router
+        from app.services.ai.router import ai_router
 
         assert ai_router is not None
 
     def test_singleton_is_airouter(self):
-        from app.services.ai_router import AIRouter, ai_router
+        from app.services.ai.router import AIRouter, ai_router
 
         assert isinstance(ai_router, AIRouter)
 
@@ -477,7 +477,7 @@ class TestAIRouterAsync:
 
     @pytest.mark.asyncio
     async def test_achat_returns_chat_result(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -489,7 +489,7 @@ class TestAIRouterAsync:
 
     @pytest.mark.asyncio
     async def test_achat_delegates_to_sync_chat_with_options(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         with patch.object(router, "chat", return_value="delegated") as mock_chat:
@@ -502,7 +502,7 @@ class TestAIRouterAsync:
 
     @pytest.mark.asyncio
     async def test_achat_json_parses_response(self):
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
         router._client = MagicMock()
@@ -519,7 +519,7 @@ class TestAIRouterAsync:
         import asyncio
         import time
 
-        from app.services.ai_router import AIRouter
+        from app.services.ai.router import AIRouter
 
         router = AIRouter(api_key="test-key")
 

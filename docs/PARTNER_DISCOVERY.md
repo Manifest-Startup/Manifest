@@ -19,7 +19,7 @@ Phase 4 of the agentic-automation roadmap.
   with strict-JSON output and qualification + existing-key-partners
   threading.
 - Service
-  [`backend/app/services/partner_discovery_service.py`](../backend/app/services/partner_discovery_service.py):
+  [`backend/app/services/ideas/partner_discovery.py`](../backend/app/services/ideas/partner_discovery.py):
   - `run_discovery` — one cost-tracked agent_run per call
     (`agent_kind = partner_discovery`), normalizes + ranks +
     upserts candidates.
@@ -117,7 +117,7 @@ threading into the prompt.
   "how to integrate this in 2 hours" plan. Cost-track as
   `agent_kind = partner_integration_plan`.
 - **Web-grounded discovery.** Optional second strategy that uses the
-  existing `perform_web_search_json` path in `ai_layer_service.py`
+  existing `perform_web_search_json` path in `ai/layer.py`
   so candidates are grounded in current public web data with
   citations. Higher cost (~$0.05/run); land as
   `groundWithWeb: true` arg on the mutation.

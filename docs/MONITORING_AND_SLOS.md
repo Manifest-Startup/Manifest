@@ -1,6 +1,6 @@
 # Monitoring, Detection & Service-Level Objectives
 
-> Companion to `docs/AUDIT_LOGGING.md`. SOC 2 CC7.2 / ISO 27001 A.8.16
+> Companion to `docs/security/AUDIT_LOGGING.md`. SOC 2 CC7.2 / ISO 27001 A.8.16
 > require that we *operationalize* the security telemetry — not just
 > collect it. This document is the contract between Engineering and
 > the on-call rotation.
@@ -16,7 +16,7 @@
 | Retention worker              | runs daily; ≥99 % completion rate         | 30 d  | Platform on-call |
 
 A breach of any SLO opens a Sev-2 in the IR runbook
-(`docs/INCIDENT_RESPONSE.md`).
+(`docs/security/INCIDENT_RESPONSE_RUNBOOK.md`).
 
 ## 2. Detectors → alerts
 

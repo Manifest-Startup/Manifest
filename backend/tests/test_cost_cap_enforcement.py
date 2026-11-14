@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from app.db.database import InMemoryDatabaseClient
-from app.services import cost_tracking_service as cts
+from app.services.ai import cost_tracking as cts
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from app.services import security_audit_service
+from app.services.compliance import security_audit as security_audit_service
 
 
 class _Cur:

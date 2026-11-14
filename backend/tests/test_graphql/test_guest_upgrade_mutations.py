@@ -35,13 +35,13 @@ async def test_request_guest_account_upgrade_email_creates_token_and_sends():
     with patch("app.graphql.schema.DEMO_MODE", False), patch(
         "app.graphql.schema.is_test_environment", return_value=False
     ), patch("app.graphql.schema.get_current_user_id", return_value="guest-user-id"), patch(
-        "app.services.guest_upgrade_service.create_guest_upgrade_token", return_value="raw-token-xyz"
+        "app.services.identity.guest_upgrade.create_guest_upgrade_token", return_value="raw-token-xyz"
     ), patch(
-        "app.services.guest_upgrade_service.build_guest_upgrade_url", return_value="https://app.test/auth?t=1"
+        "app.services.identity.guest_upgrade.build_guest_upgrade_url", return_value="https://app.test/auth?t=1"
     ), patch(
-        "app.services.email_service.send_guest_upgrade_email", new_callable=AsyncMock, return_value=True
+        "app.services.integrations.email_sender.send_guest_upgrade_email", new_callable=AsyncMock, return_value=True
     ) as send_mail, patch(
-        "app.services.password_reset_service.check_guest_upgrade_request_rate_limit", return_value=True
+        "app.services.identity.password_reset.check_guest_upgrade_request_rate_limit", return_value=True
     ), patch(
         "app.graphql.schema.record_security_event"
     ):
@@ -57,7 +57,7 @@ async def test_complete_guest_account_upgrade_sets_session():
     with patch("app.graphql.schema.DEMO_MODE", False), patch(
         "app.graphql.schema.is_test_environment", return_value=False
     ), patch(
-        "app.services.guest_upgrade_service.complete_guest_upgrade",
+        "app.services.identity.guest_upgrade.complete_guest_upgrade",
         return_value=({"user_id": "u1", "email": "e@example.com"}, None),
     ), patch("app.auth.replit_auth.create_session_token", return_value="jwt-token"), patch(
         "app.graphql.schema._set_browser_auth_session"

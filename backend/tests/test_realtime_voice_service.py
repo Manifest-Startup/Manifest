@@ -7,7 +7,7 @@ import pytest
 
 @pytest.fixture
 def service():
-    from app.services.realtime_voice_service import RealtimeVoiceService
+    from app.services.voice.realtime import RealtimeVoiceService
 
     return RealtimeVoiceService()
 
@@ -86,7 +86,7 @@ class TestRealtimeMint:
         assert result["client_secret"] == "ek_flat"
 
     def test_missing_secret_raises(self, service):
-        from app.services.realtime_voice_service import RealtimeVoiceError
+        from app.services.voice.realtime import RealtimeVoiceError
 
         with patch.object(service, "_post_session", return_value={"client_secret": {}}):
             with pytest.raises(RealtimeVoiceError):

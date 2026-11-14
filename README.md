@@ -166,14 +166,23 @@ Supabase / PostgreSQL  (or in-memory demo mode)
 <br>
 
 ```text
-├── backend/           # FastAPI, Strawberry GraphQL, Socket.IO, services
-├── frontend/          # React (Vite), Apollo Client, Redux patterns
-├── mcp_server/        # Installable MCP bridge for AI tools
-├── supabase/          # Config and migrations (PostgreSQL / Supabase)
-├── scripts/           # setup_project.py, start_app.py, helpers
-├── docs/              # Maintained documentation (see docs/README.md)
+├── backend/           # FastAPI + Strawberry GraphQL API
+│   └── app/
+│       ├── routes/ graphql/ middleware/   # API layer: HTTP in, call a service
+│       ├── services/<domain>/             # business logic: ai, canvas, documents, ideas,
+│       │                                  #   pitch_reels, social, voice, identity, compliance, …
+│       ├── auth/ security/                # sign-in, sessions, cookies, permissions
+│       ├── db/                            # Postgres / Supabase access
+│       └── utils/ prompts/ assets/        # logger, prompt files, bundled assets
+├── frontend/          # React + Vite app, one folder per feature in src/features/
+├── deploy/cloudflare/ # Edge Worker: serves the app, proxies the API
+├── mcp_server/        # Installable MCP server for AI tools
+├── ios/               # Native SwiftUI prototype
+├── supabase/          # Database migrations
+├── scripts/           # check.py (local checks), codegraph/ (code map), setup helpers
+├── tests/             # tooling, load and production smoke tests
 ├── src/manifest_dev/  # manifest-dev CLI (pip install -e .)
-└── README.md
+└── docs/              # Guides, API, security and legal templates
 ```
 
 | Area | Path | Notes |

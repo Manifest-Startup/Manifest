@@ -20,7 +20,7 @@ class TestApiKeyGeneration:
     
     def test_generate_api_key_format(self):
         """Test that generated API keys have the correct format."""
-        from app.services.api_key_service import generate_api_key, API_KEY_PREFIX
+        from app.services.identity.api_keys import generate_api_key, API_KEY_PREFIX
 
         # Post Task #11 ``generate_api_key`` returns a 4-tuple; the new
         # ``hash_algo`` is either "bcrypt" (preferred) or "sha256" (legacy
@@ -36,7 +36,7 @@ class TestApiKeyGeneration:
 
     def test_generate_api_key_unique(self):
         """Test that each generated key is unique."""
-        from app.services.api_key_service import generate_api_key
+        from app.services.identity.api_keys import generate_api_key
 
         keys = set()
         for _ in range(10):
@@ -47,7 +47,7 @@ class TestApiKeyGeneration:
     
     def test_hash_api_key(self):
         """Test that API key hashing is deterministic."""
-        from app.services.api_key_service import hash_api_key
+        from app.services.identity.api_keys import hash_api_key
         
         test_key = "manifest_sk_test123456789"
         hash1 = hash_api_key(test_key)
@@ -62,7 +62,7 @@ class TestBillingTiers:
     
     def test_billing_tier_limits(self):
         """Test that all billing tiers have proper limits configured."""
-        from app.services.api_key_service import BillingTier
+        from app.services.identity.api_keys import BillingTier
         
         assert BillingTier.FREE in BillingTier.LIMITS
         assert BillingTier.STARTER in BillingTier.LIMITS
@@ -75,7 +75,7 @@ class TestBillingTiers:
     
     def test_free_tier_limits(self):
         """Test free tier has expected limits."""
-        from app.services.api_key_service import BillingTier
+        from app.services.identity.api_keys import BillingTier
         
         free_limits = BillingTier.LIMITS[BillingTier.FREE]
         assert free_limits["requests_per_month"] == 1000
@@ -83,7 +83,7 @@ class TestBillingTiers:
     
     def test_enterprise_unlimited_requests(self):
         """Test enterprise tier has unlimited monthly requests."""
-        from app.services.api_key_service import BillingTier
+        from app.services.identity.api_keys import BillingTier
         
         enterprise_limits = BillingTier.LIMITS[BillingTier.ENTERPRISE]
         assert enterprise_limits["requests_per_month"] == -1
@@ -115,7 +115,7 @@ class TestApiKeyService:
     
     def test_create_api_client(self, mock_db):
         """Test creating an API client."""
-        from app.services.api_key_service import ApiKeyService
+        from app.services.identity.api_keys import ApiKeyService
         
         service = ApiKeyService()
         service.db = mock_db
@@ -127,7 +127,7 @@ class TestApiKeyService:
     
     def test_create_api_key(self, mock_db):
         """Test creating an API key."""
-        from app.services.api_key_service import ApiKeyService
+        from app.services.identity.api_keys import ApiKeyService
         
         mock_db.execute.return_value = MagicMock(data={
             "id": "key-id",
@@ -147,7 +147,7 @@ class TestApiKeyService:
     
     def test_validate_api_key_invalid_format(self, mock_db):
         """Test that invalid key format returns None."""
-        from app.services.api_key_service import ApiKeyService
+        from app.services.identity.api_keys import ApiKeyService
         
         service = ApiKeyService()
         service.db = mock_db
@@ -181,7 +181,7 @@ class TestApiUsageService:
     
     def test_check_rate_limit_allowed(self, mock_db):
         """Test rate limit check when under limit."""
-        from app.services.api_key_service import ApiUsageService
+        from app.services.identity.api_keys import ApiUsageService
         
         mock_db.execute.return_value = MagicMock(data=[
             {"id": "1"}, {"id": "2"}, {"id": "3"}  # 3 requests in last minute
@@ -196,7 +196,7 @@ class TestApiUsageService:
     
     def test_check_rate_limit_exceeded(self, mock_db):
         """Test rate limit check when exceeded."""
-        from app.services.api_key_service import ApiUsageService
+        from app.services.identity.api_keys import ApiUsageService
         
         # Simulate 15 requests in last minute (exceeds free tier limit of 10)
         mock_db.execute.return_value = MagicMock(data=[{"id": str(i)} for i in range(15)])
@@ -209,7 +209,7 @@ class TestApiUsageService:
     
     def test_check_monthly_limit_allowed(self, mock_db):
         """Test monthly limit check when under limit."""
-        from app.services.api_key_service import ApiUsageService
+        from app.services.identity.api_keys import ApiUsageService
         
         mock_db.execute.return_value = MagicMock(data=[
             {"request_count": 100, "tokens_used": 0}
@@ -223,7 +223,7 @@ class TestApiUsageService:
     
     def test_check_monthly_limit_enterprise_unlimited(self, mock_db):
         """Test that enterprise tier has no monthly limit."""
-        from app.services.api_key_service import ApiUsageService
+        from app.services.identity.api_keys import ApiUsageService
         
         service = ApiUsageService()
         service.db = mock_db

@@ -22,7 +22,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import fastapi_app
-from app.services import breach_timer_service, dsar_workflow_service
+from app.services.compliance import breach_timers as breach_timer_service
+from app.services.compliance import dsar_workflow as dsar_workflow_service
 from app.security.permissions import Principal
 
 
@@ -47,14 +48,14 @@ def admin_client():
     fastapi_app.dependency_overrides[require_user_id] = lambda: ADMIN_ID
     fastapi_app.dependency_overrides[get_principal] = _admin_principal
     with patch(
-        "app.services.rate_limit_service.rate_limit_service.allow",
+        "app.services.shared.rate_limit.rate_limit_service.allow",
         return_value=True,
     ), patch(
         "app.security.permissions.get_user_mfa_status",
         return_value={"enabled": True},
         create=True,
     ), patch(
-        "app.services.totp_mfa_service.get_user_mfa_status",
+        "app.services.identity.totp_mfa.get_user_mfa_status",
         return_value={"enabled": True},
     ):
         yield client
@@ -71,7 +72,7 @@ def nonadmin_client():
     fastapi_app.dependency_overrides[require_user_id] = lambda: USER_ID
     fastapi_app.dependency_overrides[get_principal] = _user_principal
     with patch(
-        "app.services.rate_limit_service.rate_limit_service.allow",
+        "app.services.shared.rate_limit.rate_limit_service.allow",
         return_value=True,
     ):
         yield client
@@ -118,8 +119,8 @@ def test_dsar_state_machine_rejects_terminal_reopen():
     def _fake_conn_cm():
         yield fake_conn
 
-    with patch("app.services.dsar_workflow_service.get_database_url", return_value="postgres://x"), \
-         patch("app.services.dsar_workflow_service.get_db_connection", _fake_conn_cm):
+    with patch("app.services.compliance.dsar_workflow.get_database_url", return_value="postgres://x"), \
+         patch("app.services.compliance.dsar_workflow.get_db_connection", _fake_conn_cm):
         with pytest.raises(ValueError, match="not permitted"):
             dsar_workflow_service.transition(
                 request_id="11111111-1111-1111-1111-111111111111",
@@ -144,9 +145,9 @@ def test_dsar_state_machine_allows_open_to_in_progress():
     def _fake_conn_cm():
         yield fake_conn
 
-    with patch("app.services.dsar_workflow_service.get_database_url", return_value="postgres://x"), \
-         patch("app.services.dsar_workflow_service.get_db_connection", _fake_conn_cm), \
-         patch("app.services.dsar_workflow_service.record_security_event"):
+    with patch("app.services.compliance.dsar_workflow.get_database_url", return_value="postgres://x"), \
+         patch("app.services.compliance.dsar_workflow.get_db_connection", _fake_conn_cm), \
+         patch("app.services.compliance.dsar_workflow.record_security_event"):
         ok = dsar_workflow_service.transition(
             request_id="11111111-1111-1111-1111-111111111111",
             new_status="in_progress",
@@ -167,7 +168,7 @@ def test_self_service_persistence_failure_emits_audit_event():
 
     with patch("app.routes.dsar_routes._resolve_jurisdiction", return_value="US-PRIVACY:US-CA"), \
          patch(
-             "app.services.dsar_workflow_service.open_request",
+             "app.services.compliance.dsar_workflow.open_request",
              side_effect=RuntimeError("simulated db outage"),
          ), \
          patch("app.routes.dsar_routes._emit_dsar_event") as emit_mock:

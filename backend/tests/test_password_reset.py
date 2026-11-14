@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services import password_reset_service as prs
-from app.utils.reset_token_utils import (
+from app.services.identity import password_reset as prs
+from app.services.identity.reset_tokens import (
     compare_token_hashes,
     generate_reset_token,
     hash_token,

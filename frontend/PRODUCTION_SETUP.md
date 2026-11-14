@@ -50,7 +50,7 @@ If you see "Load failed" or network errors in production:
 
 2. **Check CORS settings**:
    - Ensure backend allows requests from your production domain
-   - Check `backend/app/config/settings.py` for `CORS_ORIGINS`
+   - Set `FRONTEND_ORIGINS` (comma-separated) on the backend; see `render.yaml`
 
 3. **Check network tab**:
    - Open DevTools → Network

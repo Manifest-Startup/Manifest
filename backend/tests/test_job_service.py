@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 from app.db.database import InMemoryDatabaseClient
-from app.services import job_service as js
+from app.services.ideas import generation_jobs as js
 
 
 @pytest.fixture

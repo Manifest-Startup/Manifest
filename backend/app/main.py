@@ -30,15 +30,15 @@ from app.middleware.metrics import setup_metrics
 from app.routes.customer_routes import track_visitors_middleware
 from app.security.config import frontend_origins_from_env
 from app.security.security_headers import SecurityHeadersMiddleware
-from app.services.ai_credentials import AIRequestContextMiddleware
-from app.services.privacy_consent_service import (
+from app.services.ai.credentials import AIRequestContextMiddleware
+from app.services.compliance.privacy_consent import (
     analytics_enabled_for_cookie_header,
     analytics_enabled_for_request,
 )
-from app.services.spa_fallback import register_spa_fallback
-from app.utils.idea_utils import generate_background_tasks
+from app.services.ideas.document_generation import generate_background_tasks
+from app.services.integrations.analytics import capture_event
+from app.services.web.spa_fallback import register_spa_fallback
 from app.utils.logger import logger
-from app.utils.posthog_config import capture_event
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -92,7 +92,7 @@ def _set_cache_control_headers(request: Request, response: Response) -> None:
 # Create FastAPI app and attach SocketManager immediately
 app = FastAPI(**_fastapi_docs_kwargs())  # Create an instance of FastAPI
 fastapi_app = app  # Expose the original FastAPI app for testing
-# AI uses each customer's own OpenAI key (app/services/ai_credentials.py);
+# AI uses each customer's own OpenAI key (app/services/ai/credentials.py);
 # OPENAI_API_KEY is only an optional platform fallback for local development.
 
 # Verify PostHog configuration
@@ -278,10 +278,7 @@ setup_metrics(app)
 # --------------------------
 # Import Managers
 # --------------------------
-from app.managers.manifest_manager import ManifestManager
 
-# Create shared instance of ManifestManager
-manifest_manager = ManifestManager()  # Instantiate ManifestManager
 
 # --------------------------
 # Import and include routes
@@ -436,7 +433,7 @@ def _socketio_resolve_user(environ: dict, auth: dict | None) -> str | None:
     """
     import jwt as _jwt
     from app.auth.replit_auth import SESSION_SECRET, get_current_user_from_session
-    from app.services.session_service import is_session_active
+    from app.services.identity.sessions import is_session_active
 
     class _Req:
         def __init__(self, cookies, headers):
@@ -933,7 +930,7 @@ if not is_pytest:
 def _start_password_reset_rate_limit_sweeper() -> None:
     from threading import Event, Thread
 
-    from app.services.password_reset_service import sweep_stale_rate_limit_rows
+    from app.services.identity.password_reset import sweep_stale_rate_limit_rows
 
     raw = os.getenv("PASSWORD_RESET_SWEEP_INTERVAL_SEC", "3600")
     try:

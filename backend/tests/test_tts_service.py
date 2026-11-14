@@ -22,9 +22,9 @@ class TestTTSService:
     @pytest.fixture
     def tts_service(self, mock_router):
         """Create TTSService with mocked router"""
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_class.return_value = mock_router
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             service = TTSService()
             service.router = mock_router
@@ -49,12 +49,12 @@ class TestTTSService:
 
     def test_text_to_speech_router_not_available(self):
         """Test handling when router is not available"""
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_router = MagicMock()
             mock_router.is_available.return_value = False
             mock_class.return_value = mock_router
 
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             service = TTSService()
 
@@ -71,12 +71,12 @@ class TestTTSService:
 
     def test_text_to_speech_base64_router_not_available(self):
         """Test base64 method with router not available"""
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_router = MagicMock()
             mock_router.is_available.return_value = False
             mock_class.return_value = mock_router
 
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             service = TTSService()
 
@@ -89,12 +89,12 @@ class TestTTSService:
 
     def test_is_available_without_router(self):
         """Test availability check without router"""
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_router = MagicMock()
             mock_router.is_available.return_value = False
             mock_class.return_value = mock_router
 
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             service = TTSService()
 
@@ -112,10 +112,10 @@ class TestTTSService:
         """Test that the standard GPT female voice (nova) is used when no override is set."""
         monkeypatch.delenv("VOICE_AGENT_TTS_VOICE", raising=False)
 
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_class.return_value = mock_router
 
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             tts_service = TTSService()
             tts_service.router = mock_router
@@ -135,10 +135,10 @@ class TestTTSService:
         """Default speech uses the current steerable OpenAI TTS snapshot."""
         monkeypatch.delenv("VOICE_AGENT_TTS_MODEL", raising=False)
 
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_class.return_value = mock_router
 
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             service = TTSService()
             service.router = mock_router
@@ -151,10 +151,10 @@ class TestTTSService:
         """Operators can trade latency for steerable delivery via VOICE_AGENT_TTS_MODEL."""
         monkeypatch.setenv("VOICE_AGENT_TTS_MODEL", "gpt-4o-mini-tts")
 
-        with patch("app.services.tts_service.AIRouter") as mock_class:
+        with patch("app.services.voice.text_to_speech.AIRouter") as mock_class:
             mock_class.return_value = mock_router
 
-            from app.services.tts_service import TTSService
+            from app.services.voice.text_to_speech import TTSService
 
             service = TTSService()
             service.router = mock_router
@@ -202,7 +202,7 @@ class TestTTSRoutes:
 
     def test_tts_endpoint_returns_fallback_when_unavailable(self, client):
         """Test TTS endpoint returns fallback flag when service unavailable"""
-        with patch("app.services.tts_service.tts_service") as mock_service:
+        with patch("app.services.voice.text_to_speech.tts_service") as mock_service:
             mock_service.is_available.return_value = False
 
             response = client.post("/api/voice-agent/tts", json={"text": "Hello", "voice": "coral"})

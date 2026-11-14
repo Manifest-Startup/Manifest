@@ -769,7 +769,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/admin_audit_service.py": {
+    "backend/app/services/compliance/admin_audit.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -782,7 +782,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/ai_layer_service.py": {
+    "backend/app/services/ai/layer.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -795,7 +795,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/ai_router.py": {
+    "backend/app/services/ai/router.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -808,7 +808,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/api_key_service.py": {
+    "backend/app/services/identity/api_keys.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -821,7 +821,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/articles_of_incorporation_service.py": {
+    "backend/app/services/documents/articles_of_incorporation.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -834,7 +834,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/bank_account_service.py": {
+    "backend/app/services/documents/bank_account.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -847,7 +847,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/base_component.py": {
+    "backend/app/services/canvas/section_base.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -860,7 +860,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/breach_timer_service.py": {
+    "backend/app/services/compliance/breach_timers.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -886,7 +886,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/business_model_canvas_service.py": {
+    "backend/app/services/canvas/business_model_canvas.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -899,7 +899,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/capitalization_table_service.py": {
+    "backend/app/services/documents/capitalization_table.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -912,7 +912,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/channels_service.py": {
+    "backend/app/services/canvas/channels.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -925,7 +925,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/collaboration_service.py": {
+    "backend/app/services/ideas/collaboration.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -938,7 +938,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/consultant_agreement_service.py": {
+    "backend/app/services/documents/consultant_agreement.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -951,7 +951,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/cost_structure_service.py": {
+    "backend/app/services/canvas/cost_structure.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -964,7 +964,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/customer_relationships_service.py": {
+    "backend/app/services/canvas/customer_relationships.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -977,7 +977,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/customer_segments_service.py": {
+    "backend/app/services/canvas/customer_segments.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -990,7 +990,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/demo_document_service.py": {
+    "backend/app/services/documents/demo_documents.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1003,7 +1003,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/dsar_workflow_service.py": {
+    "backend/app/services/compliance/dsar_workflow.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 1,
       "CONFIDENCE.MEDIUM": 1,
@@ -1016,7 +1016,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/ein_service.py": {
+    "backend/app/services/documents/ein.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1029,7 +1029,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/email_service.py": {
+    "backend/app/services/integrations/email_sender.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1042,7 +1042,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/employee_contract_service.py": {
+    "backend/app/services/documents/employee_contract.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1055,7 +1055,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/employee_handbook_service.py": {
+    "backend/app/services/documents/employee_handbook.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1068,7 +1068,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/enterprise_sso_service.py": {
+    "backend/app/services/identity/enterprise_sso.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1081,7 +1081,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/founders_agreement_service.py": {
+    "backend/app/services/documents/founders_agreement.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1094,7 +1094,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/gemini_video_service.py": {
+    "backend/app/services/pitch_reels/gemini_video.py": {
       "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1107,7 +1107,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/github_bootstrap_service.py": {
+    "backend/app/services/integrations/github_bootstrap.py": {
       "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1120,7 +1120,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/github_issue_service.py": {
+    "backend/app/services/integrations/github_issues.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1133,7 +1133,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/github_project_service.py": {
+    "backend/app/services/integrations/github_projects.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1146,7 +1146,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/guest_upgrade_service.py": {
+    "backend/app/services/identity/guest_upgrade.py": {
       "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1159,7 +1159,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/guest_workspace_service.py": {
+    "backend/app/services/identity/guest_workspace.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1172,7 +1172,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/idea_service.py": {
+    "backend/app/services/ideas/service.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1185,7 +1185,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/idea_versioning_policy.py": {
+    "backend/app/services/ideas/versioning_policy.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1198,7 +1198,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/import_export_service.py": {
+    "backend/app/services/ideas/import_export.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1211,7 +1211,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/integration_token_crypto.py": {
+    "backend/app/services/integrations/token_crypto.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1224,7 +1224,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/intellectual_property_service.py": {
+    "backend/app/services/documents/intellectual_property.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1237,7 +1237,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/investment_agreement_service.py": {
+    "backend/app/services/documents/investment_agreement.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1250,7 +1250,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/investment_service.py": {
+    "backend/app/services/social/investments.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1263,7 +1263,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/key_activities_service.py": {
+    "backend/app/services/canvas/key_activities.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1276,7 +1276,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/key_partners_service.py": {
+    "backend/app/services/canvas/key_partners.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1289,7 +1289,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/key_resources_service.py": {
+    "backend/app/services/canvas/key_resources.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1302,7 +1302,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/marketing_plan_service.py": {
+    "backend/app/services/documents/marketing_plan.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1315,7 +1315,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/messaging_service.py": {
+    "backend/app/services/social/messaging.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1328,7 +1328,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/non_disclosure_agreement_service.py": {
+    "backend/app/services/documents/non_disclosure_agreement.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1341,7 +1341,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/operating_agreement_service.py": {
+    "backend/app/services/documents/operating_agreement.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1354,7 +1354,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/password_reset_service.py": {
+    "backend/app/services/identity/password_reset.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 4,
@@ -1367,7 +1367,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/pitch_deck_service.py": {
+    "backend/app/services/documents/pitch_deck.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1380,7 +1380,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/pitch_reel_media_service.py": {
+    "backend/app/services/pitch_reels/media.py": {
       "CONFIDENCE.HIGH": 2,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1393,7 +1393,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/pitch_reel_service.py": {
+    "backend/app/services/pitch_reels/service.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 1,
@@ -1406,7 +1406,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/pitch_reel_video_worker.py": {
+    "backend/app/services/pitch_reels/video_worker.py": {
       "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1419,7 +1419,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/privacy_consent_service.py": {
+    "backend/app/services/compliance/privacy_consent.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1432,7 +1432,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/privacy_jurisdiction.py": {
+    "backend/app/services/compliance/privacy_jurisdiction.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1445,7 +1445,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/privacy_policy_service.py": {
+    "backend/app/services/documents/privacy_policy.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1458,7 +1458,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/product_requirements_document_service.py": {
+    "backend/app/services/documents/product_requirements_document.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1471,7 +1471,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/product_roadmap_service.py": {
+    "backend/app/services/documents/product_roadmap.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1484,7 +1484,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/production_signal_service.py": {
+    "backend/app/services/operations/production_signals.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1497,7 +1497,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/provisional_patent_service.py": {
+    "backend/app/services/documents/provisional_patent.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1510,7 +1510,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/rate_limit_service.py": {
+    "backend/app/services/shared/rate_limit.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1523,7 +1523,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/retention_exception_register.py": {
+    "backend/app/services/compliance/retention_exceptions.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1536,7 +1536,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/revenue_streams_service.py": {
+    "backend/app/services/canvas/revenue_streams.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1549,7 +1549,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/sales_contract_service.py": {
+    "backend/app/services/documents/sales_contract.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1562,7 +1562,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/security_audit_service.py": {
+    "backend/app/services/compliance/security_audit.py": {
       "CONFIDENCE.HIGH": 2,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 3,
@@ -1575,7 +1575,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/session_service.py": {
+    "backend/app/services/identity/sessions.py": {
       "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1588,7 +1588,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/shareholders_agreement_service.py": {
+    "backend/app/services/documents/shareholders_agreement.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1601,7 +1601,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/similar_ideas_service.py": {
+    "backend/app/services/ideas/similar_ideas.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1614,7 +1614,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/social_graph_service.py": {
+    "backend/app/services/social/graph.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1627,7 +1627,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/spa_prerender_shell.py": {
+    "backend/app/services/web/spa_prerender_shell.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1640,7 +1640,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/standard_operating_procedure_service.py": {
+    "backend/app/services/documents/standard_operating_procedure.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1653,7 +1653,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/stt_service.py": {
+    "backend/app/services/voice/speech_to_text.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1666,7 +1666,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/survey_ops_service.py": {
+    "backend/app/services/operations/survey_ops.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1679,7 +1679,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/tenant_purge_service.py": {
+    "backend/app/services/compliance/tenant_purge.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 1,
@@ -1692,7 +1692,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/totp_mfa_service.py": {
+    "backend/app/services/identity/totp_mfa.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1705,7 +1705,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/tts_service.py": {
+    "backend/app/services/voice/text_to_speech.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1718,7 +1718,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/value_propositions_service.py": {
+    "backend/app/services/canvas/value_propositions.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1731,7 +1731,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/voice_agent_service.py": {
+    "backend/app/services/voice/agent.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1744,7 +1744,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/voice_command_catalog.py": {
+    "backend/app/services/voice/command_catalog.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1757,7 +1757,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/webauthn_service.py": {
+    "backend/app/services/identity/webauthn.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1770,7 +1770,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/services/website_issue_sync_service.py": {
+    "backend/app/services/operations/website_issue_sync.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1796,7 +1796,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/auth_utils.py": {
+    "backend/app/auth/current_user.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1809,7 +1809,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/idea_utils.py": {
+    "backend/app/services/ideas/document_generation.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 4,
@@ -1848,7 +1848,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/password_utils.py": {
+    "backend/app/security/passwords.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1861,7 +1861,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/patent_pdf_utils.py": {
+    "backend/app/services/documents/patent_pdf.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1874,7 +1874,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/posthog_config.py": {
+    "backend/app/services/integrations/analytics.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1887,7 +1887,7 @@
       "nosec": 0,
       "skipped_tests": 0
     },
-    "backend/app/utils/reset_token_utils.py": {
+    "backend/app/services/identity/reset_tokens.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
@@ -1987,7 +1987,7 @@
       "code": "228                 cur.execute(\n229                     f\"\"\"\n230                     UPDATE dsar_requests\n231                     SET status = %s\n232                         {', assignee = %s' if assignee is not None else ''}\n233                         {', notes = %s' if notes is not None else ''}\n234                         {completed_at_clause}\n235                     WHERE id = %s\n236                     \"\"\",\n237                     tuple(params),\n",
       "col_offset": 20,
       "end_col_offset": 23,
-      "filename": "backend/app/services/dsar_workflow_service.py",
+      "filename": "backend/app/services/compliance/dsar_workflow.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2014,7 +2014,7 @@
       "code": "81             cur.execute(\n82                 f\"\"\"\n83                 DELETE FROM {_RATE_LIMIT_TABLE}\n84                 WHERE bucket_key = %s\n85                   AND created_at < NOW() - (%s || ' seconds')::interval\n86                 \"\"\",\n87                 (key, str(window)),\n",
       "col_offset": 16,
       "end_col_offset": 19,
-      "filename": "backend/app/services/password_reset_service.py",
+      "filename": "backend/app/services/identity/password_reset.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2038,7 +2038,7 @@
       "code": "89             cur.execute(\n90                 f\"\"\"\n91                 SELECT COUNT(*) AS cnt\n92                 FROM {_RATE_LIMIT_TABLE}\n93                 WHERE bucket_key = %s\n94                   AND created_at >= NOW() - (%s || ' seconds')::interval\n95                 \"\"\",\n96                 (key, str(window)),\n",
       "col_offset": 16,
       "end_col_offset": 19,
-      "filename": "backend/app/services/password_reset_service.py",
+      "filename": "backend/app/services/identity/password_reset.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2063,7 +2063,7 @@
       "code": "102             cur.execute(\n103                 f\"INSERT INTO {_RATE_LIMIT_TABLE} (bucket_key) VALUES (%s)\",\n104                 (key,),\n",
       "col_offset": 16,
       "end_col_offset": 75,
-      "filename": "backend/app/services/password_reset_service.py",
+      "filename": "backend/app/services/identity/password_reset.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2083,7 +2083,7 @@
       "code": "151                 cur.execute(\n152                     f\"\"\"\n153                     DELETE FROM {_RATE_LIMIT_TABLE}\n154                     WHERE created_at < NOW() - (%s || ' seconds')::interval\n155                     \"\"\",\n156                     (str(window),),\n",
       "col_offset": 20,
       "end_col_offset": 23,
-      "filename": "backend/app/services/password_reset_service.py",
+      "filename": "backend/app/services/identity/password_reset.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2106,7 +2106,7 @@
       "code": "128                     cur.execute(\n129                         f\"SELECT reel_id FROM pitch_reels WHERE reel_id IN ({placeholders}) AND video_data IS NOT NULL\",\n130                         reel_ids,\n",
       "col_offset": 24,
       "end_col_offset": 119,
-      "filename": "backend/app/services/pitch_reel_service.py",
+      "filename": "backend/app/services/pitch_reels/service.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2126,7 +2126,7 @@
       "code": "74         cur.execute(\n75             f\"\"\"\n76             SELECT event_hash FROM {_TABLE}\n77             WHERE event_hash IS NOT NULL\n78             ORDER BY seq DESC LIMIT 1\n79             \"\"\"\n80         )\n",
       "col_offset": 12,
       "end_col_offset": 15,
-      "filename": "backend/app/services/security_audit_service.py",
+      "filename": "backend/app/services/compliance/security_audit.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2150,7 +2150,7 @@
       "code": "259                 cur.execute(\n260                     f\"\"\"\n261                     INSERT INTO {_TABLE} (\n262                         event_id, event_type, category, severity, sensitivity,\n263                         user_id, request_ip, session_id, request_id,\n264                         actor_id, actor_type, action, target_type, target_id,\n265                         tenant_id, user_agent, outcome,\n266                         metadata, prev_hash, event_hash, created_at\n267                     )\n268                     VALUES (\n269                         %s, %s, %s, %s, %s,\n270                         %s, %s, %s, %s,\n271                         %s, %s, %s, %s, %s,\n272                         %s, %s, %s,\n273                         %s::jsonb, %s, %s, %s\n274                     )\n275                     \"\"\",\n276                     (\n",
       "col_offset": 20,
       "end_col_offset": 23,
-      "filename": "backend/app/services/security_audit_service.py",
+      "filename": "backend/app/services/compliance/security_audit.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2185,7 +2185,7 @@
       "code": "345                         cur.execute(\n346                             f\"\"\"\n347                             INSERT INTO {_TABLE} (\n348                                 event_id, event_type, user_id, request_ip,\n349                                 session_id, metadata, created_at\n350                             )\n351                             VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)\n352                             \"\"\",\n353                             (\n",
       "col_offset": 28,
       "end_col_offset": 31,
-      "filename": "backend/app/services/security_audit_service.py",
+      "filename": "backend/app/services/compliance/security_audit.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2211,7 +2211,7 @@
       "code": "97                         cur.execute(\n98                             f\"DELETE FROM {step['table']} WHERE {step['where']}\",\n99                             (user_id,),\n",
       "col_offset": 28,
       "end_col_offset": 80,
-      "filename": "backend/app/services/tenant_purge_service.py",
+      "filename": "backend/app/services/compliance/tenant_purge.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2231,7 +2231,7 @@
       "code": "225                 values.append(idea_id)\n226                 cur.execute(f\"UPDATE ideas SET {', '.join(set_clauses)} WHERE idea_id = %s\", values)\n227                 conn.commit()\n",
       "col_offset": 28,
       "end_col_offset": 91,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2251,7 +2251,7 @@
       "code": "243                 cur.execute(\n244                     f\"\"\"\n245                         INSERT INTO {table_name} (idea_id, user_id, description)\n246                         VALUES (%s, %s, %s)\n247                         ON CONFLICT (idea_id) DO UPDATE SET description = EXCLUDED.description\n248                     \"\"\",\n249                     (idea_id, user_id, description),\n",
       "col_offset": 20,
       "end_col_offset": 23,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 89,
@@ -2275,7 +2275,7 @@
       "code": "626 \n627     spec_pdf_path = f\"/tmp/specification_{idea_id}.pdf\"\n628     try:\n",
       "col_offset": 20,
       "end_col_offset": 55,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 377,
@@ -2295,7 +2295,7 @@
       "code": "636 \n637     coversheet_pdf_path = f\"/tmp/coversheet_{idea_id}.pdf\"\n638     try:\n",
       "col_offset": 26,
       "end_col_offset": 58,
-      "filename": "backend/app/utils/idea_utils.py",
+      "filename": "backend/app/services/ideas/document_generation.py",
       "issue_confidence": "MEDIUM",
       "issue_cwe": {
         "id": 377,

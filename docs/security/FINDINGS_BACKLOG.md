@@ -77,13 +77,13 @@ Severity:
 ## High
 
 ### SEC-007 — API keys hashed with plain SHA-256 (docstring claims bcrypt)
-- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/api_key_service.py:35-53`
+- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/identity/api_keys.py:35-53`
 - **What:** SHA-256 is fast → DB leak enables offline brute-force on `manifest_sk_*` namespace. Docstring claims bcrypt.
 - **Acceptance:** Migrate to HMAC-SHA-256 with a server-side pepper (or Argon2id) keyed via KMS; backfill existing keys behind a flag; rotate or invalidate on next use.
-- **Closed:** 2026-04-19 (Task #11). `api_key_service.py` now hashes keys with **bcrypt** (SHA-256 pre-hashed to sidestep bcrypt's 72-byte input cap), docstring matches behavior, and a 24h-overlap rotation endpoint (`POST /api-keys/{id}/rotate`) lets clients cut over without downtime. Existing SHA-256 rows are detected and forced to rotate on next use. Verified by `tests/test_api_keys.py::test_*_bcrypt_*` and `test_rotate_with_overlap`.
+- **Closed:** 2026-04-19 (Task #11). `identity/api_keys.py` now hashes keys with **bcrypt** (SHA-256 pre-hashed to sidestep bcrypt's 72-byte input cap), docstring matches behavior, and a 24h-overlap rotation endpoint (`POST /api-keys/{id}/rotate`) lets clients cut over without downtime. Existing SHA-256 rows are detected and forced to rotate on next use. Verified by `tests/test_api_keys.py::test_*_bcrypt_*` and `test_rotate_with_overlap`.
 
 ### SEC-008 — No breached-password (HIBP) check on signup or reset
-- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/password_reset_service.py:170-179`
+- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/identity/password_reset.py:170-179`
 - **Acceptance:** k-anonymity HIBP API call on signup, password change, and reset; fail with user-friendly message; cached briefly to limit outbound calls.
 - **Closed:** 2026-04-19 (Task #11). `backend/app/security/breached_passwords.py` implements the k-anonymity range API (5-char SHA-1 prefix), 5-minute in-memory cache, and fail-open on network error; `validate_password_for_user()` (used by GraphQL signup, change-password, and `reset_password` mutations) calls it. `DISABLE_HIBP_CHECK` env supported for hermetic tests. Verified by `tests/test_security_hardening.py::test_breached_password_*`.
 
@@ -93,7 +93,7 @@ Severity:
 - **Closed:** 2026-04-19 (Task #11). `backend/app/security/account_lockout.py` records each failed login keyed by `(user_id, ip)`, applies an exponential cooldown (capped at 1h), and the `login_user` GraphQL mutation calls `enforce_lockout()` *before* password compare, then `register_failure()` / `clear_lockout()` after. Audit events emitted on every threshold step. Verified by `tests/test_security_hardening.py::test_lockout_*` and `tests/test_password_reset.py::test_reset_clears_lockout`.
 
 ### SEC-010 — Session-revocation check fails open on DB error
-- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/session_service.py:45-63`
+- **Severity:** High · **Owner:** T2 · **Surface:** `backend/app/services/identity/sessions.py:45-63`
 - **What:** `is_session_active` returns `True` on DB exception. Necessary for availability but disables revocation during outages.
 - **Acceptance:** Add a short-lived in-memory "recently revoked" cache; alert on DB-fallback events; documented degradation policy.
 
@@ -271,7 +271,7 @@ Severity:
 ### SEC-018 — No WebAuthn / passkey support
 - **Severity:** Medium · **Owner:** T2
 - **Acceptance:** WebAuthn registration/auth flows; passkeys preferred over TOTP for new enrollments.
-- **Closed:** 2026-04-19 (Task #11). The `webauthn` reference library (v2.7.1) is pinned in `backend/requirements.txt`. `backend/app/services/webauthn_service.py` implements full registration and authentication ceremonies (`begin_registration`/`finish_registration`/`begin_authentication`/`finish_authentication`) backed by the `webauthn_credentials` table (migration: `setup_security_hardening_tables.py`). The verify endpoints enforce `expected_rp_id`, `expected_origin`, `require_user_verification=True`, and reject sign-count regressions as cloned-credential indicators. Challenges are stashed for 5 min in `step_up_verifications` and consumed on verify (one-shot). A successful authn ceremony emits a step-up proof (`record_step_up`). `backend/app/routes/webauthn_routes.py` exposes `/api/webauthn/{credentials, register/begin, register/verify, authenticate/begin, authenticate/verify}`; the verify endpoints return `503` unless `ENABLE_WEBAUTHN=1` so a half-deployed environment can never accidentally accept attestations against the wrong RP/origin.
+- **Closed:** 2026-04-19 (Task #11). The `webauthn` reference library (v2.7.1) is pinned in `backend/requirements.txt`. `backend/app/services/identity/webauthn.py` implements full registration and authentication ceremonies (`begin_registration`/`finish_registration`/`begin_authentication`/`finish_authentication`) backed by the `webauthn_credentials` table (migration: `setup_security_hardening_tables.py`). The verify endpoints enforce `expected_rp_id`, `expected_origin`, `require_user_verification=True`, and reject sign-count regressions as cloned-credential indicators. Challenges are stashed for 5 min in `step_up_verifications` and consumed on verify (one-shot). A successful authn ceremony emits a step-up proof (`record_step_up`). `backend/app/routes/webauthn_routes.py` exposes `/api/webauthn/{credentials, register/begin, register/verify, authenticate/begin, authenticate/verify}`; the verify endpoints return `503` unless `ENABLE_WEBAUTHN=1` so a half-deployed environment can never accidentally accept attestations against the wrong RP/origin.
 
 ### SEC-022 — No request-id correlation
 - **Severity:** Medium · **Owner:** T5
@@ -419,7 +419,7 @@ above). Three brand-new follow-ups are introduced as SEC-070, SEC-071, SEC-072.
   - 2026-04-24 — paging wired (Task #37) — `security.yml::pager` covers `python-sast` and `frontend-sast` with stable per-scanner `dedup_key`s (`security.yml/python-sast/<owner>/<repo>`, `security.yml/frontend-sast/<owner>/<repo>`), so a Bandit/Semgrep/ESLint HIGH+ regression pages on-call once the gate flips. See `INCIDENT_RESPONSE_RUNBOOK.md` §"Scanner-failure paging".
 
 - **SEC-062** — *Dockerfile not audited (digests / non-root / minimal base / scan)*
-  - 2026-04-19 — close — `backend/dockerfile` rewritten as a multi-stage build with: digest-pinned base (`python:3.13-slim-bookworm@sha256:061b6e52a07ab675f0e4a9428c5a8ee6bed996983427f4691f6bebf29c56d9dc` on both stages), non-root `app` user (uid 10001), `tini` PID 1, `HEALTHCHECK` against `/ping`, env-controlled forwarded-allow-ips (default `127.0.0.1`), `--no-install-recommends` + cache cleanup, OCI labels for provenance, dropped privileges before `CMD`. CI runs Hadolint + Trivy (`security.yml::container-scan`) on every PR; release workflow runs Cosign sign + SLSA provenance + SBOM attestation per SEC-057.
+  - 2026-04-19 — close — `backend/Dockerfile` rewritten as a multi-stage build with: digest-pinned base (`python:3.13-slim-bookworm@sha256:061b6e52a07ab675f0e4a9428c5a8ee6bed996983427f4691f6bebf29c56d9dc` on both stages), non-root `app` user (uid 10001), `tini` PID 1, `HEALTHCHECK` against `/ping`, env-controlled forwarded-allow-ips (default `127.0.0.1`), `--no-install-recommends` + cache cleanup, OCI labels for provenance, dropped privileges before `CMD`. CI runs Hadolint + Trivy (`security.yml::container-scan`) on every PR; release workflow runs Cosign sign + SLSA provenance + SBOM attestation per SEC-057.
   - 2026-04-24 — paging wired (Task #37) — `security.yml::pager` covers `container-scan` with `dedup_key = security.yml/container-scan/<owner>/<repo>`; a new HIGH+ image CVE or Hadolint regression pages on-call once the gate flips per §gate-flip-schedule. See `INCIDENT_RESPONSE_RUNBOOK.md` §"Scanner-failure paging".
 
 - **SEC-063** — *CI assumed to use long-lived cloud creds*
@@ -483,15 +483,15 @@ A gate that misses its flip date by **>14 days** becomes a Critical finding unde
 - **2026-04-19 — close** — `.github/workflows/security.yml::lockfile-drift` runs on every push, PR, and daily schedule. Backend uses `pip install --no-deps -r backend/requirements.txt && pip check` (fails on broken/conflicting constraints). Frontend uses `npm ci` in `frontend/` (fails non-zero if `package.json` and `package-lock.json` disagree). Job is **already blocking** — drift here breaks the whole reproducibility chain so it is not appropriate to keep advisory.
 
 ### SEC-073 — GitHub Actions and base container images not pinned by SHA / digest
-- **Severity:** Medium · **Owner:** T7 · **Surface:** `.github/workflows/*`, `backend/dockerfile`.
+- **Severity:** Medium · **Owner:** T7 · **Surface:** `.github/workflows/*`, `backend/Dockerfile`.
 - **What:** Workflow steps reference third-party actions by tag (`@v4`, `@v3`, `@0.24.0`, …) and the backend Dockerfile uses `python:3.13-slim-bookworm` by tag, not by `@sha256:` digest. Tag references are mutable: an attacker (or compromised maintainer) can repoint a tag to a malicious commit, as happened with the tj-actions/changed-files compromise. Digest pinning eliminates the class.
 - **2026-04-19 — partial-close** —
   - Every third-party `uses:` in `.github/workflows/security.yml`, `.github/workflows/release.yml`, and `.github/workflows/governance-verify.yml` is now pinned to a 40-char commit SHA with the human-readable tag in a trailing comment (actions/checkout, setup-python, setup-node, upload-artifact, download-artifact, codeql-action/upload-sarif, gitleaks-action, osv-scanner-action, hadolint-action, trivy-action, cosign-installer, attest-build-provenance, docker/setup-buildx-action).
-  - `backend/dockerfile` both `FROM` lines pin to `python:3.13-slim-bookworm@sha256:061b6e52a07ab675f0e4a9428c5a8ee6bed996983427f4691f6bebf29c56d9dc`.
+  - `backend/Dockerfile` both `FROM` lines pin to `python:3.13-slim-bookworm@sha256:061b6e52a07ab675f0e4a9428c5a8ee6bed996983427f4691f6bebf29c56d9dc`.
   - `.github/dependabot.yml` already runs the `github-actions` + `docker` ecosystems weekly; @Manifest-Startup/security reviews the SHA bumps per CODEOWNERS.
   - `.github/workflows/governance-verify.yml::Tag-only \`uses:\` lint` fails the daily build if any `uses:` in the security-critical workflows drops back to a tag-only reference.
 - **2026-04-24 — close (Task #26)** —
   - Every third-party `uses:` in the legacy workflows `.github/workflows/main.yml` (8× checkout@v3, 6× setup-python@v4, 5× setup-node@v3, 1× cypress-io/github-action@v6), `.github/workflows/survey-feedback.yml` and `.github/workflows/website-testing.yml` (checkout@v4, setup-python@v5, upload-artifact@v4) is now pinned to a 40-char commit SHA with the version tag in a trailing comment. SHAs were resolved live against the GitHub API at pin time.
-  - `frontend/dockerfile` `FROM` line is now pinned (`node:18-bookworm-slim@sha256:f9ab18e354e6855ae56ef2b290dd225c1e51a564f87584b9bd21dd651838830e`); `backend/dockerfile` was already digest-pinned per the partial-close above.
+  - `frontend/dockerfile` `FROM` line is now pinned (`node:18-bookworm-slim@sha256:f9ab18e354e6855ae56ef2b290dd225c1e51a564f87584b9bd21dd651838830e`); `backend/Dockerfile` was already digest-pinned per the partial-close above.
   - `.github/workflows/governance-verify.yml::Tag-only \`uses:\` lint` now scopes to **all** `.github/workflows/*.yml` (no carve-out) and is joined by a sibling **Docker base-image digest-pin lint** that walks every tracked Dockerfile (`git ls-files '*[Dd]ockerfile' '*[Dd]ockerfile.*' '*.dockerfile'`) and fails on any `FROM` line missing `@sha256:` (stage-aliasing `FROM <stage> AS …` is excluded). Both lints fail the daily 07:00 UTC governance run if any new workflow or Dockerfile regresses.
   - Authoritative scope of SEC-073 is now closed; refresh stays automated through `.github/dependabot.yml`'s `github-actions` + `docker` ecosystems with @Manifest-Startup/security review per CODEOWNERS.

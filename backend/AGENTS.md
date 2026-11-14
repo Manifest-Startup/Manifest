@@ -4,19 +4,19 @@ FastAPI app with a Strawberry GraphQL API. Entry point `app/main.py` (mounts rou
 
 ## Layout (parent → child)
 
-| Package | Responsibility | Depends on |
-|---|---|---|
-| `app/routes/` | REST routers (`*_routes.py`); thin: validate, authorise, call a service | services, security |
-| `app/graphql/` | `schema.py` = every Query/Mutation resolver + `_DefaultDenyAuthExtension` (new fields are authenticated unless added to `PUBLIC_FIELDS`); `*_types.py` = Strawberry types | services, security |
-| `app/services/` | Business logic, one concern per `*_service.py`; AI calls go through `ai_router.py` / `ai_layer_service.py` with cost tracking; the OpenAI key is the customer's own, resolved per request by `ai_credentials.py` (background threads: `start_thread_with_current_key`) | db, utils |
-| `app/managers/manifest_manager.py` | Orchestrates document generation across services | services |
-| `app/security/` | Auth policy, cookies (`cookies.py`), SSRF-safe HTTP (`safe_http.py`), audit chain, rate limits, crypto | config only |
-| `app/auth/` | Session tokens (`replit_auth.create_session_token`) and identity helpers | security, db |
-| `app/db/` | `database.py` (`get_db_connection`, Supabase client), `async_pool.py`, `rows.py` (row → JSON dicts) | — |
-| `app/workers/` | Optional out-of-process job worker (`python -m app.workers.generation_worker`) | services |
-| `app/utils/` | Logger, shared descriptors (`auto_property.py`), small helpers | — |
+Dependencies only point **down** these layers; `tests/test_architecture.py` fails the build when a module reaches up.
 
-Dependencies point downward. Routes and resolvers never talk to the DB directly; services never import routes or `graphql/`. Known cycles to untangle rather than extend: `python3 ../scripts/codegraph/query.py cycles`.
+| Layer | Packages | Responsibility |
+|---|---|---|
+| API | `app/routes/` (`*_routes.py`), `app/graphql/` (`schema.py`, `*_types.py`), `app/middleware/`, `app/workers/`, `app/main.py` | HTTP and jobs: validate, authorise, call a service. New GraphQL fields are authenticated unless listed in `PUBLIC_FIELDS`. |
+| Services | `app/services/<domain>/`, `app/managers/`, `app/auth/`, `app/security/` | Business rules, grouped by domain (below). Never import routes, GraphQL or `app.main`. |
+| Data | `app/db/` (`database.get_db_connection`, `rows.rows_to_dicts`) | Postgres/Supabase access. |
+| Utils | `app/utils/` (logger, request context, descriptors), `app/prompts/` (`prompt_path`), `app/assets/` (`ASSETS_DIR`) | No knowledge of the app above them. |
+
+Service domains (`app/services/<domain>/`, each `__init__.py` says what belongs there):
+`ai` (router, credentials = the customer's own OpenAI key, usage and cost) · `canvas` (Business Model Canvas sections) · `documents` (generated legal and business documents) · `ideas` (ideas, versions, collaboration, generation jobs) · `pitch_reels` · `social` (follows, messaging, investments) · `voice` · `identity` (sessions, MFA, passkeys, SSO, guests, API keys) · `compliance` (consent, data-subject requests, retention, audit) · `integrations` (GitHub, email, analytics) · `operations` (internal quality loops) · `web` (agent pages, SPA shell) · `shared` (cache, rate limit).
+
+Module names say what the code is about, without suffixes: `services/documents/founders_agreement.py`, not `founders_agreement_service.py`. Shared objects live beside their class (`app.managers.manifest_manager.manifest_manager`), never in `app.main`. Logs are JSON with OpenTelemetry field names (`service.name`, `code.*`, `exception.*`, `request_id`); log through `app.utils.logger.logger` with `extra={...}` for structured fields.
 
 ## Working here
 

@@ -1,4 +1,4 @@
-from app.services.bank_account_service import BankAccount
+from app.services.documents.bank_account import BankAccount
 
 
 def test_deposit_and_withdraw():

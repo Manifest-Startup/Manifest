@@ -2,8 +2,8 @@
 
 from app.db.database import create_database_client
 from app.routes.dependencies import require_user_id
-from app.services.github_bootstrap_service import create_private_repo_for_idea
-from app.services.guest_workspace_service import fetch_user_is_guest
+from app.services.identity.guest_workspace import fetch_user_is_guest
+from app.services.integrations.github_bootstrap import create_private_repo_for_idea
 from app.utils.logger import logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field

@@ -9,9 +9,18 @@ handler to a logger that can emit either:
   JSON document per line, suitable for any aggregator (Grafana Loki,
   Datadog, CloudWatch, OpenObserve, etc.).
 
-The JSON formatter automatically threads in the ``X-Request-Id`` set by
-:mod:`app.middleware.request_id`, so every log line can be filtered down
-to a single request without the caller having to thread the ID through.
+JSON lines use OpenTelemetry semantic-convention names where one exists, so
+any OTel-aware backend can group, filter and correlate them without custom
+parsing:
+
+* ``service.name`` / ``service.version`` / ``deployment.environment.name``
+  identify which deploy wrote the line (``OTEL_SERVICE_NAME``,
+  ``RENDER_GIT_COMMIT`` or ``APP_VERSION``, ``ENVIRONMENT``);
+* ``code.file.path`` / ``code.line.number`` / ``code.function.name`` locate it;
+* ``exception.type`` / ``exception.message`` / ``exception.stacktrace``
+  describe errors;
+* ``request_id`` (from :mod:`app.middleware.request_id`) ties every line of
+  one HTTP request together without callers passing it around.
 
 No new dependency — uses ``json`` + ``traceback`` from stdlib.
 """
@@ -26,8 +35,23 @@ import time
 import traceback
 from typing import Any
 
+from app.utils.request_context import get_request_id
+
 _LOG_LEVEL = (os.getenv("LOG_LEVEL") or "INFO").strip().upper()
 _LOG_FORMAT = (os.getenv("LOG_FORMAT") or "text").strip().lower()
+
+
+def _resource_attributes() -> dict[str, str]:
+    """Who wrote this log line: OpenTelemetry resource attributes, read once."""
+    version = os.getenv("APP_VERSION") or (os.getenv("RENDER_GIT_COMMIT") or "")[:12] or "dev"
+    return {
+        "service.name": os.getenv("OTEL_SERVICE_NAME") or "manifest-backend",
+        "service.version": version,
+        "deployment.environment.name": (os.getenv("ENVIRONMENT") or "development").lower(),
+    }
+
+
+_RESOURCE = _resource_attributes()
 
 # Stdlib LogRecord attributes we must not re-emit as user-defined extras.
 _RESERVED_LOGRECORD_ATTRS = frozenset(
@@ -78,8 +102,11 @@ class JsonFormatter(logging.Formatter):
 
     Each log record becomes a single JSON line::
 
-        {"ts":"...","level":"INFO","logger":"manifest","msg":"...",
-         "file":"main.py","line":42,"request_id":"...","custom":"..."}
+        {"timestamp":"...Z","severity":"INFO","message":"...","logger":"manifest",
+         "service.name":"manifest-backend","service.version":"1a2b3c4d5e6f",
+         "deployment.environment.name":"production","request_id":"...",
+         "code.file.path":"main.py","code.line.number":42,"code.function.name":"boot",
+         "custom":"..."}
 
     ``extra=`` keys from the caller are merged into the top-level JSON,
     so existing slow-query log calls (which already pass structured
@@ -88,18 +115,15 @@ class JsonFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        # Import here to avoid a circular import: request_id has no deps,
-        # but importing this module at request_id load time would create
-        # a hot loop on first cold start.
-        from app.middleware.request_id import get_request_id
-
         payload: dict[str, Any] = {
-            "ts": _format_timestamp(record.created),
-            "level": record.levelname,
+            "timestamp": _format_timestamp(record.created),
+            "severity": record.levelname,
+            "message": record.getMessage(),
             "logger": record.name,
-            "msg": record.getMessage(),
-            "file": record.filename,
-            "line": record.lineno,
+            **_RESOURCE,
+            "code.file.path": record.filename,
+            "code.line.number": record.lineno,
+            "code.function.name": record.funcName,
         }
 
         rid = get_request_id()
@@ -113,8 +137,11 @@ class JsonFormatter(logging.Formatter):
                 continue
             payload[key] = _safe_json_value(value)
 
-        if record.exc_info:
-            payload["exc"] = "".join(traceback.format_exception(*record.exc_info))
+        if record.exc_info and record.exc_info[0] is not None:
+            exc_type, exc_value, _ = record.exc_info
+            payload["exception.type"] = exc_type.__name__
+            payload["exception.message"] = str(exc_value)
+            payload["exception.stacktrace"] = "".join(traceback.format_exception(*record.exc_info))
         if record.stack_info:
             payload["stack"] = record.stack_info
 

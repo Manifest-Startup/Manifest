@@ -134,7 +134,7 @@ def test_step_up_default_ttl_positive():
 
 
 # --- API key rotation hash algorithm --------------------------------------
-from app.services.api_key_service import generate_api_key, _verify_against_stored
+from app.services.identity.api_keys import generate_api_key, _verify_against_stored
 
 
 def test_api_key_bcrypt_round_trip():

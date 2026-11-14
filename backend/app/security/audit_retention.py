@@ -75,7 +75,7 @@ def enforce_retention() -> RetentionResult:
     # uninterrupted predecessor link at the moment of the marker.
     marker_seq: int | None = None
     try:
-        from app.services.security_audit_service import record_security_event
+        from app.services.compliance.security_audit import record_security_event
 
         record_security_event(
             "audit_retention_purge",

@@ -1,6 +1,6 @@
 /**
  * Route-specific pre-hydration shell for crawlers and accessibility audits.
- * Mirrors backend/app/services/spa_prerender_shell.py ROUTE_SHELLS.
+ * Mirrors backend/app/services/web/spa_prerender_shell.py ROUTE_SHELLS.
  */
 (function applyManifestSpaShell() {
   var ROUTES = {

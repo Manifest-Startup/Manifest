@@ -1,4 +1,4 @@
-from app.services.cost_structure_service import CostStructure
+from app.services.canvas.cost_structure import CostStructure
 
 
 def test_add_and_total_cost():
@@ -14,7 +14,7 @@ def test_add_and_total_cost():
 def test_cost_structure_recursive_json_parsing_like_bmc():
     import json
 
-    from app.services.business_model_canvas_service import BusinessModelCanvas
+    from app.services.canvas.business_model_canvas import BusinessModelCanvas
 
     class DummyAI:
         def generate_rich_text(self, messages, format_type="markdown"):
