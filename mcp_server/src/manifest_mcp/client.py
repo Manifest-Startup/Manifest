@@ -20,6 +20,9 @@ class ManifestClient:
         api_key: str | None = None,
         internal_secret: str | None = None,
         timeout: float = 30.0,
+        *,
+        user_agent: str | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.graphql_url = f"{self.base_url}/graphql"
@@ -27,6 +30,9 @@ class ManifestClient:
         self.api_key = api_key
         self.internal_secret = internal_secret
         self.timeout = timeout
+        self.user_agent = user_agent
+        # A custom transport lets tests (and the CLI end-to-end test) talk to an ASGI app.
+        self.transport = transport
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> "ManifestClient":
@@ -38,10 +44,15 @@ class ManifestClient:
 
     async def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            headers = {"Content-Type": "application/json"}
+            # JSON requests set their own Content-Type; multipart uploads need theirs.
+            headers: dict[str, str] = {"Accept": "application/json"}
             if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
-            self._client = httpx.AsyncClient(timeout=self.timeout, headers=headers)
+            if self.user_agent:
+                headers["User-Agent"] = self.user_agent
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout, headers=headers, transport=self.transport
+            )
         return self._client
 
     async def close(self) -> None:
@@ -90,6 +101,45 @@ class ManifestClient:
             f"Check MANIFEST_API_URL, confirm the backend is reachable, and then retry. "
             f"Original error: {error}"
         )
+
+    async def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: Any = None,
+        params: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Send one authenticated request to ``base_url + path`` and return the raw response.
+
+        Unlike :meth:`execute` this never raises on HTTP status, so callers (the CLI)
+        can show the backend's own error body. Connection failures still raise.
+        """
+        client = await self._ensure_client()
+        url = path if path.startswith(("http://", "https://")) else f"{self.base_url}{path}"
+        try:
+            return await client.request(method.upper(), url, json=json, params=params, files=files)
+        except httpx.RequestError as e:
+            raise Exception(self._build_request_error_message(e)) from e
+
+    async def graphql(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        """POST a GraphQL document and return the whole response body (``data`` and ``errors``)."""
+        payload: dict[str, Any] = {"query": query}
+        if variables:
+            payload["variables"] = variables
+        response = await self.request("POST", "/graphql", json=payload)
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            response.raise_for_status()
+            raise Exception(f"Unexpected response from {self.graphql_url}: {response.text[:200]}")
+        if response.status_code >= 400 and not body.get("errors"):
+            detail = body.get("detail") or response.reason_phrase
+            body = {"errors": [{"message": f"HTTP {response.status_code}: {detail}"}]}
+        return body
 
     async def execute(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
         """Execute a GraphQL query/mutation."""

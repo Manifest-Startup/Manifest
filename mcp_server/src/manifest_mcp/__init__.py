@@ -19,4 +19,13 @@ __version__ = "1.0.0"
 __all__ = ["create_server", "ManifestClient"]
 
 from .client import ManifestClient
-from .server import create_server
+
+
+def __getattr__(name: str):
+    # Imported lazily so `manifest_mcp.client` (used by the `manifest` CLI) does not
+    # load the MCP SDK.
+    if name == "create_server":
+        from .server import create_server
+
+        return create_server
+    raise AttributeError(name)

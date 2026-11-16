@@ -1,0 +1,2596 @@
+{
+ "version": 1,
+ "generated_by": "scripts/generate_cli_catalog.py",
+ "schema_sha256": "84dd25d7f7599d1f0af531a295dffc16cdb3c84956fbb66e4766423aead17502",
+ "operations": [
+  {
+   "name": "me",
+   "command": "me",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "User!",
+   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
+   "args": []
+  },
+  {
+   "name": "generationJob",
+   "command": "generation-job",
+   "kind": "query",
+   "description": "Poll the status of an async document-generation job (Phase 3).",
+   "destructive": false,
+   "returns": "GenerationJob",
+   "selection": "{ id status documentTypes ideaId errorMessage createdAt updatedAt }",
+   "args": [
+    {
+     "name": "jobId",
+     "flag": "--job-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "ideas",
+   "command": "ideas",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[IdeaSummary!]!",
+   "selection": "{ ideaId userId title description hasDescription createdAt isPublished generatedAssetCount }",
+   "args": [
+    {
+     "name": "first",
+     "flag": "--first",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 100,
+     "description": ""
+    },
+    {
+     "name": "after",
+     "flag": "--after",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "idea",
+   "command": "idea",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "Idea!",
+   "selection": "{ ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "account",
+   "command": "account",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "User!",
+   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
+   "args": []
+  },
+  {
+   "name": "mySessions",
+   "command": "my-sessions",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[SessionInfo!]!",
+   "selection": "{ sessionId current createdAt expiresAt revokedAt lastSeenAt requestIp userAgent kind }",
+   "args": []
+  },
+  {
+   "name": "privacyStatus",
+   "command": "privacy-status",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "PrivacyStatus!",
+   "selection": "{ exportAvailable deletionRequestedAt guestRetentionDays }",
+   "args": []
+  },
+  {
+   "name": "surveyInsights",
+   "command": "survey-insights",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "SurveyInsights!",
+   "selection": "{ generatedAt windowDays totalResponses researchResponses productFeedbackResponses researchSignupIntentAvg researchFollowUpRate productPmfVeryDisappointedPct productNpsScore productProgressAvg productDeliverableAvg productSatisfactionAvg productEaseAvg productSatisfactionTopboxPct productAiQualityAvg topResearchRoles { label count percentage } topResearchValueProps { label count percentage } topResearchBarriers { label count percentage } topResearchFirstOutputs { label count percentage } topResearchTrustSignals { label count percentage } topProductBenefits { label count percentage } topProductTasks { label count percentage } topActionThemes { theme count } }",
+   "args": [
+    {
+     "name": "windowDays",
+     "flag": "--window-days",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 90,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "aiKeyStatus",
+   "command": "ai-key-status",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "AiKeyStatus!",
+   "selection": "{ configured source last4 }",
+   "args": []
+  },
+  {
+   "name": "integrations",
+   "command": "integrations",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[Integration!]!",
+   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata }",
+   "args": []
+  },
+  {
+   "name": "integration",
+   "command": "integration",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "Integration",
+   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata }",
+   "args": [
+    {
+     "name": "serviceId",
+     "flag": "--service-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "profile",
+   "command": "profile",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "AuthUser",
+   "selection": "{ userId email token isGuest }",
+   "args": []
+  },
+  {
+   "name": "findSimilarIdeas",
+   "command": "find-similar-ideas",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "SimilarIdeas!",
+   "selection": "{ similarIdeas }",
+   "args": [
+    {
+     "name": "ideaDescription",
+     "flag": "--idea-description",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "ideaInvestments",
+   "command": "idea-investments",
+   "kind": "query",
+   "description": "Get all investments for an idea",
+   "destructive": false,
+   "returns": "[Investment!]!",
+   "selection": "{ investmentId ideaId investorId cashAmount sweatEquityHours sweatEquityValue equityPercentage investmentType role status notes createdAt investorName investorAvatar }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "ideaCapTable",
+   "command": "idea-cap-table",
+   "kind": "query",
+   "description": "Get the cap table for an idea",
+   "destructive": false,
+   "returns": "[CapTableEntry!]!",
+   "selection": "{ entryId ideaId stakeholderId stakeholderType equityPercentage sharesOwned shareClass vestingStatus vestedPercentage stakeholderName stakeholderAvatar }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "myPortfolio",
+   "command": "my-portfolio",
+   "kind": "query",
+   "description": "Get current user's investment portfolio",
+   "destructive": false,
+   "returns": "[PortfolioItem!]!",
+   "selection": "{ investmentId ideaId ideaTitle ideaDescription cashAmount sweatEquityValue equityPercentage status createdAt }",
+   "args": []
+  },
+  {
+   "name": "userFollowers",
+   "command": "user-followers",
+   "kind": "query",
+   "description": "Get followers for a user",
+   "destructive": false,
+   "returns": "[UserFollow!]!",
+   "selection": "{ followId followerId followedId createdAt userName userAvatar }",
+   "args": [
+    {
+     "name": "userId",
+     "flag": "--user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "userFollowing",
+   "command": "user-following",
+   "kind": "query",
+   "description": "Get users that a user is following",
+   "destructive": false,
+   "returns": "[UserFollow!]!",
+   "selection": "{ followId followerId followedId createdAt userName userAvatar }",
+   "args": [
+    {
+     "name": "userId",
+     "flag": "--user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "userSocialStats",
+   "command": "user-social-stats",
+   "kind": "query",
+   "description": "Get social statistics for a user",
+   "destructive": false,
+   "returns": "SocialStats!",
+   "selection": "{ followerCount followingCount isFollowing }",
+   "args": [
+    {
+     "name": "userId",
+     "flag": "--user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "pitchReelsFeed",
+   "command": "pitch-reels-feed",
+   "kind": "query",
+   "description": "Published pitch reels joined with their Open Media clips (empty when Open Media is off).",
+   "destructive": false,
+   "returns": "[PitchReel!]!",
+   "selection": "{ reelId slug title subtitle thesis description tags videoUrl posterUrl videoStatus workspacePath accentFrom accentTo createdAt creator { userId handle name role initials avatar followerCount isFollowing } stats { likeCount commentCount shareCount } viewerState { liked reshared } ideaId }",
+   "args": [
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 20,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "pitchReelComments",
+   "command": "pitch-reel-comments",
+   "kind": "query",
+   "description": "Open Media comments on a pitch reel's clip.",
+   "destructive": false,
+   "returns": "[PitchReelComment!]!",
+   "selection": "{ commentId reelId authorId authorName authorHandle authorAvatar body createdAt isMine }",
+   "args": [
+    {
+     "name": "reelId",
+     "flag": "--reel-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 120,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "universalSearch",
+   "command": "universal-search",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "UniversalSearchResults!",
+   "selection": "{ query myIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } publishedIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } assistantSummary webSummary webSources { title url hostname } }",
+   "args": [
+    {
+     "name": "query",
+     "flag": "--query",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 5,
+     "description": ""
+    },
+    {
+     "name": "includeWeb",
+     "flag": "--include-web",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "calculateSweatEquity",
+   "command": "calculate-sweat-equity",
+   "kind": "query",
+   "description": "Calculate sweat equity value and percentage",
+   "destructive": false,
+   "returns": "SweatEquityCalculation!",
+   "selection": "{ sweatValue equityPercentage hours hourlyRate }",
+   "args": [
+    {
+     "name": "hours",
+     "flag": "--hours",
+     "type": "Float!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "hourlyRate",
+     "flag": "--hourly-rate",
+     "type": "Float!",
+     "kind": "scalar",
+     "required": false,
+     "default": 50,
+     "description": ""
+    },
+    {
+     "name": "totalValuation",
+     "flag": "--total-valuation",
+     "type": "Float!",
+     "kind": "scalar",
+     "required": false,
+     "default": 100000,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "patents",
+   "command": "patents",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[Patent!]!",
+   "selection": "{ patentId title description createdAt }",
+   "args": []
+  },
+  {
+   "name": "pitchDeck",
+   "command": "pitch-deck",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "PitchDeckOutput!",
+   "selection": "{ pitchDeck }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "productRequirementsDocument",
+   "command": "product-requirements-document",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "ProductRequirementsDocumentOutput!",
+   "selection": "{ productRequirementsDocument }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "provisionalPatent",
+   "command": "provisional-patent",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "ProvisionalPatentOutput!",
+   "selection": "{ provisionalPatent coversheetPdf specificationPdf }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "availableSkills",
+   "command": "available-skills",
+   "kind": "query",
+   "description": "Return the canonical list of skills available on the platform.",
+   "destructive": false,
+   "returns": "[String!]!",
+   "selection": "",
+   "args": []
+  },
+  {
+   "name": "myConversations",
+   "command": "my-conversations",
+   "kind": "query",
+   "description": "Open Media conversations; Manifest ones (``context.app = manifest``) unless ``allApps``.",
+   "destructive": false,
+   "returns": "[Conversation!]!",
+   "selection": "{ conversationId otherUserId otherUserName otherUserHandle otherUserAvatar ideaId ideaTitle lastMessageAt lastMessagePreview unreadCount }",
+   "args": [
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 50,
+     "description": ""
+    },
+    {
+     "name": "offset",
+     "flag": "--offset",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 0,
+     "description": ""
+    },
+    {
+     "name": "allApps",
+     "flag": "--all-apps",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "conversationMessages",
+   "command": "conversation-messages",
+   "kind": "query",
+   "description": "Messages in an Open Media conversation, oldest first.",
+   "destructive": false,
+   "returns": "[Message!]!",
+   "selection": "{ messageId conversationId senderId content createdAt isMine }",
+   "args": [
+    {
+     "name": "conversationId",
+     "flag": "--conversation-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 100,
+     "description": ""
+    },
+    {
+     "name": "beforeId",
+     "flag": "--before-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "unreadMessageCount",
+   "command": "unread-message-count",
+   "kind": "query",
+   "description": "Unread Manifest messages (0 when Open Media is off, unlinked or unreachable).",
+   "destructive": false,
+   "returns": "UnreadCount!",
+   "selection": "{ count }",
+   "args": []
+  },
+  {
+   "name": "ideaOwner",
+   "command": "idea-owner",
+   "kind": "query",
+   "description": "The founder of an idea, and whether the viewer can message them on Open Media.",
+   "destructive": false,
+   "returns": "IdeaOwner",
+   "selection": "{ userId username firstName lastName bio profilePictureUrl ideaId ideaTitle isPublished canMessage openMediaHandle }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "openMediaLink",
+   "command": "open-media-link",
+   "kind": "query",
+   "description": "Whether Open Media is enabled here and linked to the current account.",
+   "destructive": false,
+   "returns": "OpenMediaLink!",
+   "selection": "{ enabled linked needsReconnect handle displayName avatarUrl connectUrl }",
+   "args": []
+  },
+  {
+   "name": "openMediaRealtimeToken",
+   "command": "open-media-realtime-token",
+   "kind": "query",
+   "description": "Short-lived Open Media Supabase credentials for live message updates.",
+   "destructive": false,
+   "returns": "OpenMediaRealtimeToken!",
+   "selection": "{ supabaseUrl anonKey accessToken expiresAt omUserId }",
+   "args": []
+  },
+  {
+   "name": "ideaCollaborators",
+   "command": "idea-collaborators",
+   "kind": "query",
+   "description": "Get all collaborators for an idea including the owner",
+   "destructive": false,
+   "returns": "[Collaborator!]!",
+   "selection": "{ collaboratorId ideaId userId role status userEmail userName userAvatar invitedAt acceptedAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "mySharedIdeas",
+   "command": "my-shared-ideas",
+   "kind": "query",
+   "description": "Get ideas shared with the current user",
+   "destructive": false,
+   "returns": "[SharedIdea!]!",
+   "selection": "{ ideaId title description userRole createdAt }",
+   "args": []
+  },
+  {
+   "name": "myCollaborationInvitations",
+   "command": "my-collaboration-invitations",
+   "kind": "query",
+   "description": "Get pending collaboration invitations for the current user",
+   "destructive": false,
+   "returns": "[CollaborationInvitation!]!",
+   "selection": "{ collaboratorId ideaId role status ideaTitle ideaDescription inviterName invitedAt }",
+   "args": []
+  },
+  {
+   "name": "ideaVersions",
+   "command": "idea-versions",
+   "kind": "query",
+   "description": "Get version history for an idea",
+   "destructive": false,
+   "returns": "[IdeaVersion!]!",
+   "selection": "{ versionId ideaId versionNumber title description createdBy createdAt changeSummary creatorName creatorAvatar versionKind }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "checkIdeaAccess",
+   "command": "check-idea-access",
+   "kind": "query",
+   "description": "Check if current user has access to an idea and get their role",
+   "destructive": false,
+   "returns": "AccessCheckResult!",
+   "selection": "{ hasAccess role }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "ideaQualificationSession",
+   "command": "idea-qualification-session",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "IdeaQualificationSession",
+   "selection": "{ id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt }",
+   "args": [
+    {
+     "name": "sessionId",
+     "flag": "--session-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "myIdeaQualificationSessions",
+   "command": "my-idea-qualification-sessions",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[IdeaQualificationSession!]!",
+   "selection": "{ id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt }",
+   "args": []
+  },
+  {
+   "name": "myCostDashboard",
+   "command": "my-cost-dashboard",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "UserCostDashboard!",
+   "selection": "{ limits { monthlyVariableCapUsd paused baseSubscriptionUsd currency } spend { monthStart totalBillableUsd totalModelCostUsd totalInputTokens totalOutputTokens eventCount } remainingUsd pctOfCap warnLevel recentRuns { id agentKind status startedAt completedAt totalModelCostUsd totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage qualificationSessionId ideaId } estimatedTotalWithSubscriptionUsd }",
+   "args": []
+  },
+  {
+   "name": "myAgentRuns",
+   "command": "my-agent-runs",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[AgentRunSummary!]!",
+   "selection": "{ id agentKind status startedAt completedAt totalModelCostUsd totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage qualificationSessionId ideaId }",
+   "args": [
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 20,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "myCostPreflight",
+   "command": "my-cost-preflight",
+   "kind": "query",
+   "description": "Preflight check: would a new run be allowed right now?",
+   "destructive": false,
+   "returns": "CostPreflight!",
+   "selection": "{ allowed reason monthlyUsageUsd capUsd remainingUsd estimatedCostUsd paused agentKind }",
+   "args": [
+    {
+     "name": "agentKind",
+     "flag": "--agent-kind",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "estCostUsd",
+     "flag": "--est-cost-usd",
+     "type": "Float",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "bmcSections",
+   "command": "bmc-sections",
+   "kind": "query",
+   "description": "Per-section BMC content for an idea owned by the caller.",
+   "destructive": false,
+   "returns": "[BmcSection!]!",
+   "selection": "{ sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "partnerCandidates",
+   "command": "partner-candidates",
+   "kind": "query",
+   "description": "Ranked partner candidates for an idea owned by the caller.",
+   "destructive": false,
+   "returns": "[PartnerCandidate!]!",
+   "selection": "{ id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminCostOverview",
+   "command": "admin-cost-overview",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "AdminCostOverview!",
+   "selection": "{ windowDays windowStart generatedAt totals { totalBillableUsd totalModelCostUsd totalInputTokens totalOutputTokens totalRuns failedRuns activeUsers } burnRatePerDayUsd monthToDateBillableUsd projectedMonthBillableUsd dailySeries { date billableUsd modelCostUsd eventCount } topUsers { userId email billableUsd eventCount } byAgentKind { label billableUsd } byModel { label billableUsd } expensiveRuns { id userId userEmail agentKind status billableUsd inputTokens outputTokens startedAt completedAt } }",
+   "args": [
+    {
+     "name": "windowDays",
+     "flag": "--window-days",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminAgentRuns",
+   "command": "admin-agent-runs",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[AdminAgentRunRow!]!",
+   "selection": "{ id userId userEmail agentKind status startedAt completedAt totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage ideaId qualificationSessionId }",
+   "args": [
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 50,
+     "description": ""
+    },
+    {
+     "name": "agentKind",
+     "flag": "--agent-kind",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "status",
+     "flag": "--status",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminProductionTestStats",
+   "command": "admin-production-test-stats",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "AdminProductionTestStats!",
+   "selection": "{ windowHours totalRuns passCount failCount flakyCount errorCount skippedCount failureRate issuesOpened issuesDeduped topFailingTests { testName failures } }",
+   "args": [
+    {
+     "name": "hours",
+     "flag": "--hours",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 24,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminVoiceTestRuns",
+   "command": "admin-voice-test-runs",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "[VoiceTestRun!]!",
+   "selection": "{ id scenario userPersona userEmotion userGoal userInput expectedBehavior assistantResponse executorKind scoreIntentUnderstanding scoreEmotionalAwareness scoreHelpfulness overallScore passStatus detectedFailures rootCauseAnalysis improvedResponseExample simulatorRunId executorRunId evaluatorRunId createdAt }",
+   "args": [
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 50,
+     "description": ""
+    },
+    {
+     "name": "scenario",
+     "flag": "--scenario",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "emotion",
+     "flag": "--emotion",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "passOnly",
+     "flag": "--pass-only",
+     "type": "Boolean",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminVoiceTestStats",
+   "command": "admin-voice-test-stats",
+   "kind": "query",
+   "description": "",
+   "destructive": false,
+   "returns": "VoiceTestStats!",
+   "selection": "{ windowHours totalRuns passed failed notEvaluated passRate averageScores { intentUnderstanding emotionalAwareness helpfulness } byScenario { label total passCount failCount } byEmotion { label total passCount failCount } topFailures { failure count } }",
+   "args": [
+    {
+     "name": "hours",
+     "flag": "--hours",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 168,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "createIdea",
+   "command": "create-idea",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "Idea!",
+   "selection": "{ ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills }",
+   "args": [
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "updateIdea",
+   "command": "update-idea",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "Idea!",
+   "selection": "{ ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "requiredSkills",
+     "flag": "--required-skills",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "deleteIdea",
+   "command": "delete-idea",
+   "kind": "mutation",
+   "description": "Delete an idea owned by the current user.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "togglePublishIdea",
+   "command": "toggle-publish-idea",
+   "kind": "mutation",
+   "description": "Toggle the publish status of an idea. Published ideas become available in public discovery.",
+   "destructive": true,
+   "returns": "PublishResult!",
+   "selection": "{ ideaId isPublished }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "saveOpenaiApiKey",
+   "command": "save-openai-api-key",
+   "kind": "mutation",
+   "description": "Store the customer's own OpenAI key (validated, encrypted at rest).",
+   "destructive": false,
+   "returns": "AiKeyStatus!",
+   "selection": "{ configured source last4 }",
+   "args": [
+    {
+     "name": "apiKey",
+     "flag": "--api-key",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "removeOpenaiApiKey",
+   "command": "remove-openai-api-key",
+   "kind": "mutation",
+   "description": "",
+   "destructive": true,
+   "returns": "AiKeyStatus!",
+   "selection": "{ configured source last4 }",
+   "args": []
+  },
+  {
+   "name": "updateAccount",
+   "command": "update-account",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "User!",
+   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "AccountUpdateInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "connectIntegration",
+   "command": "connect-integration",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "Integration!",
+   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata }",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "ConnectIntegrationInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "disconnectIntegration",
+   "command": "disconnect-integration",
+   "kind": "mutation",
+   "description": "",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "serviceId",
+     "flag": "--service-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "submitContactForm",
+   "command": "submit-contact-form",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "ContactFormInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "submitSurvey",
+   "command": "submit-survey",
+   "kind": "mutation",
+   "description": "Persist research (public) or product-feedback (authenticated) survey answers to Postgres.",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "SubmitSurveyInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "createInvestment",
+   "command": "create-investment",
+   "kind": "mutation",
+   "description": "Create a new investment in an idea",
+   "destructive": true,
+   "returns": "Investment!",
+   "selection": "{ investmentId ideaId investorId cashAmount sweatEquityHours sweatEquityValue equityPercentage investmentType role status notes createdAt investorName investorAvatar }",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "CreateInvestmentInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "addInvestmentContribution",
+   "command": "add-investment-contribution",
+   "kind": "mutation",
+   "description": "Add a contribution to an existing investment",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "AddContributionInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "updateInvestmentStatus",
+   "command": "update-investment-status",
+   "kind": "mutation",
+   "description": "Update the status of an investment (pending, confirmed, cancelled)",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "investmentId",
+     "flag": "--investment-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "status",
+     "flag": "--status",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "followUser",
+   "command": "follow-user",
+   "kind": "mutation",
+   "description": "Follow a user",
+   "destructive": false,
+   "returns": "FollowResult!",
+   "selection": "{ following followedId }",
+   "args": [
+    {
+     "name": "followedId",
+     "flag": "--followed-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "unfollowUser",
+   "command": "unfollow-user",
+   "kind": "mutation",
+   "description": "Unfollow a user",
+   "destructive": true,
+   "returns": "FollowResult!",
+   "selection": "{ following followedId }",
+   "args": [
+    {
+     "name": "followedId",
+     "flag": "--followed-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "toggleFollow",
+   "command": "toggle-follow",
+   "kind": "mutation",
+   "description": "Toggle follow status for a user",
+   "destructive": false,
+   "returns": "FollowResult!",
+   "selection": "{ following followedId }",
+   "args": [
+    {
+     "name": "followedId",
+     "flag": "--followed-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "upvoteIdea",
+   "command": "upvote-idea",
+   "kind": "mutation",
+   "description": "Upvote an idea",
+   "destructive": false,
+   "returns": "VoteResult!",
+   "selection": "{ voted ideaId voteCount }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "removeVote",
+   "command": "remove-vote",
+   "kind": "mutation",
+   "description": "Remove vote from an idea",
+   "destructive": true,
+   "returns": "VoteResult!",
+   "selection": "{ voted ideaId voteCount }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "toggleUpvote",
+   "command": "toggle-upvote",
+   "kind": "mutation",
+   "description": "Toggle upvote on an idea",
+   "destructive": false,
+   "returns": "VoteResult!",
+   "selection": "{ voted ideaId voteCount }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "togglePitchReelLike",
+   "command": "toggle-pitch-reel-like",
+   "kind": "mutation",
+   "description": "Like (``liked: true``) or unlike a pitch reel's Open Media clip.",
+   "destructive": false,
+   "returns": "PitchReelLikeResult!",
+   "selection": "{ reelId liked likeCount }",
+   "args": [
+    {
+     "name": "reelId",
+     "flag": "--reel-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "liked",
+     "flag": "--liked",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "resharePitchReel",
+   "command": "reshare-pitch-reel",
+   "kind": "mutation",
+   "description": "Reshare (or undo) a pitch reel's clip on the viewer's Open Media profile.",
+   "destructive": false,
+   "returns": "PitchReelShareResult!",
+   "selection": "{ reelId reshared shareCount }",
+   "args": [
+    {
+     "name": "reelId",
+     "flag": "--reel-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "reshared",
+     "flag": "--reshared",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "createPitchReelComment",
+   "command": "create-pitch-reel-comment",
+   "kind": "mutation",
+   "description": "Comment on a pitch reel's Open Media clip.",
+   "destructive": false,
+   "returns": "PitchReelCommentCreateResult!",
+   "selection": "{ comment { commentId reelId authorId authorName authorHandle authorAvatar body createdAt isMine } }",
+   "args": [
+    {
+     "name": "reelId",
+     "flag": "--reel-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "generatePitchDeck",
+   "command": "generate-pitch-deck",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "PitchDeckOutput!",
+   "selection": "{ pitchDeck }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "generateProductRequirementsDocument",
+   "command": "generate-product-requirements-document",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "ProductRequirementsDocumentOutput!",
+   "selection": "{ productRequirementsDocument }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "generateProvisionalPatent",
+   "command": "generate-provisional-patent",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "ProvisionalPatentOutput!",
+   "selection": "{ provisionalPatent coversheetPdf specificationPdf }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "startGuestSession",
+   "command": "start-guest-session",
+   "kind": "mutation",
+   "description": "Create a server-backed guest user, set session cookie, return one-time merge secret.",
+   "destructive": false,
+   "returns": "GuestSessionResult!",
+   "selection": "{ userId email token mergeSecret }",
+   "args": []
+  },
+  {
+   "name": "logoutUser",
+   "command": "logout-user",
+   "kind": "mutation",
+   "description": "Clear auth cookies so the client is fully logged out.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": []
+  },
+  {
+   "name": "revokeAccountSession",
+   "command": "revoke-account-session",
+   "kind": "mutation",
+   "description": "",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "sessionId",
+     "flag": "--session-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "revokeOtherAccountSessions",
+   "command": "revoke-other-account-sessions",
+   "kind": "mutation",
+   "description": "",
+   "destructive": true,
+   "returns": "Int!",
+   "selection": "",
+   "args": []
+  },
+  {
+   "name": "requestAccountDeletion",
+   "command": "request-account-deletion",
+   "kind": "mutation",
+   "description": "",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "confirmEmail",
+     "flag": "--confirm-email",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "runBackgroundTasks",
+   "command": "run-background-tasks",
+   "kind": "mutation",
+   "description": "Trigger asynchronous background tasks that were previously exposed via REST (POST /api/idea/{idea_id}/background-tasks).",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "enqueueBackgroundTasks",
+   "command": "enqueue-background-tasks",
+   "kind": "mutation",
+   "description": "Enqueue document generation as a durable job and return immediately (Phase 3). The dedicated worker drains the queue; poll ``generationJob`` for status. Unlike the legacy fire-and-forget ``runBackgroundTasks``, the work survives a process restart and is deduplicated per ``idempotencyKey``. Returns the existing job if one is already in flight for that key.",
+   "destructive": false,
+   "returns": "EnqueueJobResult!",
+   "selection": "{ jobId status }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "documentTypes",
+     "flag": "--document-types",
+     "type": "[String!]!",
+     "kind": "list",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "idempotencyKey",
+     "flag": "--idempotency-key",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "exportIdeas",
+   "command": "export-ideas",
+   "kind": "mutation",
+   "description": "Export all user's ideas in the specified format (json, csv, markdown).",
+   "destructive": false,
+   "returns": "ExportResult!",
+   "selection": "{ content format filename }",
+   "args": [
+    {
+     "name": "format",
+     "flag": "--format",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "json",
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "importIdeas",
+   "command": "import-ideas",
+   "kind": "mutation",
+   "description": "Import startup ideas from note exports and backups.",
+   "destructive": false,
+   "returns": "ImportResult!",
+   "selection": "{ importedCount skippedCount errors }",
+   "args": [
+    {
+     "name": "fileContent",
+     "flag": "--file-content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "fileFormat",
+     "flag": "--file-format",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "filename",
+     "flag": "--filename",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "startConversation",
+   "command": "start-conversation",
+   "kind": "mutation",
+   "description": "Open (or reuse) an Open Media conversation with an idea's founder.",
+   "destructive": false,
+   "returns": "Conversation!",
+   "selection": "{ conversationId otherUserId otherUserName otherUserHandle otherUserAvatar ideaId ideaTitle lastMessageAt lastMessagePreview unreadCount }",
+   "args": [
+    {
+     "name": "otherUserId",
+     "flag": "--other-user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "sendMessage",
+   "command": "send-message",
+   "kind": "mutation",
+   "description": "Send a message in an Open Media conversation (``clientId`` makes retries land once).",
+   "destructive": false,
+   "returns": "Message!",
+   "selection": "{ messageId conversationId senderId content createdAt isMine }",
+   "args": [
+    {
+     "name": "conversationId",
+     "flag": "--conversation-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "content",
+     "flag": "--content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "clientId",
+     "flag": "--client-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "markConversationRead",
+   "command": "mark-conversation-read",
+   "kind": "mutation",
+   "description": "Mark an Open Media conversation as read.",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "conversationId",
+     "flag": "--conversation-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "inviteCollaborator",
+   "command": "invite-collaborator",
+   "kind": "mutation",
+   "description": "Invite a user to collaborate on an idea",
+   "destructive": false,
+   "returns": "InviteResult!",
+   "selection": "{ success message }",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "InviteCollaboratorInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "respondToInvitation",
+   "command": "respond-to-invitation",
+   "kind": "mutation",
+   "description": "Accept or decline a collaboration invitation",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "accept",
+     "flag": "--accept",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "updateCollaboratorRole",
+   "command": "update-collaborator-role",
+   "kind": "mutation",
+   "description": "Update a collaborator's role",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "targetUserId",
+     "flag": "--target-user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "newRole",
+     "flag": "--new-role",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "removeCollaborator",
+   "command": "remove-collaborator",
+   "kind": "mutation",
+   "description": "Remove a collaborator from an idea",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "targetUserId",
+     "flag": "--target-user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "createIdeaVersion",
+   "command": "create-idea-version",
+   "kind": "mutation",
+   "description": "Create a new version snapshot of an idea",
+   "destructive": false,
+   "returns": "IdeaVersion!",
+   "selection": "{ versionId ideaId versionNumber title description createdBy createdAt changeSummary creatorName creatorAvatar versionKind }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "changeSummary",
+     "flag": "--change-summary",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "restoreIdeaVersion",
+   "command": "restore-idea-version",
+   "kind": "mutation",
+   "description": "Restore an idea to a previous version",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "versionId",
+     "flag": "--version-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminSetUserRole",
+   "command": "admin-set-user-role",
+   "kind": "mutation",
+   "description": "Admin: change a user's RBAC role.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "targetUserId",
+     "flag": "--target-user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "role",
+     "flag": "--role",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "startIdeaQualification",
+   "command": "start-idea-qualification",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "IdeaQualificationSession!",
+   "selection": "{ id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt }",
+   "args": [
+    {
+     "name": "initialIdeaText",
+     "flag": "--initial-idea-text",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "continueIdeaQualification",
+   "command": "continue-idea-qualification",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "IdeaQualificationSession!",
+   "selection": "{ id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt }",
+   "args": [
+    {
+     "name": "sessionId",
+     "flag": "--session-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "userMessage",
+     "flag": "--user-message",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "setVariableCostCap",
+   "command": "set-variable-cost-cap",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "UserCostLimits!",
+   "selection": "{ monthlyVariableCapUsd paused baseSubscriptionUsd currency }",
+   "args": [
+    {
+     "name": "monthlyCapUsd",
+     "flag": "--monthly-cap-usd",
+     "type": "Float",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "paused",
+     "flag": "--paused",
+     "type": "Boolean",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "regenerateBmcSection",
+   "command": "regenerate-bmc-section",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "BmcSection!",
+   "selection": "{ sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "sectionName",
+     "flag": "--section-name",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "regenerateAllBmcSections",
+   "command": "regenerate-all-bmc-sections",
+   "kind": "mutation",
+   "description": "",
+   "destructive": false,
+   "returns": "[BmcSection!]!",
+   "selection": "{ sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "runPartnerDiscovery",
+   "command": "run-partner-discovery",
+   "kind": "mutation",
+   "description": "Run the partner-discovery agent for an owned idea.",
+   "destructive": false,
+   "returns": "[PartnerCandidate!]!",
+   "selection": "{ id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "maxCandidates",
+     "flag": "--max-candidates",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "approvePartnerCandidate",
+   "command": "approve-partner-candidate",
+   "kind": "mutation",
+   "description": "Flip the internal approval flag on a partner candidate.",
+   "destructive": false,
+   "returns": "PartnerCandidate!",
+   "selection": "{ id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt }",
+   "args": [
+    {
+     "name": "candidateId",
+     "flag": "--candidate-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "approved",
+     "flag": "--approved",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": true,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "adminRunVoiceTestCase",
+   "command": "admin-run-voice-test-case",
+   "kind": "mutation",
+   "description": "Run one end-to-end voice test (simulator → executor → evaluator).",
+   "destructive": false,
+   "returns": "VoiceTestRun!",
+   "selection": "{ id scenario userPersona userEmotion userGoal userInput expectedBehavior assistantResponse executorKind scoreIntentUnderstanding scoreEmotionalAwareness scoreHelpfulness overallScore passStatus detectedFailures rootCauseAnalysis improvedResponseExample simulatorRunId executorRunId evaluatorRunId createdAt }",
+   "args": [
+    {
+     "name": "scenario",
+     "flag": "--scenario",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "emotion",
+     "flag": "--emotion",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "persona",
+     "flag": "--persona",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  }
+ ],
+ "inputs": {
+  "AccountUpdateInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "email",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "username",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "firstName",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "lastName",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "country",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "bio",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "address",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "state",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "gravatarHash",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "profilePictureUrl",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "skills",
+     "type": "[String!]",
+     "required": false,
+     "description": ""
+    }
+   ]
+  },
+  "AddContributionInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "investmentId",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "contributionType",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "amount",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "hoursWorked",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "hourlyRate",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "type": "String",
+     "required": false,
+     "description": ""
+    }
+   ]
+  },
+  "ConnectIntegrationInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "serviceId",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "accessToken",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "refreshToken",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "expiresAt",
+     "type": "DateTime",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "metadata",
+     "type": "String",
+     "required": false,
+     "description": ""
+    }
+   ]
+  },
+  "ContactFormInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "firstName",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "lastName",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "email",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "message",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    }
+   ]
+  },
+  "CreateInvestmentInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "ideaId",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "cashAmount",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "sweatEquityHours",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "hourlyRate",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "equityPercentage",
+     "type": "Float!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "investmentType",
+     "type": "String!",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "role",
+     "type": "String",
+     "required": false,
+     "description": ""
+    },
+    {
+     "name": "notes",
+     "type": "String",
+     "required": false,
+     "description": ""
+    }
+   ]
+  },
+  "InviteCollaboratorInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "ideaId",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "email",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "role",
+     "type": "String!",
+     "required": false,
+     "description": ""
+    }
+   ]
+  },
+  "SubmitSurveyInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "surveyType",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "answersJson",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "contactEmail",
+     "type": "String",
+     "required": false,
+     "description": ""
+    }
+   ]
+  }
+ },
+ "enums": {}
+}

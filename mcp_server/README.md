@@ -111,6 +111,23 @@ async with MCPServerStdio(
     result = await Runner.run(agent, "Create a new idea for an AI-powered tutoring platform")
 ```
 
+## The `manifest` CLI
+
+This package also installs `manifest`, a command line for people and scripts (package `manifest_cli`, beside `manifest_mcp`; it reuses `ManifestClient` and needs only `httpx`). Every GraphQL query and mutation is a command, generated into `src/manifest_cli/catalog.json` from the backend schema.
+
+```bash
+pip install -e .                     # from mcp_server/
+manifest login                       # browser approval via Open Media; saves ~/.config/manifest/cli.json (0600)
+manifest whoami
+manifest ideas --json
+manifest create-idea --title "Lawn robots"
+manifest keys usage
+manifest graphql '{ mySessions { kind userAgent } }'
+manifest completion zsh > ~/.zfunc/_manifest
+```
+
+A `manifest login` session token also works as `MANIFEST_API_TOKEN` for this MCP server. Full guide: [`docs/CLI.md`](../docs/CLI.md); design: [ADR 0003](../docs/adr/0003-manifest-cli-browser-login.md). After a GraphQL schema change, regenerate the catalog with `.venv/bin/python scripts/generate_cli_catalog.py` (from the repo root); `scripts/check.py` fails until you do.
+
 ## Available Tools
 
 ### Idea Management
