@@ -70,11 +70,19 @@ const SecuritySettingsPanel: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-neutral900 dark:text-white">
-                      {session.current ? "Current session" : "Browser session"}
+                      {session.kind === "cli"
+                        ? session.userAgent || "Manifest CLI"
+                        : session.current
+                          ? "Current session"
+                          : "Browser session"}
                     </p>
                     {session.current ? <span className="manifest-pill">Current</span> : null}
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-gray500 dark:text-gray400">{session.userAgent || "User agent unavailable"}</p>
+                  <p className="mt-1 text-xs leading-5 text-gray500 dark:text-gray400">
+                    {session.kind === "cli"
+                      ? "Command-line access approved in this browser"
+                      : session.userAgent || "User agent unavailable"}
+                  </p>
                   <p className="mt-2 text-xs leading-5 text-gray500 dark:text-gray400">
                     Last seen {formatSessionDate(session.lastSeenAt)} · Created {formatSessionDate(session.createdAt)}
                     {session.requestIp ? ` · IP ${session.requestIp}` : ""}

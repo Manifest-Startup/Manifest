@@ -291,6 +291,7 @@ from app.routes.api_keys_routes import router as api_keys_router
 from app.routes.api_v1_routes import router as api_v1_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.bug_fix_routes import router as bug_fix_router
+from app.routes.cli_auth_routes import router as cli_auth_router
 from app.routes.dsar_admin_routes import router as dsar_admin_router
 from app.routes.dsar_routes import router as dsar_router
 from app.routes.integration_routes import router as integration_router
@@ -316,6 +317,7 @@ app.include_router(integration_router)
 app.include_router(api_v1_router)
 app.include_router(agent_discovery_router)
 app.include_router(api_keys_router)
+app.include_router(cli_auth_router)
 app.include_router(account_router)
 app.include_router(privacy_router)
 app.include_router(dsar_router)

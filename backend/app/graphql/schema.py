@@ -888,6 +888,10 @@ class SessionInfo:
     last_seen_at: datetime | None = None
     request_ip: str | None = None
     user_agent: str | None = None
+    kind: str = strawberry.field(
+        default="browser",
+        description="`browser` or `cli` (a Manifest CLI session; `userAgent` holds its label).",
+    )
 
 
 @strawberry.type
@@ -2028,6 +2032,7 @@ class Query:
                 last_seen_at=item.get("last_seen_at"),
                 request_ip=item.get("request_ip"),
                 user_agent=item.get("user_agent"),
+                kind=str(item.get("kind") or "browser"),
             )
             for item in sessions
         ]

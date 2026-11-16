@@ -4,7 +4,13 @@ from typing import Any
 
 import jwt
 from app.security.config import demo_mode_enabled, session_secret
-from app.services.identity.sessions import create_user_session, is_session_active, touch_session
+from app.services.identity.sessions import (
+    CLI_SESSION_IDLE_TIMEOUT_SECONDS,
+    CLI_SESSION_TTL_DAYS,
+    create_user_session,
+    is_session_active,
+    touch_session,
+)
 from app.utils.logger import logger
 from dotenv import load_dotenv
 from fastapi import HTTPException, Request
@@ -113,6 +119,55 @@ def create_session_token(
     return jwt.encode(payload, SESSION_SECRET, algorithm="HS256")
 
 
+def create_cli_session_token(
+    user_id: str,
+    *,
+    email: str | None,
+    label: str,
+    auth_iat: int | None,
+    request: Request | None = None,
+) -> tuple[str, datetime]:
+    """Mint a revocable, longer-lived Manifest CLI session (ADR 0003).
+
+    ``auth_iat`` is copied from the browser session that approved the CLI, so a CLI
+    token never looks like a fresher sign-in than the person actually did.
+    Returns the token and its expiry.
+    """
+    session_id = create_user_session(user_id, request, ttl_days=CLI_SESSION_TTL_DAYS, label=label)
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(days=CLI_SESSION_TTL_DAYS)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "sid": session_id,
+        "kind": "cli",
+        "iat": now,
+        "auth_iat": int(auth_iat or now.timestamp()),
+        "exp": expires_at,
+    }
+    return jwt.encode(payload, SESSION_SECRET, algorithm="HS256"), expires_at
+
+
+def _session_is_active(payload: dict[str, Any]) -> bool:
+    """The ``user_sessions`` row behind a token is live (tokens without ``sid`` pass)."""
+    session_id, user_id = payload.get("sid"), payload.get("sub")
+    if not session_id or not user_id:
+        return True
+    if payload.get("kind") == "cli":
+        return is_session_active(
+            str(session_id), str(user_id), idle_timeout_seconds=CLI_SESSION_IDLE_TIMEOUT_SECONDS
+        )
+    return is_session_active(str(session_id), str(user_id))
+
+
+def _touch(payload: dict[str, Any], request: Request) -> None:
+    session_id = payload.get("sid")
+    if payload.get("kind") == "cli":
+        touch_session(str(session_id) if session_id else None, request, keep_user_agent=True)
+    else:
+        touch_session(str(session_id) if session_id else None, request)
+
+
 def decode_session_token(token: str) -> dict[str, Any] | None:
     """The verified claims of a session JWT, or None when it is invalid or expired."""
     try:
@@ -143,15 +198,14 @@ def get_current_user_id(request: Request):
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token: no user ID")
 
-        session_id = payload.get("sid")
-        if session_id and not is_session_active(str(session_id), str(user_id)):
+        if not _session_is_active(payload):
             raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
 
         if _is_user_disabled(user_id):
             logger.info("[auth_utils] Token rejected: user disabled (user_id=%s)", user_id)
             raise HTTPException(status_code=403, detail="Account disabled")
 
-        touch_session(str(session_id) if session_id else None, request)
+        _touch(payload, request)
         return user_id
     except HTTPException:
         raise
@@ -178,12 +232,11 @@ def get_current_user_id_optional(request: Request):
             algorithms=["HS256"],
         )
         user_id = payload.get("sub")
-        session_id = payload.get("sid")
-        if session_id and user_id and not is_session_active(str(session_id), str(user_id)):
+        if not _session_is_active(payload):
             return None
         if user_id and _is_user_disabled(user_id):
             return None
-        touch_session(str(session_id) if session_id else None, request)
+        _touch(payload, request)
         return user_id
     except Exception as e:
         logger.info(f"[auth_utils] Token validation failed (optional): {e}")
@@ -196,11 +249,9 @@ def get_current_token_payload_optional(request: Request) -> dict | None:
         return None
     try:
         payload = jwt.decode(token, SESSION_SECRET, algorithms=["HS256"])
-        user_id = payload.get("sub")
-        session_id = payload.get("sid")
-        if session_id and user_id and not is_session_active(str(session_id), str(user_id)):
+        if not _session_is_active(payload):
             return None
-        touch_session(str(session_id) if session_id else None, request)
+        _touch(payload, request)
         return payload
     except Exception:
         return None
