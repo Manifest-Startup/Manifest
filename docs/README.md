@@ -10,6 +10,7 @@ This folder contains the maintained documentation for the Manifest platform.
 - [Product vision](./PRODUCT_VISION.md)
 - [Short task prompt template (AI work)](./PROMPT_TEMPLATE.md)
 - [API Reference](./API.md)
+- [Manifest CLI](./CLI.md)
 - [Architecture Reference](./ARCHITECTURE_REFERENCE.md)
 - [Architecture decision records](./adr/README.md) (`adr/`)
 - [Configuration](./CONFIGURATION.md)

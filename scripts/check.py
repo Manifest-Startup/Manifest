@@ -12,6 +12,7 @@ each other and cause flaky Jest timeouts):
   frontend jest --findRelatedTests on changed files, tsc --noEmit, eslint on changed files
   edge     node --test for the Cloudflare Worker
   mcp      pytest mcp_server/tests
+  cli      the Manifest CLI catalog matches the GraphQL schema (generate_cli_catalog.py --check)
   tooling  pytest tests (developer CLI + code graph)
 """
 
@@ -125,6 +126,15 @@ def check_mcp(files: list[str]) -> tuple[int, str]:
     return code, out.splitlines()[-1] if out else ""
 
 
+def check_cli(files: list[str]) -> tuple[int, str]:
+    """Every schema change needs a regenerated CLI catalog, so the CLI stays complete."""
+    watched = ("backend/app/", "mcp_server/src/manifest_cli/", "scripts/generate_cli_catalog.py")
+    if files and not any(f.startswith(watched) for f in files):
+        return 0, "GraphQL schema and CLI unchanged"
+    code, out = sh([PY, "scripts/generate_cli_catalog.py", "--check"])
+    return code, "\n".join(out.splitlines()[-3:])
+
+
 def check_tooling(files: list[str]) -> tuple[int, str]:
     if files and not any(f.startswith(("scripts/", "src/", "tests/")) for f in files):
         return 0, "tooling unchanged"
@@ -138,6 +148,7 @@ CHECKS = {
     "frontend": check_frontend,
     "edge": check_edge,
     "mcp": check_mcp,
+    "cli": check_cli,
     "tooling": check_tooling,
 }
 

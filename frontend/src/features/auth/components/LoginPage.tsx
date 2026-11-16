@@ -41,7 +41,9 @@ const LoginPage: React.FC = () => {
   }, []);
 
   const from = (location.state as LoginLocationState | null)?.from;
-  const next = from?.pathname ? `${from.pathname}${from.search ?? ""}` : undefined;
+  // `/login?next=/path` (e.g. the Manifest CLI approval page) works like a redirect state.
+  const nextParam = new URLSearchParams(location.search).get("next") ?? undefined;
+  const next = from?.pathname ? `${from.pathname}${from.search ?? ""}` : nextParam;
 
   const onContinue = () => {
     setRedirecting(true);

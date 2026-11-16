@@ -77,6 +77,15 @@ describe("LoginPage", () => {
     );
   });
 
+  it("returns to a ?next= path such as the Manifest CLI approval page", () => {
+    const next = "/api/cli/authorize?state=abc";
+    renderLogin(`/login?next=${encodeURIComponent(next)}`);
+    expect(screen.getByTestId("continue-with-open-media")).toHaveAttribute(
+      "href",
+      `/api/auth/open-media/start?${new URLSearchParams({ next }).toString()}`,
+    );
+  });
+
   it.each([
     ["unverified_email", "Confirm your email address in Open Media"],
     ["cancelled", "Sign-in was cancelled"],

@@ -207,6 +207,8 @@ export interface SessionInfo {
   lastSeenAt?: string | null;
   requestIp?: string | null;
   userAgent?: string | null;
+  /** `browser`, or `cli` for a Manifest CLI session (its label is in `userAgent`). */
+  kind?: string | null;
 }
 
 export interface GetMySessionsData {

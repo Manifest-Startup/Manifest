@@ -14,6 +14,23 @@ SESSION_IDLE_TIMEOUT_SECONDS = int(os.getenv("SESSION_IDLE_TIMEOUT_SECONDS", str
 # when a new login pushes the user over this cap.
 SESSION_CONCURRENCY_CAP = int(os.getenv("SESSION_CONCURRENCY_CAP", "10"))
 
+# Manifest CLI sessions (ADR 0003) are browser-approved, longer-lived and labelled.
+# The label is stored in ``user_agent`` (no schema change) and never overwritten.
+CLI_SESSION_LABEL_PREFIX = "Manifest CLI · "
+CLI_SESSION_TTL_DAYS = int(os.getenv("CLI_SESSION_TTL_DAYS", "30"))
+CLI_SESSION_IDLE_TIMEOUT_SECONDS = int(
+    os.getenv("CLI_SESSION_IDLE_TIMEOUT_SECONDS", str(14 * 24 * 60 * 60))
+)
+
+
+def session_kind(user_agent: object) -> str:
+    """``cli`` for a Manifest CLI session, otherwise ``browser``."""
+    return (
+        "cli"
+        if isinstance(user_agent, str) and user_agent.startswith(CLI_SESSION_LABEL_PREFIX)
+        else "browser"
+    )
+
 
 def _request_meta(request: Request | None) -> tuple[str | None, str | None]:
     if request is None:
@@ -48,10 +65,19 @@ def _enforce_concurrency_cap(cur, user_id: str) -> int:
     return cur.rowcount or 0
 
 
-def create_user_session(user_id: str, request: Request | None) -> str:
+def create_user_session(
+    user_id: str,
+    request: Request | None,
+    *,
+    ttl_days: int = SESSION_TTL_DAYS,
+    label: str | None = None,
+) -> str:
+    """Insert a ``user_sessions`` row. ``label`` replaces the user agent (CLI sessions)."""
     session_id = str(uuid.uuid4())
     request_ip, user_agent = _request_meta(request)
-    expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)
+    if label:
+        user_agent = label
+    expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
@@ -79,7 +105,10 @@ def create_user_session(user_id: str, request: Request | None) -> str:
     return session_id
 
 
-def is_session_active(session_id: str, user_id: str) -> bool:
+def is_session_active(
+    session_id: str, user_id: str, idle_timeout_seconds: int | None = None
+) -> bool:
+    idle_limit = idle_timeout_seconds or SESSION_IDLE_TIMEOUT_SECONDS
     try:
         with get_db_connection() as conn, conn.cursor() as cur:
             cur.execute(
@@ -102,7 +131,7 @@ def is_session_active(session_id: str, user_id: str) -> bool:
                 if last_seen.tzinfo is None:
                     last_seen = last_seen.replace(tzinfo=timezone.utc)
                 age = (datetime.now(timezone.utc) - last_seen).total_seconds()
-                if age > SESSION_IDLE_TIMEOUT_SECONDS:
+                if age > idle_limit:
                     # Auto-revoke the idle session so the next request
                     # also bounces and audit logs reflect the timeout.
                     cur.execute(
@@ -117,10 +146,15 @@ def is_session_active(session_id: str, user_id: str) -> bool:
         return True
 
 
-def touch_session(session_id: str | None, request: Request | None) -> None:
+def touch_session(
+    session_id: str | None, request: Request | None, *, keep_user_agent: bool = False
+) -> None:
+    """Record activity. ``keep_user_agent`` keeps a CLI session's label in place."""
     if not session_id:
         return
     request_ip, user_agent = _request_meta(request)
+    if keep_user_agent:
+        user_agent = None
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
@@ -276,6 +310,7 @@ def list_user_sessions(user_id: str, current_session_id: str | None) -> list[dic
                     "last_seen_at": row.get("last_seen_at"),
                     "request_ip": row.get("request_ip"),
                     "user_agent": row.get("user_agent"),
+                    "kind": session_kind(row.get("user_agent")),
                     "current": current_session_id == session_id,
                 }
             )

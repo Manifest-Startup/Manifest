@@ -45,6 +45,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 DEFAULT_NEXT = "/ideas"
 LOGIN_PATH = "/login"
+# The one backend page sign-in may return to: the Manifest CLI approval (ADR 0003).
+CLI_AUTHORIZE_PATH = "/api/cli/authorize"
 _EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,63}$")
 
 
@@ -62,6 +64,8 @@ def safe_next(raw: str | None) -> str:
     parts = urlsplit(value)
     if parts.scheme or parts.netloc:
         return DEFAULT_NEXT
+    if parts.path == CLI_AUTHORIZE_PATH:
+        return value
     if parts.path in {LOGIN_PATH, "/auth", "/signup"} or parts.path.startswith("/api/"):
         return DEFAULT_NEXT
     return value

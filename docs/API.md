@@ -44,6 +44,10 @@ Manifest exposes multiple interfaces:
 - Prefix: `/api/privacy`
 - Auth: optional; the same endpoints work for anonymous browsers and signed-in users
 
+7. Manifest CLI sign-in
+- Prefix: `/api/cli` (browser approval + token exchange, below)
+- The `manifest` CLI ([CLI.md](CLI.md)) wraps every GraphQL operation and the user REST routes with `Authorization: Bearer <cli session>`
+
 ## Authentication
 
 Two auth mechanisms are used in this codebase.
@@ -57,6 +61,8 @@ Accepted token locations (`backend/app/auth/current_user.py`):
 - `session_token` cookie
 - `access_token` cookie
 - `Authorization: Bearer <jwt>` header
+
+Bearer tokens and cookies are interchangeable: GraphQL and every session REST route accept either (the cookie wins if both are sent). The Manifest CLI uses `Authorization: Bearer` with a CLI session (below).
 
 Browsers get the session cookie only from **Continue with Open Media** (`/api/auth/open-media/*`, below; [ADR 0002](adr/0002-open-media-is-the-only-sign-in.md)). There is no password login, registration, password reset or Manifest MFA: passkeys, passwords and second factors live in Open Media. Scripts and agents use API keys.
 
@@ -73,6 +79,20 @@ Sensitive REST routes (API key create/rotate/revoke, DSAR erase/export) need a r
 ```bash
 # Start a sign-in (prints the Open Media authorize URL and the nonce cookie)
 curl -si "http://localhost:8000/api/auth/open-media/start?next=/ideas" | grep -i -E "^(location|set-cookie):"
+```
+
+### Manifest CLI sign-in (REST, browser + CLI)
+
+Loopback redirect + PKCE ([ADR 0003](adr/0003-manifest-cli-browser-login.md), `backend/app/routes/cli_auth_routes.py`). `manifest login` does all of this for you.
+
+- `GET /api/cli/authorize?redirect_uri=http://127.0.0.1:<port>/callback&state=<8-256 url-safe chars>&code_challenge=<S256>&code_challenge_method=S256` — browser navigation. `redirect_uri` must be `http://127.0.0.1:<port>/callback` or `http://localhost:<port>/callback`; invalid parameters get a 400 page (never a redirect). No session, a guest session, or a CLI token → `303 /login?next=/api/cli/authorize?…` (Continue with Open Media, then back). A session whose sign-in (`auth_iat`) is older than 5 minutes → `303 /api/auth/open-media/start?next=<this URL>&reauth=1` for a fresh sign-in; with `reauth=1` already set and still stale, a 401 page (no loop). Otherwise a `no-store`, non-frameable page "Allow Manifest CLI on this computer?"; **Allow** (`&confirm=<session-bound HMAC>`) redirects `303` to `redirect_uri?code=<one-time code>&state=<state>`, **Cancel** (`&deny=1`) to `redirect_uri?error=access_denied&state=<state>`. The code expires after 2 minutes and works once.
+- `POST /api/cli/token` — JSON `{"code", "code_verifier", "redirect_uri", "hostname"}`. Checks the code, PKCE verifier and redirect URI; refuses guests (`403 access_denied`) and codes whose approving browser session has been signed out. Returns `{"access_token", "token_type": "Bearer", "expires_at", "label": "Manifest CLI · <hostname>", "user": {"user_id", "email"}}`: a revocable session JWT (`kind: "cli"`, 30 days, 14-day idle timeout, `CLI_SESSION_TTL_DAYS` / `CLI_SESSION_IDLE_TIMEOUT_SECONDS`). Errors are `400 {"error": "invalid_request" | "invalid_grant", "error_description"}`. No refresh token: sign in again when it expires.
+- Revoke with `POST /api/auth/logout` and the bearer token (what `manifest logout` does), from Account → Security → Active sessions (`mySessions` returns `kind: "cli"` with the label in `userAgent`), or with `revokeAccountSession` / `revokeOtherAccountSessions`.
+
+```bash
+manifest login --base-url http://localhost:8000 && manifest whoami
+curl -s -X POST http://localhost:8000/graphql -H "Authorization: Bearer $(jq -r .token ~/.config/manifest/cli.json)" \
+  -H "Content-Type: application/json" -d '{"query":"{ mySessions { kind userAgent current } }"}'
 ```
 
 ### API key auth
@@ -105,6 +125,7 @@ Core:
 - `me`
 - `profile`
 - `account`
+- `mySessions` — the caller's sessions (`sessionId`, `current`, timestamps, `requestIp`, `userAgent`, `kind`). `kind` is `browser` or `cli`; a CLI session's `userAgent` is its label, `Manifest CLI · <hostname>`.
 - `ideas(first: Int = 100, after: String)` — lightweight `IdeaSummary` rows for the workspace sidebar; ordered by `created_at` DESC; capped at 200 per page. `after` is an opaque cursor from the previous page (base64 JSON of `{created_at, idea_id}`). List queries read denormalized `generated_asset_count` / `has_description` columns and **do not** load multi-MB document blobs.
 - `idea(ideaId)`
 
@@ -370,9 +391,12 @@ Auth:
 
 ### `/api/keys` (session/JWT)
 
+CLI: `manifest keys clients | create-client | delete-client | create | rotate | revoke | tiers | usage`.
+
 - `GET /api/keys/clients`
 - `POST /api/keys/clients`
 - `POST /api/keys/keys`
+- `POST /api/keys/keys/rotate`
 - `DELETE /api/keys/keys/{key_id}`
 - `DELETE /api/keys/clients/{client_id}`
 - `GET /api/keys/usage`

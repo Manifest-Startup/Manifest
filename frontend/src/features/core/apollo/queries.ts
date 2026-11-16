@@ -365,6 +365,7 @@ export const GET_MY_SESSIONS: TypedDocumentNode<GetMySessionsData, NoVariables> 
       lastSeenAt
       requestIp
       userAgent
+      kind
     }
   }
 `;

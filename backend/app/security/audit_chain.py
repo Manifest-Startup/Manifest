@@ -248,6 +248,14 @@ SESSION_REVOKED = _register(
         Severity.MEDIUM,
     )
 )
+CLI_SESSION_CREATED = _register(
+    EventDefinition(
+        "cli_session_created",
+        Category.SESSION,
+        Severity.MEDIUM,
+        description="A signed-in person approved a Manifest CLI session (ADR 0003).",
+    )
+)
 OTHER_SESSIONS_REVOKED = _register(
     EventDefinition(
         "other_sessions_revoked",
