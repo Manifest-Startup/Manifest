@@ -7,7 +7,7 @@ Base: `https://api.openmedia.site` (local: the URL `npm run local` prints for th
   `client_id = https://manifeststartup.com/oauth/open-media-client.json`
   (doc: `{client_id, client_name:"Manifest", client_uri:"https://manifeststartup.com", redirect_uris:["https://manifeststartup.com/api/integrations/open-media/callback"], grant_types:["authorization_code","refresh_token"], response_types:["code"], token_endpoint_auth_method:"none", scope:"account"}`).
   Open Media must accept this client for scope `account` (the "Sign in with Open Media" grant). If CIMD is not supported for this grant, OM adds an allowlist secret `OAUTH_TRUSTED_CLIENTS` instead — but the Manifest side must not change.
-- Endpoints (existing provider): `GET /authorize`, `POST /token` (authorization_code + refresh_token), discovery `/.well-known/oauth-authorization-server`. Access token ~1 h, refresh 90 d.
+- Endpoints (existing provider): `GET /authorize`, `POST /oauth/token` (authorization_code + refresh_token; read `token_endpoint` from discovery), discovery `/.well-known/oauth-authorization-server`. Access token ~1 h, refresh 90 d.
 - **REST with OAuth (new):** every `/v1/me/*` route is also reachable as `/v1/connected/me/*` with `Authorization: Bearer <OAuth access token>`. Same request/response bodies. `/v1/me/*` with Supabase session tokens keeps working unchanged.
 
 ## 2. Messaging (under `/v1/connected`)
@@ -37,7 +37,7 @@ Base: `https://api.openmedia.site` (local: the URL `npm run local` prints for th
 ## As built (Open Media final API, 2026-11-15)
 
 Differences from the text above that the Manifest adapter (`backend/app/services/integrations/open_media/`) handles:
-- Errors: `/v1/connected/*` and `/token` use `{error, error_description}`; public `/v1/posts` and `/v1/feed` use `{error:{code,message}}`.
+- Errors: `/v1/connected/*` and `/oauth/token` use `{error, error_description}`; public `/v1/posts` and `/v1/feed` use `{error:{code,message}}`.
 - Containers: public lists are `{data:[post…]}` (`/v1/feed?app=` adds `app, kind, nextCursor, next`); `GET conversations` → read `conversations`; `POST conversations` → `{id, with, conversation}`; `POST messages` → `{sent, conversationId, message}`; `POST posts` returns the post at the top level and under `post`. Posts carry extra camelCase fields, which are ignored.
 - Video upload: `Content-Length` required (411), body must match the declared type (415), optional `?duration_ms=&width=&height=` (422 possible without `moov` metadata), up to 180 s. Response `{video:{path, posterPath, durationSeconds, width, height, contentType, sha256, sizeBytes, url}}`, passed back verbatim.
 - `context`: keys limited to `app`, `idea_id`, `title`, `url` (≤ 2 KB); `url` must be https on manifeststartup.com or a subdomain.

@@ -103,7 +103,7 @@ def _error_from_response(response: httpx.Response) -> OpenMediaError:
             if isinstance(error, dict):  # public /v1/posts and /v1/feed: {error: {code, message}}
                 code = error.get("code")
                 description = error.get("message")
-            else:  # /v1/connected and /token: {error, error_description}
+            else:  # /v1/connected and /oauth/token: {error, error_description}
                 code = error
                 description = body.get("error_description") or body.get("message")
     except ValueError:
@@ -233,10 +233,10 @@ class OpenMediaClient:
     # -- OAuth token endpoint -------------------------------------------
 
     def token(self, form: dict[str, str]) -> dict[str, Any]:
-        """``POST /token`` (authorization_code or refresh_token grant)."""
+        """``POST /oauth/token`` (authorization_code or refresh_token grant)."""
         return self.request(
             "POST",
-            "/token",
+            "/oauth/token",
             data={**form, "client_id": settings.client_id()},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             idempotent=False,

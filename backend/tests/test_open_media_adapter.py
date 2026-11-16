@@ -138,7 +138,7 @@ def test_expired_access_token_is_refreshed_and_rotation_is_saved(om):
     om["store"].add(expires_in=10)  # inside the 60 s refresh margin
     om["router"].on(
         "POST",
-        "/token",
+        "/oauth/token",
         (200, {"access_token": "at-2", "refresh_token": "rt-2", "expires_in": 3600}),
     )
     om["router"].on("GET", "/v1/connected/me/conversations", (200, {"conversations": []}))
@@ -161,11 +161,11 @@ def test_a_401_refreshes_once_and_retries(om):
         (401, {"error": "invalid_token"}),
         (200, {"conversations": []}),
     )
-    om["router"].on("POST", "/token", (200, {"access_token": "at-2", "expires_in": 3600}))
+    om["router"].on("POST", "/oauth/token", (200, {"access_token": "at-2", "expires_in": 3600}))
     messaging.list_conversations("u1")
     assert [c.url.path for c in om["router"].calls] == [
         "/v1/connected/me/conversations",
-        "/token",
+        "/oauth/token",
         "/v1/connected/me/conversations",
     ]
     assert _auth(om["router"].calls[2]) == "Bearer at-2"
@@ -173,7 +173,7 @@ def test_a_401_refreshes_once_and_retries(om):
 
 def test_rejected_refresh_marks_link_for_reconnect(om):
     om["store"].add(expires_in=0)
-    om["router"].on("POST", "/token", (400, {"error": "invalid_grant"}))
+    om["router"].on("POST", "/oauth/token", (400, {"error": "invalid_grant"}))
     with pytest.raises(OpenMediaNotLinked) as exc:
         messaging.list_conversations("u1")
     assert exc.value.reconnect is True
@@ -279,7 +279,7 @@ def _start(user_id="u1"):
 def test_callback_exchanges_code_with_matching_verifier_and_stores_link(om):
     state, challenge = _start()
     om["router"].on(
-        "POST", "/token", (200, {"access_token": "at", "refresh_token": "rt", "expires_in": 3600})
+        "POST", "/oauth/token", (200, {"access_token": "at", "refresh_token": "rt", "expires_in": 3600})
     )
     om["router"].on(
         "GET", "/v1/connected/me", (200, {"id": "om-9", "handle": "ada", "display_name": "Ada"})
@@ -308,7 +308,7 @@ def test_callback_rejects_tampered_expired_and_replayed_state(om, monkeypatch):
     with pytest.raises(identity.OpenMediaLinkError, match="invalid"):
         identity.complete_link("u1", code="c", state=f"{body}x.{sig}")
 
-    om["router"].on("POST", "/token", (200, {"access_token": "at", "refresh_token": "rt"}))
+    om["router"].on("POST", "/oauth/token", (200, {"access_token": "at", "refresh_token": "rt"}))
     om["router"].on("GET", "/v1/connected/me", (200, {"id": "om-9", "handle": "ada"}))
     identity.complete_link("u1", code="c", state=state)
     with pytest.raises(identity.OpenMediaLinkError, match="already used"):
@@ -322,7 +322,7 @@ def test_callback_rejects_tampered_expired_and_replayed_state(om, monkeypatch):
 
 def test_failed_exchange_is_reported_without_storing_anything(om):
     state, _ = _start()
-    om["router"].on("POST", "/token", (400, {"error": "invalid_grant"}))
+    om["router"].on("POST", "/oauth/token", (400, {"error": "invalid_grant"}))
     with pytest.raises(identity.OpenMediaLinkError, match="sign-in failed"):
         identity.complete_link("u1", code="bad", state=state)
     assert "u1" not in om["store"].links
