@@ -468,7 +468,7 @@ export function useVoiceAppCommands() {
 
         if (
           isGuest &&
-          ['open_invest', 'toggle_follow', 'toggle_like', 'toggle_save', 'comment', 'share'].includes(command.action)
+          ['open_invest', 'toggle_follow', 'toggle_like', 'toggle_reshare', 'comment', 'share'].includes(command.action)
         ) {
           return {
             response:
@@ -493,7 +493,7 @@ export function useVoiceAppCommands() {
           share: 'Sharing the current reel.',
           toggle_follow: 'Updating the follow state for this creator.',
           toggle_like: 'Updating your like on this reel.',
-          toggle_save: 'Updating your saved state for this reel.',
+          toggle_reshare: 'Updating your Open Media repost of this reel.',
           unmute: 'Turning sound back on.',
         };
 

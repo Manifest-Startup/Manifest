@@ -1,23 +1,36 @@
 """
-Background worker: Gemini video generation for user pitch reels.
+Background worker: generate a pitch reel video with Veo and post it to Open Media.
+
+Flow per reel (``video_status``): pending → processing → ready | failed |
+needs_open_media.
+
+Cost guard (Veo is the most expensive call in Manifest):
+- nothing runs when ``OPEN_MEDIA_ENABLED`` is off or ``PITCH_REEL_VIDEO_MODE=disabled``;
+- the founder must have linked Open Media *before* Veo runs, otherwise the reel
+  waits in ``needs_open_media`` and is generated when they link;
+- at most one successful generation per idea per ``VIDEO_REGENERATION_COOLDOWN``;
+- if the upload fails after generation, the MP4 stays on local disk and the
+  next attempt re-uploads it instead of calling Veo again.
 """
 
 from __future__ import annotations
 
 import contextlib
 import os
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Thread
+from typing import Any
 
 from app.db.database import create_database_client
+from app.services.integrations.open_media import clips, identity, settings
+from app.services.integrations.open_media.client import OpenMediaError, OpenMediaNotLinked
 from app.services.pitch_reels.gemini_video import generate_pitch_video_to_path
-from app.services.pitch_reels.media import publish_reel_video_bytes
-from app.services.pitch_reels.service import USER_REEL_PLACEHOLDER_VIDEO, create_pitch_reel_service
+from app.services.pitch_reels.service import STATUS_NEEDS_OPEN_MEDIA, create_pitch_reel_service
 from app.utils.logger import logger
 
-
-def _db_video_url(reel_id: str) -> str:
-    return f"/api/pitch-reels/{reel_id}/video"
+VIDEO_REGENERATION_COOLDOWN = timedelta(days=30)
 
 
 def _temp_output_path(reel_id: str) -> Path:
@@ -25,94 +38,122 @@ def _temp_output_path(reel_id: str) -> Path:
     return root / "generated" / "pdfs" / "pitch-reels" / f"{reel_id}.mp4"
 
 
+def _parse_time(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    if isinstance(value, str) and value:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    return None
+
+
+def video_generation_enabled() -> bool:
+    mode = (os.getenv("PITCH_REEL_VIDEO_MODE") or "thread").strip().lower()
+    return settings.enabled() and mode != "disabled"
+
+
+def _post_body(title: str, thesis: str) -> str:
+    body = title.strip() or "A Manifest pitch"
+    if thesis and thesis.strip() and thesis.strip() != body:
+        body = f"{body}\n\n{thesis.strip()}"
+    return body[:500]
+
+
 def run_pitch_reel_video_job(reel_id: str, idea_title: str, idea_description: str) -> None:
-    """Sync entry point: generates video, stores bytes in DB, updates reel record."""
+    """Sync entry point (runs in a daemon thread)."""
     db = create_database_client()
     service = create_pitch_reel_service(db)
+    reel = service.get_reel(reel_id)
+    if not reel or not reel.get("is_published") or reel.get("om_post_id"):
+        return
+    creator_id = str(reel.get("creator_user_id") or "")
 
-    if not os.getenv("GOOGLE_API_KEY", "").strip():
-        logger.info(
-            "[PitchReelVideo] No GOOGLE_API_KEY; leaving reel %s on placeholder video.", reel_id
-        )
-        service.update_reel_video_fields(
-            reel_id,
-            video_status="ready",
-            video_url=USER_REEL_PLACEHOLDER_VIDEO,
-            video_generation_error=None,
-        )
+    if not identity.handle_for_user(creator_id):
+        service.update_reel_video_fields(reel_id, video_status=STATUS_NEEDS_OPEN_MEDIA)
         return
 
-    service.update_reel_video_fields(
-        reel_id,
-        video_status="processing",
-        video_generation_error=None,
-    )
-
     out_path = _temp_output_path(reel_id)
-    ok = generate_pitch_video_to_path(idea_title, idea_description, out_path)
-
-    if ok:
-        try:
-            video_bytes = out_path.read_bytes()
-            published_media = publish_reel_video_bytes(reel_id, video_bytes)
-            if published_media is not None:
-                logger.info(
-                    "[PitchReelVideo] Uploaded reel %s to object storage at %s.",
-                    reel_id,
-                    published_media.playback_url,
-                )
-                try:
-                    service.clear_reel_video_data(reel_id)
-                except Exception as clear_exc:
-                    logger.warning(
-                        "[PitchReelVideo] Could not clear legacy DB bytes for %s: %s",
-                        reel_id,
-                        clear_exc,
-                    )
-                service.update_reel_video_fields(
-                    reel_id,
-                    video_status="ready",
-                    video_url=published_media.playback_url,
-                    video_generation_error=None,
-                )
-                return
-
-            service.store_reel_video_data(reel_id, video_bytes)
-            logger.info(
-                "[PitchReelVideo] Stored %d bytes in DB for reel %s.", len(video_bytes), reel_id
-            )
-        except Exception as store_exc:
-            logger.error("[PitchReelVideo] Failed to store video in DB: %s", store_exc)
+    cached = out_path.is_file() and out_path.stat().st_size >= 32
+    if not cached:
+        generated_at = _parse_time(reel.get("video_generated_at"))
+        if generated_at and datetime.now(UTC) - generated_at < VIDEO_REGENERATION_COOLDOWN:
+            retry_after = (generated_at + VIDEO_REGENERATION_COOLDOWN).date().isoformat()
             service.update_reel_video_fields(
                 reel_id,
                 video_status="failed",
-                video_url=USER_REEL_PLACEHOLDER_VIDEO,
-                video_generation_error=f"Video generated but could not be stored: {store_exc!s:.200}",
+                video_generation_error=(
+                    "This idea already had a video recently. "
+                    f"A new one can be generated after {retry_after}."
+                ),
             )
             return
-        finally:
-            with contextlib.suppress(Exception):
-                out_path.unlink(missing_ok=True)
+        if not os.getenv("GOOGLE_API_KEY", "").strip():
+            logger.info("[PitchReelVideo] No GOOGLE_API_KEY; reel %s stays without video.", reel_id)
+            service.update_reel_video_fields(
+                reel_id,
+                video_status="failed",
+                video_generation_error="Video generation is not configured on this server.",
+            )
+            return
+        service.update_reel_video_fields(reel_id, video_status="processing")
+        if not generate_pitch_video_to_path(idea_title, idea_description, out_path):
+            service.update_reel_video_fields(
+                reel_id,
+                video_status="failed",
+                video_generation_error="Video generation failed or the API is unavailable.",
+            )
+            return
+        service.update_reel_video_fields(reel_id, video_status="processing", video_generated=True)
 
-        service.update_reel_video_fields(
-            reel_id,
-            video_status="ready",
-            video_url=_db_video_url(reel_id),
-            video_generation_error=None,
+    _publish_to_open_media(service, reel, out_path)
+
+
+def _publish_to_open_media(service: Any, reel: dict[str, Any], video_path: Path) -> None:
+    reel_id = str(reel["reel_id"])
+    creator_id = str(reel.get("creator_user_id") or "")
+    title = str(reel.get("title") or "")
+    try:
+        video = clips.upload_video(creator_id, video_path.read_bytes(), "video/mp4")
+        post = clips.create_post(
+            creator_id,
+            body=_post_body(title, str(reel.get("thesis") or "")),
+            video=video,
+            context={
+                "app": settings.APP_TAG,
+                "idea_id": str(reel.get("idea_id") or ""),
+                "title": title[:200],
+                "url": settings.clip_url(reel_id),
+            },
+            client_id=str(uuid.uuid4()),
         )
-    else:
+    except OpenMediaNotLinked:
+        # Keep the MP4 so linking again re-uploads it without another Veo call.
+        service.update_reel_video_fields(reel_id, video_status=STATUS_NEEDS_OPEN_MEDIA)
+        return
+    except (OpenMediaError, OSError, ValueError) as exc:
+        logger.error("[PitchReelVideo] Upload to Open Media failed for %s: %s", reel_id, exc)
         service.update_reel_video_fields(
             reel_id,
             video_status="failed",
-            video_url=USER_REEL_PLACEHOLDER_VIDEO,
-            video_generation_error="Video generation failed or API unavailable. Using placeholder.",
+            video_generation_error=f"Could not post the video to Open Media: {exc!s:.200}",
         )
+        return
+
+    service.update_reel_video_fields(reel_id, video_status="ready", om_post_id=post["id"])
+    with contextlib.suppress(OSError):
+        video_path.unlink(missing_ok=True)
+    logger.info("[PitchReelVideo] Reel %s posted to Open Media as %s.", reel_id, post["id"])
 
 
 def schedule_pitch_reel_video_generation(
     reel_id: str, idea_title: str, idea_description: str
 ) -> None:
-    """Fire-and-forget background thread."""
+    """Fire-and-forget background thread (no-op when Open Media or video is off)."""
+    if not video_generation_enabled():
+        return
 
     def _target() -> None:
         try:
@@ -120,8 +161,7 @@ def schedule_pitch_reel_video_generation(
         except Exception as exc:
             logger.error("[PitchReelVideo] Job crashed for %s: %s", reel_id, exc)
             try:
-                db = create_database_client()
-                create_pitch_reel_service(db).update_reel_video_fields(
+                create_pitch_reel_service(create_database_client()).update_reel_video_fields(
                     reel_id,
                     video_status="failed",
                     video_generation_error=str(exc)[:500],
@@ -130,3 +170,17 @@ def schedule_pitch_reel_video_generation(
                 logger.error("[PitchReelVideo] Failed to mark reel failed: %s", inner)
 
     Thread(target=_target, name=f"pitch-reel-video-{reel_id[:8]}", daemon=True).start()
+
+
+def resume_reels_waiting_for_open_media(user_id: str) -> int:
+    """Called after a founder links Open Media: generate and post their waiting reels."""
+    service = create_pitch_reel_service(create_database_client())
+    waiting = service.reels_waiting_for_open_media(user_id)
+    for reel in waiting:
+        service.update_reel_video_fields(str(reel["reel_id"]), video_status="pending")
+        schedule_pitch_reel_video_generation(
+            str(reel["reel_id"]),
+            str(reel.get("title") or ""),
+            str(reel.get("description") or ""),
+        )
+    return len(waiting)

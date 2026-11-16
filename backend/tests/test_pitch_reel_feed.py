@@ -1,136 +1,123 @@
-"""Feed regressions: real content, bounded queries, and nonblocking database I/O."""
-
-import asyncio
-import threading
-from unittest.mock import MagicMock
+"""Pitch Shorts feed: Manifest reels joined with Open Media clips."""
 
 import pytest
-from app.db.database import DatabaseClient, InMemoryDatabaseClient, QueryResponse
+from app.db.database import InMemoryDatabaseClient
+from app.services.integrations.open_media.client import OpenMediaUnavailable
+from app.services.pitch_reels import service as reel_service
 from app.services.pitch_reels.service import DEMO_REEL_IDS, PitchReelService
 
 
-@pytest.mark.asyncio
-async def test_samples_are_excluded_before_limit_without_hiding_real_names(monkeypatch):
-    db = InMemoryDatabaseClient()
-    for rid in DEMO_REEL_IDS:
-        db.table("pitch_reels").insert(
-            {
-                "reel_id": rid,
-                "is_published": True,
-                "created_at": "2026-09-20",
-            }
-        ).execute()
-    db.table("pitch_reels").insert(
-        {
-            "reel_id": "real-reel",
-            "title": "AquaChain",
-            "creator_user_id": "founder",
-            "is_published": True,
-            "created_at": "2026-09-01",
-            "video_url": "/videos/tutorial.mov",
-        }
-    ).execute()
-    db.table("pitch_reels").insert(
-        {
-            "reel_id": "draft",
-            "is_published": False,
-            "created_at": "2026-09-21",
-        }
-    ).execute()
-    svc = PitchReelService(db)
-    monkeypatch.setattr(svc, "_fetch_reel_ids_with_video_data", lambda _: set())
-    feed = await svc.list_feed("viewer", limit=1)
-    assert [row["reel_id"] for row in feed] == ["real-reel"]
-    assert feed[0]["title"] == "AquaChain"
-    assert feed[0]["video_url"] == ""
-
-
-@pytest.mark.parametrize("placeholder", ["/videos/tutorial.mov", "/videos/founders-video.mov"])
-def test_sample_video_is_never_used_as_a_real_pitch(placeholder):
-    assert (
-        PitchReelService._effective_video_url(
-            reel_id="real", stored_video_url=placeholder, has_video_data=False
-        )
-        == ""
-    )
-    assert (
-        PitchReelService._effective_video_url(
-            reel_id="real", stored_video_url=placeholder, has_video_data=True
-        )
-        == "/api/pitch-reels/real/video"
-    )
-
-
-@pytest.mark.asyncio
-async def test_postgres_feed_uses_one_query_and_preserves_viewer_state():
-    db = DatabaseClient()
-    db.execute_raw = MagicMock(
-        return_value=QueryResponse(
-            [
-                {
-                    "reel_id": "real",
-                    "creator_user_id": "founder",
-                    "title": "Real pitch",
-                    "video_url": "",
-                    "description": "<p>Long note content.</p>" * 1000,
-                    "has_video_data": True,
-                    "likes": 2,
-                    "saves": 3,
-                    "shares": 4,
-                    "comments": 5,
-                    "liked": True,
-                    "saved": False,
-                    "followers": 6,
-                    "following": True,
-                    "creator_record": {"username": "founder", "first_name": "Real"},
-                }
-            ]
-        )
-    )
-    svc = PitchReelService(db)
-    svc._fetch_reel_ids_with_video_data = MagicMock(side_effect=AssertionError("Extra connection"))
-    feed = await svc.list_feed("viewer", 12)
-    db.execute_raw.assert_called_once()
-    sql, params = db.execute_raw.call_args.args
-    assert params == (*DEMO_REEL_IDS, 12, "viewer", "viewer", "viewer")
-    assert "r.video_data IS NOT NULL" in sql
-    assert "SELECT r.*" not in sql
-    assert len(feed[0]["description"]) <= 641
-    assert feed[0]["description"].endswith("…")
-    assert "<p>" not in feed[0]["description"]
-    assert feed[0]["viewer_state"] == {"liked": True, "saved": False}
-    assert feed[0]["stats"] == {
-        "like_count": 2,
-        "save_count": 3,
-        "share_count": 4,
-        "comment_count": 5,
+def _reel(reel_id, *, post=None, published=True, created="2026-11-01", **extra):
+    return {
+        "reel_id": reel_id,
+        "idea_id": f"idea-{reel_id}",
+        "creator_user_id": "founder",
+        "title": f"Title {reel_id}",
+        "description": "<p>Long note content.</p>" * 200,
+        "om_post_id": post,
+        "video_status": "ready" if post else "pending",
+        "is_published": published,
+        "created_at": created,
+        **extra,
     }
-    assert feed[0]["creator"]["is_following"] is True
-    assert feed[0]["creator"]["follower_count"] == 6
-    assert feed[0]["video_url"] == "/api/pitch-reels/real/video"
+
+
+def _clip(post_id, **extra):
+    return {
+        "id": post_id,
+        "video_url": f"https://cdn.openmedia.site/{post_id}.mp4",
+        "poster_url": None,
+        "author": {"id": "om-founder", "handle": "founder", "display_name": "F", "avatar_url": None},
+        "like_count": 3,
+        "comment_count": 2,
+        "reshare_count": 1,
+        "viewer_liked": True,
+        "viewer_reshared": False,
+        **extra,
+    }
+
+
+@pytest.fixture
+def db():
+    store = InMemoryDatabaseClient()
+    store.table("users").insert({"user_id": "founder", "username": "founder", "first_name": "Ada"}).execute()
+    return store
 
 
 @pytest.mark.asyncio
-async def test_database_wait_does_not_block_other_requests():
-    db = DatabaseClient()
-    entered = threading.Event()
-    release = threading.Event()
+async def test_feed_joins_clips_in_open_media_order_then_waiting_reels(db, monkeypatch):
+    for row in (
+        _reel("a", post="p-a", created="2026-11-03"),
+        _reel("b", post="p-b", created="2026-11-02"),
+        _reel("waiting", created="2026-11-04"),
+        _reel("draft", post="p-draft", published=False),
+        _reel(DEMO_REEL_IDS[0], post="p-demo"),
+    ):
+        db.table("pitch_reels").insert(row).execute()
+    seen = {}
 
-    def blocking_query(*_):
-        entered.set()
-        assert release.wait(timeout=2)
-        return QueryResponse([])
+    def fake_feed(viewer):
+        seen["viewer"] = viewer
+        return [_clip("p-b"), _clip("p-unknown"), _clip("p-a", viewer_liked=False), _clip("p-demo")]
 
-    db.execute_raw = blocking_query
-    task = asyncio.create_task(PitchReelService(db).list_feed("viewer"))
-    try:
-        # The event loop can still schedule work while PostgreSQL is waiting.
-        for _ in range(100):
-            if entered.is_set():
-                break
-            await asyncio.sleep(0.005)
-        assert entered.is_set()
-        assert not task.done()
-    finally:
-        release.set()
-    assert await task == []
+    monkeypatch.setattr(reel_service.clips, "feed", fake_feed)
+    feed = await PitchReelService(db).list_feed("viewer", limit=10)
+
+    assert seen["viewer"] == "viewer"
+    assert [row["reel_id"] for row in feed] == ["b", "a", "waiting"]
+    first = feed[0]
+    assert first["video_url"] == "https://cdn.openmedia.site/p-b.mp4"
+    assert first["stats"] == {"like_count": 3, "comment_count": 2, "share_count": 1}
+    assert first["viewer_state"] == {"liked": True, "reshared": False}
+    assert first["creator"]["handle"] == "founder"
+    assert feed[1]["viewer_state"]["liked"] is False
+    assert len(first["description"]) <= 641 and "<p>" not in first["description"]
+    assert feed[2]["video_url"] == "" and feed[2]["video_status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_feed_survives_an_open_media_outage(db, monkeypatch):
+    db.table("pitch_reels").insert(_reel("a", post="p-a")).execute()
+
+    def down(viewer):
+        raise OpenMediaUnavailable("down", status=503)
+
+    monkeypatch.setattr(reel_service.clips, "feed", down)
+    feed = await PitchReelService(db).list_feed("viewer")
+    assert [row["reel_id"] for row in feed] == []  # clip-backed reels need Open Media
+
+
+@pytest.mark.asyncio
+async def test_feed_respects_limit(db, monkeypatch):
+    for idx in range(5):
+        db.table("pitch_reels").insert(_reel(f"r{idx}", post=f"p{idx}")).execute()
+    monkeypatch.setattr(reel_service.clips, "feed", lambda v: [_clip(f"p{i}") for i in range(5)])
+    feed = await PitchReelService(db).list_feed("viewer", limit=2)
+    assert [row["reel_id"] for row in feed] == ["r0", "r1"]
+
+
+@pytest.mark.asyncio
+async def test_empty_feed_does_not_call_open_media(db, monkeypatch):
+    def boom(viewer):
+        raise AssertionError("no reels, no Open Media call")
+
+    monkeypatch.setattr(reel_service.clips, "feed", boom)
+    assert await PitchReelService(db).list_feed("viewer") == []
+
+
+@pytest.mark.asyncio
+async def test_like_requires_a_posted_clip(db, monkeypatch):
+    db.table("pitch_reels").insert(_reel("waiting")).execute()
+    db.table("pitch_reels").insert(_reel("a", post="p-a")).execute()
+    calls = []
+    monkeypatch.setattr(
+        reel_service.clips,
+        "set_like",
+        lambda uid, pid, liked: calls.append((uid, pid, liked)) or {"like_count": 4},
+    )
+    svc = PitchReelService(db)
+    with pytest.raises(ValueError, match="not ready"):
+        await svc.set_like("waiting", "viewer", True)
+    result = await svc.set_like("a", "viewer", True)
+    assert calls == [("viewer", "p-a", True)]
+    assert result == {"reel_id": "a", "liked": True, "like_count": 4}

@@ -4,6 +4,7 @@ import { useQuery, useReactiveVar } from "@apollo/client/react";
 
 import { performLogout } from "features/auth/logout";
 import { GET_UNREAD_MESSAGE_COUNT } from "features/core/apollo/queries";
+import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 
 import Button from "features/common-ui/Button";
 import { accountVar, userVar } from "features/core/apollo/localState";
@@ -36,8 +37,9 @@ const NavigationBar: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const openMedia = useOpenMediaLink();
   const { data: unreadData } = useQuery(GET_UNREAD_MESSAGE_COUNT, {
-    skip: !isLoggedIn,
+    skip: !isLoggedIn || !openMedia.ready,
     pollInterval: 120000,
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
@@ -49,9 +51,12 @@ const NavigationBar: React.FC = () => {
       { label: "Ideas", path: "/ideas", matchStartsWith: true },
       // #25: canonical URL aligned with the user-visible label ("Pitch Reels").
       // Legacy /shorts redirects to this path so old bookmarks keep working.
-      { label: "Pitch Reels", path: "/pitch-reels", matchStartsWith: true },
+      // Hidden when this server runs without Open Media (pitch shorts live there).
+      ...(openMedia.enabled
+        ? [{ label: "Pitch Reels", path: "/pitch-reels", matchStartsWith: true }]
+        : []),
     ],
-    [],
+    [openMedia.enabled],
   );
 
   useEffect(() => {
@@ -128,12 +133,14 @@ const NavigationBar: React.FC = () => {
 
   const dropdownItems: DropdownItem[] = useMemo(
     () => [
-      { label: "Messages", path: "/messages", badgeCount: unreadTotal > 0 ? unreadTotal : undefined },
+      ...(openMedia.enabled
+        ? [{ label: "Messages", path: "/messages", badgeCount: unreadTotal > 0 ? unreadTotal : undefined }]
+        : []),
       { label: "Account", path: "/account" },
       { label: "Docs", path: "/docs" },
       { label: "Logout", action: handleLogout },
     ],
-    [handleLogout, unreadTotal],
+    [handleLogout, openMedia.enabled, unreadTotal],
   );
 
   const isActive = (item: NavItem) =>

@@ -296,8 +296,8 @@ from app.routes.dsar_routes import router as dsar_router
 from app.routes.integration_routes import router as integration_router
 from app.routes.oauth_routes import router as oauth_router
 from app.routes.oauth_routes import validate_oauth_config
+from app.routes.open_media_routes import router as open_media_router
 from app.routes.ops_internal_routes import router as ops_internal_router
-from app.routes.pitch_reel_routes import router as pitch_reel_router
 from app.routes.privacy_routes import router as privacy_router
 from app.routes.production_signal_routes import router as production_signal_router
 from app.routes.production_test_routes import router as production_test_router
@@ -329,7 +329,7 @@ app.include_router(production_signal_router)
 app.include_router(production_test_router)
 app.include_router(bug_fix_router)
 app.include_router(ops_internal_router)
-app.include_router(pitch_reel_router)
+app.include_router(open_media_router)
 app.include_router(sso_router)
 app.include_router(scim_router)
 app.include_router(step_up_router)
@@ -605,7 +605,6 @@ def _run_startup_migrations() -> None:  # noqa: C901
                     "ALTER TABLE pitch_reels ADD COLUMN IF NOT EXISTS idea_id UUID;",
                     "ALTER TABLE pitch_reels ADD COLUMN IF NOT EXISTS video_status VARCHAR(50);",
                     "ALTER TABLE pitch_reels ADD COLUMN IF NOT EXISTS video_generation_error TEXT;",
-                    "ALTER TABLE pitch_reels ADD COLUMN IF NOT EXISTS video_data BYTEA;",
                     "CREATE UNIQUE INDEX IF NOT EXISTS idx_pitch_reels_idea_id_unique ON pitch_reels(idea_id) WHERE idea_id IS NOT NULL;",
                 ]:
                     try:

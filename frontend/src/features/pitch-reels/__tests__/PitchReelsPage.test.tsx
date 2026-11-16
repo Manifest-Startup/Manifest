@@ -10,7 +10,14 @@ import {
 import { MockedProvider } from "@apollo/client/testing/react";
 
 import { userVar } from "features/core/apollo/localState";
-import { GET_PITCH_REELS_FEED } from "features/core/apollo/queries";
+import {
+  CREATE_PITCH_REEL_COMMENT,
+  GET_PITCH_REEL_COMMENTS,
+  GET_PITCH_REELS_FEED,
+  RESHARE_PITCH_REEL,
+  TOGGLE_FOLLOW,
+  TOGGLE_PITCH_REEL_LIKE,
+} from "features/core/apollo/queries";
 
 import PitchReelsPage from "../PitchReelsPage";
 
@@ -40,21 +47,70 @@ const buildReel = (overrides: Record<string, unknown> = {}) => ({
     followerCount: 12,
     isFollowing: false,
   },
+  posterUrl: null,
   stats: {
     likeCount: 2,
     commentCount: 1,
-    saveCount: 0,
     shareCount: 3,
   },
   viewerState: {
     liked: false,
-    saved: false,
+    reshared: false,
   },
   ...overrides,
 });
 
+const COMMENT = {
+  __typename: "PitchReelComment",
+  commentId: "c1",
+  reelId: "aqua-chain",
+  authorId: "om-viewer",
+  authorName: "Viewer",
+  authorHandle: "viewer",
+  authorAvatar: null,
+  body: "This feels strong on compliance and audit trail.",
+  createdAt: "2025-01-02T00:00:00.000Z",
+  isMine: true,
+};
+
+/** Open Media mutation and comment mocks used by the default render. */
+const buildSocialMocks = () => [
+  {
+    maxUsageCount: 5,
+    request: { query: TOGGLE_PITCH_REEL_LIKE, variables: { reelId: "aqua-chain", liked: true } },
+    result: { data: { togglePitchReelLike: { reelId: "aqua-chain", liked: true, likeCount: 3 } } },
+  },
+  {
+    maxUsageCount: 5,
+    request: { query: RESHARE_PITCH_REEL, variables: { reelId: "aqua-chain", reshared: true } },
+    result: { data: { resharePitchReel: { reelId: "aqua-chain", reshared: true, shareCount: 4 } } },
+  },
+  {
+    maxUsageCount: 5,
+    request: { query: TOGGLE_FOLLOW, variables: { followedId: "creator-manifest-lab" } },
+    result: { data: { toggleFollow: { following: true, followedId: "creator-manifest-lab" } } },
+  },
+  {
+    request: { query: GET_PITCH_REEL_COMMENTS, variables: { reelId: "aqua-chain", limit: 120 } },
+    result: { data: { pitchReelComments: [] } },
+  },
+  {
+    request: {
+      query: CREATE_PITCH_REEL_COMMENT,
+      variables: { reelId: "aqua-chain", body: COMMENT.body },
+    },
+    result: { data: { createPitchReelComment: { comment: COMMENT } } },
+  },
+  {
+    maxUsageCount: 5,
+    request: { query: GET_PITCH_REEL_COMMENTS, variables: { reelId: "aqua-chain", limit: 120 } },
+    result: { data: { pitchReelComments: [COMMENT] } },
+  },
+];
+
 /** Fresh mocks per render — MockedProvider consumes each mock once. */
 const buildDefaultFeedMocks = () => [
+  ...buildSocialMocks(),
   {
     maxUsageCount: 20,
     request: { query: GET_PITCH_REELS_FEED, variables: { limit: 12 } },
@@ -104,6 +160,24 @@ const renderShortsWithMocks = (mocks: any[]) =>
   );
 
 const mockNavigate = jest.fn();
+const linkedOpenMedia = {
+  loading: false,
+  enabled: true,
+  ready: true,
+  status: {
+    enabled: true,
+    linked: true,
+    needsReconnect: false,
+    handle: "viewer",
+    displayName: "Viewer",
+    connectUrl: "/api/integrations/open-media/connect",
+  },
+  connectUrl: "/api/integrations/open-media/connect",
+};
+let mockOpenMedia = linkedOpenMedia;
+jest.mock("features/open-media/useOpenMediaLink", () => ({
+  useOpenMediaLink: () => mockOpenMedia,
+}));
 const mockPlay = jest.fn().mockResolvedValue(undefined);
 const mockPause = jest.fn();
 const mockLoad = jest.fn();
@@ -166,7 +240,7 @@ jest.mock("react-router-dom", () => ({
 describe("PitchReelsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    window.localStorage.clear();
+    mockOpenMedia = linkedOpenMedia;
     userVar({
       isLoggedIn: true,
       userData: { userId: "viewer-investor-1", email: "inv@example.com" },
@@ -564,19 +638,59 @@ describe("PitchReelsPage", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("toggles save state", async () => {
+  it("reposts a reel to Open Media", async () => {
     renderShorts();
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /Save AquaChain/i }),
-      ).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Save AquaChain/i }));
+    const repost = await screen.findByRole("button", { name: /^Repost AquaChain/i });
+    fireEvent.click(repost);
 
     expect(
-      screen.getByRole("button", { name: /Unsave AquaChain/i }),
+      await screen.findByRole("button", { name: /Undo repost of AquaChain/i }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Reposted to Open Media.")).toBeInTheDocument();
+  });
+
+  it("has no save action (Open Media has no saves)", async () => {
+    renderShorts();
+    await screen.findByTestId("short-clip-aqua-chain");
+    expect(screen.queryByRole("button", { name: /Save AquaChain/i })).not.toBeInTheDocument();
+  });
+
+  it("asks unlinked viewers to connect Open Media before liking", async () => {
+    mockOpenMedia = {
+      ...linkedOpenMedia,
+      ready: false,
+      status: { ...linkedOpenMedia.status, linked: false, handle: null as unknown as string },
+    };
+    renderShorts();
+
+    const likeButton = await screen.findByRole("button", { name: /Like AquaChain/i });
+    expect(screen.getByTestId("shorts-connect-banner")).toBeInTheDocument();
+    fireEvent.click(likeButton);
+
+    expect(await screen.findByText(/Connect Open Media in Account settings/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Like AquaChain/i })).toBeInTheDocument();
+  });
+
+  it("explains when Pitch Shorts are not available on this server", () => {
+    mockOpenMedia = { ...linkedOpenMedia, enabled: false, ready: false };
+    renderShortsWithMocks([]);
+    expect(screen.getByTestId("shorts-unavailable")).toBeInTheDocument();
+  });
+
+  it("tells viewers a reel is waiting for its founder to connect", async () => {
+    renderShortsWithMocks([
+      {
+        request: { query: GET_PITCH_REELS_FEED, variables: { limit: 12 } },
+        result: {
+          data: {
+            pitchReelsFeed: [buildReel({ videoUrl: "", videoStatus: "needs_open_media" })],
+          },
+        },
+      },
+    ]);
+    expect(
+      await screen.findByText("Waiting for the founder to connect Open Media"),
     ).toBeInTheDocument();
   });
 

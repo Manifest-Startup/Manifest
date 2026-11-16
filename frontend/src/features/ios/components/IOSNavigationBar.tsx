@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useMessage } from "features/notifications/context/MessageContext";
 import { useQuery } from '@apollo/client/react';
 import { GET_UNREAD_MESSAGE_COUNT } from 'features/core/apollo/queries';
+import { useOpenMediaLink } from 'features/open-media/useOpenMediaLink';
 import { useReactiveVar } from "@apollo/client/react";
 import { userVar, accountVar } from "features/core/apollo/localState";
 import { getAvatarUrl } from "features/account/utils/gravatar";
@@ -23,8 +24,9 @@ const IOSNavigationBar: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const { isLoggedIn } = useReactiveVar(userVar);
   const { accountData } = useReactiveVar(accountVar);
+  const openMedia = useOpenMediaLink();
   const { data: unreadData } = useQuery(GET_UNREAD_MESSAGE_COUNT, {
-    skip: !isLoggedIn,
+    skip: !isLoggedIn || !openMedia.ready,
     pollInterval: 120000,
     fetchPolicy: 'cache-first',
     nextFetchPolicy: 'cache-first',
@@ -85,21 +87,23 @@ const IOSNavigationBar: React.FC = () => {
                     onClick={() => setShowMenu(false)}
                   />
                   <div className="absolute end-[max(1rem,env(safe-area-inset-right,0px))] top-full z-50 mt-2 w-[min(14rem,calc(100vw-2rem))] rounded-2xl border border-gray-100 bg-white py-2 shadow-xl animate-scale-in transition-colors dark:border-neutral700 dark:bg-neutral800">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        safeNavigate(navigate, setMessage, "/messages");
-                        setShowMenu(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-neutral700 active:bg-gray-100 dark:active:bg-neutral600 transition-colors flex items-center justify-between gap-2"
-                    >
-                      <span>Messages</span>
-                      {unreadTotal > 0 ? (
-                        <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-neutral900 px-2 text-xs font-bold text-white dark:bg-white dark:text-neutral900">
-                          {unreadTotal > 9 ? '9+' : unreadTotal}
-                        </span>
-                      ) : null}
-                    </button>
+                    {openMedia.enabled ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeNavigate(navigate, setMessage, "/messages");
+                          setShowMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-neutral700 active:bg-gray-100 dark:active:bg-neutral600 transition-colors flex items-center justify-between gap-2"
+                      >
+                        <span>Messages</span>
+                        {unreadTotal > 0 ? (
+                          <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-neutral900 px-2 text-xs font-bold text-white dark:bg-white dark:text-neutral900">
+                            {unreadTotal > 9 ? '9+' : unreadTotal}
+                          </span>
+                        ) : null}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => {

@@ -5,6 +5,8 @@ import { GET_MY_CONVERSATIONS } from "features/core/apollo/queries";
 import { resolveBackendAssetUrl } from "features/core/network/urls";
 import type { Conversation } from "features/core/apollo/operationTypes";
 
+import { MESSAGES_FALLBACK_POLL_MS } from "../hooks/useLiveMessages";
+
 interface ConversationsListProps {
   onSelectConversation: (conv: Conversation) => void;
   selectedConversationId?: string;
@@ -24,7 +26,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
   const { data, loading, error } = useQuery(GET_MY_CONVERSATIONS, {
     variables: { limit: 50, offset: 0 },
     skip: !shouldLoadConversations,
-    pollInterval: 30000,
+    pollInterval: MESSAGES_FALLBACK_POLL_MS,
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
   });
@@ -130,7 +132,12 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="truncate text-sm font-semibold text-neutral900 dark:text-white">{conversation.otherUserName}</p>
+                  <p className="truncate text-sm font-semibold text-neutral900 dark:text-white">
+                    {conversation.otherUserName}
+                    {conversation.otherUserHandle ? (
+                      <span className="ml-1 font-normal text-gray500 dark:text-gray400">@{conversation.otherUserHandle}</span>
+                    ) : null}
+                  </p>
                   <span className="text-xs font-medium text-gray500 dark:text-gray400">{formatTime(conversation.lastMessageAt)}</span>
                 </div>
                 {conversation.ideaTitle ? (

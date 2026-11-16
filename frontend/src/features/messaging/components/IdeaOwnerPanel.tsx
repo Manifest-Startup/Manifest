@@ -9,7 +9,10 @@ import { GET_IDEA_CORE, GET_IDEA_OWNER, START_CONVERSATION } from "features/core
 import { resolveBackendAssetUrl } from "features/core/network/urls";
 import { createLogger } from "features/core/logError";
 import { useMessage } from "features/notifications/context/MessageContext";
+import OpenMediaConnectPrompt from "features/open-media/OpenMediaConnectPrompt";
+import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 
+import { useLiveMessages } from "../hooks/useLiveMessages";
 import ChatPanel from "./ChatPanel";
 
 const logger = createLogger("IdeaOwnerPanel");
@@ -32,6 +35,8 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { userData } = useReactiveVar(userVar);
   const { setMessage } = useMessage();
+  const openMedia = useOpenMediaLink();
+  useLiveMessages(showChat && openMedia.ready);
 
   const {
     data: coreData,
@@ -123,10 +128,11 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
     );
   }
 
-  const canMessageFounder = Boolean(owner?.canMessage) && !isOwnIdea;
+  const canMessageFounder = Boolean(owner?.canMessage) && !isOwnIdea && openMedia.ready;
+  const founderNotLinked = Boolean(owner?.isPublished) && !owner?.openMediaHandle;
 
   const handleStartChat = async () => {
-    if (!owner || isOwnIdea || !owner.canMessage) {
+    if (!owner || isOwnIdea || !canMessageFounder) {
       return;
     }
 
@@ -144,7 +150,10 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
       }
     } catch (err) {
       logger.error("Failed to start conversation:", err);
-      setMessage("Unable to start a conversation right now.", "error");
+      setMessage(
+        err instanceof Error && err.message ? err.message : "Unable to start a conversation right now.",
+        "error",
+      );
     }
   };
 
@@ -230,46 +239,69 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
             <div className="min-w-0 flex-1">
               <h4 className="text-xl font-semibold tracking-[-0.02em] text-neutral900 dark:text-white">{ownerName}</h4>
               <div className="mt-2 flex flex-wrap gap-2">
-                <span className="manifest-pill">{canMessageFounder ? "Open to messages" : "Not published"}</span>
+                <span className="manifest-pill">
+                  {!owner.isPublished ? "Not published" : founderNotLinked ? "Not on Open Media" : "Open to messages"}
+                </span>
                 {owner.ideaTitle ? <span className="manifest-pill">{owner.ideaTitle}</span> : null}
               </div>
               {owner.bio ? <p className="mt-3 text-sm leading-6 text-gray500 dark:text-gray400">{owner.bio}</p> : null}
             </div>
           </div>
 
-          <div className="manifest-panel-muted p-4">
-            <p className="text-sm font-semibold text-neutral900 dark:text-white">
-              {canMessageFounder ? "Message founder" : "Founder messaging"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-gray500 dark:text-gray400">
-              {canMessageFounder
-                ? "Ask questions or discuss next steps."
-                : "This idea is not published yet, so only the owner can see full collaboration options."}
-            </p>
-            <button
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-neutral900 px-4 py-3 text-sm font-semibold text-white shadow-none hover:bg-stone50 dark:hover:bg-neutral800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-neutral900"
-              disabled={startingConversation || !canMessageFounder}
-              onClick={handleStartChat}
-              data-testid="message-founder-button"
-            >
-              {startingConversation ? (
-                <>
-                  <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Starting chat...</span>
-                </>
+          {openMedia.enabled ? (
+            <div className="manifest-panel-muted p-4" data-testid="founder-messaging">
+              <p className="text-sm font-semibold text-neutral900 dark:text-white">
+                {canMessageFounder ? "Message founder" : "Founder messaging"}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-gray500 dark:text-gray400">
+                {!owner.isPublished
+                  ? "This idea is not published yet, so only the owner can see full collaboration options."
+                  : founderNotLinked
+                    ? "This founder hasn't connected Open Media yet, so they can't receive messages."
+                    : "Ask questions or discuss next steps. Messages are sent through Open Media."}
+              </p>
+              {owner.isPublished && !founderNotLinked && !openMedia.ready && !openMedia.loading ? (
+                <div className="mt-4">
+                  <OpenMediaConnectPrompt
+                    compact
+                    purpose="message founders"
+                    reconnect={Boolean(openMedia.status?.needsReconnect)}
+                    connectUrl={openMedia.connectUrl}
+                  />
+                </div>
               ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <span>{canMessageFounder ? "Message founder" : "Publish to message"}</span>
-                </>
+                <button
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-neutral900 px-4 py-3 text-sm font-semibold text-white shadow-none hover:bg-stone50 dark:hover:bg-neutral800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-neutral900"
+                  disabled={startingConversation || !canMessageFounder}
+                  onClick={handleStartChat}
+                  data-testid="message-founder-button"
+                >
+                  {startingConversation ? (
+                    <>
+                      <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span>Starting chat...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <span>
+                        {!owner.isPublished
+                          ? "Publish to message"
+                          : founderNotLinked
+                            ? "Founder not on Open Media yet"
+                            : "Message founder"}
+                      </span>
+                    </>
+                  )}
+                </button>
               )}
-            </button>
-          </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </>

@@ -18,13 +18,17 @@ describe("Seeded persona sign-in smoke", () => {
   });
 });
 
-describe("Pitch Shorts social interactions", () => {
+// Likes, reposts and comments run on Open Media: run with CYPRESS_openMedia=1 against a local
+// Open Media (npm run local) after the persona has linked it in Account settings.
+const describeWithOpenMedia = Cypress.env("openMedia") ? describe : describe.skip;
+
+describeWithOpenMedia("Pitch Shorts social interactions", () => {
   beforeEach(() => {
     cy.loginAsPersona("alice-chen");
     openShorts();
   });
 
-  it("Alice Chen can exercise like, save, follow, share, comment, and invest flows", () => {
+  it("Alice Chen can exercise like, repost, follow, share, comment, and invest flows", () => {
     const commentText = `Alice Chen social pass ${Date.now()}`;
 
     cy.get('[data-testid^="short-clip-"]').first().as("clip");
@@ -39,11 +43,11 @@ describe("Pitch Shorts social interactions", () => {
       });
 
     cy.get("@clip")
-      .find('[data-testid^="short-save-"]')
+      .find('[data-testid^="short-repost-"]')
       .invoke("attr", "aria-label")
       .then((label) => {
-        const expectedToast = label?.startsWith("Unsave") ? "Removed from saved." : "Saved reel.";
-        cy.get("@clip").find('[data-testid^="short-save-"]').click({ force: true });
+        const expectedToast = label?.startsWith("Undo repost") ? "Repost removed." : "Reposted to Open Media.";
+        cy.get("@clip").find('[data-testid^="short-repost-"]').click({ force: true });
         cy.get('[data-testid="shorts-feedback"]', { timeout: 10000 }).should("contain.text", expectedToast);
       });
 

@@ -6,7 +6,10 @@ const openShorts = () => {
   cy.get('[data-testid="shorts-page"]', { timeout: 15000 }).should("be.visible");
 };
 
-describe("Cross-user social state smoke", () => {
+// Reel likes run on Open Media: run with CYPRESS_openMedia=1 (see social_pitch_shorts.cy.js).
+const describeWithOpenMedia = Cypress.env("openMedia") ? describe : describe.skip;
+
+describeWithOpenMedia("Cross-user social state smoke", () => {
   it("keeps reel like state scoped to the current user", () => {
     let clipTestId = "";
     let bobInitialLabel = "";

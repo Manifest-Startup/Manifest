@@ -256,8 +256,8 @@ export const parseVoiceCommand = (spokenText: string): VoiceCommandIntent | null
     return { kind: 'shorts', action: 'toggle_like' };
   }
 
-  if (/\b(save|unsave)\b.*\b(reel|clip)\b/i.test(normalized)) {
-    return { kind: 'shorts', action: 'toggle_save' };
+  if (/\b(repost|reshare|unrepost)\b.*\b(reel|clip)\b/i.test(normalized)) {
+    return { kind: 'shorts', action: 'toggle_reshare' };
   }
 
   if (/\b(follow|unfollow)\b.*\b(creator|founder|reel|clip)\b/i.test(normalized)) {

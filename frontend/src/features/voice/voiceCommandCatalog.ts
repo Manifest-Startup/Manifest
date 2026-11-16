@@ -74,7 +74,7 @@ export const VOICE_COMMAND_CATALOG: VoiceCommandDescriptor[] = [
     examples: [
       'Next reel',
       'Like this reel',
-      'Save this reel',
+      'Repost this reel',
       'Follow this creator',
       'Open comments',
       'Open invest',

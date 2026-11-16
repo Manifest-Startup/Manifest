@@ -15,7 +15,7 @@ Manifest MCP Server enables AI agents (like Claude, GPT, and others) to interact
 
 The consumer web app now also exposes a deterministic voice command catalog at `GET /api/voice-agent/capabilities`, so UI voice sessions and external agents can reason about the same app-control surface when documenting or mirroring behavior.
 
-Session-scoped product features (pitch reel feed, publishing ideas, founder messaging, unread counts) are exposed primarily through **`POST /graphql`** with user JWT or cookies—not through the API-key REST surface. Agents that need those flows should use GraphQL or an authenticated browser context; see the repo root `docs/API.md` and `docs/public/api/index.html`. Publishing syncs `pitch_reels` and may schedule server-side video generation (configurable via env in `docs/API.md`).
+Session-scoped product features (pitch reel feed, publishing ideas, founder messaging, unread counts) are exposed primarily through **`POST /graphql`** with user JWT or cookies—not through the API-key REST surface. Agents that need those flows should use GraphQL or an authenticated browser context; see the repo root `docs/API.md` and `docs/public/api/index.html`. Publishing syncs `pitch_reels` and may schedule server-side video generation (configurable via env in `docs/API.md`). Founder messaging and pitch-reel likes/comments run on the user's linked Open Media account (`openMediaLink`).
 
 This package targets a running Manifest deployment and mirrors the contracts documented
 in the repo's `docs/API.md`. If a tool returns a 401, 403, or 404, first verify

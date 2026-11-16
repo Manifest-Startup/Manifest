@@ -8,6 +8,7 @@ import { getAvatarUrl, normalizeGravatarInput } from "features/account/utils/gra
 import IOSPageWrapper from "../components/IOSPageWrapper";
 import AiKeySection from "features/account/components/AiKeySection";
 import IntegrationsSection from "features/account/components/IntegrationsSection";
+import OpenMediaSection from "features/account/components/OpenMediaSection";
 import ApiAccessSection from "features/account/components/ApiAccessSection";
 import PrivacyControlsPanel from "features/account/components/PrivacyControlsPanel";
 import SecuritySettingsPanel from "features/account/components/SecuritySettingsPanel";
@@ -377,6 +378,12 @@ const IOSAccountPage: React.FC = () => {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Your OpenAI key</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">AI features run on your own OpenAI account. The key is verified, encrypted, and never shown again.</p>
               <AiKeySection />
+            </div>
+
+            <div id="open-media" className="bg-white dark:bg-neutral800 rounded-xl p-4 shadow-none border border-gray-100 dark:border-neutral700 transition-colors">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Connect Open Media</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Messages and Pitch Shorts run on your Open Media account.</p>
+              <OpenMediaSection />
             </div>
 
             <IntegrationsSection />

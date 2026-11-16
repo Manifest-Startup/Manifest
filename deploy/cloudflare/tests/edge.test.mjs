@@ -11,10 +11,13 @@ import {
 test("routes backend paths to origin and everything else to static assets", () => {
   for (const p of ["/graphql", "/graphql/", "/socket.io/?EIO=4", "/api/v1/ideas", "/auth/login",
     "/scim/v2/Users", "/trust", "/openapi.json", "/.well-known/api-catalog", "/agents.md",
-    "/internal/openapi.json", "/ping", "/health", "/healthz", "/generated/pdfs/a/b.pdf"]) {
+    "/internal/openapi.json", "/ping", "/health", "/healthz", "/generated/pdfs/a/b.pdf",
+    "/api/integrations/open-media/connect", "/api/integrations/open-media/callback",
+    "/api/webhooks/open-media"]) {
     assert.equal(isBackendPath(p.split("?")[0]), true, p);
   }
-  for (const p of ["/", "/ideas/123", "/assets/index.js", "/apiary", "/authors", "/trusty", "/robots.txt"]) {
+  for (const p of ["/", "/ideas/123", "/assets/index.js", "/apiary", "/authors", "/trusty", "/robots.txt",
+    "/oauth/open-media-client.json"]) {
     assert.equal(isBackendPath(p), false, p);
   }
 });

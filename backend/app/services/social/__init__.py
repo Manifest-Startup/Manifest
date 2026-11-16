@@ -1,1 +1,1 @@
-"""People connecting: follows, direct messages and investments."""
+"""People connecting: follows and investments (direct messages live in Open Media)."""

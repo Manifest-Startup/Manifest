@@ -15,7 +15,7 @@ Manifest currently writes some generated assets under `generated/` on the API ho
 
 | Asset type | Typical path / source | Notes |
 |------------|----------------------|--------|
-| Pitch reel video | `generated/pdfs/pitch-reels/` | See `pitch_reels/video_worker.py`; production checklist in [docs/API.md](API.md). |
+| Pitch reel video | — | **Superseded (November 2026):** pitch reel videos are uploaded to Open Media and served from there ([adr/0001](adr/0001-open-media-for-messages-and-pitch-shorts.md)). The Supabase `pitch-reels` bucket code and `PITCH_REEL_STORAGE_*` / `PITCH_REEL_ENABLE_HLS` / `PITCH_REEL_FFMPEG_PATH` settings were removed. |
 | Patents / PDFs | `generated/pdfs/` (and related helpers) | Audit `patent_pdf_utils` and download routes for current file naming. |
 | Other generated documents | Same tree as applicable | Inventory during implementation. |
 

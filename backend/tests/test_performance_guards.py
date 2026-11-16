@@ -7,7 +7,6 @@ import pytest
 from app.db.database import InMemoryDatabaseClient, begin_query_metrics, end_query_metrics
 from app.graphql.schema import Query
 from app.services.social.investments import InvestmentService
-from app.services.social.messaging import MessagingService
 from app.services.social.graph import SocialGraphService
 
 
@@ -60,65 +59,6 @@ def test_database_pool_is_reused_for_postgres_connections(monkeypatch):
     assert second_from_pool is True
     assert FakePool.instances == 1
     assert database._db_pool.getconn_count == 2
-
-
-@pytest.mark.asyncio
-async def test_messaging_conversations_have_constant_lookup_budget():
-    store = {}
-    _seed_users(store)
-    store["ideas"] = [{"idea_id": f"idea-{idx}", "title": f"Idea {idx}"} for idx in range(50)]
-    store["conversations"] = [
-        {
-            "conversation_id": f"conversation-{idx}",
-            "participant_1": "user-0",
-            "participant_2": f"user-{idx + 1}",
-            "idea_id": f"idea-{idx}",
-            "last_message_at": f"2026-04-25T00:{idx:02d}:00",
-            "participant_1_unread_count": 0,
-            "participant_2_unread_count": 0,
-        }
-        for idx in range(50)
-    ]
-    service = MessagingService(InMemoryDatabaseClient(store))
-
-    token = _measure_queries()
-    conversations = await service.get_user_conversations("user-0", limit=50, offset=0)
-    metrics = _finish_queries(token)
-
-    assert len(conversations) == 50
-    assert metrics["query_count"] <= 3
-
-
-@pytest.mark.asyncio
-async def test_conversation_messages_batch_sender_profiles():
-    store = {}
-    _seed_users(store)
-    store["conversations"] = [
-        {
-            "conversation_id": "conversation-1",
-            "participant_1": "user-0",
-            "participant_2": "user-1",
-            "idea_id": None,
-        }
-    ]
-    store["messages"] = [
-        {
-            "message_id": f"message-{idx}",
-            "conversation_id": "conversation-1",
-            "sender_id": f"user-{idx % 10}",
-            "content": "hello",
-            "created_at": f"2026-04-25T00:{idx:02d}:00",
-        }
-        for idx in range(50)
-    ]
-    service = MessagingService(InMemoryDatabaseClient(store))
-
-    token = _measure_queries()
-    messages = await service.get_conversation_messages("conversation-1", "user-0", limit=50)
-    metrics = _finish_queries(token)
-
-    assert len(messages) == 50
-    assert metrics["query_count"] <= 3
 
 
 @pytest.mark.asyncio

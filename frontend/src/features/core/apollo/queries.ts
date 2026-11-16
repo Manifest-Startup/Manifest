@@ -20,6 +20,9 @@ import type {
   ExportIdeasVariables,
   FindSimilarIdeasData,
   FindSimilarIdeasVariables,
+  CreatePitchReelCommentData,
+  CreatePitchReelCommentVariables,
+  DisconnectOpenMediaData,
   GetConversationMessagesData,
   GetConversationMessagesVariables,
   GetIdeaCollaboratorsData,
@@ -35,6 +38,10 @@ import type {
   GetMyConversationsVariables,
   GetMyPortfolioData,
   GetMySessionsData,
+  GetOpenMediaLinkData,
+  GetOpenMediaRealtimeTokenData,
+  GetPitchReelCommentsData,
+  GetPitchReelCommentsVariables,
   GetPitchReelsFeedData,
   GetPitchReelsFeedVariables,
   GetPrivacyStatusData,
@@ -45,19 +52,27 @@ import type {
   InviteCollaboratorData,
   InviteCollaboratorVariables,
   LoginUserData,
+  MarkConversationReadData,
+  MarkConversationReadVariables,
   MergeGuestWorkspaceData,
   MergeGuestWorkspaceVariables,
   RequestPasswordResetData,
+  ResharePitchReelData,
+  ResharePitchReelVariables,
   RequestPasswordResetVariables,
   ResetPasswordData,
   ResetPasswordVariables,
   RevokeOtherAccountSessionsData,
+  SendMessageData,
+  SendMessageVariables,
   SignupUserData,
   StartConversationData,
   StartConversationVariables,
   StartGuestSessionData,
   ToggleFollowData,
   ToggleFollowVariables,
+  TogglePitchReelLikeData,
+  TogglePitchReelLikeVariables,
   TogglePublishIdeaData,
   ToggleUpvoteData,
   UpdateAccountData,
@@ -845,6 +860,7 @@ export const PITCH_REEL_FIELDS = gql`
     description
     tags
     videoUrl
+    posterUrl
     videoStatus
     workspacePath
     accentFrom
@@ -863,12 +879,11 @@ export const PITCH_REEL_FIELDS = gql`
     stats {
       likeCount
       commentCount
-      saveCount
       shareCount
     }
     viewerState {
       liked
-      saved
+      reshared
     }
   }
 `;
@@ -882,24 +897,29 @@ export const GET_PITCH_REELS_FEED: TypedDocumentNode<GetPitchReelsFeedData, GetP
   ${PITCH_REEL_FIELDS}
 `;
 
-export const GET_PITCH_REEL_COMMENTS = gql`
+const PITCH_REEL_COMMENT_FIELDS = `
+  commentId
+  reelId
+  authorId
+  authorName
+  authorHandle
+  authorAvatar
+  body
+  createdAt
+  isMine
+`;
+
+export const GET_PITCH_REEL_COMMENTS: TypedDocumentNode<GetPitchReelCommentsData, GetPitchReelCommentsVariables> = gql`
   query GetPitchReelComments($reelId: String!, $limit: Int) {
     pitchReelComments(reelId: $reelId, limit: $limit) {
-      commentId
-      reelId
-      authorId
-      authorName
-      authorAvatar
-      body
-      createdAt
-      isMine
+      ${PITCH_REEL_COMMENT_FIELDS}
     }
   }
 `;
 
-export const TOGGLE_PITCH_REEL_LIKE = gql`
-  mutation TogglePitchReelLike($reelId: String!) {
-    togglePitchReelLike(reelId: $reelId) {
+export const TOGGLE_PITCH_REEL_LIKE: TypedDocumentNode<TogglePitchReelLikeData, TogglePitchReelLikeVariables> = gql`
+  mutation TogglePitchReelLike($reelId: String!, $liked: Boolean!) {
+    togglePitchReelLike(reelId: $reelId, liked: $liked) {
       reelId
       liked
       likeCount
@@ -907,57 +927,45 @@ export const TOGGLE_PITCH_REEL_LIKE = gql`
   }
 `;
 
-export const TOGGLE_PITCH_REEL_SAVE = gql`
-  mutation TogglePitchReelSave($reelId: String!) {
-    togglePitchReelSave(reelId: $reelId) {
+export const RESHARE_PITCH_REEL: TypedDocumentNode<ResharePitchReelData, ResharePitchReelVariables> = gql`
+  mutation ResharePitchReel($reelId: String!, $reshared: Boolean!) {
+    resharePitchReel(reelId: $reelId, reshared: $reshared) {
       reelId
-      saved
-      saveCount
-    }
-  }
-`;
-
-export const RECORD_PITCH_REEL_SHARE = gql`
-  mutation RecordPitchReelShare($reelId: String!) {
-    recordPitchReelShare(reelId: $reelId) {
-      reelId
+      reshared
       shareCount
     }
   }
 `;
 
-export const CREATE_PITCH_REEL_COMMENT = gql`
+export const CREATE_PITCH_REEL_COMMENT: TypedDocumentNode<CreatePitchReelCommentData, CreatePitchReelCommentVariables> = gql`
   mutation CreatePitchReelComment($reelId: String!, $body: String!) {
     createPitchReelComment(reelId: $reelId, body: $body) {
-      commentCount
       comment {
-        commentId
-        reelId
-        authorId
-        authorName
-        authorAvatar
-        body
-        createdAt
-        isMine
+        ${PITCH_REEL_COMMENT_FIELDS}
       }
     }
   }
 `;
 
-// ==================== MESSAGING QUERIES ====================
+// ==================== MESSAGING QUERIES (Open Media) ====================
+
+const CONVERSATION_FIELDS = `
+  conversationId
+  otherUserId
+  otherUserName
+  otherUserHandle
+  otherUserAvatar
+  ideaId
+  ideaTitle
+  lastMessageAt
+  lastMessagePreview
+  unreadCount
+`;
 
 export const GET_MY_CONVERSATIONS: TypedDocumentNode<GetMyConversationsData, GetMyConversationsVariables> = gql`
-  query GetMyConversations($limit: Int, $offset: Int) {
-    myConversations(limit: $limit, offset: $offset) {
-      conversationId
-      otherUserId
-      otherUserName
-      otherUserAvatar
-      ideaId
-      ideaTitle
-      lastMessageAt
-      lastMessagePreview
-      unreadCount
+  query GetMyConversations($limit: Int, $offset: Int, $allApps: Boolean) {
+    myConversations(limit: $limit, offset: $offset, allApps: $allApps) {
+      ${CONVERSATION_FIELDS}
     }
   }
 `;
@@ -969,13 +977,8 @@ export const GET_CONVERSATION_MESSAGES: TypedDocumentNode<GetConversationMessage
       conversationId
       senderId
       content
-      messageType
-      isEncrypted
-      isRead
       createdAt
       isMine
-      senderName
-      senderAvatar
     }
   }
 `;
@@ -995,62 +998,80 @@ export const GET_IDEA_OWNER: TypedDocumentNode<GetIdeaOwnerData, IdeaIdVariables
       username
       firstName
       lastName
-      email
       bio
       profilePictureUrl
       ideaId
       ideaTitle
       isPublished
       canMessage
+      openMediaHandle
     }
-  }
-`;
-
-export const GET_USER_PUBLIC_KEY = gql`
-  query GetUserPublicKey($userId: String!) {
-    userPublicKey(userId: $userId)
   }
 `;
 
 export const START_CONVERSATION: TypedDocumentNode<StartConversationData, StartConversationVariables> = gql`
   mutation StartConversation($otherUserId: String!, $ideaId: String) {
     startConversation(otherUserId: $otherUserId, ideaId: $ideaId) {
-      conversationId
-      otherUserId
-      otherUserName
-      otherUserAvatar
-      ideaId
-      lastMessageAt
-      unreadCount
+      ${CONVERSATION_FIELDS}
     }
   }
 `;
 
-export const SEND_MESSAGE = gql`
-  mutation SendMessage($conversationId: String!, $content: String!, $messageType: String, $metadata: String) {
-    sendMessage(conversationId: $conversationId, content: $content, messageType: $messageType, metadata: $metadata) {
+export const SEND_MESSAGE: TypedDocumentNode<SendMessageData, SendMessageVariables> = gql`
+  mutation SendMessage($conversationId: String!, $content: String!, $clientId: String) {
+    sendMessage(conversationId: $conversationId, content: $content, clientId: $clientId) {
       messageId
       conversationId
       senderId
       content
-      messageType
-      isEncrypted
-      isRead
       createdAt
       isMine
     }
   }
 `;
 
-export const MARK_CONVERSATION_READ = gql`
+export const MARK_CONVERSATION_READ: TypedDocumentNode<MarkConversationReadData, MarkConversationReadVariables> = gql`
   mutation MarkConversationRead($conversationId: String!) {
     markConversationRead(conversationId: $conversationId)
   }
 `;
 
-export const SET_ENCRYPTION_KEY = gql`
-  mutation SetEncryptionKey($publicKey: String!) {
-    setEncryptionKey(publicKey: $publicKey)
+// ==================== OPEN MEDIA ACCOUNT LINK ====================
+
+const OPEN_MEDIA_LINK_FIELDS = `
+  enabled
+  linked
+  needsReconnect
+  handle
+  displayName
+  connectUrl
+`;
+
+export const GET_OPEN_MEDIA_LINK: TypedDocumentNode<GetOpenMediaLinkData, NoVariables> = gql`
+  query GetOpenMediaLink {
+    openMediaLink {
+      ${OPEN_MEDIA_LINK_FIELDS}
+    }
+  }
+`;
+
+export const DISCONNECT_OPEN_MEDIA: TypedDocumentNode<DisconnectOpenMediaData, NoVariables> = gql`
+  mutation DisconnectOpenMedia {
+    disconnectOpenMedia {
+      ${OPEN_MEDIA_LINK_FIELDS}
+    }
+  }
+`;
+
+export const GET_OPEN_MEDIA_REALTIME_TOKEN: TypedDocumentNode<GetOpenMediaRealtimeTokenData, NoVariables> = gql`
+  query GetOpenMediaRealtimeToken {
+    openMediaRealtimeToken {
+      supabaseUrl
+      anonKey
+      accessToken
+      expiresAt
+      omUserId
+    }
   }
 `;
 

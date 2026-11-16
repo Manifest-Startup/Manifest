@@ -17,6 +17,10 @@ React single-page app for Manifest: **Vite**, **TypeScript**, **Tailwind CSS**, 
 | `npm run lint` | ESLint on `src/` |
 | `npm run sync:docs` | Copy root `docs/` legal/API markdown into `public/docs/` for in-app pages |
 
+## Static files
+
+- `public/oauth/` — OAuth client metadata (Open Media "Sign in" client document); see `public/oauth/README.md`.
+
 ## Documentation
 
 - Repository root [`README.md`](../README.md) — full stack overview and routes

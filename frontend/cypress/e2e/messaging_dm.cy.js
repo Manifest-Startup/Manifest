@@ -24,7 +24,11 @@ const openConversationThread = (conversationId) => {
   cy.get('[data-testid="chat-panel"]', { timeout: 15000 }).should("be.visible");
 };
 
-describe("Multi-user direct messaging", () => {
+// Messages run on Open Media: run with CYPRESS_openMedia=1 against a local Open Media
+// (npm run local) after both personas have linked it in Account settings.
+const describeWithOpenMedia = Cypress.env("openMedia") ? describe : describe.skip;
+
+describeWithOpenMedia("Multi-user direct messaging", () => {
   it("sends and receives messages between two seeded personas", () => {
     const senderMessage = `Alice to Farah ${Date.now()}`;
     const replyMessage = `Farah reply ${Date.now()}`;
