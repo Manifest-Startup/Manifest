@@ -32,7 +32,13 @@ def _delivery(event="message.created", *, delivery_id="d-1", data=None, ts=None,
             "type": event,
             "created_at": "2026-11-15T00:00:00Z",
             "data": data
-            or {"conversation_id": "c1", "message_id": "m1", "actor_id": "om-a", "recipient_ids": ["om-b"], "context": {"app": "manifest"}},
+            or {
+                "conversation_id": "c1",
+                "message_id": "m1",
+                "actor_id": "om-a",
+                "recipient_ids": ["om-b"],
+                "context": {"app": "manifest"},
+            },
         }
     ).encode()
     timestamp = str(int(ts if ts is not None else time.time()))
@@ -44,7 +50,9 @@ def test_valid_message_webhook_invalidates_unread_for_recipients_and_actor():
     cache.cache_set("open_media:unread:om-a", 1, 300)
     cache.cache_set("open_media:unread:om-z", 9, 300)
     body, ts, sig = _delivery()
-    assert webhooks.handle(body, event="message.created", timestamp=ts, signature=sig) == {"ok": True}
+    assert webhooks.handle(body, event="message.created", timestamp=ts, signature=sig) == {
+        "ok": True
+    }
     assert cache.cache_get("open_media:unread:om-b") is None
     assert cache.cache_get("open_media:unread:om-a") is None
     assert cache.cache_get("open_media:unread:om-z") == 9
@@ -52,7 +60,9 @@ def test_valid_message_webhook_invalidates_unread_for_recipients_and_actor():
 
 def test_post_webhook_invalidates_clip_stats():
     cache.cache_set("open_media:clips:public", [{"id": "p1"}], 60)
-    body, ts, sig = _delivery("post.liked", data={"post_id": "p1", "actor_id": "om-a", "recipient_ids": []})
+    body, ts, sig = _delivery(
+        "post.liked", data={"post_id": "p1", "actor_id": "om-a", "recipient_ids": []}
+    )
     webhooks.handle(body, event="post.liked", timestamp=ts, signature=sig)
     assert cache.cache_get("open_media:clips:public") is None
 
@@ -89,7 +99,10 @@ def test_delivery_inside_the_window_is_accepted():
 def test_duplicate_delivery_is_acknowledged_once():
     body, ts, sig = _delivery(delivery_id="dup")
     assert webhooks.handle(body, event="x", timestamp=ts, signature=sig) == {"ok": True}
-    assert webhooks.handle(body, event="x", timestamp=ts, signature=sig) == {"ok": True, "duplicate": True}
+    assert webhooks.handle(body, event="x", timestamp=ts, signature=sig) == {
+        "ok": True,
+        "duplicate": True,
+    }
 
 
 def test_missing_headers_or_secret_are_rejected(monkeypatch):
@@ -110,7 +123,9 @@ def client(monkeypatch):
     app = FastAPI()
     app.include_router(open_media_routes.router)
     state = {"user": "u1", "guest": False}
-    monkeypatch.setattr(open_media_routes, "get_current_user_id_optional", lambda request: state["user"])
+    monkeypatch.setattr(
+        open_media_routes, "get_current_user_id_optional", lambda request: state["user"]
+    )
     monkeypatch.setattr(open_media_routes, "fetch_user_is_guest", lambda db, uid: state["guest"])
     monkeypatch.setattr(open_media_routes, "create_database_client", lambda: None)
     test_client = TestClient(app, follow_redirects=False)
@@ -127,10 +142,16 @@ def test_webhook_endpoint_verifies_and_dedupes(client):
         "X-Open-Media-Timestamp": ts,
         "X-Open-Media-Signature": sig,
     }
-    assert client.post("/api/webhooks/open-media", content=body, headers=headers).json() == {"ok": True}
+    assert client.post("/api/webhooks/open-media", content=body, headers=headers).json() == {
+        "ok": True
+    }
     again = client.post("/api/webhooks/open-media", content=body, headers=headers)
     assert again.status_code == 200 and again.json()["duplicate"] is True
-    bad = client.post("/api/webhooks/open-media", content=body, headers={**headers, "X-Open-Media-Signature": "sha256=00"})
+    bad = client.post(
+        "/api/webhooks/open-media",
+        content=body,
+        headers={**headers, "X-Open-Media-Signature": "sha256=00"},
+    )
     assert bad.status_code == 401
 
 
@@ -161,11 +182,15 @@ def test_callback_links_then_resumes_waiting_reels(client, monkeypatch):
     linked = []
     resumed = []
     monkeypatch.setattr(
-        open_media_routes.identity, "complete_link", lambda uid, code, state: linked.append((uid, code, state))
+        open_media_routes.identity,
+        "complete_link",
+        lambda uid, code, state: linked.append((uid, code, state)),
     )
     import app.services.pitch_reels.video_worker as worker
 
-    monkeypatch.setattr(worker, "resume_reels_waiting_for_open_media", lambda uid: resumed.append(uid))
+    monkeypatch.setattr(
+        worker, "resume_reels_waiting_for_open_media", lambda uid: resumed.append(uid)
+    )
     response = client.get("/api/integrations/open-media/callback?code=c&state=s")
     assert response.headers["location"] == "/account?open_media=linked#open-media"
     assert linked == [("u1", "c", "s")] and resumed == ["u1"]
@@ -181,3 +206,28 @@ def test_callback_reports_denied_and_bad_state(client, monkeypatch):
     monkeypatch.setattr(open_media_routes.identity, "complete_link", fail)
     bad = client.get("/api/integrations/open-media/callback?code=c&state=s")
     assert bad.headers["location"] == "/account?open_media=error#open-media"
+
+
+def test_signature_keys_on_the_utf8_secret_string_not_hex_decoded():
+    import hashlib
+    import hmac as std_hmac
+
+    body, ts = b'{"id":"x"}', "1800000000"
+    expected = std_hmac.new(
+        SECRET.encode("utf-8"), f"{ts}.".encode() + body, hashlib.sha256
+    ).hexdigest()
+    assert webhooks.sign(SECRET, ts, body) == f"sha256={expected}"
+
+
+def test_context_links_stay_on_manifeststartup_com(monkeypatch):
+    from app.services.integrations.open_media import settings
+
+    monkeypatch.setenv(
+        "OPEN_MEDIA_REDIRECT_URI", "http://localhost:8000/api/integrations/open-media/callback"
+    )
+    assert settings.clip_url("r1") == "https://manifeststartup.com/pitch-reels?clip=r1"
+    monkeypatch.setenv(
+        "OPEN_MEDIA_REDIRECT_URI",
+        "https://staging.manifeststartup.com/api/integrations/open-media/callback",
+    )
+    assert settings.app_origin() == "https://staging.manifeststartup.com"

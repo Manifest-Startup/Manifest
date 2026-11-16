@@ -99,8 +99,13 @@ def _error_from_response(response: httpx.Response) -> OpenMediaError:
     try:
         body = response.json()
         if isinstance(body, dict):
-            code = body.get("error")
-            description = body.get("error_description") or body.get("message")
+            error = body.get("error")
+            if isinstance(error, dict):  # public /v1/posts and /v1/feed: {error: {code, message}}
+                code = error.get("code")
+                description = error.get("message")
+            else:  # /v1/connected and /token: {error, error_description}
+                code = error
+                description = body.get("error_description") or body.get("message")
     except ValueError:
         pass
     if response.status_code >= 500:

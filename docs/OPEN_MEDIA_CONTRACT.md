@@ -33,3 +33,14 @@ Base: `https://api.openmedia.site` (local: the URL `npm run local` prints for th
 - DB triggers write to `app_private.app_webhook_outbox` for: `message.created` (conversation has `context.app`), `post.liked`, `post.commented`, `post.deleted` (post has `context.app`). The existing `* * * * *` cron drains it (batch, retry with backoff up to ~24 h, then drop).
 - Request: `POST <url>`, headers `Content-Type: application/json`, `X-Open-Media-Event: <type>`, `X-Open-Media-Delivery: <uuid>`, `X-Open-Media-Timestamp: <unix seconds>`, `X-Open-Media-Signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + raw_body)>`.
 - Body (IDs only, never message text): `{id:<delivery uuid>, type, created_at, data:{conversation_id?, message_id?, post_id?, actor_id, recipient_ids:[om user ids], context}}`. Receivers reject timestamps older than 5 min and dedupe on `id`.
+
+## As built (Open Media final API, 2026-11-15)
+
+Differences from the text above that the Manifest adapter (`backend/app/services/integrations/open_media/`) handles:
+- Errors: `/v1/connected/*` and `/token` use `{error, error_description}`; public `/v1/posts` and `/v1/feed` use `{error:{code,message}}`.
+- Containers: public lists are `{data:[post…]}` (`/v1/feed?app=` adds `app, kind, nextCursor, next`); `GET conversations` → read `conversations`; `POST conversations` → `{id, with, conversation}`; `POST messages` → `{sent, conversationId, message}`; `POST posts` returns the post at the top level and under `post`. Posts carry extra camelCase fields, which are ignored.
+- Video upload: `Content-Length` required (411), body must match the declared type (415), optional `?duration_ms=&width=&height=` (422 possible without `moov` metadata), up to 180 s. Response `{video:{path, posterPath, durationSeconds, width, height, contentType, sha256, sizeBytes, url}}`, passed back verbatim.
+- `context`: keys limited to `app`, `idea_id`, `title`, `url` (≤ 2 KB); `url` must be https on manifeststartup.com or a subdomain.
+- Webhook HMAC key is the UTF-8 bytes of the secret string (not hex-decoded). `post.commented` also carries `comment_id`; `recipient_ids` excludes the actor.
+- Messages: `limit` 1–200, `before` = message id or ISO time. Realtime `expires_at` is unix seconds.
+- Likes: `POST` and `DELETE` on `/like` (the adapter falls back to `PUT` on 405).

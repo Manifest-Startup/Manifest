@@ -40,9 +40,18 @@ def webhook_secret() -> str:
 
 
 def app_origin() -> str:
-    """Public Manifest origin (``https://manifeststartup.com``), derived from the redirect URI."""
+    """Public Manifest origin for ``context.url`` links.
+
+    Open Media only accepts https URLs on manifeststartup.com (or a subdomain),
+    so a local redirect URI still links to the production site.
+    """
     parts = urlsplit(redirect_uri())
-    return f"{parts.scheme}://{parts.netloc}"
+    host = (parts.hostname or "").lower()
+    if parts.scheme == "https" and (
+        host == "manifeststartup.com" or host.endswith(".manifeststartup.com")
+    ):
+        return f"https://{parts.netloc}"
+    return "https://manifeststartup.com"
 
 
 def clip_url(reel_id: str) -> str:

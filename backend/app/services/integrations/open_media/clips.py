@@ -98,8 +98,21 @@ def feed(viewer_user_id: str | None) -> list[dict[str, Any]]:
     return _public_feed()
 
 
-def upload_video(user_id: str, data: bytes, content_type: str = "video/mp4") -> dict[str, Any]:
-    """Upload raw video bytes as the user. Returns the opaque ``video`` object."""
+def upload_video(
+    user_id: str,
+    data: bytes,
+    content_type: str = "video/mp4",
+    *,
+    duration_ms: int | None = None,
+    width: int | None = None,
+    height: int | None = None,
+) -> dict[str, Any]:
+    """Upload raw video bytes as the user. Returns the opaque ``video`` object.
+
+    httpx sends ``Content-Length`` for a bytes body (Open Media answers 411
+    without it). Pass the metadata when known; Open Media may answer 422 for a
+    file without ``moov`` metadata otherwise. Clips can be up to 180 s.
+    """
     if not data:
         raise ValueError("No video bytes to upload.")
     if len(data) > MAX_VIDEO_BYTES:
@@ -110,6 +123,7 @@ def upload_video(user_id: str, data: bytes, content_type: str = "video/mp4") -> 
         "/media/videos",
         content=data,
         headers={"Content-Type": content_type},
+        params={"duration_ms": duration_ms, "width": width, "height": height},
         timeout=UPLOAD_TIMEOUT,
         idempotent=False,
     )
@@ -138,7 +152,8 @@ def create_post(
         headers={"Idempotency-Key": client_id},
         idempotent=True,
     )
-    post = response.get("post") if isinstance(response.get("post"), dict) else {}
+    # Open Media returns the post under ``post`` and also at the top level.
+    post = response.get("post") if isinstance(response.get("post"), dict) else response
     if not post.get("id"):
         raise OpenMediaError("Open Media did not create the post.")
     invalidate_clip_stats()
@@ -167,12 +182,12 @@ def set_like(user_id: str, post_id: str, liked: bool) -> dict[str, Any]:
     path = _post_path(post_id, "/like")
     if liked:
         try:
-            response = client.connected(user_id, "PUT", path)
+            # Liking is a set, not a toggle, so a retried POST is safe.
+            response = client.connected(user_id, "POST", path, idempotent=True)
         except OpenMediaError as exc:
             if exc.status != 405:
                 raise
-            # The contract lists POST; today's /v1/me route takes PUT. Accept either.
-            response = client.connected(user_id, "POST", path, idempotent=True)
+            response = client.connected(user_id, "PUT", path)  # older /v1/me routes
     else:
         response = client.connected(user_id, "DELETE", path)
     invalidate_clip_stats()

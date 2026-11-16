@@ -98,11 +98,20 @@ def om(monkeypatch):
     monkeypatch.setenv("OPEN_MEDIA_ENABLED", "true")
     monkeypatch.setenv("OPEN_MEDIA_API_BASE", "https://om.test")
     fake = FakeStore()
-    for name in ("load_link", "link_metadata", "update_tokens", "mark_needs_reconnect", "save_link", "delete_link"):
+    for name in (
+        "load_link",
+        "link_metadata",
+        "update_tokens",
+        "mark_needs_reconnect",
+        "save_link",
+        "delete_link",
+    ):
         monkeypatch.setattr(store, name, getattr(fake, name))
     router = Router()
     sleeps: list[float] = []
-    om_client.set_client(OpenMediaClient(transport=httpx.MockTransport(router), sleep=sleeps.append))
+    om_client.set_client(
+        OpenMediaClient(transport=httpx.MockTransport(router), sleep=sleeps.append)
+    )
     cache._reset_for_tests()
     yield {"store": fake, "router": router, "sleeps": sleeps}
     om_client.set_client(None)
@@ -127,7 +136,11 @@ def test_connected_calls_use_the_stored_access_token(om):
 
 def test_expired_access_token_is_refreshed_and_rotation_is_saved(om):
     om["store"].add(expires_in=10)  # inside the 60 s refresh margin
-    om["router"].on("POST", "/token", (200, {"access_token": "at-2", "refresh_token": "rt-2", "expires_in": 3600}))
+    om["router"].on(
+        "POST",
+        "/token",
+        (200, {"access_token": "at-2", "refresh_token": "rt-2", "expires_in": 3600}),
+    )
     om["router"].on("GET", "/v1/connected/me/conversations", (200, {"conversations": []}))
     messaging.list_conversations("u1")
 
@@ -143,7 +156,10 @@ def test_expired_access_token_is_refreshed_and_rotation_is_saved(om):
 def test_a_401_refreshes_once_and_retries(om):
     om["store"].add()
     om["router"].on(
-        "GET", "/v1/connected/me/conversations", (401, {"error": "invalid_token"}), (200, {"conversations": []})
+        "GET",
+        "/v1/connected/me/conversations",
+        (401, {"error": "invalid_token"}),
+        (200, {"conversations": []}),
     )
     om["router"].on("POST", "/token", (200, {"access_token": "at-2", "expires_in": 3600}))
     messaging.list_conversations("u1")
@@ -220,9 +236,11 @@ def test_connect_errors_are_retried_even_for_posts(om):
         httpx.ConnectError("refused"),
         (201, {"video": {"path": "u/1.mp4"}}),
     )
-    assert clips.upload_video("u1", b"video-bytes") == {"path": "u/1.mp4"}
+    assert clips.upload_video("u1", b"video-bytes", duration_ms=8000) == {"path": "u/1.mp4"}
     upload = om["router"].calls[-1]
     assert upload.headers["content-type"] == "video/mp4"
+    assert upload.headers["content-length"] == str(len(b"video-bytes"))
+    assert dict(upload.url.params) == {"duration_ms": "8000"}
     assert upload.content == b"video-bytes"
 
 
@@ -260,7 +278,9 @@ def _start(user_id="u1"):
 
 def test_callback_exchanges_code_with_matching_verifier_and_stores_link(om):
     state, challenge = _start()
-    om["router"].on("POST", "/token", (200, {"access_token": "at", "refresh_token": "rt", "expires_in": 3600}))
+    om["router"].on(
+        "POST", "/token", (200, {"access_token": "at", "refresh_token": "rt", "expires_in": 3600})
+    )
     om["router"].on(
         "GET", "/v1/connected/me", (200, {"id": "om-9", "handle": "ada", "display_name": "Ada"})
     )
@@ -346,9 +366,19 @@ def test_conversations_are_normalised_with_the_other_member(om):
                         "context": {"app": "manifest", "idea_id": "i1", "title": "Tidy"},
                         "members": [
                             {"id": "om-me", "handle": "me"},
-                            {"id": "om-ada", "handle": "ada", "displayName": "Ada L", "avatarUrl": "a.png"},
+                            {
+                                "id": "om-ada",
+                                "handle": "ada",
+                                "displayName": "Ada L",
+                                "avatarUrl": "a.png",
+                            },
                         ],
-                        "lastMessage": {"id": "m1", "body": "hi", "senderId": "om-ada", "createdAt": "2026-11-01T00:00:00Z"},
+                        "lastMessage": {
+                            "id": "m1",
+                            "body": "hi",
+                            "senderId": "om-ada",
+                            "createdAt": "2026-11-01T00:00:00Z",
+                        },
                         "unread_count": 2,
                     }
                 ]
@@ -356,7 +386,12 @@ def test_conversations_are_normalised_with_the_other_member(om):
         ),
     )
     [conv] = messaging.list_conversations("u1")
-    assert conv["other"] == {"id": "om-ada", "handle": "ada", "display_name": "Ada L", "avatar_url": "a.png"}
+    assert conv["other"] == {
+        "id": "om-ada",
+        "handle": "ada",
+        "display_name": "Ada L",
+        "avatar_url": "a.png",
+    }
     assert conv["context"]["idea_id"] == "i1"
     assert conv["last_message"]["body"] == "hi"
     assert conv["unread_count"] == 2
@@ -413,7 +448,11 @@ def test_mark_read_drops_the_cached_unread_count(om):
 
 def test_start_conversation_sends_idea_context(om):
     om["store"].add()
-    om["router"].on("POST", "/v1/connected/me/conversations", (201, {"conversation": {"id": "c1", "members": []}}))
+    om["router"].on(
+        "POST",
+        "/v1/connected/me/conversations",
+        (201, {"conversation": {"id": "c1", "members": []}}),
+    )
     context = messaging.idea_context("idea-1", "Tidy")
     messaging.start_conversation("u1", handle="ada", context=context)
     sent = json.loads(om["router"].calls[0].content)
@@ -433,7 +472,15 @@ def test_realtime_token_shape(om):
     om["router"].on(
         "POST",
         "/v1/connected/me/realtime-token",
-        (200, {"supabase_url": "https://x.supabase.co", "anon_key": "anon", "access_token": "jwt", "expires_at": "soon"}),
+        (
+            200,
+            {
+                "supabase_url": "https://x.supabase.co",
+                "anon_key": "anon",
+                "access_token": "jwt",
+                "expires_at": "soon",
+            },
+        ),
     )
     token = messaging.realtime_token("u1")
     assert token == {
@@ -459,7 +506,19 @@ POST = {
 
 
 def test_public_feed_is_used_for_unlinked_viewers_and_cached(om):
-    om["router"].on("GET", "/v1/feed", (200, {"posts": [POST]}))
+    om["router"].on(
+        "GET",
+        "/v1/feed",
+        (
+            200,
+            {
+                "data": [{**POST, "createdAt": "ignored-extra"}],
+                "app": "manifest",
+                "kind": "clips",
+                "nextCursor": None,
+            },
+        ),
+    )
     [post] = clips.feed("viewer")
     assert post["video_url"] == "https://cdn/p1.mp4"
     assert (post["like_count"], post["comment_count"], post["reshare_count"]) == (4, 2, 1)
@@ -476,16 +535,20 @@ def test_public_feed_is_used_for_unlinked_viewers_and_cached(om):
 
 def test_linked_viewer_feed_includes_viewer_liked(om):
     om["store"].add("viewer")
-    om["router"].on("GET", "/v1/connected/me/feed", (200, {"posts": [{**POST, "viewer": {"liked": True}}]}))
+    om["router"].on(
+        "GET", "/v1/connected/me/feed", (200, {"posts": [{**POST, "viewer": {"liked": True}}]})
+    )
     [post] = clips.feed("viewer")
     assert post["viewer_liked"] is True
     assert _auth(om["router"].calls[0]) == "Bearer at-1"
 
 
-def test_like_uses_put_and_falls_back_to_post_on_405(om):
+def test_like_uses_post_and_falls_back_to_put_on_405(om):
     om["store"].add()
-    om["router"].on("PUT", "/v1/connected/me/posts/p1/like", (405, {"error": "method_not_allowed"}))
-    om["router"].on("POST", "/v1/connected/me/posts/p1/like", (200, {"likes": 5, "liked": True}))
+    om["router"].on(
+        "POST", "/v1/connected/me/posts/p1/like", (405, {"error": "method_not_allowed"})
+    )
+    om["router"].on("PUT", "/v1/connected/me/posts/p1/like", (200, {"likes": 5, "liked": True}))
     assert clips.set_like("u1", "p1", True)["like_count"] == 5
     om["router"].on("DELETE", "/v1/connected/me/posts/p1/like", (200, {"likes": 4}))
     assert clips.set_like("u1", "p1", False)["like_count"] == 4
@@ -495,7 +558,11 @@ def test_create_post_sends_video_context_and_idempotency_key(om):
     om["store"].add()
     om["router"].on("POST", "/v1/connected/me/posts", (201, {"post": {"id": "p7"}}))
     post = clips.create_post(
-        "u1", body="Tidy", video={"path": "v"}, context={"app": "manifest", "idea_id": "i1"}, client_id="k"
+        "u1",
+        body="Tidy",
+        video={"path": "v"},
+        context={"app": "manifest", "idea_id": "i1"},
+        client_id="k",
     )
     assert post["id"] == "p7"
     sent = om["router"].calls[0]
@@ -518,7 +585,20 @@ def test_comments_are_public_and_tolerate_camel_case(om):
     om["router"].on(
         "GET",
         "/v1/posts/p1/comments",
-        (200, {"postId": "p1", "comments": [{"id": "c1", "body": "nice", "createdAt": "t", "author": {"id": "om-a", "handle": "a"}}]}),
+        (
+            200,
+            {
+                "postId": "p1",
+                "comments": [
+                    {
+                        "id": "c1",
+                        "body": "nice",
+                        "createdAt": "t",
+                        "author": {"id": "om-a", "handle": "a"},
+                    }
+                ],
+            },
+        ),
     )
     [comment] = clips.comments("p1")
     assert comment == {
@@ -535,3 +615,58 @@ def test_oversized_video_is_rejected_before_upload(om):
     with pytest.raises(ValueError, match="100 MB"):
         clips.upload_video("u1", b"x" * (clips.MAX_VIDEO_BYTES + 1))
     assert om["router"].calls == []
+
+
+def test_public_errors_use_the_nested_error_shape(om):
+    om["router"].on(
+        "GET",
+        "/v1/posts/p1/comments",
+        (404, {"error": {"code": "not_found", "message": "No such post."}}),
+    )
+    with pytest.raises(om_client.OpenMediaError, match="No such post") as exc:
+        clips.comments("p1")
+    assert exc.value.code == "not_found" and exc.value.status == 404
+
+
+def test_create_post_reads_a_top_level_post(om):
+    om["store"].add()
+    om["router"].on("POST", "/v1/connected/me/posts", (201, {"id": "p8", "body": "Tidy"}))
+    post = clips.create_post(
+        "u1", body="Tidy", video=None, context={"app": "manifest"}, client_id="k"
+    )
+    assert post["id"] == "p8"
+
+
+def test_send_message_reads_the_final_response_container(om):
+    om["store"].add()
+    om["router"].on(
+        "POST",
+        "/v1/connected/me/conversations/c1/messages",
+        (
+            201,
+            {
+                "sent": True,
+                "conversationId": "c1",
+                "message": {"id": "m1", "body": "hi", "sender_id": "om-1"},
+            },
+        ),
+    )
+    assert messaging.send_message("u1", "c1", body="hi")["id"] == "m1"
+
+
+def test_start_conversation_reads_the_final_response_container(om):
+    om["store"].add(om_id="om-me")
+    om["router"].on(
+        "POST",
+        "/v1/connected/me/conversations",
+        (
+            201,
+            {
+                "id": "c1",
+                "with": "ada",
+                "conversation": {"id": "c1", "members": [{"id": "om-ada", "handle": "ada"}]},
+            },
+        ),
+    )
+    conv = messaging.start_conversation("u1", handle="ada")
+    assert conv["id"] == "c1" and conv["other"]["handle"] == "ada"
