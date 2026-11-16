@@ -15,7 +15,7 @@ from typing import Any
 import strawberry
 from app.services.integrations.open_media.client import OpenMediaError
 
-CONNECT_PATH = "/api/integrations/open-media/connect"
+CONNECT_PATH = "/api/auth/open-media/start"
 
 
 def _when(value: object | None) -> datetime:

@@ -40,7 +40,6 @@ def enabled(monkeypatch):
         "query { myConversations { conversationId } }",
         "query { unreadMessageCount { count } }",
         'mutation { sendMessage(conversationId: "c", content: "hi") { messageId } }',
-        "mutation { disconnectOpenMedia { linked } }",
         'mutation { togglePitchReelLike(reelId: "r", liked: true) { liked } }',
         'mutation { resharePitchReel(reelId: "r", reshared: true) { reshared } }',
     ],
@@ -63,7 +62,7 @@ def test_open_media_link_reports_status_without_tokens(monkeypatch):
         "linked": True,
         "handle": "ada",
         "needsReconnect": False,
-        "connectUrl": "/api/integrations/open-media/connect",
+        "connectUrl": "/api/auth/open-media/start",
     }
 
 
@@ -194,14 +193,6 @@ def test_idea_owner_reports_handle_and_can_message(monkeypatch):
     monkeypatch.setattr(identity, "handle_for_user", lambda uid: "ada")
     assert founder_contact.get_idea_owner(_ideas_db(), "i1", "viewer")["can_message"] is True
     assert founder_contact.get_idea_owner(_ideas_db(), "i1", "founder")["can_message"] is False
-
-
-def test_disconnect_returns_unlinked_status(monkeypatch):
-    removed = []
-    monkeypatch.setattr(identity, "unlink", lambda uid: removed.append(uid))
-    monkeypatch.setattr(identity, "link_status", lambda uid: {"enabled": True, "linked": False})
-    result = run("mutation { disconnectOpenMedia { linked } }")
-    assert result.data == {"disconnectOpenMedia": {"linked": False}} and removed == ["viewer"]
 
 
 def test_realtime_token_query(monkeypatch):

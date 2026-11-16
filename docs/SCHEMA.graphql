@@ -191,9 +191,7 @@ type Query {
 # ============================================
 
 type Mutation {
-  # Authentication
-  signupUser(email: String!, password: String!): AuthUser!
-  loginUser(email: String!, password: String!): AuthUser!
+  # Authentication (sign-in is REST: GET /api/auth/open-media/start; see docs/API.md)
   logoutUser: Boolean!
   
   # Ideas CRUD

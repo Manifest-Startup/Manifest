@@ -70,6 +70,6 @@ describe("PitchPage", () => {
     renderPitchPage();
 
     await user.click(screen.getByRole("button", { name: /Sign in/i }));
-    expect(mockNavigate).toHaveBeenCalledWith("/auth");
+    expect(mockNavigate).toHaveBeenCalledWith("/login");
   });
 });

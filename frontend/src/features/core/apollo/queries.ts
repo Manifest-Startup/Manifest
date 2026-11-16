@@ -6,23 +6,17 @@ import type {
   RemoveOpenaiApiKeyData,
   SaveOpenaiApiKeyData,
   SaveOpenaiApiKeyVariables,
-  BeginTotpSetupData,
-  BeginTotpSetupVariables,
   CalculateSweatEquityData,
   CalculateSweatEquityVariables,
-  CompleteGuestAccountUpgradeData,
-  CompleteGuestAccountUpgradeVariables,
   CreateIdeaData,
   CreateIdeaVariables,
   DeleteIdeaData,
-  EmailPasswordVariables,
   ExportIdeasData,
   ExportIdeasVariables,
   FindSimilarIdeasData,
   FindSimilarIdeasVariables,
   CreatePitchReelCommentData,
   CreatePitchReelCommentVariables,
-  DisconnectOpenMediaData,
   GetConversationMessagesData,
   GetConversationMessagesVariables,
   GetIdeaCollaboratorsData,
@@ -32,7 +26,6 @@ import type {
   GetIdeaVersionsData,
   GetIdeasData,
   GetIntegrationsData,
-  GetMfaStatusData,
   GetMyCollaborationInvitationsData,
   GetMyConversationsData,
   GetMyConversationsVariables,
@@ -51,21 +44,13 @@ import type {
   ImportIdeasVariables,
   InviteCollaboratorData,
   InviteCollaboratorVariables,
-  LoginUserData,
   MarkConversationReadData,
   MarkConversationReadVariables,
-  MergeGuestWorkspaceData,
-  MergeGuestWorkspaceVariables,
-  RequestPasswordResetData,
   ResharePitchReelData,
   ResharePitchReelVariables,
-  RequestPasswordResetVariables,
-  ResetPasswordData,
-  ResetPasswordVariables,
   RevokeOtherAccountSessionsData,
   SendMessageData,
   SendMessageVariables,
-  SignupUserData,
   StartConversationData,
   StartConversationVariables,
   StartGuestSessionData,
@@ -279,48 +264,6 @@ export const UPDATE_ACCOUNT: TypedDocumentNode<UpdateAccountData, UpdateAccountV
   }
 `;
 
-export const LOGIN_USER: TypedDocumentNode<LoginUserData, EmailPasswordVariables> = gql`
-  mutation LoginUser($email: String!, $password: String!) {
-    loginUser(email: $email, password: $password) {
-      userId
-      email
-      token
-      isGuest
-    }
-  }
-`;
-
-export const SIGNUP_USER: TypedDocumentNode<SignupUserData, EmailPasswordVariables> = gql`
-  mutation SignupUser($email: String!, $password: String!) {
-    signupUser(email: $email, password: $password) {
-      userId
-      email
-      token
-      isGuest
-    }
-  }
-`;
-
-export const REQUEST_PASSWORD_RESET: TypedDocumentNode<RequestPasswordResetData, RequestPasswordResetVariables> = gql`
-  mutation RequestPasswordReset($email: String!) {
-    requestPasswordReset(email: $email) {
-      success
-      message
-    }
-  }
-`;
-
-export const RESET_PASSWORD: TypedDocumentNode<ResetPasswordData, ResetPasswordVariables> = gql`
-  mutation ResetPassword($token: String!, $newPassword: String!) {
-    resetPassword(token: $token, newPassword: $newPassword) {
-      userId
-      email
-      token
-      isGuest
-    }
-  }
-`;
-
 export const START_GUEST_SESSION: TypedDocumentNode<StartGuestSessionData, NoVariables> = gql`
   mutation StartGuestSession {
     startGuestSession {
@@ -328,34 +271,6 @@ export const START_GUEST_SESSION: TypedDocumentNode<StartGuestSessionData, NoVar
       email
       token
       mergeSecret
-    }
-  }
-`;
-
-export const MERGE_GUEST_WORKSPACE: TypedDocumentNode<MergeGuestWorkspaceData, MergeGuestWorkspaceVariables> = gql`
-  mutation MergeGuestWorkspace($guestUserId: String!, $mergeSecret: String!) {
-    mergeGuestWorkspace(guestUserId: $guestUserId, mergeSecret: $mergeSecret) {
-      mergedIdeaCount
-    }
-  }
-`;
-
-export const REQUEST_GUEST_ACCOUNT_UPGRADE_EMAIL = gql`
-  mutation RequestGuestAccountUpgradeEmail($email: String!) {
-    requestGuestAccountUpgradeEmail(email: $email) {
-      success
-      message
-    }
-  }
-`;
-
-export const COMPLETE_GUEST_ACCOUNT_UPGRADE: TypedDocumentNode<CompleteGuestAccountUpgradeData, CompleteGuestAccountUpgradeVariables> = gql`
-  mutation CompleteGuestAccountUpgrade($token: String!, $password: String!) {
-    completeGuestAccountUpgrade(token: $token, password: $password) {
-      userId
-      email
-      token
-      isGuest
     }
   }
 `;
@@ -411,32 +326,6 @@ export const LOGOUT_USER = gql`
   }
 `;
 
-export const BEGIN_TOTP_SETUP: TypedDocumentNode<BeginTotpSetupData, BeginTotpSetupVariables> = gql`
-  mutation BeginTotpSetup($password: String) {
-    beginTotpSetup(password: $password) {
-      secret
-      otpAuthUrl
-      recoveryCodes
-    }
-  }
-`;
-
-export const ENABLE_TOTP = gql`
-  mutation EnableTotp($secret: String!, $code: String!, $recoveryCodes: [String!]!) {
-    enableTotp(secret: $secret, code: $code, recoveryCodes: $recoveryCodes) {
-      enabled
-      enabledAt
-      recoveryCodesRemaining
-    }
-  }
-`;
-
-export const DISABLE_TOTP = gql`
-  mutation DisableTotp($code: String!, $password: String) {
-    disableTotp(code: $code, password: $password)
-  }
-`;
-
 export const REVOKE_ACCOUNT_SESSION = gql`
   mutation RevokeAccountSession($sessionId: String!) {
     revokeAccountSession(sessionId: $sessionId)
@@ -450,8 +339,8 @@ export const REVOKE_OTHER_ACCOUNT_SESSIONS: TypedDocumentNode<RevokeOtherAccount
 `;
 
 export const REQUEST_ACCOUNT_DELETION = gql`
-  mutation RequestAccountDeletion($confirmEmail: String!, $password: String, $mfaCode: String) {
-    requestAccountDeletion(confirmEmail: $confirmEmail, password: $password, mfaCode: $mfaCode)
+  mutation RequestAccountDeletion($confirmEmail: String!) {
+    requestAccountDeletion(confirmEmail: $confirmEmail)
   }
 `;
 
@@ -461,16 +350,6 @@ export const GET_PROFILE = gql`
       userId
       email
       isGuest
-    }
-  }
-`;
-
-export const GET_MFA_STATUS: TypedDocumentNode<GetMfaStatusData, NoVariables> = gql`
-  query GetMfaStatus {
-    mfaStatus {
-      enabled
-      enabledAt
-      recoveryCodesRemaining
     }
   }
 `;
@@ -496,7 +375,6 @@ export const GET_PRIVACY_STATUS: TypedDocumentNode<GetPrivacyStatusData, NoVaria
       exportAvailable
       deletionRequestedAt
       guestRetentionDays
-      passwordResetRetentionMinutes
     }
   }
 `;
@@ -1050,14 +928,6 @@ const OPEN_MEDIA_LINK_FIELDS = `
 export const GET_OPEN_MEDIA_LINK: TypedDocumentNode<GetOpenMediaLinkData, NoVariables> = gql`
   query GetOpenMediaLink {
     openMediaLink {
-      ${OPEN_MEDIA_LINK_FIELDS}
-    }
-  }
-`;
-
-export const DISCONNECT_OPEN_MEDIA: TypedDocumentNode<DisconnectOpenMediaData, NoVariables> = gql`
-  mutation DisconnectOpenMedia {
-    disconnectOpenMedia {
       ${OPEN_MEDIA_LINK_FIELDS}
     }
   }

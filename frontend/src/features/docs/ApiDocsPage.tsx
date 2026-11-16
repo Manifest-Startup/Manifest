@@ -44,11 +44,11 @@ const surfaces = [
 const operations = [
   {
     kind: "SESSION",
-    name: "Login to get a session token",
-    summary: "Use GraphQL login when you want to work with the same authenticated app session the web client uses.",
-    code: `curl -X POST http://localhost:8000/graphql \\
-  -H "Content-Type: application/json" \\
-  -d '{"query":"mutation($email:String!,$password:String!){ loginUser(email:$email,password:$password){ userId email token }}","variables":{"email":"hello@manifeststartup.com","password":"manifest"}}'`,
+    name: "Sign in to get a session cookie",
+    summary: "Browser sessions come from Continue with Open Media (GET /api/auth/open-media/start). Scripts and agents should use an API key instead.",
+    code: `# In a browser: open the page below, continue with Open Media, and the
+# session_token cookie is set when you return.
+open "http://localhost:8000/api/auth/open-media/start?next=/ideas"`,
   },
   {
     kind: "QUERY",

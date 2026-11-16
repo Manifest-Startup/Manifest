@@ -39,7 +39,7 @@ See also: [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md), [RENDER_DEPLOYMENT.md]
 | Replit CORS | `backend/app/main.py` (`REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS`) |
 | Replit doc | `replit.md` |
 
-**Auth on the new stack:** use **email/password GraphQL** (`loginUser`, signup) and **guest sessions** — not Replit OIDC.
+**Auth on the new stack:** **Continue with Open Media** (`/api/auth/open-media/start`, ADR 0002) and **guest sessions**. Email/password GraphQL and Replit OIDC were removed.
 
 ## PR roadmap
 
@@ -66,7 +66,7 @@ Full catalog: [`.env.example`](../.env.example) at repo root. Deploy-focused sum
 - `OPENAI_API_KEY`, `AI_MODEL`
 - `UVICORN_FORWARDED_ALLOW_IPS` — Render load balancer CIDRs
 - `FRONTEND_ORIGINS` — comma-separated Vercel preview/prod URLs
-- `APP_BASE_URL` — public frontend URL (password reset emails)
+- `APP_BASE_URL` — public frontend URL
 
 ### Vercel frontend (build-time)
 

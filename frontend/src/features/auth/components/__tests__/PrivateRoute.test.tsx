@@ -27,7 +27,7 @@ const renderProtectedRoute = () =>
             </PrivateRoute>
           }
         />
-        <Route path="/auth" element={<div data-testid="auth">auth</div>} />
+        <Route path="/login" element={<div data-testid="auth">auth</div>} />
       </Routes>
     </MemoryRouter>,
   );

@@ -24,7 +24,6 @@ jest.mock("@apollo/client/react", () => {
           exportAvailable: true,
           deletionRequestedAt: null,
           guestRetentionDays: 30,
-          passwordResetRetentionMinutes: 30,
         },
       },
       loading: false,

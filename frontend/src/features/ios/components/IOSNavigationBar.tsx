@@ -39,7 +39,7 @@ const IOSNavigationBar: React.FC = () => {
       await performLogout();
       clearMessage();
       setShowMenu(false);
-      navigate("/auth", { replace: true });
+      navigate("/login", { replace: true });
     } catch (error) {
       logger.error("Logout failed:", error);
       setMessage("Logout failed. Please try again.", "error");
@@ -128,7 +128,7 @@ const IOSNavigationBar: React.FC = () => {
             </>
           ) : (
             <button
-              onClick={() => safeNavigate(navigate, setMessage, "/auth")}
+              onClick={() => safeNavigate(navigate, setMessage, "/login")}
               className="px-4 py-2 text-sm font-medium text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 active:opacity-70 transition-opacity"
             >
               Sign In

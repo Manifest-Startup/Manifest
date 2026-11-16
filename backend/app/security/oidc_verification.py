@@ -1,4 +1,4 @@
-"""Replit OIDC ID token signature verification (SEC-003).
+"""OIDC ID token signature verification for enterprise SSO (SEC-003).
 
 The previous implementation called ``jwt.decode(id_token, options={"verify_signature": False})``,
 which accepts forged tokens. This module fetches the IdP JWKS, caches it,
@@ -15,7 +15,6 @@ so a transient JWKS outage degrades to "login fails", not "exception".
 
 from __future__ import annotations
 
-import os
 import time
 from threading import Lock
 from typing import Any
@@ -25,7 +24,6 @@ import jwt
 from app.utils.logger import logger
 from jwt import PyJWKClient
 
-_DEFAULT_ISSUER = "https://replit.com/oidc"
 _JWKS_TTL_SECONDS = 3600
 
 _jwks_cache: dict[str, dict[str, Any]] = {}
@@ -86,11 +84,8 @@ def verify_id_token(  # noqa: C901
     if not id_token:
         return None
 
-    issuer = issuer or os.getenv("ISSUER_URL", _DEFAULT_ISSUER)
-    audience = audience or os.getenv("REPL_ID")
-
-    if not audience:
-        logger.error("[oidc] verify_id_token called without an audience (REPL_ID unset)")
+    if not audience or not issuer:
+        logger.error("[oidc] verify_id_token called without an audience or issuer")
         return None
 
     client = _get_jwk_client(issuer)

@@ -58,12 +58,22 @@ Accepted token locations (`backend/app/auth/current_user.py`):
 - `access_token` cookie
 - `Authorization: Bearer <jwt>` header
 
-If `DATABASE_URL` is not configured and `DEMO_MODE` is not explicitly set to false, demo mode auto-enables.
+Browsers get the session cookie only from **Continue with Open Media** (`/api/auth/open-media/*`, below; [ADR 0002](adr/0002-open-media-is-the-only-sign-in.md)). There is no password login, registration, password reset or Manifest MFA: passkeys, passwords and second factors live in Open Media. Scripts and agents use API keys.
 
-Default demo credentials:
+If `DATABASE_URL` is not configured and `DEMO_MODE` is not explicitly set to false, demo mode auto-enables, and `GET /api/auth/open-media/start` signs in the demo user (`hello@manifeststartup.com`) without contacting Open Media.
 
-- `hello@manifeststartup.com`
-- `manifest`
+Sensitive REST routes (API key create/rotate/revoke, DSAR erase/export) need a recent sign-in: if the session is older than 5 minutes they answer `401` with `X-Step-Up-Required: 1`, and the client sends the person through Continue with Open Media again.
+
+### Sign in with Open Media (REST, browser navigation)
+
+- `GET /api/auth/open-media/start?next=/ideas[&login_hint=email]` — no session needed. Sets a 10-minute signed, HttpOnly, SameSite=Lax cookie `manifest_om_signin` (path `/api/auth/open-media`) and redirects (303) to Open Media `/authorize` with `client_id=https://manifeststartup.com/oauth/open-media-client.json`, `scope=account`, PKCE `S256`, `login_hint` (the account email when a signed-in user reconnects) and a signed `state` holding the nonce, a safe `next` path, the guest user to merge (if a guest started it) and the signed-in user (if reconnecting). `next` must be a same-origin path; anything else becomes `/ideas`.
+- `GET /api/auth/open-media/callback?code&state` — checks `state` against the cookie (once, within 10 minutes), exchanges the code at `/oauth/token`, reads `GET /v1/connected/me` (`id`, `handle`, `email`, `email_verified`, `has_profile`), then picks the Manifest user: the account already linked to that Open Media id; else the signed-in account that started a reconnect; else a non-guest account whose email equals the **verified** Open Media email (case-insensitive, auto-link); else a new full account. It stores the encrypted tokens in `integrations` (`service_id = open_media`), merges the browser's guest workspace into the account, sets the `session_token` cookie, resumes reels waiting in `needs_open_media`, and redirects (303) to `next` (with `?merged=N` when guest ideas moved). Failures redirect to `/login?error=<code>`: `cancelled`, `failed`, `invalid_state` (missing/mismatched cookie or tampered state), `expired`, `replayed`, `unverified_email`, `no_email` (nothing is created for either), `linked_elsewhere`, `account_disabled`.
+- `POST /api/auth/logout` — revokes the current session and clears the auth cookies; returns `{"ok": true}`.
+
+```bash
+# Start a sign-in (prints the Open Media authorize URL and the nonce cookie)
+curl -si "http://localhost:8000/api/auth/open-media/start?next=/ideas" | grep -i -E "^(location|set-cookie):"
+```
 
 ### API key auth
 
@@ -135,7 +145,7 @@ Social and investing:
 
 Open Media (messages and pitch shorts run on the user's linked [Open Media](https://openmedia.site) account; see [ADR 0001](adr/0001-open-media-for-messages-and-pitch-shorts.md) and [OPEN_MEDIA_CONTRACT.md](OPEN_MEDIA_CONTRACT.md)):
 
-- `openMediaLink` → `{ enabled, linked, needsReconnect, handle, displayName, avatarUrl, connectUrl }`. `enabled: false` means this server runs without Open Media (`OPEN_MEDIA_ENABLED` off): Messages and Pitch Shorts are hidden. Link with `connectUrl` (`/api/integrations/open-media/connect`, below). Never returns tokens.
+- `openMediaLink` → `{ enabled, linked, needsReconnect, handle, displayName, avatarUrl, connectUrl }`. `linked`/`handle` describe the Open Media account this user signs in with. `enabled: false` means this server runs without Messages and Pitch Shorts (`OPEN_MEDIA_ENABLED` off). `connectUrl` is `/api/auth/open-media/start` (signing in again renews an expired link). Never returns tokens.
 - `openMediaRealtimeToken` → `{ supabaseUrl, anonKey, accessToken, expiresAt, omUserId }` — the user's short-lived Open Media Supabase token so the browser can subscribe to Realtime `postgres_changes` on `messages` (RLS-limited). Requires a linked account.
 
 Messaging (Open Media; conversation, message and `otherUserId` ids are Open Media ids):
@@ -173,17 +183,19 @@ Publishing an idea (`togglePublishIdea`) sets `ideas.is_published` and upserts a
 
 ### Mutation operations
 
-Core auth/account:
+Core auth/account (signing in is REST, above):
 
-- `loginUser(email, password)`
-- `signupUser(email, password)`
 - `logoutUser`
 - `updateAccount(input)`
+- `revokeAccountSession(sessionId)`, `revokeOtherAccountSessions`
+- `requestAccountDeletion(confirmEmail)` — the account email confirms it; the `password` and `mfaCode` arguments were removed
+
+Removed in ADR 0002: `loginUser`, `signupUser`, `requestPasswordReset`, `resetPassword`, `requestGuestAccountUpgradeEmail`, `completeGuestAccountUpgrade`, `mergeGuestWorkspace`, `beginTotpSetup`, `enableTotp`, `disableTotp`, `regenerateRecoveryCodes`, `mfaStatus`, `disconnectOpenMedia` and `PrivacyStatus.passwordResetRetentionMinutes`.
 
 Try-before-signup (guest) sessions:
 
-- `startGuestSession` — no prior auth; creates a `users` row with `is_guest=true`, sets the same `access_token` cookie as email login, and returns a **one-time** `mergeSecret` (store client-side until signup). **Disabled when `DEMO_MODE` is on** (overlaps demo identity).
-- `mergeGuestWorkspace(guestUserId, mergeSecret)` — authenticated; verifies the guest row and secret, moves `ideas` (and related workspace rows such as pitch decks, PRDs, patents, pitch reels creator, collaborators, versions where present) to the current user, then clears the merge secret and guest flag on the old row.
+- `startGuestSession` — no prior auth; creates a `users` row with `is_guest=true`, sets the session cookie, and returns `mergeSecret` (kept for compatibility; clients no longer need it). **Disabled when `DEMO_MODE` is on** (overlaps demo identity).
+- Upgrading: the guest follows **Continue with Open Media** from the same browser. The callback merges the guest workspace server-side (the guest's session cookie proves ownership): it moves `ideas` and related workspace rows (pitch decks, PRDs, patents, pitch reels creator, collaborators, versions where present) to the signed-in account and clears the guest flag. A retried callback merges nothing twice.
 - `profile` includes `isGuest` for UI gating. The merge secret is **not** exposed on `profile`.
 - **Rate limit:** `startGuestSession` is limited per client IP in-process (see `guest_workspace_service`).
 - **Retention:** Guests get `guest_expires_at` (default 30 days from creation at insert). Stale rows may be deleted by a scheduled cleanup job in production; until then, data remains on the server for that guest id.
@@ -376,7 +388,7 @@ Auth:
 - `POST /api/voice-agent/tts`
 - `POST /api/voice-agent/transcribe`
 
-`GET /api/voice-agent/capabilities` returns the deterministic app-control command catalog that backs the current Manifest Voice UI, including navigation (including messages), idea management, document generation phrases (pitch deck, PRD, patent, background tasks), integrations/GitHub bootstrap phrases, workspace layout, search, pitch-reel controls, and **guest account claim** phrases (`claim my account`, `send upgrade link to …`).
+`GET /api/voice-agent/capabilities` returns the deterministic app-control command catalog that backs the current Manifest Voice UI, including navigation (including messages), idea management, document generation phrases (pitch deck, PRD, patent, background tasks), integrations/GitHub bootstrap phrases, workspace layout, search, pitch-reel controls, and **guest account claim** phrases (`claim my account`, which opens sign-in).
 
 ### `/api/integrations` (session/JWT)
 
@@ -384,16 +396,14 @@ Auth:
 
 `POST /api/voice-agent/start` accepts optional `onboarding_mode: true` for guest sessions so the first turn can include a short spoken orientation; otherwise `response.message` may be empty so clients can open the microphone immediately without playing a greeting.
 
-**GraphQL (guest upgrade):** authenticated guests may call `requestGuestAccountUpgradeEmail(email)` (rate-limited; generic success message). Completing the flow is `completeGuestAccountUpgrade(token, password)` (public mutation) after the user opens the emailed link (`/auth?guest_upgrade_token=…`).
-
 `POST /api/voice-agent/process-stream` returns `text/event-stream` for the live spoken reply. Clients receive `delta` events while the assistant is still generating the answer, then a final `structured` event with the same payload shape as `POST /api/voice-agent/process` so the workspace note and qualification state stay consistent.
 
 **Web client:** choosing voice-first entry from the marketing page sets `localStorage` key `manifest_voice_mode` to `full`. While that value is `full`, the desktop/web client auto-opens the voice overlay once per browser tab when you land on `/ideas` (tracked with sessionStorage key `manifest_voice_full_auto_opened`). Use the in-session **Workspace** control to switch back to `standard` (traditional workspace on next visit), or clear `manifest_voice_mode` manually.
 
-### `/api/integrations/open-media` and `/api/webhooks/open-media`
+### `/api/webhooks/open-media`
 
-- `GET /api/integrations/open-media/connect` — browser navigation for a signed-in **full** account. Redirects (303) to Open Media `/authorize` with `client_id=https://manifeststartup.com/oauth/open-media-client.json` (Client ID Metadata Document, served statically), `scope=account`, PKCE `S256` and a signed `state` bound to the user (10 minutes, single use). Guests are sent back to `/account?open_media=full_account_required`; signed-out users to `/login`.
-- `GET /api/integrations/open-media/callback?code&state` — exchanges the code, reads `/v1/connected/me`, stores the encrypted refresh/access tokens with the Open Media id and handle in `integrations` (`service_id = open_media`), resumes reels waiting in `needs_open_media`, and redirects to `/account?open_media=linked|cancelled|error#open-media`.
+Linking an Open Media account is part of signing in (`/api/auth/open-media/*`, above); `/api/integrations/open-media/connect` and `/callback` were removed.
+
 - `POST /api/webhooks/open-media` — called by Open Media. Headers `X-Open-Media-Event`, `X-Open-Media-Delivery`, `X-Open-Media-Timestamp`, `X-Open-Media-Signature: sha256=<hex HMAC-SHA256(OPEN_MEDIA_WEBHOOK_SECRET, timestamp + "." + raw_body)>`. Rejects bad signatures (401) and timestamps more than 5 minutes off; dedupes on the body `id`; `503` when no secret is configured. Bodies carry ids only; `message.created` / `conversation.read` drop cached unread counts, `post.liked` / `post.commented` / `post.deleted` drop cached clip stats. Returns `{"ok": true}` (plus `"duplicate": true` for repeats).
 
 ```bash
@@ -437,10 +447,10 @@ Requires a token with **Issues** and **Projects** write access.
 
 ## Environment variables (Open Media)
 
-- `OPEN_MEDIA_ENABLED` — `true` turns on Messages and Pitch Shorts. Off (default) hides both and never calls Open Media or Veo; ideas and investing keep working.
+- `OPEN_MEDIA_ENABLED` — `true` turns on Messages and Pitch Shorts. Off (default) hides both and never calls Veo; ideas and investing keep working. Signing in always uses Open Media, whatever this flag says.
 - `OPEN_MEDIA_API_BASE` — default `https://api.openmedia.site` (local: the Worker URL `npm run local` prints in Open Media).
 - `OPEN_MEDIA_CLIENT_ID` — default `https://manifeststartup.com/oauth/open-media-client.json` (must match the served document).
-- `OPEN_MEDIA_REDIRECT_URI` — optional; default `https://manifeststartup.com/api/integrations/open-media/callback`. Only for a local Open Media stack; it must be listed in the client document.
+- `OPEN_MEDIA_REDIRECT_URI` — optional; default `https://manifeststartup.com/api/auth/open-media/callback`. Only for a local Open Media stack; it must be listed in the client document.
 - `OPEN_MEDIA_WEBHOOK_SECRET` — secret; the same hex value as `APP_WEBHOOKS.manifest.secret` on the Open Media Worker.
 
 Stored tokens are encrypted with the existing integration-token envelope keys (`MANIFEST_KEK_*`), so no separate token key is needed.
@@ -462,9 +472,11 @@ Stored tokens are encrypted with the existing integration-token envelope keys (`
 ## Minimal GraphQL Example
 
 ```bash
-curl -X POST http://localhost:8000/graphql \
+# Demo mode: get a session cookie, then query GraphQL with it
+curl -s -c cookies.txt -o /dev/null "http://localhost:8000/api/auth/open-media/start"
+curl -s -b cookies.txt -X POST http://localhost:8000/graphql \
   -H "Content-Type: application/json" \
-  -d '{"query":"mutation($email:String!,$password:String!){ loginUser(email:$email,password:$password){ userId email token }}","variables":{"email":"hello@manifeststartup.com","password":"manifest"}}'
+  -d '{"query":"{ profile { userId email isGuest } }"}'
 ```
 
 ## Known Caveats (Current Code)

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { openMediaSignInUrl } from "features/auth/openMediaSignIn";
 import { buildSessionHeaders } from "features/auth/session";
 import Button from "features/common-ui/Button";
 import Input from "features/common-ui/Input";
@@ -56,6 +57,8 @@ const ApiAccessSection: React.FC = () => {
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Creating, rotating and revoking keys needs a sign-in from the last few minutes.
+  const [needsFreshSignIn, setNeedsFreshSignIn] = useState(false);
   const [showNewKeyModal, setShowNewKeyModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("My API Key");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -134,6 +137,10 @@ const ApiAccessSection: React.FC = () => {
         body: JSON.stringify({ client_id: clientId, name: newKeyName }),
       });
 
+      if (res.status === 401 && res.headers.get("X-Step-Up-Required")) {
+        setNeedsFreshSignIn(true);
+        return;
+      }
       if (!res.ok) {
         throw new Error("Failed to create API key");
       }
@@ -161,6 +168,10 @@ const ApiAccessSection: React.FC = () => {
         credentials: "include",
       });
 
+      if (res.status === 401 && res.headers.get("X-Step-Up-Required")) {
+        setNeedsFreshSignIn(true);
+        return;
+      }
       if (!res.ok) {
         throw new Error("Failed to revoke key");
       }
@@ -242,6 +253,19 @@ const ApiAccessSection: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {needsFreshSignIn ? (
+          <div
+            role="alert"
+            className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            For your security, managing API keys needs a recent sign-in.{" "}
+            <a className="font-semibold underline" href={openMediaSignInUrl("/account")} data-testid="api-keys-sign-in-again">
+              Continue with Open Media
+            </a>{" "}
+            and try again.
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300">

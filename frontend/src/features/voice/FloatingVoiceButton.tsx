@@ -53,7 +53,7 @@ const FloatingVoiceButton: React.FC = () => {
   }, [endSession, isOpen]);
 
   useEffect(() => {
-    if (!isLoggedIn || location.pathname === "/auth") {
+    if (!isLoggedIn || location.pathname === "/login") {
       return;
     }
 
@@ -88,7 +88,7 @@ const FloatingVoiceButton: React.FC = () => {
     void startSession();
   }, [isLoggedIn, location.pathname, openRequestVersion, startSession]);
 
-  if (!isLoggedIn || location.pathname === "/auth") {
+  if (!isLoggedIn || location.pathname === "/login") {
     return null;
   }
 

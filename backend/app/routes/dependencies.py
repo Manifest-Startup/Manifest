@@ -8,17 +8,12 @@ from fastapi import Depends, HTTPException, Request
 
 
 def require_admin(request: Request, user_id: str = Depends(require_user_id)) -> str:
-    """Require admin role + enrolled MFA + a recent re-auth proof (SEC-029).
+    """Require the admin role and a recent sign-in (SEC-029).
 
-    Three checks, in order:
     1. principal.is_admin must be True.
-    2. The admin must have TOTP MFA enrolled — admin accounts must
-       NEVER be reachable with password alone.
-    3. A recent step-up verification OR a fresh login (auth_iat) must
-       cover the request.
-
-    Heavy lifting delegates to the dedicated modules so this stays a
-    thin orchestration layer.
+    2. The session must come from a fresh "Continue with Open Media" sign-in
+       (``auth_iat``) or a still-valid step-up row. Second factors live in Open
+       Media now (ADR 0002), so Manifest no longer checks its own TOTP enrolment.
     """
     from app.auth.current_user import get_current_session_id_optional
     from app.security.permissions import resolve_principal
@@ -27,22 +22,10 @@ def require_admin(request: Request, user_id: str = Depends(require_user_id)) -> 
         _recent_login_satisfies,
         has_recent_step_up,
     )
-    from app.services.identity.totp_mfa import get_user_mfa_status
 
     principal = resolve_principal(user_id)
     if not principal.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    try:
-        mfa_enabled = bool(get_user_mfa_status(user_id).get("enabled"))
-    except Exception:
-        # Fail closed for admin surfaces if we cannot determine MFA state.
-        raise HTTPException(status_code=503, detail="Admin MFA status unavailable") from None
-    if not mfa_enabled:
-        raise HTTPException(
-            status_code=403,
-            detail="MFA enrolment is required for admin accounts.",
-            headers={"X-MFA-Required": "1"},
-        )
     session_id = get_current_session_id_optional(request)
     if not (
         _recent_login_satisfies(request, DEFAULT_TTL_SECONDS)

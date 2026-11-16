@@ -8,23 +8,21 @@ describe('Manifest Home Page', () => {
     cy.contains('How it works').should('exist');
   });
 
-  it('login', function() {
+  it('shows the Open Media login page and signs in', function() {
     cy.clearCookies();
     cy.clearLocalStorage();
     cy.visit('/');
-    // Wait for page to load
     cy.get('body').should('be.visible');
-    // Click the "Sign In" button in the top right
     cy.contains('Sign in', { timeout: 10000 }).click();
-    // Wait for login form to appear
-    cy.get('[type="email"]', { timeout: 5000 }).should('be.visible');
-    // Fill in email and password
-    cy.get('[type="email"]').clear().type('hello@manifeststartup.com');
-    cy.get('[type="password"]').clear().type('Mnfst_E2e_CI_9x!');
-    // Click the "Login" button
-    cy.get('button[type="submit"]').click();
-    // Wait for navigation and assert that the 'New Idea' button is visible after login
-    cy.url({ timeout: 10000 }).should('include', '/ideas');
+    cy.url().should('include', '/login');
+    cy.contains('One account for Manifest and Open Media.').should('be.visible');
+    cy.get('[data-testid="try-without-account"]').should('be.visible');
+    cy.get('input[type="password"]').should('not.exist');
+    // Old links land on the login page.
+    cy.visit('/auth/forgot-password');
+    cy.url().should('include', '/login');
+    // Demo-mode stacks sign in the demo user; real stacks go through Open Media.
+    cy.signInWithOpenMedia();
     cy.get('[data-testid="new-idea-button"]', { timeout: 15000 }).should('be.visible');
   });
 });

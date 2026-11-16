@@ -63,12 +63,9 @@ describe('voiceCommandParser', () => {
     });
   });
 
-  test('parses guest account claim and upgrade email', () => {
+  test('parses guest account claim', () => {
     expect(parseVoiceCommand('Claim my account')).toEqual({ kind: 'claim_account_navigate' });
-    expect(parseVoiceCommand('Send upgrade link to you@example.com')).toEqual({
-      kind: 'request_upgrade_email',
-      email: 'you@example.com',
-    });
+    expect(parseVoiceCommand('Finish signup')).toEqual({ kind: 'claim_account_navigate' });
   });
 
   test('parses messages navigation', () => {

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 DEFAULT_API_BASE = "https://api.openmedia.site"
 DEFAULT_CLIENT_ID = "https://manifeststartup.com/oauth/open-media-client.json"
-DEFAULT_REDIRECT_URI = "https://manifeststartup.com/api/integrations/open-media/callback"
+DEFAULT_REDIRECT_URI = "https://manifeststartup.com/api/auth/open-media/callback"
 OAUTH_SCOPE = "account"
 APP_TAG = "manifest"
 

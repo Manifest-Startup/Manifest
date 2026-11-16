@@ -18,18 +18,16 @@ Set secret values in Render's Environment page. Do not put them in Git, this doc
 | `DATABASE_URL` | Supabase Postgres connection URL. |
 | `SESSION_SECRET` | Render generates a fresh value; Replit sessions are not being imported. |
 | `MANIFEST_KEK_PROVIDER`, `MANIFEST_KEK_ACTIVE_VERSION`, `MANIFEST_KEK_V1` | The Blueprint sets `env`, `1`, and generates a base64-encoded 256-bit key. |
-| `MFA_ENCRYPTION_KEY` | Render generates a fresh value; Replit MFA records are not being imported. |
 | `MANIFEST_PRIVACY_IP_HASH_SALT` | Render generates a fresh value; Replit privacy records are not being imported. |
 | `OPENAI_API_KEY`, `GOOGLE_API_KEY` | AI generation providers. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase Storage access. |
 | `APP_BASE_URL`, `FRONTEND_ORIGINS` | Public Cloudflare URLs for reset links and CORS. Include apex and `www`. |
-| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Transactional email. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Google OAuth integration. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional GitHub OAuth integration. |
 | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` | Optional Slack OAuth integration. |
 | `POSTHOG_API_KEY` | Optional analytics. |
 
-The Blueprint also sets `ENVIRONMENT=production`, `LOG_FORMAT=json`, `WEB_CONCURRENCY=1`, `PORT=8000`, `UVICORN_FORWARDED_ALLOW_IPS=*`, and `AI_MODEL=gpt-4o-mini`. The wildcard forwarded-IP trust is safe only while `EDGE_SHARED_SECRET` is enabled and the guard rejects direct-origin requests. Do not copy Replit-only `REPL_ID`, `ISSUER_URL`, `REPLIT_DEV_DOMAIN`, or `REPLIT_DOMAINS` values. Replit OIDC login will not be available on Render; users can use the app's email/password flow or a configured provider login.
+The Blueprint also sets `ENVIRONMENT=production`, `LOG_FORMAT=json`, `WEB_CONCURRENCY=1`, `PORT=8000`, `UVICORN_FORWARDED_ALLOW_IPS=*`, and `AI_MODEL=gpt-4o-mini`. The wildcard forwarded-IP trust is safe only while `EDGE_SHARED_SECRET` is enabled and the guard rejects direct-origin requests. Do not copy Replit-only `REPL_ID`, `ISSUER_URL`, `REPLIT_DEV_DOMAIN`, or `REPLIT_DOMAINS` values. Sign-in is "Continue with Open Media" only (ADR 0002); the Open Media defaults need no variables. Delete `MFA_ENCRYPTION_KEY`, `RESEND_API_KEY` and `RESEND_FROM_EMAIL` from existing services: nothing reads them any more.
 
 ## Health and routing checks
 

@@ -12,12 +12,13 @@ test("routes backend paths to origin and everything else to static assets", () =
   for (const p of ["/graphql", "/graphql/", "/socket.io/?EIO=4", "/api/v1/ideas", "/auth/login",
     "/scim/v2/Users", "/trust", "/openapi.json", "/.well-known/api-catalog", "/agents.md",
     "/internal/openapi.json", "/ping", "/health", "/healthz", "/generated/pdfs/a/b.pdf",
-    "/api/integrations/open-media/connect", "/api/integrations/open-media/callback",
+    "/api/auth/open-media/start", "/api/auth/open-media/callback", "/api/auth/logout",
     "/api/webhooks/open-media"]) {
     assert.equal(isBackendPath(p.split("?")[0]), true, p);
   }
   for (const p of ["/", "/ideas/123", "/assets/index.js", "/apiary", "/authors", "/trusty", "/robots.txt",
-    "/oauth/open-media-client.json"]) {
+    "/oauth/open-media-client.json", "/brand/open-media-mark-light.png", "/login", "/auth",
+    "/auth/forgot-password", "/auth/reset-password"]) {
     assert.equal(isBackendPath(p), false, p);
   }
 });
@@ -56,6 +57,20 @@ test("forwards to origin with trusted forwarding headers", async () => {
     { headers: { "x-manifest-edge": "forged" } }), new URL("https://o.example"));
   assert.equal(unsigned.headers.get("x-manifest-edge"), null);
   assert.equal(await out.text(), "{}");
+});
+
+test("Open Media sign-in redirects keep their target and the session cookie", () => {
+  const origin = new URL("https://manifest-backend.onrender.com");
+  const pub = new URL("https://manifeststartup.com/api/auth/open-media/callback?code=c&state=s");
+  const headers = new Headers({ location: "/ideas?merged=2" });
+  headers.append("set-cookie", "session_token=jwt; HttpOnly; Path=/; SameSite=lax");
+  headers.append("set-cookie", 'manifest_om_signin=""; Path=/api/auth/open-media; Max-Age=0');
+  const back = rewriteLocation(new Response(null, { status: 303, headers }), origin, pub);
+  assert.equal(back.headers.get("location"), "https://manifeststartup.com/ideas?merged=2");
+  assert.equal(back.headers.getSetCookie().length, 2);
+  const out = rewriteLocation(new Response(null, { status: 303, headers: {
+    location: "https://api.openmedia.site/authorize?client_id=x" } }), origin, pub);
+  assert.equal(out.headers.get("location"), "https://api.openmedia.site/authorize?client_id=x");
 });
 
 test("rewrites origin redirects to the public host only", () => {

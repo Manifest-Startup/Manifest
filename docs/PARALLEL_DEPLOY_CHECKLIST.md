@@ -22,7 +22,7 @@ Use this while **Replit remains production**. All tests run against **Vercel Pre
 - [ ] Email signup
 - [ ] Email login
 - [ ] Logout
-- [ ] Forgot password email (or console fallback if `RESEND_API_KEY` unset)
+- [ ] Continue with Open Media signs in and returns to `/ideas` (a guest workspace is merged)
 - [ ] **Skip** Replit OIDC on Vercel (expected unsupported)
 
 ### Core product

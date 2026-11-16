@@ -50,13 +50,6 @@ def admin_client():
     with patch(
         "app.services.shared.rate_limit.rate_limit_service.allow",
         return_value=True,
-    ), patch(
-        "app.security.permissions.get_user_mfa_status",
-        return_value={"enabled": True},
-        create=True,
-    ), patch(
-        "app.services.identity.totp_mfa.get_user_mfa_status",
-        return_value={"enabled": True},
     ):
         yield client
     fastapi_app.dependency_overrides.pop(require_user_id, None)

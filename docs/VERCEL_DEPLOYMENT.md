@@ -60,7 +60,7 @@ With backend on `:8000`, dev uses Vite proxy (`vite.config.ts`). Production buil
 
 ## OAuth note
 
-Replit OIDC (`/auth/login` on Replit) does **not** apply on Vercel. Use **email/password** and **guest** GraphQL flows for staging tests.
+Sign-in is **Continue with Open Media** (ADR 0002); a staging host must be listed in the Open Media client document's `redirect_uris` (or set `OPEN_MEDIA_REDIRECT_URI` for a local Open Media). Guest sessions work anywhere.
 
 ## Manual test checklist (preview)
 

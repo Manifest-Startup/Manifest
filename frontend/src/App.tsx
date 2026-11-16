@@ -20,9 +20,7 @@ import PrivacyConsentBanner from "features/privacy/PrivacyConsentBanner";
 import { usePrivacyConsent } from "features/privacy/PrivacyConsentContext";
 
 const PitchPage = lazy(() => import("features/marketing/components/PitchPage"));
-const AuthForm = lazy(() => import("features/auth/components/AuthForm"));
-const ForgotPasswordPage = lazy(() => import("features/auth/components/ForgotPasswordPage"));
-const ResetPasswordPage = lazy(() => import("features/auth/components/ResetPasswordPage"));
+const LoginPage = lazy(() => import("features/auth/components/LoginPage"));
 const PrivateRoute = lazy(() => import("features/auth/components/PrivateRoute"));
 const GuestSessionBanner = lazy(() => import("features/auth/components/GuestSessionBanner"));
 const IdeasPage = lazy(() => import("features/ideas/components/IdeasPage"));
@@ -82,7 +80,7 @@ const App = () => {
   const location = useLocation();
   const { consent: privacyConsent, loading: privacyLoading } = usePrivacyConsent();
 
-  const { isLoggedIn } = useReactiveVar(userVar);
+  const { isLoggedIn, isGuest } = useReactiveVar(userVar);
   // Reels share the standard navigation, with their own scrolling content.
   const isImmersiveShorts =
     location.pathname.startsWith("/pitch-reels") ||
@@ -170,11 +168,12 @@ const App = () => {
                     <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
                     <Route path="/account/billing" element={<PrivateRoute><BillingDashboardPage /></PrivateRoute>} />
                     <Route path="/admin/cost" element={<PrivateRoute><AdminCostDashboardPage /></PrivateRoute>} />
-                    <Route path="/login" element={<Navigate to="/auth" replace />} />
-                    <Route path="/signup" element={<Navigate to="/auth" replace />} />
-                    <Route path="/auth" element={isLoggedIn ? <Navigate to="/ideas" replace /> : <AuthForm />} />
-                    <Route path="/auth/forgot-password" element={isLoggedIn ? <Navigate to="/ideas" replace /> : <ForgotPasswordPage />} />
-                    <Route path="/auth/reset-password" element={isLoggedIn ? <Navigate to="/ideas" replace /> : <ResetPasswordPage />} />
+                    <Route path="/login" element={isLoggedIn && !isGuest ? <Navigate to="/ideas" replace /> : <LoginPage />} />
+                    {/* Sign-up, password reset and MFA screens were removed (sign-in is Open Media only); old links land on /login. */}
+                    <Route path="/signup" element={<Navigate to="/login" replace />} />
+                    <Route path="/auth" element={<Navigate to="/login" replace />} />
+                    <Route path="/auth/forgot-password" element={<Navigate to="/login" replace />} />
+                    <Route path="/auth/reset-password" element={<Navigate to="/login" replace />} />
                     <Route path="/learn-more" element={<LearnMorePage />} />
                     <Route path="/messages/:conversationId" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
                     <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />

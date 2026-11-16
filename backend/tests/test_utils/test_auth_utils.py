@@ -93,11 +93,9 @@ def test_demo_user_credentials_fall_back_when_env_keys_are_empty_strings(monkeyp
     monkeypatch.setenv("DEMO_MODE", "1")
     monkeypatch.setenv("DEMO_USER_ID", "")
     monkeypatch.setenv("DEMO_USER_EMAIL", "")
-    monkeypatch.setenv("DEMO_USER_PASSWORD", "")
 
     import app.auth.current_user as au
 
     reloaded = importlib.reload(au)
     assert reloaded.DEMO_USER_EMAIL == "hello@manifeststartup.com"
-    assert reloaded.DEMO_USER_PASSWORD == "manifest"
     assert reloaded.DEMO_USER_ID == "demo-user-123"

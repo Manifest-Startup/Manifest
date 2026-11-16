@@ -101,7 +101,7 @@ describe('NavigationBar', () => {
   it('navigates to /auth when Sign In is clicked', () => {
     setup({ isLoggedIn: false });
     fireEvent.click(screen.getByRole('menuitem', { name: /sign in/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/auth');
+    expect(mockNavigate).toHaveBeenCalledWith('/login');
   });
 
   it('renders nav links and avatar when logged in', () => {
@@ -146,7 +146,7 @@ describe('NavigationBar', () => {
       expect(mockFetch).toHaveBeenCalled();
     });
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/auth', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
     }, { timeout: 1000 });
   });
 
@@ -156,7 +156,7 @@ describe('NavigationBar', () => {
     fireEvent.click(screen.getByLabelText('Toggle Profile Dropdown Menu'));
     fireEvent.click(screen.getByRole('menuitem', { name: /logout/i }));
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/auth', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
     });
   });
 

@@ -4,22 +4,18 @@ Used by sensitive endpoints (admin actions, MFA reset, SSO config changes,
 API key creation in some flows) so a stolen long-lived session cookie is
 not enough to perform destructive operations on its own.
 
-Verification methods supported:
-- ``password`` — user re-types current password
-- ``totp`` — user enters current TOTP code
-- ``webauthn`` — user completes a passkey assertion (when wired in)
-
-A successful verification inserts a row into ``step_up_verifications``
-with a configurable TTL (default 5 minutes). The route dependency
-``require_recent_auth(...)`` rejects requests without an active row for
-the current session.
+Manifest has no passwords or factors of its own (Open Media is the identity
+provider, ADR 0002), so the proof is a fresh "Continue with Open Media"
+sign-in: the session JWT's ``auth_iat`` must be within the window. Rows in
+``step_up_verifications`` written before that change are still honoured until
+they expire. ``require_recent_auth(...)`` rejects anything else with
+``X-Step-Up-Required: 1`` so the client can send the person to sign in again.
 """
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from app.auth.current_user import get_current_session_id_optional, require_user_id
 from app.db.database import get_db_connection
@@ -32,45 +28,6 @@ MAX_TTL_SECONDS = 30 * 60  # 30 minutes
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def record_step_up(
-    user_id: str,
-    *,
-    session_id: str | None,
-    method: str,
-    ttl_seconds: int = DEFAULT_TTL_SECONDS,
-    request_ip: str | None = None,
-    user_agent: str | None = None,
-) -> str | None:
-    """Persist a recent re-auth proof. Returns the verification ID or None on error."""
-    ttl = max(60, min(ttl_seconds, MAX_TTL_SECONDS))
-    verification_id = str(uuid.uuid4())
-    expires_at = _now() + timedelta(seconds=ttl)
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO step_up_verifications
-                        (id, user_id, session_id, method, expires_at, request_ip, user_agent)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        verification_id,
-                        user_id,
-                        session_id,
-                        method,
-                        expires_at,
-                        request_ip,
-                        user_agent,
-                    ),
-                )
-            conn.commit()
-        return verification_id
-    except Exception as exc:
-        logger.warning("[step_up] record failed for %s: %s", user_id, exc)
-        return None
 
 
 def has_recent_step_up(
@@ -118,7 +75,7 @@ def _recent_login_satisfies(request: Request, max_age_seconds: int) -> bool:
     """Return True if the active session JWT was minted within the window.
 
     The session token carries an ``auth_iat`` claim recording the moment
-    the user actually presented credentials (password / SSO / MFA). A
+    the user actually signed in (Open Media or enterprise SSO). A
     fresh login implicitly satisfies the "recent auth" requirement, so
     the user does not have to re-prove a second time within the same
     short window. Step-up is still required outside that window.
@@ -131,7 +88,7 @@ def _recent_login_satisfies(request: Request, max_age_seconds: int) -> bool:
                 token = auth.split(" ", 1)[1].strip()
         if not token:
             return False
-        from app.auth.replit_auth import decode_session_token
+        from app.auth.current_user import decode_session_token
 
         payload = decode_session_token(token) or {}
         auth_iat = int(payload.get("auth_iat") or 0)

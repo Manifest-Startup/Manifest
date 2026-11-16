@@ -170,9 +170,9 @@ const linkedOpenMedia = {
     needsReconnect: false,
     handle: "viewer",
     displayName: "Viewer",
-    connectUrl: "/api/integrations/open-media/connect",
+    connectUrl: "/api/auth/open-media/start",
   },
-  connectUrl: "/api/integrations/open-media/connect",
+  connectUrl: "/api/auth/open-media/start",
 };
 let mockOpenMedia = linkedOpenMedia;
 jest.mock("features/open-media/useOpenMediaLink", () => ({

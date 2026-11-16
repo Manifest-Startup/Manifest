@@ -5,6 +5,8 @@
 **Owner:** Engineering Security  
 **Source of truth for:** `COMPLIANCE_GAP_ANALYSIS.md`, `FINDINGS_BACKLOG.md`, and the in-flight security streams (Tasks #11–#16).
 
+> **2026-11-15 — authentication changed ([ADR 0002](../adr/0002-open-media-is-the-only-sign-in.md)).** Manifest no longer has passwords, password reset, guest-upgrade emails, Replit OIDC, its own TOTP MFA or passkeys: sign-in is "Continue with Open Media" (OAuth 2.1 + PKCE, state bound to a signed HttpOnly nonce cookie, auto-link only on a verified email). §4.3 and the MFA/WebAuthn rows below describe the removed code; their threats now sit with Open Media. New residual risks: an Open Media account takeover is a Manifest takeover, and admin MFA is enforced by Open Media, not Manifest (follow-up: require `aal2`/`amr` from Open Media). Legacy tables (`password_reset_tokens`, `user_totp_mfa`, `webauthn_credentials`, `users.password_hash`) still hold data until a follow-up migration drops them.
+
 This document is the foundational artifact for Manifest's security program. Everything in `FINDINGS_BACKLOG.md` traces back to a threat enumerated here. If a control changes, update the threat model first, then the backlog, then the code.
 
 ---

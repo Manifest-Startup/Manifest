@@ -10,7 +10,6 @@ import {
   GENERATE_PROVISIONAL_PATENT,
   GET_IDEA,
   GET_IDEAS,
-  REQUEST_GUEST_ACCOUNT_UPGRADE_EMAIL,
   RUN_BACKGROUND_TASKS,
   TOGGLE_PUBLISH_IDEA,
   UPDATE_IDEA,
@@ -70,7 +69,7 @@ const routePathForDestination = (destination: keyof typeof ROUTE_LABELS) => {
   }
 
   if (destination === 'auth') {
-    return '/auth';
+    return '/login';
   }
 
   if (destination === 'docs') {
@@ -114,7 +113,6 @@ export function useVoiceAppCommands() {
   const [togglePublishIdea] = useMutation(TOGGLE_PUBLISH_IDEA, {
     refetchQueries: [{ query: GET_IDEAS }],
   });
-  const [requestGuestUpgradeEmail] = useMutation(REQUEST_GUEST_ACCOUNT_UPGRADE_EMAIL);
   const [generatePitchDeckMutation] = useMutation(GENERATE_PITCH_DECK);
   const [generatePrdMutation] = useMutation(GENERATE_PRODUCT_REQUIREMENTS_DOCUMENT);
   const [generatePatentMutation] = useMutation(GENERATE_PROVISIONAL_PATENT);
@@ -171,7 +169,7 @@ export function useVoiceAppCommands() {
         if (isGuest) {
           return {
             response:
-              'Guest tryouts cannot create GitHub repositories. Say claim my account or send upgrade link with your email.',
+              'Guest tryouts cannot create GitHub repositories. Say claim my account to continue with Open Media.',
           };
         }
         if (!activeIdeaId) {
@@ -202,7 +200,7 @@ export function useVoiceAppCommands() {
         if (isGuest) {
           return {
             response:
-              'Guest tryouts cannot generate full documents yet. Say claim my account to finish signup.',
+              'Guest tryouts cannot generate full documents yet. Say claim my account to continue with Open Media.',
           };
         }
         if (!activeIdeaId) {
@@ -258,29 +256,12 @@ export function useVoiceAppCommands() {
       }
 
       if (command.kind === 'claim_account_navigate') {
-        safeNavigate(navigate, setMessage, '/auth');
+        safeNavigate(navigate, setMessage, '/login');
         return {
-          response:
-            'Opening account access. If you are on a guest tryout, say send upgrade link to followed by your email so we can email a secure claim link.',
+          response: isGuest
+            ? 'Opening sign-in. Continue with Open Media and this guest workspace moves into your account.'
+            : 'Opening sign-in.',
         };
-      }
-
-      if (command.kind === 'request_upgrade_email') {
-        if (!isGuest) {
-          return {
-            response: 'You already have a full account. Use sign in if you need to switch users.',
-          };
-        }
-        try {
-          await requestGuestUpgradeEmail({ variables: { email: command.email } });
-          return {
-            response: `If that email can claim this guest workspace, we sent a link. Check your inbox for Manifest, then choose a password there.`,
-          };
-        } catch {
-          return {
-            response: 'Could not send the upgrade email. Open account from the menu and try again.',
-          };
-        }
       }
 
       if (command.kind === 'help') {
@@ -292,7 +273,7 @@ export function useVoiceAppCommands() {
       if (command.kind === 'logout') {
         await performLogout();
         clearMessage();
-        navigate('/auth', { replace: true });
+        navigate('/login', { replace: true });
         return { response: 'Signing you out now.' };
       }
 
@@ -300,7 +281,7 @@ export function useVoiceAppCommands() {
         if (isGuest && command.destination === 'messages') {
           return {
             response:
-              'Guest tryouts cannot open messages yet. Say claim my account or send upgrade link to your email to finish signup.',
+              'Guest tryouts cannot open messages yet. Say claim my account to continue with Open Media.',
           };
         }
         const path = routePathForDestination(command.destination);
@@ -394,7 +375,7 @@ export function useVoiceAppCommands() {
         if (isGuest) {
           return {
             response:
-              'Guest tryouts cannot publish. Say send upgrade link to followed by your email, or say claim my account.',
+              'Guest tryouts cannot publish. Say claim my account to continue with Open Media.',
           };
         }
         if (!activeIdeaId) {
@@ -472,7 +453,7 @@ export function useVoiceAppCommands() {
         ) {
           return {
             response:
-              'Guest tryouts cannot invest or use social actions on reels yet. Say claim my account to finish signup.',
+              'Guest tryouts cannot invest or use social actions on reels yet. Say claim my account to continue with Open Media.',
           };
         }
 
@@ -512,7 +493,6 @@ export function useVoiceAppCommands() {
       navigate,
       navigateToIdeaAspect,
       clearMessage,
-      requestGuestUpgradeEmail,
       setMessage,
       syncSidebarIdea,
       togglePublishIdea,

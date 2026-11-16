@@ -46,9 +46,7 @@ Important runtime behavior:
 
 - Backend loads `.env` from project root in `backend/app/main.py`.
 - If `DATABASE_URL` is missing, `DEMO_MODE` auto-enables and DB falls back to in-memory client.
-- Demo login credentials default to:
-  - Email: `hello@manifeststartup.com`
-  - Password: `manifest`
+- In demo mode, **Continue with Open Media** on `/login` signs you in as the demo user (`hello@manifeststartup.com`) without contacting Open Media. With a database, sign-in goes through Open Media (see `docs/adr/0002-open-media-is-the-only-sign-in.md`).
 
 ## 3. Install Dependencies
 

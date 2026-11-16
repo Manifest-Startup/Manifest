@@ -1,5 +1,4 @@
 import { userVar } from 'features/core/apollo/localState';
-import { persistGuestMergeCredentials } from 'features/auth/guestSessionStorage';
 
 export interface GuestSessionPayload {
   token: string;
@@ -8,15 +7,18 @@ export interface GuestSessionPayload {
   email: string;
 }
 
-/** Apply guest session payload: token in localStorage + reactive user state. */
+/**
+ * Apply a guest session payload: token in localStorage + reactive user state.
+ * Signing in later with Open Media merges the workspace on the server (the
+ * guest's session cookie proves ownership), so the merge secret is not kept.
+ */
 export function applyGuestSessionPayload(payload: GuestSessionPayload | null | undefined): boolean {
-  if (!payload?.token || !payload.userId || !payload.mergeSecret) {
+  if (!payload?.token || !payload.userId) {
     return false;
   }
-  if (typeof window !== 'undefined' && payload.token) {
+  if (typeof window !== 'undefined') {
     localStorage.setItem('access_token', payload.token);
   }
-  persistGuestMergeCredentials(payload.userId, payload.mergeSecret);
   userVar({
     isLoggedIn: true,
     isGuest: true,

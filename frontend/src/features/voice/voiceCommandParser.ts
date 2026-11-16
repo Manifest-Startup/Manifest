@@ -36,7 +36,6 @@ export type VoiceCommandIntent =
   | { kind: 'logout' }
   | { kind: 'shorts'; action: VoiceShortsAction; body?: string }
   | { kind: 'claim_account_navigate' }
-  | { kind: 'request_upgrade_email'; email: string }
   | { kind: 'open_integrations'; focus?: 'github' }
   | { kind: 'generate_document'; document: VoiceGenerateDocumentKind }
   | { kind: 'github_bootstrap'; repoName: string };
@@ -104,13 +103,6 @@ export const parseVoiceCommand = (spokenText: string): VoiceCommandIntent | null
 
   if (/\b(log out|logout|sign out)\b/i.test(normalized)) {
     return { kind: 'logout' };
-  }
-
-  const upgradeEmailMatch = spokenText.match(
-    /\b(?:send|email)\s+(?:me\s+)?(?:an\s+)?(?:upgrade|claim)\s+link\s+to\s+(\S+@\S+)/i,
-  );
-  if (upgradeEmailMatch?.[1]) {
-    return { kind: 'request_upgrade_email', email: upgradeEmailMatch[1].replace(/[.,;]+$/, '').toLowerCase() };
   }
 
   if (

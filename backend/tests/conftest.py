@@ -9,11 +9,6 @@ os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_KEY", "test-key")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlc3QiLCJyb2xlIjoic2VydmljZV9yb2xlIiwiaWF0IjoxNjQwMDAwMDAwLCJleHAiOjE5NTU1NjAwMDB9.test")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-openai-key")
-# Task #11 — disable the live HaveIBeenPwned lookup during the test suite so
-# (a) tests are hermetic / offline and (b) common test passwords like
-# "Password123!" don't trip the breach check. The check itself is exercised
-# in tests/test_security_hardening.py with a mocked httpx client.
-os.environ.setdefault("DISABLE_HIBP_CHECK", "1")
 
 
 def create_mock_db_client():

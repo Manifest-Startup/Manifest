@@ -26,10 +26,10 @@ Implementation: `backend/app/security/crypto.py` and
 |---------|-----------|-------|
 | Symmetric encryption | AES-256-GCM (`cryptography.hazmat.primitives.ciphers.aead.AESGCM`) | 256-bit keys, 96-bit random nonce, 128-bit tag |
 | Random nonce | `os.urandom(12)` | Per-row, never reused |
-| Password hashing | bcrypt (cost 12) | `app.security.passwords` |
+| Password hashing | Removed (ADR 0002): Manifest has no passwords; legacy `users.password_hash` values remain until a follow-up migration | — |
 | API key hashing | bcrypt (after SHA-256 normalisation, see `api_key_service`) | SHA-256 fallback for legacy rows |
 | Reset token hashing | SHA-256 of high-entropy token | `app.services.identity.reset_tokens` |
-| TOTP secret | `pgp_sym_encrypt` w/ `MFA_ENCRYPTION_KEY` | Pre-existing, see `totp_mfa_service` |
+| TOTP secret | Removed (ADR 0002): MFA lives in Open Media; legacy `user_totp_mfa` rows remain until a follow-up migration | — |
 
 We deliberately use **AES-GCM, not GCM-SIV**: nonces are random and never
 reused (tracked by the nonce-per-row contract above). If we need

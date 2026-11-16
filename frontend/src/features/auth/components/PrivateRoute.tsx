@@ -27,7 +27,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
 
   // If not logged in, redirect to login page with return URL
-  return <Navigate to="/auth" state={{ from: location }} replace />;
+  return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
 // Exporting the PrivateRoute component
