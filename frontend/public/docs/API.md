@@ -1,6 +1,6 @@
 # Manifest API Reference
 
-Last verified against code on **April 18, 2026**.
+Last verified against code on **May 3, 2026**.
 
 Primary source files:
 
@@ -11,6 +11,7 @@ Primary source files:
 - `backend/app/routes/privacy_routes.py`
 - `backend/app/routes/survey_ops_routes.py`
 - `backend/app/routes/website_testing_routes.py`
+- `backend/app/routes/ops_internal_routes.py`
 - `backend/app/routes/voice_agent_routes.py`
 - `backend/app/routes/dependencies.py`
 - `backend/app/services/compliance/privacy_consent.py`
@@ -78,6 +79,15 @@ Authorization: Bearer manifest_sk_xxx
 
 The schema is implemented in `backend/app/graphql/schema.py`.
 
+### AI keys (bring your own key)
+
+Every AI feature runs on the signed-in customer's own OpenAI API key.
+
+- `aiKeyStatus` → `{ configured, source, last4 }`, where `source` is `user`, `platform` (an operator `OPENAI_API_KEY` fallback, used for local development only) or `none`.
+- `saveOpenaiApiKey(apiKey)` checks the key with OpenAI, encrypts it with the user's tenant data key and stores it (`integrations.service_id = 'openai'`, ciphertext only). Malformed or rejected keys return a readable error.
+- `removeOpenaiApiKey` deletes the stored key.
+- An AI request made without a key fails with a message that starts with "Add your OpenAI API key". The web app turns that message into a banner linking to `/account#ai-key`.
+
 ### Query operations
 
 Core:
@@ -85,7 +95,7 @@ Core:
 - `me`
 - `profile`
 - `account`
-- `ideas`
+- `ideas(first: Int = 100, after: String)` — lightweight `IdeaSummary` rows for the workspace sidebar; ordered by `created_at` DESC; capped at 200 per page. `after` is an opaque cursor from the previous page (base64 JSON of `{created_at, idea_id}`). List queries read denormalized `generated_asset_count` / `has_description` columns and **do not** load multi-MB document blobs.
 - `idea(ideaId)`
 
 Documents:
@@ -94,6 +104,16 @@ Documents:
 - `productRequirementsDocument(ideaId)`
 - `provisionalPatent(ideaId)`
 - `findSimilarIdeas(ideaDescription)`
+
+Idea qualification (pre-build conversational agent):
+
+- `ideaQualificationSession(sessionId)` — returns the in-progress or completed session (transcript, extracted fields, next question, score). Returns `null` if the session is not owned by the caller.
+- `myIdeaQualificationSessions` — list view of the caller's own sessions, newest first (id, status, turnCount, qualificationScore, timestamps).
+
+Cost tracking + billing dashboard:
+
+- `myCostDashboard` — single-call payload powering `/account/billing`: current month's spend with by-agent + by-model breakdowns, remaining USD against the cap, % of cap, warning level (`ok` / `elevated` / `critical` / `over`), 20 most-recent agent runs, base subscription + estimated total. Permission: `account.read`. See `docs/COST_TRACKING.md`.
+- `myAgentRuns(limit: Int)` — recent `agent_runs` rows for the caller (default 20, max 100). Permission: `account.read`.
 
 Integrations:
 
@@ -113,21 +133,38 @@ Social and investing:
 - `surveyInsights(windowDays)` — aggregate discovery + product-feedback signals used by the Account settings insight panel
 - `privacyStatus` — retention and deletion status used by the Account privacy panel; optional analytics and outreach preferences are saved through `/api/privacy/consent`
 
-Messaging and collaboration:
+Open Media (messages and pitch shorts run on the user's linked [Open Media](https://openmedia.site) account; see [ADR 0001](adr/0001-open-media-for-messages-and-pitch-shorts.md) and [OPEN_MEDIA_CONTRACT.md](OPEN_MEDIA_CONTRACT.md)):
 
-- `myConversations(limit, offset)`
-- `conversationMessages(conversationId, limit, beforeId)`
-- `unreadMessageCount`
-- `ideaOwner(ideaId)` — includes `isPublished` and `canMessage` (non-owners may message only when the idea is published)
-- `userPublicKey(userId)`
+- `openMediaLink` → `{ enabled, linked, needsReconnect, handle, displayName, avatarUrl, connectUrl }`. `enabled: false` means this server runs without Open Media (`OPEN_MEDIA_ENABLED` off): Messages and Pitch Shorts are hidden. Link with `connectUrl` (`/api/integrations/open-media/connect`, below). Never returns tokens.
+- `openMediaRealtimeToken` → `{ supabaseUrl, anonKey, accessToken, expiresAt, omUserId }` — the user's short-lived Open Media Supabase token so the browser can subscribe to Realtime `postgres_changes` on `messages` (RLS-limited). Requires a linked account.
 
-Pitch reels (immersive feed):
+Messaging (Open Media; conversation, message and `otherUserId` ids are Open Media ids):
 
-- `pitchReelsFeed(limit)` — returns reels with `videoUrl`, `videoStatus` (`ready` | `pending` | `processing` | `failed`), `ideaId` when the reel is linked to an idea (used with `createInvestment` in the Pitch Reels UI), and metadata
-- `pitchReelComments(reelId, limit)`
-- Related mutations: `togglePitchReelLike`, `togglePitchReelSave`, `recordPitchReelShare`, `createPitchReelComment`
+- `myConversations(limit, offset, allApps = false)` — conversations tagged `context.app = "manifest"`; `allApps: true` lists every Open Media conversation. Each item: `conversationId, otherUserId, otherUserName, otherUserHandle, otherUserAvatar, ideaId, ideaTitle, lastMessageAt, lastMessagePreview, unreadCount`.
+- `conversationMessages(conversationId, limit, beforeId)` → `{ messageId, conversationId, senderId, content, createdAt, isMine }`, oldest first
+- `unreadMessageCount` — unread messages in Manifest conversations; cached per user for 5 minutes and refreshed by webhooks. Returns `0` when Open Media is off, unlinked or unreachable.
+- `ideaOwner(ideaId)` — includes `isPublished`, `openMediaHandle` (null until the founder links Open Media) and `canMessage` (true only for non-owners of a published idea whose founder has linked Open Media)
 
-Publishing an idea (`togglePublishIdea`) sets `ideas.is_published`, upserts a linked `pitch_reels` row when turning **on**, unpublishes that reel when turning **off**, and (when `GOOGLE_API_KEY` is set) starts a background Gemini/Veo job to replace the placeholder video file.
+Without a linked account these fields fail with "Connect your Open Media account in Account settings to use this." (or "…expired. Reconnect it…").
+
+```graphql
+query { myConversations(limit: 20) { conversationId otherUserHandle ideaTitle unreadCount } }
+```
+
+Pitch reels (clips are Open Media posts with `context.app = "manifest"`):
+
+- `pitchReelsFeed(limit)` — published Manifest reels joined with their Open Media clips: video `videoUrl`/`posterUrl` and `stats { likeCount commentCount shareCount }` (share = Open Media reshares) come from Open Media; `viewerState { liked reshared }` uses the viewer's token when linked, otherwise the public feed. Reels whose clip is not posted yet follow, with `videoStatus` `pending` | `processing` | `failed` | `needs_open_media` (the founder has not linked Open Media). Empty when Open Media is off. Excludes the three legacy sample IDs.
+- `pitchReelComments(reelId, limit)` — public Open Media comments on the clip (`authorId` is an Open Media id; `authorHandle` added)
+- Mutations (linked account required): `togglePitchReelLike(reelId, liked: Boolean!)`, `resharePitchReel(reelId, reshared: Boolean!)` (repost on the viewer's Open Media profile), `createPitchReelComment(reelId, body)`. There is no save: Open Media has no save concept.
+- Creator follow on reels uses Manifest's own `toggleFollow(followedId)`.
+
+```graphql
+mutation { togglePitchReelLike(reelId: "<reel-uuid>", liked: true) { liked likeCount } }
+```
+
+Publishing an idea (`togglePublishIdea`) sets `ideas.is_published` and upserts a linked `pitch_reels` row when turning **on**. When Open Media is enabled and the founder has linked it, a background Veo job generates the video, uploads it as the founder (`/v1/connected/me/media/videos`) and posts the clip with `context { app: "manifest", idea_id, title, url: "https://manifeststartup.com/pitch-reels?clip=<reelId>" }`; the post id is saved in `pitch_reels.om_post_id`. A founder who has not linked waits in `needs_open_media`; linking resumes the job. Turning publishing **off** hides the reel and deletes the Open Media post.
+
+**Removed (November 2026):** `userPublicKey`, `setEncryptionKey`, `togglePitchReelSave`, `recordPitchReelShare`, `Message.isEncrypted` / `messageType` / `isRead`, `IdeaOwner.email`, `stats.saveCount` and `viewerState.saved`. The old encryption was not real end-to-end encryption.
 - `ideaCollaborators(ideaId)`
 - `mySharedIdeas`
 - `myCollaborationInvitations`
@@ -151,7 +188,7 @@ Try-before-signup (guest) sessions:
 - **Rate limit:** `startGuestSession` is limited per client IP in-process (see `guest_workspace_service`).
 - **Retention:** Guests get `guest_expires_at` (default 30 days from creation at insert). Stale rows may be deleted by a scheduled cleanup job in production; until then, data remains on the server for that guest id.
 
-Guest accounts cannot use mutations that require a full account (enforced server-side), including: `togglePublishIdea`, founder messaging (`startConversation`, `sendMessage`, `markConversationRead`, `setEncryptionKey`), investing mutations, social follow mutations, and `inviteCollaborator`.
+Guest accounts cannot use mutations that require a full account (enforced server-side), including: `togglePublishIdea`, founder messaging (`startConversation`, `sendMessage`, `markConversationRead`), investing mutations, social follow mutations, and `inviteCollaborator`.
 
 Ideas and generation:
 
@@ -159,10 +196,21 @@ Ideas and generation:
 - `updateIdea(ideaId, title, description)`
 - `deleteIdea(ideaId)`
 - `togglePublishIdea(ideaId)` — also syncs `pitch_reels` for the idea and may enqueue Gemini video generation (see env vars below)
-- `runBackgroundTasks(ideaId, description)`
+- `runBackgroundTasks(ideaId, description)` — legacy fire-and-forget (threaded).
+- `enqueueBackgroundTasks(ideaId, documentTypes, idempotencyKey)` → `{ jobId, status }` — durable, restart-safe alternative. Enqueues a `generation_jobs` row that the dedicated generation worker drains (`FOR UPDATE SKIP LOCKED`); returns immediately with a job id. Poll `generationJob(jobId)` for status, and deduplicated per `idempotencyKey` (a retried request joins the in-flight job). Permission: `ideas.write`.
+- `generationJob(jobId)` (query) → `{ id, status, documentTypes, ideaId, errorMessage, createdAt, updatedAt }` — status of an async job; only the owner can read it. Permission: `ideas.read`.
 - `generatePitchDeck(ideaId, description)`
 - `generateProductRequirementsDocument(ideaId, description)`
 - `generateProvisionalPatent(ideaId, description)`
+
+Idea qualification:
+
+- `startIdeaQualification(initialIdeaText)` — opens a new multi-turn qualification session, seeds the opening question, returns the `IdeaQualificationSession`. Also opens an `agent_runs` row linked to the session so cost can be tracked. Permission: `ideas.write`.
+- `continueIdeaQualification(sessionId, userMessage)` — advances the session by one turn. Calls the LLM to extract structured fields from the latest reply and either asks the next best question or completes the session with a 0–100 score + explanation. Completes automatically after 8 turns. Each LLM-calling turn logs one `agent_cost_events` row via the `llm_usage_tap`. See `backend/app/services/ai/idea_qualification.py` and the prompt at `backend/app/prompts/idea_qualification.mcp.json`. Permission: `ideas.write`.
+
+Billing (variable-cost cap):
+
+- `setVariableCostCap(monthlyCapUsd: Float, paused: Boolean)` — update the caller's monthly variable-cost cap and/or paused flag. The cap is clamped to `[0, MANIFEST_USER_CAP_MAX_USD]` (default 5000). Currently a soft warning surface; enforcement gating lands in a follow-up — see `docs/COST_TRACKING.md`. Permission: `account.write`.
 
 Import/export:
 
@@ -185,10 +233,10 @@ Integrations/social/investing:
 
 Messaging/collaboration:
 
-- `startConversation(otherUserId, ideaId)` — if `ideaId` is set, non-owners require the idea to be **published**
-- `sendMessage(conversationId, content, messageType, metadata)`
+- `startConversation(otherUserId, ideaId)` — opens (or reuses) an Open Media conversation with the founder's linked Open Media handle. `otherUserId` is the founder's **Manifest** user id; with `ideaId` the idea must be **published**, owned by that founder, and the conversation is tagged `context { app, idea_id, title, url }`. Fails with "This founder hasn't connected Open Media yet…" when they have not linked.
+- `sendMessage(conversationId, content, clientId)` — `clientId` (optional) is passed to Open Media as the idempotency key so a retried send lands once
 - `markConversationRead(conversationId)`
-- `setEncryptionKey(publicKey)`
+- `disconnectOpenMedia` — forgets the link and its tokens (Open Media content stays on Open Media); returns the new `openMediaLink` status
 - `inviteCollaborator(input)`
 - `respondToInvitation(ideaId, accept)`
 - `updateCollaboratorRole(ideaId, targetUserId, newRole)`
@@ -288,6 +336,12 @@ Auth:
 
 - `X-Manifest-Agent-Key: <MANIFEST_AGENT_LOOP_SECRET>`
 
+`GET /api/internal/ops/snapshot` behavior:
+
+- Returns JSON suitable for monitoring: sync DB connection pool snapshot (`db_pool`: `pooled_connections_checked_out`, min/max pool size flags), async pool snapshot (`async_db_pool`: `async_db_enabled`, `pool_open`, pool stats when `ASYNC_DB=true`), GraphQL and DB slow thresholds from environment, and a placeholder `background_job_queue` block until a queue is implemented.
+- Uses the same `X-Manifest-Agent-Key` header as other internal agent-loop routes.
+- See `docs/OBSERVABILITY_AND_SLO.md`.
+
 `POST /api/internal/website-testing/sync-issues` behavior:
 
 - Audits a bounded set of public pages from the provided target URL
@@ -322,11 +376,35 @@ Auth:
 - `POST /api/voice-agent/tts`
 - `POST /api/voice-agent/transcribe`
 
-`GET /api/voice-agent/capabilities` returns the deterministic app-control command catalog that backs the current Manifest Voice UI, including navigation, idea management, workspace layout, search, and pitch-reel controls.
+`GET /api/voice-agent/capabilities` returns the deterministic app-control command catalog that backs the current Manifest Voice UI, including navigation (including messages), idea management, document generation phrases (pitch deck, PRD, patent, background tasks), integrations/GitHub bootstrap phrases, workspace layout, search, pitch-reel controls, and **guest account claim** phrases (`claim my account`, `send upgrade link to …`).
 
-`POST /api/voice-agent/start` may return an empty `response.message` so clients can open the microphone immediately without playing a spoken greeting.
+### `/api/integrations` (session/JWT)
+
+- `POST /api/integrations/github/bootstrap` — JSON body `{ "idea_id": "<uuid>", "repo_name": "<github-repo-slug>" }`. Requires a **full** account (not guest). Uses the user’s stored GitHub integration token (`integrations.service_id = github`) to create a **private** repository and seed `README.md` from the idea title and note. Returns `{ "html_url": "..." }` on success; `400` if GitHub is not connected, `404` if the idea is missing or not owned by the caller. Pair with voice phrasing that ends in `confirm bootstrap` so repos are not created accidentally.
+
+`POST /api/voice-agent/start` accepts optional `onboarding_mode: true` for guest sessions so the first turn can include a short spoken orientation; otherwise `response.message` may be empty so clients can open the microphone immediately without playing a greeting.
+
+**GraphQL (guest upgrade):** authenticated guests may call `requestGuestAccountUpgradeEmail(email)` (rate-limited; generic success message). Completing the flow is `completeGuestAccountUpgrade(token, password)` (public mutation) after the user opens the emailed link (`/auth?guest_upgrade_token=…`).
 
 `POST /api/voice-agent/process-stream` returns `text/event-stream` for the live spoken reply. Clients receive `delta` events while the assistant is still generating the answer, then a final `structured` event with the same payload shape as `POST /api/voice-agent/process` so the workspace note and qualification state stay consistent.
+
+**Web client:** choosing voice-first entry from the marketing page sets `localStorage` key `manifest_voice_mode` to `full`. While that value is `full`, the desktop/web client auto-opens the voice overlay once per browser tab when you land on `/ideas` (tracked with sessionStorage key `manifest_voice_full_auto_opened`). Use the in-session **Workspace** control to switch back to `standard` (traditional workspace on next visit), or clear `manifest_voice_mode` manually.
+
+### `/api/integrations/open-media` and `/api/webhooks/open-media`
+
+- `GET /api/integrations/open-media/connect` — browser navigation for a signed-in **full** account. Redirects (303) to Open Media `/authorize` with `client_id=https://manifeststartup.com/oauth/open-media-client.json` (Client ID Metadata Document, served statically), `scope=account`, PKCE `S256` and a signed `state` bound to the user (10 minutes, single use). Guests are sent back to `/account?open_media=full_account_required`; signed-out users to `/login`.
+- `GET /api/integrations/open-media/callback?code&state` — exchanges the code, reads `/v1/connected/me`, stores the encrypted refresh/access tokens with the Open Media id and handle in `integrations` (`service_id = open_media`), resumes reels waiting in `needs_open_media`, and redirects to `/account?open_media=linked|cancelled|error#open-media`.
+- `POST /api/webhooks/open-media` — called by Open Media. Headers `X-Open-Media-Event`, `X-Open-Media-Delivery`, `X-Open-Media-Timestamp`, `X-Open-Media-Signature: sha256=<hex HMAC-SHA256(OPEN_MEDIA_WEBHOOK_SECRET, timestamp + "." + raw_body)>`. Rejects bad signatures (401) and timestamps more than 5 minutes off; dedupes on the body `id`; `503` when no secret is configured. Bodies carry ids only; `message.created` / `conversation.read` drop cached unread counts, `post.liked` / `post.commented` / `post.deleted` drop cached clip stats. Returns `{"ok": true}` (plus `"duplicate": true` for repeats).
+
+```bash
+body='{"id":"d-1","type":"message.created","data":{"recipient_ids":["<om-user-id>"]}}'
+ts=$(date +%s)
+sig="sha256=$(printf '%s.%s' "$ts" "$body" | openssl dgst -sha256 -hmac "$OPEN_MEDIA_WEBHOOK_SECRET" -hex | awk '{print $2}')"
+curl -X POST http://localhost:8000/api/webhooks/open-media -H "Content-Type: application/json" \
+  -H "X-Open-Media-Event: message.created" -H "X-Open-Media-Timestamp: $ts" -H "X-Open-Media-Signature: $sig" -d "$body"
+```
+
+**Removed:** `GET /api/pitch-reels/{reel_id}/video` (unauthenticated video bytes from the database). Videos are served by Open Media.
 
 ### Other
 
@@ -351,20 +429,35 @@ After each successful REST issue create, the backend may attach the issue to a P
 
 Requires a token with **Issues** and **Projects** write access.
 
+## Environment variables (database — async pool, Stage #2)
+
+- `ASYNC_DB` — set to `true` / `1` / `yes` to open a `psycopg` 3.x `AsyncConnectionPool` at FastAPI startup (default **off**). Existing sync `psycopg2` `DatabaseClient.table(...).execute()` calls are unchanged until individual resolvers opt into async helpers in later migration stages.
+- `ASYNC_DB_POOL_MIN` / `ASYNC_DB_POOL_MAX` — async pool size bounds (fallback to `DB_POOL_MIN_CONNECTIONS` / `DB_POOL_MAX_CONNECTIONS`).
+- `GET /ping` includes an `async_db` block when `ASYNC_DB=true` (`enabled`, `pool_open`, `ping_ok` after `SELECT 1`).
+
+## Environment variables (Open Media)
+
+- `OPEN_MEDIA_ENABLED` — `true` turns on Messages and Pitch Shorts. Off (default) hides both and never calls Open Media or Veo; ideas and investing keep working.
+- `OPEN_MEDIA_API_BASE` — default `https://api.openmedia.site` (local: the Worker URL `npm run local` prints in Open Media).
+- `OPEN_MEDIA_CLIENT_ID` — default `https://manifeststartup.com/oauth/open-media-client.json` (must match the served document).
+- `OPEN_MEDIA_REDIRECT_URI` — optional; default `https://manifeststartup.com/api/integrations/open-media/callback`. Only for a local Open Media stack; it must be listed in the client document.
+- `OPEN_MEDIA_WEBHOOK_SECRET` — secret; the same hex value as `APP_WEBHOOKS.manifest.secret` on the Open Media Worker.
+
+Stored tokens are encrypted with the existing integration-token envelope keys (`MANIFEST_KEK_*`), so no separate token key is needed.
+
 ## Environment variables (pitch reels / video)
 
-- `GOOGLE_API_KEY` — when set, publishing an idea triggers a background Gemini (Veo) video job for its pitch reel; when unset, the reel stays on a placeholder clip and is still listed in `pitchReelsFeed`.
+- `GOOGLE_API_KEY` — when set (and Open Media is enabled and the founder has linked it), publishing an idea runs one background Gemini (Veo) job for its reel. Cost guard: Veo never runs for an unlinked founder, at most one successful generation per idea per 30 days (`pitch_reels.video_generated_at`), and a failed upload keeps the MP4 on local disk so the retry re-uploads it without calling Veo. When unset, the reel is listed without video (`failed`).
 - `GEMINI_VIDEO_MODEL` — optional model id (default `veo-3.1-generate-preview`).
-- `PITCH_REEL_VIDEO_MODE` — `thread` (default) runs generation in a background thread after `togglePublishIdea` returns; `disabled` skips scheduling (use on serverless hosts where daemon threads are unreliable). Listing and `pitchReelsFeed` still work with the placeholder video.
+- `PITCH_REEL_VIDEO_MODE` — `thread` (default) runs generation in a background thread after `togglePublishIdea` returns; `disabled` skips scheduling (use on serverless hosts where daemon threads are unreliable). Listing and `pitchReelsFeed` still work without video. The client shows the idea summary and a quiet unavailable-video state; it never substitutes a tutorial clip.
 
 ### Production checklist (`togglePublishIdea` / `pitchReelsFeed`)
 
-1. **Deploy the backend** that includes the `pitchReelsFeed` resolver calling `PitchReelService.list_feed` with `viewer_id` (wrong kwargs cause GraphQL errors and the web app falls back to demo clips only).
-2. **Apply Supabase migrations** on the production project, including `pitch_reels` columns `video_status`, `video_generation_error`, and the partial unique index on `idea_id` (see `supabase/migrations/`).
-3. **Frontend** — `REACT_APP_API_URL` (and related `REACT_APP_SUPABASE_*`) must target the same production API and Supabase project.
-4. **`GOOGLE_API_KEY`** — optional in production; without it, reels use a built-in placeholder video but still appear in the feed.
-5. **Background worker** — video generation uses an in-process **daemon thread**. On platforms that freeze or recycle the process immediately after each request, prefer `PITCH_REEL_VIDEO_MODE=disabled` or run a long-lived API worker; do not rely on the thread finishing on ephemeral serverless instances.
-6. **Generated video files** — by default, successful jobs write MP4s under `generated/pdfs/pitch-reels/` on the API host. Ephemeral disks lose these files after deploy; static/CDN frontends may not serve that path. For durable URLs, plan object storage (e.g. Supabase Storage) and public URLs—see `pitch_reels/video_worker.py`.
+1. **Apply Supabase migrations** `20261115120000_pitch_reels_open_media.sql` (adds `om_post_id`, `video_generated_at`; drops `video_data` only if empty) and the guarded drops `20261115120100_drop_manifest_messaging.sql` and `20261115120200_drop_pitch_reel_social_tables.sql` (they refuse to drop tables with real rows).
+2. **Set the Open Media env vars** above on the backend and `APP_WEBHOOKS` on the Open Media Worker.
+3. **`GOOGLE_API_KEY`** — optional; without it reels appear without video.
+4. **Background worker** — video generation uses an in-process **daemon thread**. On platforms that freeze or recycle the process immediately after each request, prefer `PITCH_REEL_VIDEO_MODE=disabled` or run a long-lived API worker.
+5. **Video files** — the MP4 is written to `generated/pdfs/pitch-reels/` only until it is uploaded to Open Media, then deleted. Open Media serves the video.
 
 ## Minimal GraphQL Example
 
@@ -377,9 +470,28 @@ curl -X POST http://localhost:8000/graphql \
 ## Known Caveats (Current Code)
 
 - `updateIdea` rejects empty title/description updates and only accepts description with meaningful text after HTML stripping.
-- `runBackgroundTasks` is fire-and-forget (threaded) and returns immediately.
+- `runBackgroundTasks` is fire-and-forget (threaded) and returns immediately; work is lost on process restart. Prefer `enqueueBackgroundTasks` (durable queue + `generationJob` status) once the generation worker is deployed.
 - `POST /api/contact` is defined in code but currently not mounted in `main.py`.
 - `/api/v1/ideas/{idea_id}/generate` performs generation inline and can be slow for large prompts; failures are returned per document in the `documents` payload.
 - `/api/internal/website-testing/sync-issues` is internal-only and requires `MANIFEST_AGENT_LOOP_SECRET` (or `AGENT_LOOP_SECRET`) plus backend GitHub configuration (`MANIFEST_GITHUB_TOKEN` or `GITHUB_TOKEN`) before it can create issues.
 - `/api/internal/production-signals/event` uses the same agent key; GitHub issue creation is opt-in per request and shares the same GitHub token requirements.
-- Pitch reel **Gemini video** jobs are threaded and write to local `generated/` by default; see **Production checklist** under Environment variables.
+- Pitch reel **Gemini video** jobs are threaded; see **Production checklist** under Environment variables.
+- Open Media webhook dedupe and the unread/clip-stat caches use `app.services.shared.cache` (in-process unless `REDIS_URL` is set), so with several instances a webhook only clears the instance that received it; the short TTLs (5 minutes unread, 60 seconds clips) bound staleness.
+
+### Pitch Reels feed and loading (September 2026)
+
+The feed uses the shared workspace navigation and theme. Video and pitch details are shown side by side on desktop and stacked on phones. Scroll, arrow keys, or Previous/Next move through reels. Only the active reel has a video source; inactive reels do not download media. The investment dialog is loaded on demand. Returning to the page can show cached reels while refreshing the feed.
+
+`PitchReelService.list_feed` (November 2026) reads published reel rows off the event loop, fetches one page of Open Media clips (`/v1/connected/me/feed?kind=clips&app=manifest` for a linked viewer, else the public `/v1/feed`, cached 60 seconds) and joins them by `om_post_id`. Clip-backed reels follow Open Media's order; reels still waiting for a clip come after. If Open Media is down, the feed degrades to the waiting reels instead of failing. No generation calls occur on feed reads.
+
+Feed subtitle, thesis, and description are plain-text previews capped at 640 characters plus an ellipsis. PostgreSQL also bounds these text columns in its projection, so full note transcripts do not travel in a feed response. Open the linked idea for full content.
+
+Reels with a posted clip are shown before published ideas that are still waiting for one, so the feed opens on available content.
+
+### Supporting document presentation
+
+The canvas, cost worksheet, pitch deck, PRD and U.S. provisional draft use the conventional working formats described in [DOCUMENT_FORMATS.md](DOCUMENT_FORMATS.md). Existing GraphQL fields and Markdown section contracts are unchanged. Saved content receives the updated display without regeneration; prompt changes and the new specification PDF layout apply to subsequent generation. Cost estimates distinguish currency, cadence and assumptions. Existing saved PDFs remain unchanged. No additional AI calls are made on document views.
+
+### Compact note controls
+
+History and Share are icon-only controls with accessible labels and tooltips. The note toolbar no longer shows a Focus button or the collaborator-skills section, and note views no longer fetch the skills catalog. The Similar ideas panel uses its single main heading without the redundant subtitle. Existing keyboard/voice focus commands remain compatible; reopening either side panel exits focus mode. Stored skills fields and account APIs are unchanged.

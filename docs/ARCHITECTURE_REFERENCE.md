@@ -130,7 +130,8 @@ Demo mode behavior:
 - Discover/social feed with voting/following
 - Account page with integrations and API key management
 - Account page also surfaces aggregate survey insights from GraphQL `surveyInsights`
-- Messaging + collaboration features
+- Messaging (on Open Media) + collaboration features
+- Pitch Shorts (`/pitch-reels`): Manifest reels joined with Open Media clips
 - Voice assistant UI + TTS fallback plus deterministic app-command routing (shared voice REST client: `frontend/src/features/voice/voiceAgentApi.ts`). The marketing home page can start a **guest session** and open the same overlay; guests hear an onboarding-oriented first turn when `onboarding_mode` is set on `/api/voice-agent/start`.
 
 ## Request Flow Examples
@@ -193,4 +194,24 @@ Demo mode behavior:
 - [docs/SOCKETIO_HORIZONAL_SCALING.md](SOCKETIO_HORIZONAL_SCALING.md) — multi-replica Socket.IO with Redis.
 - [docs/EDGE_SECURITY_AND_INTERNAL_ROUTES.md](EDGE_SECURITY_AND_INTERNAL_ROUTES.md) — WAF/rate limiting at edge and internal route inventory.
 
-GraphQL types for some domains are split from the monolithic schema module (for example `backend/app/graphql/pitch_reel_types.py`); see `backend/app/graphql/README.md`.
+GraphQL types for some domains are split from the monolithic schema module (for example `backend/app/graphql/pitch_reel_types.py` and `backend/app/graphql/open_media_types.py`); see `backend/app/graphql/README.md`.
+
+## Open Media (Messages and Pitch Shorts)
+
+Decision record: [adr/0001-open-media-for-messages-and-pitch-shorts.md](adr/0001-open-media-for-messages-and-pitch-shorts.md). Contract: [OPEN_MEDIA_CONTRACT.md](OPEN_MEDIA_CONTRACT.md).
+
+```
+Browser ──GraphQL──> Manifest backend ──> services/integrations/open_media/  (the only Open Media caller)
+   │                                              │ httpx: /token, /v1/connected/me/*, /v1/feed, /v1/posts
+   │ Supabase Realtime (user's OM token, read-only)▼
+   └──────────────────────────────────────> Open Media (api.openmedia.site)
+Manifest backend <── POST /api/webhooks/open-media (HMAC, ids only) ──┘
+```
+
+- **Owns:** Open Media holds conversations, messages, read state, video files, clip posts, likes, comments and reshares. Manifest holds ideas, investing, Veo generation and pointers: the account link in `integrations` (`service_id = open_media`, encrypted refresh/access tokens + `om_user_id`, `handle`) and `pitch_reels.om_post_id`.
+- **Adapter** `backend/app/services/integrations/open_media/`: `settings` (env), `store` (encrypted link), `client` (timeouts, retries, token refresh), `identity` (OAuth 2.1 + PKCE linking), `messaging`, `clips`, `webhooks`. Resolvers in `schema.py` and `pitch_reels/` call it; nothing else talks to Open Media.
+- **Linking:** `GET /api/integrations/open-media/connect` → Open Media `/authorize` (client id = the CIMD URL `/oauth/open-media-client.json`, a static asset) → `GET /api/integrations/open-media/callback`.
+- **Messages:** `myConversations` etc. resolve through the adapter (`app=manifest`, `context.idea_id`); "Message founder" uses the founder's linked handle. The browser subscribes to Open Media Realtime with `openMediaRealtimeToken` and polls every 5 minutes as fallback.
+- **Pitch Shorts:** publish → Veo (only for linked founders, at most once per idea per 30 days) → upload as the founder → clip post with `context {app, idea_id, title, url}` → `om_post_id`. Unpublish deletes the post. `pitchReelsFeed` joins reels with the clips feed.
+- **Webhooks** drop cached unread counts (5 min TTL) and clip stats (60 s TTL) in `app.services.shared.cache`.
+- **Off switch:** without `OPEN_MEDIA_ENABLED`, Messages and Pitch Shorts are hidden; there is no built-in fallback.

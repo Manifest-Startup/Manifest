@@ -1,6 +1,6 @@
 # Open Media integration plan: Messages and Pitch Shorts
 
-Status: proposal for review (2026-11-15). No code changed yet.
+Status: Manifest side implemented on `feat/open-media-integration` (2026-11-15); see [ADR 0001](adr/0001-open-media-for-messages-and-pitch-shorts.md). Deviations: the link lives in `integrations` (`service_id = open_media`) rather than a new `open_media_links` table, tokens reuse the integration envelope keys (no `OPEN_MEDIA_TOKEN_KEY`), the callback is `/api/integrations/open-media/callback` (per the contract), saves are dropped, and reel follows use Manifest's follow graph.
 
 ## Decisions
 
