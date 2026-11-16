@@ -369,16 +369,18 @@ export interface GetPitchReelsFeedVariables {
 }
 
 // ---------------------------- Messaging ----------------------------------
+// Messages live in Open Media; conversation, message and other-user ids are Open Media ids.
 
 export interface Conversation {
   conversationId: string;
   otherUserId: string;
   otherUserName: string;
-  otherUserAvatar?: string;
-  ideaId?: string;
-  ideaTitle?: string;
+  otherUserHandle?: string | null;
+  otherUserAvatar?: string | null;
+  ideaId?: string | null;
+  ideaTitle?: string | null;
   lastMessageAt: string;
-  lastMessagePreview?: string;
+  lastMessagePreview?: string | null;
   unreadCount: number;
 }
 
@@ -389,15 +391,16 @@ export interface GetMyConversationsData {
 export interface GetMyConversationsVariables {
   limit?: number | null;
   offset?: number | null;
+  allApps?: boolean | null;
 }
 
 export interface ChatMessage {
   messageId: string;
+  conversationId?: string;
+  senderId?: string;
   content: string;
   isMine: boolean;
   createdAt: string;
-  senderName?: string;
-  senderAvatar?: string;
 }
 
 export interface GetConversationMessagesData {
@@ -408,6 +411,24 @@ export interface GetConversationMessagesVariables {
   conversationId: string;
   limit?: number | null;
   beforeId?: string | null;
+}
+
+export interface SendMessageData {
+  sendMessage: ChatMessage | null;
+}
+
+export interface SendMessageVariables {
+  conversationId: string;
+  content: string;
+  clientId?: string | null;
+}
+
+export interface MarkConversationReadData {
+  markConversationRead: boolean;
+}
+
+export interface MarkConversationReadVariables {
+  conversationId: string;
 }
 
 export interface GetUnreadMessageCountData {
@@ -421,13 +442,14 @@ export interface IdeaOwner {
   username: string | null;
   firstName: string | null;
   lastName: string | null;
-  email: string | null;
   bio: string | null;
   profilePictureUrl: string | null;
   ideaId: string;
   ideaTitle: string | null;
   isPublished: boolean;
   canMessage: boolean;
+  /** Founder's Open Media handle; null until they link Open Media. */
+  openMediaHandle: string | null;
 }
 
 export interface GetIdeaOwnerData {
@@ -435,20 +457,91 @@ export interface GetIdeaOwnerData {
 }
 
 export interface StartConversationData {
-  startConversation: {
-    conversationId: string;
-    otherUserId: string;
-    otherUserName: string;
-    otherUserAvatar: string | null;
-    ideaId: string | null;
-    lastMessageAt: string;
-    unreadCount: number;
-  } | null;
+  startConversation: Conversation | null;
 }
 
 export interface StartConversationVariables {
   otherUserId: string;
   ideaId?: string | null;
+}
+
+// ---------------------------- Open Media ---------------------------------
+
+export interface OpenMediaLinkStatus {
+  enabled: boolean;
+  linked: boolean;
+  needsReconnect: boolean;
+  handle: string | null;
+  displayName: string | null;
+  connectUrl: string;
+}
+
+export interface GetOpenMediaLinkData {
+  openMediaLink: OpenMediaLinkStatus | null;
+}
+
+export interface DisconnectOpenMediaData {
+  disconnectOpenMedia: OpenMediaLinkStatus | null;
+}
+
+export interface GetOpenMediaRealtimeTokenData {
+  openMediaRealtimeToken: {
+    supabaseUrl: string;
+    anonKey: string;
+    accessToken: string;
+    expiresAt: string | null;
+    omUserId: string | null;
+  } | null;
+}
+
+// ---------------------------- Pitch reels --------------------------------
+
+export interface PitchReelCommentRow {
+  commentId: string;
+  reelId: string;
+  authorId: string;
+  authorName: string;
+  authorHandle?: string | null;
+  authorAvatar?: string | null;
+  body: string;
+  createdAt: string;
+  isMine: boolean;
+}
+
+export interface GetPitchReelCommentsData {
+  pitchReelComments: PitchReelCommentRow[];
+}
+
+export interface GetPitchReelCommentsVariables {
+  reelId: string;
+  limit?: number | null;
+}
+
+export interface TogglePitchReelLikeData {
+  togglePitchReelLike: { reelId: string; liked: boolean; likeCount: number | null } | null;
+}
+
+export interface TogglePitchReelLikeVariables {
+  reelId: string;
+  liked: boolean;
+}
+
+export interface ResharePitchReelData {
+  resharePitchReel: { reelId: string; reshared: boolean; shareCount: number | null } | null;
+}
+
+export interface ResharePitchReelVariables {
+  reelId: string;
+  reshared: boolean;
+}
+
+export interface CreatePitchReelCommentData {
+  createPitchReelComment: { comment: PitchReelCommentRow } | null;
+}
+
+export interface CreatePitchReelCommentVariables {
+  reelId: string;
+  body: string;
 }
 
 // -------------------------- Collaboration --------------------------------

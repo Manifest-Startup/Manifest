@@ -6,7 +6,14 @@ import { resolveBackendAssetUrl } from "features/core/network/urls";
 import { createLogger } from "features/core/logError";
 import type { ChatMessage as Message } from "features/core/apollo/operationTypes";
 
+import { MESSAGES_FALLBACK_POLL_MS } from "../hooks/useLiveMessages";
+
 const logger = createLogger("ChatPanel");
+
+const newClientId = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 interface ChatPanelProps {
   conversationId: string;
@@ -28,7 +35,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const { data, loading, refetch } = useQuery(GET_CONVERSATION_MESSAGES, {
     variables: { conversationId, limit: 100 },
-    pollInterval: 15000,
+    pollInterval: MESSAGES_FALLBACK_POLL_MS,
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
   });
@@ -54,21 +61,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   }, [conversationId, markRead]);
 
+  const [sendError, setSendError] = useState<string | null>(null);
+
   const handleSend = async () => {
     if (!newMessage.trim() || sending) {
       return;
     }
 
+    setSendError(null);
     try {
+      // The same clientId makes a retried send land once in Open Media.
       await sendMessage({
         variables: {
           conversationId,
           content: newMessage.trim(),
-          messageType: "text",
+          clientId: newClientId(),
         },
       });
     } catch (err) {
       logger.error("Failed to send message:", err);
+      setSendError(err instanceof Error ? err.message : "Message not sent. Try again.");
     }
   };
 
@@ -128,7 +140,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           <div className="min-w-0 flex-1">
             <p className="text-base font-semibold text-neutral900 dark:text-white">{otherUserName}</p>
             <div className="mt-1 flex flex-wrap gap-2">
-              <span className="manifest-pill">Private conversation</span>
+              <span className="manifest-pill">Via Open Media</span>
               {ideaTitle ? <span className="manifest-pill">Re: {ideaTitle}</span> : null}
             </div>
           </div>
@@ -192,6 +204,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             className="min-h-[5rem] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 text-neutral900 outline-none placeholder:text-gray400 dark:text-white dark:placeholder:text-gray500"
             data-testid="chat-message-input"
           />
+          {sendError ? (
+            <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+              {sendError}
+            </p>
+          ) : null}
           <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-xs text-gray500 dark:text-gray400">Enter sends · Shift+Enter for a new line</p>
             <button

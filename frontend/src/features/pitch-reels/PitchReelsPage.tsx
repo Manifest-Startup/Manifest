@@ -8,20 +8,27 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useReactiveVar } from "@apollo/client/react";
+import { useMutation, useQuery, useReactiveVar } from "@apollo/client/react";
 
-import { GET_PITCH_REELS_FEED } from "features/core/apollo/queries";
+import {
+  CREATE_PITCH_REEL_COMMENT,
+  GET_PITCH_REEL_COMMENTS,
+  GET_PITCH_REELS_FEED,
+  RESHARE_PITCH_REEL,
+  TOGGLE_FOLLOW,
+  TOGGLE_PITCH_REEL_LIKE,
+} from "features/core/apollo/queries";
 import { userVar } from "features/core/apollo/localState";
 import Button from "features/common-ui/Button";
 
 import { createLogger } from "features/core/logError";
+import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 import { subscribeToVoiceShortsCommand } from "features/voice/voiceCommandEvents";
 
 import { htmlToPlainText } from "./htmlToPlainText";
 import { mapPitchReelToShortClip } from "./mapPitchReelToShortClip";
 import PitchReelVideo from "./PitchReelVideo";
 import type { ShortClip } from "./types";
-import { usePersistentShortsState } from "./usePersistentShortsState";
 
 const InvestmentModal = lazy(
   () => import("features/investments/components/InvestmentModal"),
@@ -29,6 +36,7 @@ const InvestmentModal = lazy(
 
 const logger = createLogger("PitchReelsPage");
 const INITIAL_FEED_LIMIT = 12;
+const CONNECT_FEEDBACK = "Connect Open Media in Account settings to like, comment and repost.";
 const FEED_PAGE_SIZE = 12;
 const MAX_FEED_LIMIT = 48;
 
@@ -148,18 +156,18 @@ const ShareIcon = () => (
   </svg>
 );
 
-const SaveIcon = ({ active }: { active: boolean }) => (
+const RepostIcon = ({ active }: { active: boolean }) => (
   <svg
     className="h-6 w-6"
-    fill={active ? "currentColor" : "none"}
+    fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
   >
     <path
-      d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13l-6.5-3.7L5.5 19V6A1.5 1.5 0 0 1 7 4.5Z"
+      d="M17 2.5 20.5 6 17 9.5M3.5 11V9a3 3 0 0 1 3-3h14M7 21.5 3.5 18 7 14.5M20.5 13v2a3 3 0 0 1-3 3h-14"
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth={active ? 0 : 1.9}
+      strokeWidth={active ? 2.6 : 1.9}
     />
   </svg>
 );
@@ -256,18 +264,18 @@ const PitchReelsPage: React.FC = () => {
   const [feedLoadStalled, setFeedLoadStalled] = useState(false);
   const { userData } = useReactiveVar(userVar);
   const viewerUserId = userData?.userId ?? "";
+  const openMedia = useOpenMediaLink();
+  const [muted, setMuted] = useState(true);
+  // Optimistic overrides on top of the feed (server state comes from Open Media / Manifest follows).
+  const [likeOverrides, setLikeOverrides] = useState<Record<string, { liked: boolean; count: number }>>({});
+  const [reshareOverrides, setReshareOverrides] = useState<Record<string, { reshared: boolean; count: number }>>({});
+  const [followOverrides, setFollowOverrides] = useState<Record<string, boolean>>({});
+  const [commentCountBump, setCommentCountBump] = useState<Record<string, number>>({});
 
-  const {
-    state,
-    likedClipIds,
-    savedClipIds,
-    followedCreatorIds,
-    toggleLike,
-    toggleSave,
-    toggleFollow,
-    setMuted,
-    addComment,
-  } = usePersistentShortsState();
+  const [likeReel] = useMutation(TOGGLE_PITCH_REEL_LIKE);
+  const [reshareReel] = useMutation(RESHARE_PITCH_REEL);
+  const [toggleFollowMutation] = useMutation(TOGGLE_FOLLOW);
+  const [createComment, { loading: postingComment }] = useMutation(CREATE_PITCH_REEL_COMMENT);
 
   const {
     data: feedData,
@@ -278,6 +286,7 @@ const PitchReelsPage: React.FC = () => {
     stopPolling,
   } = useQuery(GET_PITCH_REELS_FEED, {
     variables: { limit: feedLimit },
+    skip: !openMedia.enabled,
     notifyOnNetworkStatusChange: true,
     fetchPolicy: "cache-and-network",
     nextFetchPolicy: "cache-first",
@@ -346,9 +355,19 @@ const PitchReelsPage: React.FC = () => {
     return () => window.clearTimeout(timeout);
   }, [clips.length, feedLoading]);
 
-  const commentsForOpenClip = openCommentsClipId
-    ? state.commentsByClipId[openCommentsClipId] || []
-    : [];
+  const openCommentsReel = useMemo(
+    () => clips.find((c: ShortClip) => c.id === openCommentsClipId),
+    [clips, openCommentsClipId],
+  );
+  const { data: commentsData, loading: commentsLoading, refetch: refetchComments } = useQuery(
+    GET_PITCH_REEL_COMMENTS,
+    {
+      variables: { reelId: openCommentsClipId || "", limit: 120 },
+      skip: !openCommentsClipId || !openCommentsReel || openCommentsReel.videoStatus !== "ready",
+      fetchPolicy: "cache-and-network",
+    },
+  );
+  const commentsForOpenClip = openCommentsClipId ? commentsData?.pitchReelComments || [] : [];
 
   const investTargetClip = useMemo(
     () =>
@@ -364,6 +383,116 @@ const PitchReelsPage: React.FC = () => {
       setFeedbackMessage((current) => (current === message ? null : current));
     }, 2200);
   }, []);
+
+  const likeState = useCallback(
+    (clip: ShortClip) => likeOverrides[clip.id] ?? { liked: clip.liked, count: clip.likeCount },
+    [likeOverrides],
+  );
+  const reshareState = useCallback(
+    (clip: ShortClip) =>
+      reshareOverrides[clip.id] ?? { reshared: clip.reshared, count: clip.shareCount },
+    [reshareOverrides],
+  );
+  const isFollowing = useCallback(
+    (clip: ShortClip) => followOverrides[clip.creatorId] ?? clip.creatorFollowing,
+    [followOverrides],
+  );
+
+  /** Open Media actions need a linked account and a posted clip. */
+  const canInteract = useCallback(
+    (clip: ShortClip) => {
+      if (!openMedia.ready) {
+        showFeedback(CONNECT_FEEDBACK);
+        return false;
+      }
+      if (clip.videoStatus !== "ready") {
+        showFeedback("This reel's video isn't posted yet.");
+        return false;
+      }
+      return true;
+    },
+    [openMedia.ready, showFeedback],
+  );
+
+  const toggleLike = useCallback(
+    async (clip: ShortClip) => {
+      if (!canInteract(clip)) return;
+      const before = likeState(clip);
+      const next = { liked: !before.liked, count: Math.max(0, before.count + (before.liked ? -1 : 1)) };
+      setLikeOverrides((current) => ({ ...current, [clip.id]: next }));
+      try {
+        const result = await likeReel({ variables: { reelId: clip.id, liked: next.liked } });
+        const count = result?.data?.togglePitchReelLike?.likeCount;
+        if (typeof count === "number") {
+          setLikeOverrides((current) => ({ ...current, [clip.id]: { liked: next.liked, count } }));
+        }
+        showFeedback(next.liked ? "Liked reel." : "Removed like.");
+      } catch (error) {
+        setLikeOverrides((current) => ({ ...current, [clip.id]: before }));
+        showFeedback(error instanceof Error ? error.message : "Couldn't update the like.");
+      }
+    },
+    [canInteract, likeReel, likeState, showFeedback],
+  );
+
+  const toggleReshare = useCallback(
+    async (clip: ShortClip) => {
+      if (!canInteract(clip)) return;
+      const before = reshareState(clip);
+      const next = {
+        reshared: !before.reshared,
+        count: Math.max(0, before.count + (before.reshared ? -1 : 1)),
+      };
+      setReshareOverrides((current) => ({ ...current, [clip.id]: next }));
+      try {
+        const result = await reshareReel({ variables: { reelId: clip.id, reshared: next.reshared } });
+        const count = result?.data?.resharePitchReel?.shareCount;
+        if (typeof count === "number") {
+          setReshareOverrides((current) => ({ ...current, [clip.id]: { reshared: next.reshared, count } }));
+        }
+        showFeedback(next.reshared ? "Reposted to Open Media." : "Repost removed.");
+      } catch (error) {
+        setReshareOverrides((current) => ({ ...current, [clip.id]: before }));
+        showFeedback(error instanceof Error ? error.message : "Couldn't update the repost.");
+      }
+    },
+    [canInteract, reshareReel, reshareState, showFeedback],
+  );
+
+  const toggleFollow = useCallback(
+    async (clip: ShortClip) => {
+      const before = isFollowing(clip);
+      setFollowOverrides((current) => ({ ...current, [clip.creatorId]: !before }));
+      try {
+        const result = await toggleFollowMutation({ variables: { followedId: clip.creatorId } });
+        const following = result?.data?.toggleFollow?.following ?? !before;
+        setFollowOverrides((current) => ({ ...current, [clip.creatorId]: following }));
+        showFeedback(following ? `Following ${clip.creatorName}.` : `Unfollowed ${clip.creatorName}.`);
+      } catch (error) {
+        setFollowOverrides((current) => ({ ...current, [clip.creatorId]: before }));
+        showFeedback(error instanceof Error ? error.message : "Couldn't update follow.");
+      }
+    },
+    [isFollowing, showFeedback, toggleFollowMutation],
+  );
+
+  const addComment = useCallback(
+    async (clip: ShortClip, body: string) => {
+      const text = body.trim();
+      if (!text || !canInteract(clip)) return false;
+      try {
+        await createComment({ variables: { reelId: clip.id, body: text } });
+        setCommentCountBump((current) => ({ ...current, [clip.id]: (current[clip.id] || 0) + 1 }));
+        void refetchComments();
+        showFeedback("Comment added.");
+        return true;
+      } catch (error) {
+        showFeedback(error instanceof Error ? error.message : "Couldn't post the comment.");
+        return false;
+      }
+    },
+    [canInteract, createComment, refetchComments, showFeedback],
+  );
 
   const scrollToClip = useCallback(
     (index: number) => {
@@ -443,7 +572,7 @@ const PitchReelsPage: React.FC = () => {
         return;
       }
 
-      video.muted = state.muted;
+      video.muted = muted;
       if (index === activeIndex) {
         const playResult = video.play();
         if (playResult && typeof playResult.catch === "function") {
@@ -455,7 +584,7 @@ const PitchReelsPage: React.FC = () => {
         video.pause();
       }
     });
-  }, [activeIndex, state.muted]);
+  }, [activeIndex, muted]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -541,19 +670,14 @@ const PitchReelsPage: React.FC = () => {
     [navigate],
   );
 
-  const handleSubmitComment = useCallback(() => {
-    if (!openCommentsClipId) {
+  const handleSubmitComment = useCallback(async () => {
+    if (!openCommentsReel) {
       return;
     }
-
-    const result = addComment(openCommentsClipId, commentDraft);
-    if (!result) {
-      return;
+    if (await addComment(openCommentsReel, commentDraft)) {
+      setCommentDraft("");
     }
-
-    setCommentDraft("");
-    showFeedback("Comment added.");
-  }, [addComment, commentDraft, openCommentsClipId, showFeedback]);
+  }, [addComment, commentDraft, openCommentsReel]);
 
   useEffect(() => {
     return subscribeToVoiceShortsCommand(({ action, body }) => {
@@ -573,30 +697,19 @@ const PitchReelsPage: React.FC = () => {
       }
 
       if (action === "toggle_like") {
-        toggleLike(activeClip.id);
-        showFeedback(
-          likedClipIds.has(activeClip.id) ? "Removed like." : "Liked reel.",
-        );
+        void toggleLike(activeClip);
         return;
       }
 
-      if (action === "toggle_save") {
-        toggleSave(activeClip.id);
-        showFeedback(
-          savedClipIds.has(activeClip.id)
-            ? "Removed from saved."
-            : "Saved reel.",
-        );
+      if (action === "toggle_reshare") {
+        void toggleReshare(activeClip);
         return;
       }
 
       if (action === "toggle_follow") {
-        toggleFollow(activeClip.creatorId);
-        showFeedback(
-          followedCreatorIds.has(activeClip.creatorId)
-            ? `Unfollowed ${activeClip.creatorName}.`
-            : `Following ${activeClip.creatorName}.`,
-        );
+        if (activeClip.creatorId !== viewerUserId) {
+          void toggleFollow(activeClip);
+        }
         return;
       }
 
@@ -648,10 +761,7 @@ const PitchReelsPage: React.FC = () => {
       if (action === "comment") {
         setOpenCommentsClipId(activeClip.id);
         if (body?.trim()) {
-          const result = addComment(activeClip.id, body);
-          if (result) {
-            showFeedback("Comment added.");
-          }
+          void addComment(activeClip, body);
         }
       }
     });
@@ -659,17 +769,13 @@ const PitchReelsPage: React.FC = () => {
     activeIndex,
     addComment,
     clips,
-    followedCreatorIds,
     handleOpenWorkspace,
     handleShare,
-    likedClipIds,
-    savedClipIds,
     scrollToClip,
-    setMuted,
     showFeedback,
     toggleFollow,
     toggleLike,
-    toggleSave,
+    toggleReshare,
     viewerUserId,
   ]);
 
@@ -707,6 +813,16 @@ const PitchReelsPage: React.FC = () => {
           </Button>
         </div>
       </header>
+      {openMedia.enabled && !openMedia.loading && !openMedia.ready && clips.length > 0 && (
+        <div className="manifest-reels-feedback" data-testid="shorts-connect-banner">
+          {openMedia.status?.needsReconnect
+            ? "Your Open Media connection expired."
+            : "Connect Open Media to like, comment and repost."}{" "}
+          <a className="underline" href={openMedia.connectUrl}>
+            {openMedia.status?.needsReconnect ? "Reconnect" : "Connect"}
+          </a>
+        </div>
+      )}
       {feedbackMessage && (
         <div
           role="status"
@@ -740,7 +856,13 @@ const PitchReelsPage: React.FC = () => {
             </Button>
           </div>
         )}
-        {clips.length === 0 && !feedLoading && !feedError && (
+        {!openMedia.enabled && (
+          <div className="manifest-reels-empty" data-testid="shorts-unavailable">
+            <h2>Pitch Shorts aren&apos;t available here</h2>
+            <p>This Manifest server doesn&apos;t have Open Media turned on.</p>
+          </div>
+        )}
+        {openMedia.enabled && clips.length === 0 && !feedLoading && !feedError && (
           <div className="manifest-reels-empty">
             <h2>No pitch reels yet</h2>
             <p>Published ideas will appear here.</p>
@@ -750,11 +872,10 @@ const PitchReelsPage: React.FC = () => {
           </div>
         )}
         {clips.map((clip: ShortClip, index: number) => {
-          const isLiked = likedClipIds.has(clip.id);
-          const isSaved = savedClipIds.has(clip.id);
-          const isFollowed = followedCreatorIds.has(clip.creatorId);
-          const commentCount =
-            clip.commentCount + (state.commentsByClipId[clip.id]?.length || 0);
+          const { liked: isLiked, count: likeCount } = likeState(clip);
+          const { reshared: isReshared, count: reshareCount } = reshareState(clip);
+          const isFollowed = isFollowing(clip);
+          const commentCount = clip.commentCount + (commentCountBump[clip.id] || 0);
           const {
             titlePlain = "",
             subtitlePlain = "",
@@ -796,9 +917,10 @@ const PitchReelsPage: React.FC = () => {
                           }))
                         }
                         className="h-full w-full object-contain"
+                        poster={clip.posterUrl}
                         loop
                         autoPlay={index === activeIndex}
-                        muted={state.muted}
+                        muted={muted}
                         playsInline
                         controls
                         preload={index === activeIndex ? "auto" : "none"}
@@ -807,11 +929,11 @@ const PitchReelsPage: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setMuted(!state.muted)}
+                        onClick={() => setMuted(!muted)}
                         className="manifest-reel-sound"
-                        aria-label={state.muted ? "Enable sound" : "Mute sound"}
+                        aria-label={muted ? "Enable sound" : "Mute sound"}
                       >
-                        <VolumeIcon muted={state.muted} />
+                        <VolumeIcon muted={muted} />
                       </button>
                     </>
                   ) : (
@@ -820,7 +942,9 @@ const PitchReelsPage: React.FC = () => {
                       <p>
                         {processing
                           ? "Video is being prepared"
-                          : "No video available yet"}
+                          : clip.videoStatus === "needs_open_media"
+                            ? "Waiting for the founder to connect Open Media"
+                            : "No video available yet"}
                       </p>
                     </div>
                   )}
@@ -837,7 +961,7 @@ const PitchReelsPage: React.FC = () => {
                     {clip.creatorId !== viewerUserId && (
                       <Button
                         variant="ghost"
-                        onClick={() => toggleFollow(clip.creatorId)}
+                        onClick={() => void toggleFollow(clip)}
                         data-testid={`short-follow-${clip.id}`}
                         aria-label={`${isFollowed ? "Unfollow" : "Follow"} ${clip.creatorName}`}
                       >
@@ -863,8 +987,8 @@ const PitchReelsPage: React.FC = () => {
                     <ActionButton
                       icon={<HeartIcon active={isLiked} />}
                       ariaLabel={`${isLiked ? "Unlike" : "Like"} ${titlePlain}`}
-                      count={clip.likeCount + (isLiked ? 1 : 0)}
-                      onClick={() => toggleLike(clip.id)}
+                      count={likeCount}
+                      onClick={() => void toggleLike(clip)}
                       active={isLiked}
                       testId={`short-like-${clip.id}`}
                     />
@@ -879,12 +1003,12 @@ const PitchReelsPage: React.FC = () => {
                       testId={`short-comment-${clip.id}`}
                     />
                     <ActionButton
-                      icon={<SaveIcon active={isSaved} />}
-                      ariaLabel={`${isSaved ? "Unsave" : "Save"} ${titlePlain}`}
-                      count={clip.saveCount + (isSaved ? 1 : 0)}
-                      onClick={() => toggleSave(clip.id)}
-                      active={isSaved}
-                      testId={`short-save-${clip.id}`}
+                      icon={<RepostIcon active={isReshared} />}
+                      ariaLabel={`${isReshared ? "Undo repost of" : "Repost"} ${titlePlain} on Open Media`}
+                      count={reshareCount}
+                      onClick={() => void toggleReshare(clip)}
+                      active={isReshared}
+                      testId={`short-repost-${clip.id}`}
                     />
                     <ActionButton
                       icon={<ShareIcon />}
@@ -939,10 +1063,7 @@ const PitchReelsPage: React.FC = () => {
               <div>
                 <p className="text-sm">Comments</p>
                 <h2 className="mt-1 text-xl font-semibold">
-                  {htmlToPlainText(
-                    clips.find((c: ShortClip) => c.id === openCommentsClipId)
-                      ?.title,
-                  )}
+                  {htmlToPlainText(openCommentsReel?.title)}
                 </h2>
               </div>
               <button
@@ -957,11 +1078,20 @@ const PitchReelsPage: React.FC = () => {
             </div>
 
             <div className="max-h-[42vh] space-y-3 overflow-y-auto pr-1">
-              {commentsForOpenClip.length ? (
+              {commentsLoading && commentsForOpenClip.length === 0 ? (
+                <p role="status" className="py-8 text-center text-sm text-gray500">
+                  Loading comments…
+                </p>
+              ) : commentsForOpenClip.length ? (
                 commentsForOpenClip.map((comment) => (
-                  <div key={comment.id} className="manifest-reels-comment">
+                  <div key={comment.commentId} className="manifest-reels-comment">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold">{comment.author}</p>
+                      <p className="text-sm font-semibold">
+                        {comment.isMine ? "You" : comment.authorName}
+                        {comment.authorHandle ? (
+                          <span className="ml-1 font-normal text-gray500">@{comment.authorHandle}</span>
+                        ) : null}
+                      </p>
                       <span className="text-xs font-medium text-gray500">
                         {timeAgoLabel(comment.createdAt)}
                       </span>
@@ -992,11 +1122,12 @@ const PitchReelsPage: React.FC = () => {
               />
               <button
                 type="button"
-                onClick={handleSubmitComment}
+                onClick={() => void handleSubmitComment()}
+                disabled={postingComment}
                 className="manifest-reels-post"
                 data-testid="short-comments-submit"
               >
-                Post
+                {postingComment ? "Posting…" : "Post"}
               </button>
             </div>
           </div>

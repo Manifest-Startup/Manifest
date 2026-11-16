@@ -28,7 +28,7 @@ export type VoiceShortsAction =
   | 'next'
   | 'previous'
   | 'toggle_like'
-  | 'toggle_save'
+  | 'toggle_reshare'
   | 'toggle_follow'
   | 'open_comments'
   | 'open_invest'

@@ -1,13 +1,30 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import { GET_IDEA_CORE, GET_IDEA_OWNER } from "features/core/apollo/queries";
+import { GET_IDEA_CORE, GET_IDEA_OWNER, GET_OPEN_MEDIA_LINK } from "features/core/apollo/queries";
 
 import IdeaOwnerPanel from "../IdeaOwnerPanel";
 
 const mockSetMessage = jest.fn();
 const mockStartConversation = jest.fn();
 const mockUseQuery = jest.fn();
+
+const linkResult = (overrides: Record<string, unknown> = {}) => ({
+  data: {
+    openMediaLink: {
+      enabled: true,
+      linked: true,
+      needsReconnect: false,
+      handle: "viewer",
+      displayName: "Viewer",
+      connectUrl: "/api/integrations/open-media/connect",
+      ...overrides,
+    },
+  },
+  loading: false,
+  error: null,
+});
+let mockLinkResult = linkResult();
 
 const defaultCoreResult = {
   data: {
@@ -35,6 +52,7 @@ const defaultOwnerResult = {
       ideaTitle: "AI Fitness App",
       isPublished: true,
       canMessage: true,
+      openMediaHandle: "mihir" as string | null,
     },
   },
   loading: false,
@@ -48,6 +66,9 @@ function setupDualQueryMock(
   mockUseQuery.mockImplementation((doc: unknown, options?: { skip?: boolean }) => {
     if (doc === GET_IDEA_CORE) {
       return core;
+    }
+    if (doc === GET_OPEN_MEDIA_LINK) {
+      return mockLinkResult;
     }
     if (doc === GET_IDEA_OWNER) {
       if (options?.skip) {
@@ -82,6 +103,7 @@ jest.mock("@apollo/client/react", () => {
   return {
     ...actual,
     useMutation: () => [mockStartConversation, { loading: false }],
+    useApolloClient: () => ({ refetchQueries: jest.fn(), query: jest.fn() }),
     useQuery: (...args: unknown[]) => mockUseQuery(...args),
     useReactiveVar: (reactiveVar: () => unknown) => {
       const localState = require("features/core/apollo/localState");
@@ -102,7 +124,47 @@ jest.mock("@apollo/client/react", () => {
 describe("IdeaOwnerPanel", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLinkResult = linkResult();
     setupDualQueryMock();
+  });
+
+  const ownerWith = (overrides: Record<string, unknown>) => ({
+    ...defaultOwnerResult,
+    data: { ideaOwner: { ...defaultOwnerResult.data.ideaOwner, ...overrides } },
+  });
+
+  it("explains when the founder has not connected Open Media", () => {
+    setupDualQueryMock(defaultCoreResult, ownerWith({ canMessage: false, openMediaHandle: null }));
+    render(<IdeaOwnerPanel ideaId="idea-1" similarIdeas="# Similar Landscape" />);
+
+    expect(screen.getByText(/hasn't connected Open Media yet/)).toBeInTheDocument();
+    expect(screen.getByTestId("message-founder-button")).toBeDisabled();
+  });
+
+  it("offers to connect Open Media when the viewer has not linked", () => {
+    mockLinkResult = linkResult({ linked: false, handle: null });
+    render(<IdeaOwnerPanel ideaId="idea-1" similarIdeas="# Similar Landscape" />);
+
+    expect(screen.getByTestId("open-media-connect-prompt")).toBeInTheDocument();
+    expect(screen.queryByTestId("message-founder-button")).not.toBeInTheDocument();
+  });
+
+  it("hides founder messaging when Open Media is off on this server", () => {
+    mockLinkResult = linkResult({ enabled: false, linked: false });
+    render(<IdeaOwnerPanel ideaId="idea-1" similarIdeas="# Similar Landscape" />);
+
+    expect(screen.queryByTestId("founder-messaging")).not.toBeInTheDocument();
+    expect(screen.getByText("Founder and builder.")).toBeInTheDocument();
+  });
+
+  it("starts the conversation with the founder's Manifest id and the idea", async () => {
+    mockStartConversation.mockResolvedValue({ data: { startConversation: { conversationId: "c1" } } });
+    render(<IdeaOwnerPanel ideaId="idea-1" similarIdeas="# Similar Landscape" />);
+
+    screen.getByTestId("message-founder-button").click();
+    expect(mockStartConversation).toHaveBeenCalledWith({
+      variables: { otherUserId: "owner-1", ideaId: "idea-1" },
+    });
   });
 
   it("puts similar ideas first and uses simpler founder labels", () => {
@@ -152,6 +214,7 @@ describe("IdeaOwnerPanel", () => {
           ideaTitle: "AI Fitness App",
           isPublished: false,
           canMessage: false,
+          openMediaHandle: "mihir",
         },
       },
       loading: false,

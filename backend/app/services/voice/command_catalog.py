@@ -94,7 +94,7 @@ VOICE_COMMAND_CAPABILITIES: list[dict[str, Any]] = [
         "examples": [
             "Next reel",
             "Like this reel",
-            "Save this reel",
+            "Repost this reel",
             "Follow this creator",
             "Open comments",
             "Comment on this reel This is sharp",

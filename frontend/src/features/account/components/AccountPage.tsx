@@ -17,6 +17,7 @@ import SurveyInsightsPanel from "features/feedback/SurveyInsightsPanel";
 import ApiAccessSection from "./ApiAccessSection";
 import AiKeySection from "./AiKeySection";
 import IntegrationsSection from "./IntegrationsSection";
+import OpenMediaSection from "./OpenMediaSection";
 import PrivacyControlsPanel from "./PrivacyControlsPanel";
 import SecuritySettingsPanel from "./SecuritySettingsPanel";
 import { uploadProfilePicture } from "../api/uploadProfilePicture";
@@ -608,6 +609,15 @@ const AccountPage: React.FC = () => {
                   description="Manifest runs on your own OpenAI account, so you only pay OpenAI for what you generate. The key is verified, encrypted, and never shown again."
                 >
                   <AiKeySection />
+                </SectionCard>
+              </div>
+              <div id="open-media">
+                <SectionCard
+                  eyebrow="Open Media"
+                  title="Connect Open Media"
+                  description="Messages and Pitch Shorts run on your Open Media account. Your pitch shorts also appear in Open Media's clips feed."
+                >
+                  <OpenMediaSection />
                 </SectionCard>
               </div>
               <SurveyInsightsPanel variant="desktop" />
