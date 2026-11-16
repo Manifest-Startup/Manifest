@@ -378,3 +378,37 @@ def test_completion_flags():
     assert "--title" in completion.flags_for(["create-idea"])
     assert "create" in completion.flags_for(["keys"])
     assert "--client-id" in completion.flags_for(["keys", "create"])
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_step_up_answers_explain_how_to_reconfirm(status):
+    def handler(request):
+        return httpx.Response(status, json={"detail": "Recent sign-in required"}, headers={"X-Step-Up-Required": "1"})
+
+    err = io.StringIO()
+    code = cli.main(
+        ["keys", "revoke", "k1", "--yes"],
+        out=io.StringIO(),
+        err=err,
+        stdin=FakeStdin(),
+        transport=httpx.MockTransport(handler),
+    )
+    assert code == 1
+    assert cli.STEP_UP_HINT in err.getvalue()
+    assert "session expired" not in err.getvalue()
+
+
+@pytest.mark.parametrize("override", ["env", "flag"])
+def test_logout_with_an_override_token_keeps_the_saved_login(override, monkeypatch):
+    config.save({"base_url": "https://m.test", "token": "saved-token", "label": "Manifest CLI · box"})
+    argv = ["logout"]
+    if override == "env":
+        monkeypatch.setenv("MANIFEST_API_TOKEN", "other-token")
+    else:
+        argv += ["--token", "other-token"]
+    backend = Backend()
+    code, _, err = run(*argv, backend=backend)
+    assert code == 0
+    assert backend.requests[0].headers["authorization"] == "Bearer other-token"
+    assert config.load()["token"] == "saved-token"
+    assert "left in place" in err

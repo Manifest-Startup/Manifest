@@ -21,11 +21,11 @@ manifest whoami
 manifest logout                                 # revokes this computer's session
 ```
 
-`login` opens Manifest in your browser. Sign in with Open Media if needed (passkeys and MFA apply), then click **Allow** on "Allow Manifest CLI on this computer?". The CLI receives a session labelled `Manifest CLI · <hostname>` that lasts 30 days (14 days without use) and appears under Account → Security → Active sessions, where you can revoke it. There is no refresh: run `manifest login` again when it expires. Guest workspaces can't use the CLI; sign in first (your guest ideas merge into the account).
+`login` opens Manifest in your browser. Sign in with Open Media if needed (passkeys and MFA apply); if your browser's sign-in is more than 5 minutes old, Manifest sends you through Continue with Open Media once more to confirm it's you. Then click **Allow** on "Allow Manifest CLI on this computer?". The CLI receives a session labelled `Manifest CLI · <hostname>` that lasts 30 days (14 days without use) and appears under Account → Security → Active sessions, where you can revoke it. There is no refresh: run `manifest login` again when it expires. Guest workspaces can't use the CLI; sign in first (your guest ideas merge into the account).
 
 The session is stored in `~/.config/manifest/cli.json` (mode 0600) with the base URL. `MANIFEST_CONFIG` moves that file; `MANIFEST_API_URL` and `MANIFEST_API_TOKEN` override it (CI, a second deployment). Every request sends `Authorization: Bearer <token>`.
 
-Routes that need a recent sign-in (create, rotate or revoke API keys; DSAR rectify or erase) answer `401` with `X-Step-Up-Required`: run `manifest login` again, then retry within 5 minutes.
+Routes that need a recent sign-in (create, rotate or revoke API keys; DSAR rectify or erase) answer `401` with `X-Step-Up-Required`, and the CLI says so. Because approving the CLI always needs a fresh sign-in, which the new CLI session inherits, re-running `manifest login` restores step-up access: run it, then retry within 5 minutes. `manifest logout` clears `cli.json` only when the revoked token came from it; with `--token` or `MANIFEST_API_TOKEN` the saved login stays.
 
 ## GraphQL commands
 

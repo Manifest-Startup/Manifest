@@ -6,6 +6,7 @@ PKCE, loopback-only redirects, state, one-time codes, expiry, guests, revocation
 from __future__ import annotations
 
 import time
+from datetime import timedelta
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -35,8 +36,9 @@ def app():
 
 
 @pytest.fixture
-def browser(app, sessions):  # noqa: F811
-    """A signed-in browser for user u1."""
+def browser(app, sessions, monkeypatch):  # noqa: F811
+    """A browser for user u1 that signed in just now (not demo mode)."""
+    monkeypatch.setattr(cli_auth_routes, "DEMO_MODE", False)
     client = TestClient(app, follow_redirects=False)
     token = current_user.create_session_token("u1", "ada@example.com")
     client.cookies.set("session_token", token)
@@ -294,3 +296,63 @@ def test_logout_revokes_the_cli_session(browser, sessions):  # noqa: F811
 def test_session_label_is_sanitised():
     assert cli_auth.session_label("ada's <mbp>\n") == "Manifest CLI · ada-s-mbp"
     assert cli_auth.session_label("") == "Manifest CLI · unknown host"
+
+
+# -- fresh sign-in (step-up) ---------------------------------------------------
+
+
+def _stale_browser(app, monkeypatch, age_seconds: int) -> TestClient:
+    real_now = current_user.datetime.now
+    monkeypatch.setattr(
+        current_user,
+        "datetime",
+        type(
+            "FrozenDatetime",
+            (),
+            {"now": staticmethod(lambda tz=None: real_now(tz) - timedelta(seconds=age_seconds))},
+        ),
+    )
+    token = current_user.create_session_token("u1", "ada@example.com")
+    monkeypatch.undo()
+    client = TestClient(app, follow_redirects=False)
+    client.cookies.set("session_token", token)
+    return client
+
+
+def test_stale_sign_in_goes_through_open_media_again(app, sessions, monkeypatch):  # noqa: F811
+    browser = _stale_browser(app, monkeypatch, cli_auth_routes.STEP_UP_SECONDS + 60)
+    monkeypatch.setattr(cli_auth_routes, "DEMO_MODE", False)
+    _, challenge = pkce_pair()
+    for extra in ({}, {"confirm": "0" * 64}):
+        response = browser.get("/api/cli/authorize", params=authorize_params(challenge, **extra))
+        assert response.status_code == 303
+        location = urlsplit(response.headers["location"])
+        assert location.path == "/api/auth/open-media/start"
+        next_path = parse_qs(location.query)["next"][0]
+        next_query = parse_qs(urlsplit(next_path).query)
+        assert next_query["reauth"] == ["1"] and "confirm" not in next_query
+        assert next_query["state"] == [STATE]
+        assert auth_routes.safe_next(next_path) == next_path
+
+
+def test_reauth_does_not_loop(app, sessions, monkeypatch):  # noqa: F811
+    browser = _stale_browser(app, monkeypatch, cli_auth_routes.STEP_UP_SECONDS + 60)
+    monkeypatch.setattr(cli_auth_routes, "DEMO_MODE", False)
+    _, challenge = pkce_pair()
+    response = browser.get("/api/cli/authorize", params=authorize_params(challenge, reauth="1"))
+    assert response.status_code == 401 and "location" not in response.headers
+
+
+def test_cancel_works_without_a_fresh_sign_in(app, sessions, monkeypatch):  # noqa: F811
+    browser = _stale_browser(app, monkeypatch, cli_auth_routes.STEP_UP_SECONDS + 60)
+    monkeypatch.setattr(cli_auth_routes, "DEMO_MODE", False)
+    _, challenge = pkce_pair()
+    response = browser.get("/api/cli/authorize", params=authorize_params(challenge, deny="1"))
+    assert response.status_code == 303 and response.headers["location"].startswith(LOOPBACK)
+
+
+def test_fresh_sign_in_is_inherited_by_the_cli_session(browser, monkeypatch):
+    monkeypatch.setattr(cli_auth_routes, "DEMO_MODE", False)
+    verifier, challenge = pkce_pair()
+    token = exchange(browser, approve(browser, challenge), verifier).json()["access_token"]
+    assert time.time() - current_user.decode_session_token(token)["auth_iat"] < 60

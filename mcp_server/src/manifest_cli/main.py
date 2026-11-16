@@ -33,6 +33,9 @@ BUILTINS: dict[str, str] = {
 }
 
 
+STEP_UP_HINT = "Run `manifest login` again to confirm it's you, then retry within 5 minutes."
+
+
 class CliError(Exception):
     """A failure the CLI reports on stderr with exit code 1."""
 
@@ -186,10 +189,10 @@ def _http_error(response: httpx.Response) -> CliError:
     message = (
         f"HTTP {response.status_code}: {detail if isinstance(detail, str) else json.dumps(detail)}"
     )
-    if response.status_code == 401:
+    if response.status_code in (401, 403) and response.headers.get("X-Step-Up-Required"):
+        message += f"\n{STEP_UP_HINT}"
+    elif response.status_code == 401:
         message += "\nNot signed in, or the session expired. Run `manifest login`."
-    if response.status_code == 403 and response.headers.get("X-Step-Up-Required"):
-        message += "\nThis needs a recent sign-in. Run `manifest login` again, then retry."
     return CliError(message)
 
 
@@ -476,9 +479,13 @@ def _day(value: str | None) -> str:
 def cmd_logout(ctx: Context, argv: list[str]) -> int:
     ns = _sub("logout", BUILTINS["logout"]).parse_args(argv)
     saved = config.load()
-    if not config.token(ns.token):
+    token = config.token(ns.token)
+    if not token:
         ctx.err.write("Not signed in.\n")
         return 0
+    # Only forget the saved login if that is the token being revoked; a --token or
+    # MANIFEST_API_TOKEN override leaves cli.json alone.
+    from_saved_file = bool(saved.get("token")) and token == saved.get("token")
 
     async def revoke() -> httpx.Response:
         async with ctx.client(ns) as client:
@@ -490,13 +497,18 @@ def cmd_logout(ctx: Context, argv: list[str]) -> int:
     except Exception as exc:  # noqa: BLE001 - still forget the token locally
         ctx.err.write(f"warning: could not reach Manifest to revoke the session: {exc}\n")
         revoked = False
-    if saved.get("token") and not ns.token:
+    if from_saved_file:
         for key in ("token", "expires_at", "label", "user"):
             saved.pop(key, None)
         config.save(saved)
-    ctx.err.write(
-        "Signed out; the CLI session was revoked.\n" if revoked else "Signed out locally.\n"
-    )
+    if revoked:
+        ctx.err.write("Signed out; the session was revoked.\n")
+    else:
+        ctx.err.write("Could not revoke the session on the server.\n")
+    if not from_saved_file and saved.get("token"):
+        ctx.err.write(f"The saved login in {config.config_path()} was left in place.\n")
+    elif from_saved_file:
+        ctx.err.write(f"Removed the saved login from {config.config_path()}.\n")
     return 0
 
 

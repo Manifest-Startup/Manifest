@@ -2,7 +2,9 @@
 
 - ``GET  /api/cli/authorize?redirect_uri=http://127.0.0.1:<port>/callback&state=…&code_challenge=…&code_challenge_method=S256``
   needs a signed-in, non-guest browser session (otherwise it sends the browser to
-  ``/login?next=…``, i.e. Continue with Open Media, so passkeys and MFA apply), shows
+  ``/login?next=…``, i.e. Continue with Open Media, so passkeys and MFA apply) whose
+  sign-in is within the 5-minute step-up window (otherwise it signs in with Open Media
+  again once, marked ``reauth=1``), shows
   "Allow Manifest CLI on this computer?", then redirects to the loopback address
   with a one-time ``code`` and the CLI's ``state``.
 - ``POST /api/cli/token`` exchanges ``code`` + ``code_verifier`` for a revocable CLI
@@ -14,14 +16,17 @@
 from __future__ import annotations
 
 import html
+import time
 from urllib.parse import urlencode
 
 from app.auth.current_user import (
+    DEMO_MODE,
     create_cli_session_token,
     get_current_token_payload_optional,
     get_current_user_id_optional,
 )
 from app.db.database import create_database_client
+from app.security.step_up import DEFAULT_TTL_SECONDS as STEP_UP_SECONDS
 from app.services.compliance.security_audit import record_security_event
 from app.services.identity import cli_auth
 from app.services.identity.guest_workspace import fetch_user_is_guest
@@ -81,6 +86,27 @@ def _error_page(request: Request, message: str, status_code: int = 400) -> HTMLR
     )
 
 
+def _signed_in_recently(payload: dict) -> bool:
+    """The browser session's Open Media sign-in is within the step-up window (5 min)."""
+    if DEMO_MODE:  # local demo tokens carry no auth_iat and no Open Media sign-in
+        return True
+    try:
+        auth_iat = int(payload.get("auth_iat") or 0)
+    except (TypeError, ValueError):
+        return False
+    return auth_iat > 0 and time.time() - auth_iat <= STEP_UP_SECONDS
+
+
+def _reauth_redirect(base: dict[str, str]) -> RedirectResponse:
+    """Sign in with Open Media again, then come back here (marked so it cannot loop)."""
+    next_path = f"{AUTHORIZE_PATH}?{urlencode({**base, 'reauth': '1'})}"
+    return RedirectResponse(
+        f"/api/auth/open-media/start?{urlencode({'next': next_path})}",
+        status_code=303,
+        headers=_NO_STORE,
+    )
+
+
 def _login_redirect(request: Request) -> RedirectResponse:
     next_path = f"{AUTHORIZE_PATH}?{request.url.query}" if request.url.query else AUTHORIZE_PATH
     return RedirectResponse(
@@ -97,6 +123,7 @@ def cli_authorize(
     code_challenge_method: str | None = None,
     confirm: str | None = None,
     deny: str | None = None,
+    reauth: str | None = None,
 ):
     try:
         uri = cli_auth.validate_authorize_params(
@@ -116,9 +143,24 @@ def cli_authorize(
     browser_sid = str(payload["sid"]) if payload.get("sid") else None
     expected = cli_auth.confirm_token(browser_sid, user_id, uri, state, code_challenge)
 
+    base = {
+        "redirect_uri": uri,
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+    }
     if deny:
         query = urlencode({"error": "access_denied", "state": state})
         return RedirectResponse(f"{uri}?{query}", status_code=303, headers=_NO_STORE)
+
+    # Approving a CLI is a sensitive action: it needs a fresh sign-in, which the
+    # CLI session then inherits (auth_iat), so step-up routes work from the CLI.
+    if not _signed_in_recently(payload):
+        if reauth:
+            return _error_page(
+                request, "Manifest could not confirm a fresh sign-in with Open Media.", 401
+            )
+        return _reauth_redirect(base)
 
     if confirm is not None:
         if not cli_auth.confirm_token_valid(confirm, expected):
@@ -134,12 +176,6 @@ def cli_authorize(
         query = urlencode({"code": code, "state": state})
         return RedirectResponse(f"{uri}?{query}", status_code=303, headers=_NO_STORE)
 
-    base = {
-        "redirect_uri": uri,
-        "state": state,
-        "code_challenge": code_challenge,
-        "code_challenge_method": "S256",
-    }
     allow_href = f"{AUTHORIZE_PATH}?{urlencode({**base, 'confirm': expected})}"
     deny_href = f"{AUTHORIZE_PATH}?{urlencode({**base, 'deny': '1'})}"
     who = html.escape(str(payload.get("email") or "your account"))
