@@ -69,7 +69,8 @@ Most ideas die between the note and the first real step. Founders juggle a canva
 | **Messages**: direct conversations; messaging about an idea requires it to be published | `/messages` |
 | **Follow and invest flows** for full accounts; guests are kept out of sensitive actions | GraphQL |
 | **Manifest Voice**: hands-free navigation and commands when signed in | Everywhere |
-| **Guest sessions**: explore the workspace before creating an account | Landing page |
+| **One sign-in with Open Media**: "Continue with Open Media" (passkey, email link or password, optional two-step verification, all managed in Open Media); existing accounts link by verified email | `/login` |
+| **Guest sessions**: explore the workspace without an account, then continue with Open Media to keep it | Landing page, `/login` |
 | **MCP server**: connect Claude and other AI clients to a Manifest backend | [`mcp_server/`](mcp_server/README.md) |
 
 On iPhone, an iOS-style layout is chosen automatically (or with `?view=ios`), mirroring the same routes.
@@ -90,7 +91,7 @@ manifest-dev start            # backend :8000, frontend :3000
   <img alt="A terminal showing manifest-dev --help: setup installs dependencies, start runs the backend and frontend development servers, stop stops local services" src=".github/assets/cli-terminal.png" width="100%">
 </p>
 
-Open <http://localhost:3000>. The backend is at <http://localhost:8000> and GraphQL at <http://localhost:8000/graphql>. In demo mode, sign in with the bundled demo account in [`docs/QUICKSTART.md`](docs/QUICKSTART.md), or set `DEMO_MODE=1` to force it. You can also open the repo in VS Code or Cursor and choose **Reopen in Container**.
+Open <http://localhost:3000>. The backend is at <http://localhost:8000> and GraphQL at <http://localhost:8000/graphql>. In demo mode, **Continue with Open Media** signs you in as the bundled demo user without contacting Open Media ([`docs/QUICKSTART.md`](docs/QUICKSTART.md)); set `DEMO_MODE=1` to force it. You can also open the repo in VS Code or Cursor and choose **Reopen in Container**.
 
 <details>
 <summary><strong>Environment variables</strong></summary>
@@ -193,7 +194,7 @@ Supabase / PostgreSQL  (or in-memory demo mode)
 | Pitch Reels | `/pitch-reels` | Immersive feed (`/shorts` and `/discover` redirect here) |
 | Messages | `/messages` | Inbox and threads |
 | Account | `/account`, `/account/billing` | Profile, settings and billing (`/portfolio` redirects here) |
-| Auth | `/auth`, `/auth/forgot-password`, `/auth/reset-password` | Email sign-in |
+| Sign in | `/login` (`/auth`, `/signup` and the old password-reset links redirect here) | Continue with Open Media, or try without an account |
 | Surveys | `/research`, `/feedback/survey` | Visitor and signed-in feedback |
 | Docs | `/docs`, `/docs/guide`, `/docs/api` | In-app documentation |
 | Legal | `/legal/terms`, `/legal/privacy` | Terms and privacy |

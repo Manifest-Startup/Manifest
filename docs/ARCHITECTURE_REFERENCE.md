@@ -47,7 +47,8 @@ REST:
 - `/api/internal/production-signals/*` deduped production anomaly ingest and optional GitHub issue sync (`docs/PRODUCTION_SIGNALS_OPS.md`)
 - `/api/keys/*` API key lifecycle management
 - `/api/voice-agent/*` conversational idea qualification and TTS
-- `/auth/*` Replit OAuth and session endpoints
+- `/api/auth/open-media/start|callback` sign-in with Open Media, `/api/auth/logout` (`backend/app/routes/auth_routes.py`)
+- `/auth/{provider}/*` third-party integration OAuth (Google, GitHub, …), not sign-in
 - Shared auth dependency used by session-protected REST routes: `backend/app/routes/dependencies.py`
 
 ### 3) Orchestration and services
@@ -97,7 +98,17 @@ This allows local/demo execution without external DB, but state is non-persisten
 
 ## Auth and Session Model
 
-Primary token parsing logic: `backend/app/auth/current_user.py`.
+Open Media is the only identity provider ([ADR 0002](adr/0002-open-media-is-the-only-sign-in.md)). The login page has one **Continue with Open Media** button (plus **Try without an account**):
+
+```
+browser ── GET /api/auth/open-media/start?next ──> backend: nonce cookie + signed state ──303──> Open Media /authorize (PKCE)
+browser <── 303 code+state ── Open Media gateway (passkey / email link / password, optional MFA)
+browser ── GET /api/auth/open-media/callback ──> backend: check state vs cookie → /oauth/token → /v1/connected/me
+        → user by om_user_id | reconnecting session | verified email (auto-link) | new user
+        → store tokens (integrations) → merge guest workspace → session_token cookie ──303──> next
+```
+
+Manifest still issues and checks its own HS256 session JWT (`create_session_token` in `backend/app/auth/current_user.py`, backed by `user_sessions`; cookies via `app/security/cookies.py`). There is no Manifest password, reset flow, TOTP or passkey store. Step-up for sensitive routes (`app/security/step_up.py`) means a sign-in in the last 5 minutes.
 
 Token accepted from:
 
@@ -108,7 +119,7 @@ Token accepted from:
 Demo mode behavior:
 
 - auto-enables when DB is not configured (unless explicitly disabled)
-- default credentials: `hello@manifeststartup.com` / `manifest`
+- `/api/auth/open-media/start` signs in the demo user (`hello@manifeststartup.com`) without contacting Open Media
 
 ## Frontend Architecture
 
@@ -209,9 +220,9 @@ Manifest backend <── POST /api/webhooks/open-media (HMAC, ids only) ──�
 ```
 
 - **Owns:** Open Media holds conversations, messages, read state, video files, clip posts, likes, comments and reshares. Manifest holds ideas, investing, Veo generation and pointers: the account link in `integrations` (`service_id = open_media`, encrypted refresh/access tokens + `om_user_id`, `handle`) and `pitch_reels.om_post_id`.
-- **Adapter** `backend/app/services/integrations/open_media/`: `settings` (env), `store` (encrypted link), `client` (timeouts, retries, token refresh), `identity` (OAuth 2.1 + PKCE linking), `messaging`, `clips`, `webhooks`. Resolvers in `schema.py` and `pitch_reels/` call it; nothing else talks to Open Media.
-- **Linking:** `GET /api/integrations/open-media/connect` → Open Media `/authorize` (client id = the CIMD URL `/oauth/open-media-client.json`, a static asset) → `GET /api/integrations/open-media/callback`.
+- **Adapter** `backend/app/services/integrations/open_media/`: `settings` (env), `store` (encrypted link), `client` (timeouts, retries, token refresh), `identity` (sign-in: OAuth 2.1 + PKCE, account matching, the link), `messaging`, `clips`, `webhooks`. Resolvers in `schema.py` and `pitch_reels/` call it; nothing else talks to Open Media.
+- **Linking:** every account is linked when it signs in (`/api/auth/open-media/start` → Open Media `/authorize`, client id = the CIMD URL `/oauth/open-media-client.json`, a static asset → `/api/auth/open-media/callback`). An expired link is renewed by signing in again.
 - **Messages:** `myConversations` etc. resolve through the adapter (`app=manifest`, `context.idea_id`); "Message founder" uses the founder's linked handle. The browser subscribes to Open Media Realtime with `openMediaRealtimeToken` and polls every 5 minutes as fallback.
 - **Pitch Shorts:** publish → Veo (only for linked founders, at most once per idea per 30 days) → upload as the founder → clip post with `context {app, idea_id, title, url}` → `om_post_id`. Unpublish deletes the post. `pitchReelsFeed` joins reels with the clips feed.
 - **Webhooks** drop cached unread counts (5 min TTL) and clip stats (60 s TTL) in `app.services.shared.cache`.
-- **Off switch:** without `OPEN_MEDIA_ENABLED`, Messages and Pitch Shorts are hidden; there is no built-in fallback.
+- **Off switch:** without `OPEN_MEDIA_ENABLED`, Messages and Pitch Shorts are hidden; there is no built-in fallback. Sign-in does not depend on the flag.

@@ -2,16 +2,17 @@
 
 Base: `https://api.openmedia.site` (local: the URL `npm run local` prints for the Worker). JSON everywhere. Errors: `{error, error_description}` with 4xx/5xx.
 
-## 1. Identity — "Sign in with Open Media" for a web app (OAuth 2.1, PKCE, no client secret)
+## 1. Identity — "Continue with Open Media" for a web app (OAuth 2.1, PKCE, no client secret)
+- Since ADR 0002 this is Manifest's **only** sign-in. Manifest sends `login_hint` (an email) when it knows one.
 - Manifest is a public OAuth client identified by a **Client ID Metadata Document** URL:
   `client_id = https://manifeststartup.com/oauth/open-media-client.json`
-  (doc: `{client_id, client_name:"Manifest", client_uri:"https://manifeststartup.com", redirect_uris:["https://manifeststartup.com/api/integrations/open-media/callback"], grant_types:["authorization_code","refresh_token"], response_types:["code"], token_endpoint_auth_method:"none", scope:"account"}`).
+  (doc: `{client_id, client_name:"Manifest", client_uri:"https://manifeststartup.com", redirect_uris:["https://manifeststartup.com/api/auth/open-media/callback"], grant_types:["authorization_code","refresh_token"], response_types:["code"], token_endpoint_auth_method:"none", scope:"account"}`).
   Open Media must accept this client for scope `account` (the "Sign in with Open Media" grant). If CIMD is not supported for this grant, OM adds an allowlist secret `OAUTH_TRUSTED_CLIENTS` instead — but the Manifest side must not change.
 - Endpoints (existing provider): `GET /authorize`, `POST /oauth/token` (authorization_code + refresh_token; read `token_endpoint` from discovery), discovery `/.well-known/oauth-authorization-server`. Access token ~1 h, refresh 90 d.
 - **REST with OAuth (new):** every `/v1/me/*` route is also reachable as `/v1/connected/me/*` with `Authorization: Bearer <OAuth access token>`. Same request/response bodies. `/v1/me/*` with Supabase session tokens keeps working unchanged.
 
 ## 2. Messaging (under `/v1/connected`)
-- `GET  /v1/connected/me` → `{id, handle, display_name, avatar_url}` (at least these fields).
+- `GET  /v1/connected/me` → `{id, handle, display_name, avatar_url, email, email_verified, has_profile}`. `email`/`email_verified` come from the session's user; a person without a profile gets `has_profile:false` (no 404). Manifest auto-links an existing account only when `email_verified` is `true`.
 - `GET  /v1/connected/me/conversations?app=manifest` → `{conversations:[{id, kind, title, context|null, members:[{id,handle,display_name,avatar_url}], last_message:{id,body,sender_id,created_at}|null, unread_count, updated_at}]}`. `app` filter optional (omit = all).
 - `POST /v1/connected/me/conversations` `{handle, context?}` → 201 `{conversation:{…same shape…}}`. Re-uses the existing direct conversation with that person; sets `context` only if the conversation has none. `context` = `{app:"manifest", idea_id:string, title?:string, url?:string}` (≤ 2 KB, validated).
 - `GET  /v1/connected/me/conversations/{id}/messages?limit=&before=` → `{messages:[{id, conversation_id, sender_id, body, created_at, reply_to_message_id|null}]}` newest-last.

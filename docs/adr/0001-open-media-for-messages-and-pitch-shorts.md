@@ -1,6 +1,6 @@
 # 0001. Open Media for Messages and Pitch Shorts
 
-- Status: Accepted (2026-11-15)
+- Status: Accepted (2026-11-15); the "Manifest keeps its own login" part is superseded by [0002](0002-open-media-is-the-only-sign-in.md)
 - Plan: [OPEN_MEDIA_INTEGRATION_PLAN.md](../OPEN_MEDIA_INTEGRATION_PLAN.md) · Contract: [OPEN_MEDIA_CONTRACT.md](../OPEN_MEDIA_CONTRACT.md)
 
 ## Context

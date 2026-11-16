@@ -4,5 +4,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 
 - Naming: `NNNN-short-title.md`, numbered in order. Never renumber; supersede an old record with a new one and link both ways.
 - [0001 — Open Media for Messages and Pitch Shorts](0001-open-media-for-messages-and-pitch-shorts.md)
+- [0002 — Open Media is Manifest's only sign-in](0002-open-media-is-the-only-sign-in.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

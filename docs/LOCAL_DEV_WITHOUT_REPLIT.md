@@ -88,7 +88,7 @@ Open the repo in VS Code or Cursor and use **Reopen in Container** if a devconta
 
 | Replit | Local / Vercel + Render |
 |--------|-------------------------|
-| Replit OIDC (`/auth/login`) | Email/password GraphQL auth |
+| Replit OIDC (`/auth/login`) | Continue with Open Media (demo mode signs in the demo user) |
 | Replit Postgres env | Your `DATABASE_URL` or demo in-memory |
 | Replit-managed secrets | `.env` locally; platform dashboards in prod |
 | Single Replit URL | Frontend `:3000`, backend `:8000` (dev) |
