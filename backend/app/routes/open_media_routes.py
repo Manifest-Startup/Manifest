@@ -39,9 +39,24 @@ def connect_open_media(request: Request):
     user_id = get_current_user_id_optional(request)
     if not user_id:
         return _login_redirect()
-    if fetch_user_is_guest(create_database_client(), str(user_id)):
+    db = create_database_client()
+    if fetch_user_is_guest(db, str(user_id)):
         return _account_redirect("full_account_required")
-    return RedirectResponse(identity.authorize_url(str(user_id)), status_code=303)
+    # Pre-fills the Open Media sign-in with the email the person already uses here.
+    return RedirectResponse(
+        identity.authorize_url(str(user_id), login_hint=_account_email(db, str(user_id))),
+        status_code=303,
+    )
+
+
+def _account_email(db, user_id: str) -> str | None:
+    try:
+        row = db.table("users").select("email").eq("user_id", user_id).single().execute().data
+    except Exception as exc:  # the hint is a convenience; connecting works without it
+        logger.info("[open_media] no login hint: %s", type(exc).__name__)
+        return None
+    email = (row or {}).get("email") if isinstance(row, dict) else None
+    return email.strip().lower() if isinstance(email, str) and "@" in email else None
 
 
 @router.get("/api/integrations/open-media/callback", include_in_schema=False)

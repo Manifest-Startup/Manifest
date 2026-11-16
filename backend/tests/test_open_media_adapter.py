@@ -269,6 +269,12 @@ def test_authorize_url_uses_pkce_s256_and_signed_state(om):
     assert q["code_challenge_method"] == "S256"
     assert len(q["code_challenge"]) == 43
     assert "u1" not in q["state"]  # user id is inside the base64 payload, signed
+    assert "login_hint" not in q
+
+
+def test_authorize_url_prefills_the_open_media_email(om):
+    q = parse_qs(urlsplit(identity.authorize_url("u1", login_hint="ana@example.test")).query)
+    assert q["login_hint"] == ["ana@example.test"]
 
 
 def _start(user_id="u1"):

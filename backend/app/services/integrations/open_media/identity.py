@@ -80,8 +80,11 @@ def _read_state(state: str) -> dict[str, Any]:
     return payload
 
 
-def authorize_url(user_id: str) -> str:
-    """Where ``GET /api/integrations/open-media/connect`` redirects the browser."""
+def authorize_url(user_id: str, *, login_hint: str | None = None) -> str:
+    """Where ``GET /api/integrations/open-media/connect`` redirects the browser.
+
+    ``login_hint`` (the person's Manifest email) pre-fills Open Media's sign-in page.
+    """
     require_enabled()
     nonce = secrets.token_urlsafe(24)
     state = _sign_state({"u": str(user_id), "n": nonce, "e": int(time.time()) + STATE_TTL_SECONDS})
@@ -94,6 +97,7 @@ def authorize_url(user_id: str) -> str:
             "state": state,
             "code_challenge": code_challenge(code_verifier(nonce)),
             "code_challenge_method": "S256",
+            **({"login_hint": login_hint} if login_hint else {}),
         }
     )
     return f"{settings.api_base()}/authorize?{query}"
