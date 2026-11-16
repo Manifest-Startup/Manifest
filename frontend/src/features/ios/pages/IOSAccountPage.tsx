@@ -381,8 +381,8 @@ const IOSAccountPage: React.FC = () => {
             </div>
 
             <div id="open-media" className="bg-white dark:bg-neutral800 rounded-xl p-4 shadow-none border border-gray-100 dark:border-neutral700 transition-colors">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Connect Open Media</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Messages and Pitch Shorts run on your Open Media account.</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Sign-in</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">One account for Manifest and Open Media. Messages and Pitch Shorts run on it too.</p>
               <OpenMediaSection />
             </div>
 
@@ -391,8 +391,8 @@ const IOSAccountPage: React.FC = () => {
             <ApiAccessSection />
 
             <div className="bg-white dark:bg-neutral800 rounded-xl p-4 shadow-none border border-gray-100 dark:border-neutral700 transition-colors">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Security</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Manage authenticator-based MFA and active browser sessions.</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Sessions</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Review where you are signed in to Manifest and revoke old browsers or devices.</p>
               <SecuritySettingsPanel />
             </div>
 

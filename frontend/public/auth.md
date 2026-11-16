@@ -4,7 +4,7 @@ The Manifest REST and MCP APIs use account-created API keys with Bearer authenti
 
 ## Create a key
 
-Sign in at [Manifest](https://manifeststartup.com/auth), open account settings, and create an API key under API access. Choose the minimum scopes required:
+Sign in at [Manifest](https://manifeststartup.com/login) with Open Media, open account settings, and create an API key under API access. Choose the minimum scopes required:
 
 - `ideas.read` allows listing and reading your ideas.
 - `ideas.write` allows creating, updating, deleting, and generating documents for your ideas.

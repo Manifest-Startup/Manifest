@@ -56,7 +56,7 @@ export const handleAuthError = (
   let message = "Authentication failed. Please try again.";
   
   if (error?.status === 401) {
-    message = "Invalid credentials. Please check your email and password.";
+    message = "Your session has ended. Please sign in again.";
   } else if (error?.status === 403) {
     message = "Access denied. Please log in again.";
   } else if (error?.data?.detail) {

@@ -2,7 +2,7 @@
   "client_id": "https://manifeststartup.com/oauth/open-media-client.json",
   "client_name": "Manifest",
   "client_uri": "https://manifeststartup.com",
-  "redirect_uris": ["https://manifeststartup.com/api/integrations/open-media/callback"],
+  "redirect_uris": ["https://manifeststartup.com/api/auth/open-media/callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",

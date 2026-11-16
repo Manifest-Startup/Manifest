@@ -1,166 +1,239 @@
-import os
+"""Sign in with Open Media, and sign out.
 
-from app.auth.current_user import get_current_token_payload_optional
-from app.auth.replit_auth import (
+- ``GET  /api/auth/open-media/start?next=/ideas`` — no session needed; sets the signed
+  nonce cookie and redirects to Open Media ``/authorize`` (PKCE, signed state)
+- ``GET  /api/auth/open-media/callback``          — finds or creates the Manifest user,
+  merges the guest workspace, sets the session cookie, redirects to ``next``
+- ``POST /api/auth/logout``                        — revokes this session, clears cookies
+
+Open Media is Manifest's only identity provider (ADR 0002). Failures redirect to
+``/login?error=<code>`` so the login page can explain what happened.
+"""
+
+from __future__ import annotations
+
+import re
+from urllib.parse import urlencode, urlsplit
+
+from app.auth.current_user import (
+    DEMO_MODE,
+    DEMO_USER_EMAIL,
+    DEMO_USER_ID,
     create_session_token,
-    get_current_user_from_session,
-    replit_auth,
-    save_or_update_user,
+    generate_demo_token,
+    get_current_token_payload_optional,
+    get_current_user_id_optional,
 )
-from app.security.config import secure_cookies_enabled
-from app.security.cookies import clear_auth_cookies, set_auth_cookies
+from app.db.database import create_database_client
+from app.security.audit_detections import detect_brute_force, detect_impossible_travel
+from app.security.cookies import (
+    SIGN_IN_NONCE_COOKIE_NAME,
+    clear_auth_cookies,
+    clear_sign_in_nonce_cookie,
+    set_auth_cookies,
+    set_sign_in_nonce_cookie,
+)
 from app.services.compliance.security_audit import record_security_event
+from app.services.identity.guest_workspace import claim_guest_workspace, fetch_user_is_guest
 from app.services.identity.sessions import revoke_session
+from app.services.integrations.open_media import identity
 from app.utils.logger import logger
-from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 
-router = APIRouter(prefix="/auth", tags=["auth"])
-AUTH_NEXT_URL_COOKIE = "auth_next_url"
-AUTH_OAUTH_STATE_COOKIE = "auth_oauth_state"
-AUTH_OAUTH_VERIFIER_COOKIE = "auth_oauth_verifier"
-AUTH_OAUTH_COOKIE_MAX_AGE = 600
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+DEFAULT_NEXT = "/ideas"
+LOGIN_PATH = "/login"
+_EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,63}$")
 
 
-def _set_auth_flow_cookie(response: Response, request: Request, key: str, value: str) -> None:
-    response.set_cookie(
-        key,
-        value,
-        httponly=True,
-        max_age=AUTH_OAUTH_COOKIE_MAX_AGE,
-        secure=secure_cookies_enabled(request),
-        samesite="lax",
-        path="/",
+def safe_next(raw: str | None) -> str:
+    """A same-origin path to return to after sign-in; anything else becomes ``/ideas``.
+
+    Rejects absolute and scheme-relative URLs (``//evil``, ``/\\evil``), control
+    characters, and the login page itself.
+    """
+    value = (raw or "").strip()
+    if not value.startswith("/") or value.startswith("//") or "\\" in value:
+        return DEFAULT_NEXT
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value) or len(value) > 512:
+        return DEFAULT_NEXT
+    parts = urlsplit(value)
+    if parts.scheme or parts.netloc:
+        return DEFAULT_NEXT
+    if parts.path in {LOGIN_PATH, "/auth", "/signup"} or parts.path.startswith("/api/"):
+        return DEFAULT_NEXT
+    return value
+
+
+def _login_error(code: str) -> RedirectResponse:
+    return RedirectResponse(f"{LOGIN_PATH}?{urlencode({'error': code})}", status_code=303)
+
+
+def _client_ip(request: Request) -> str | None:
+    client = getattr(request, "client", None)
+    return getattr(client, "host", None) if client else None
+
+
+def _ensure_demo_user() -> None:
+    """Demo mode keeps users in the in-memory database; make sure the demo user exists."""
+    db = create_database_client()
+    try:
+        existing = db.table("users").select("user_id").eq("user_id", DEMO_USER_ID).execute().data
+        if not existing:
+            db.table("users").insert(
+                {
+                    "user_id": DEMO_USER_ID,
+                    "email": DEMO_USER_EMAIL,
+                    "username": DEMO_USER_EMAIL.split("@")[0],
+                    "auth_provider": "demo",
+                }
+            ).execute()
+    except Exception as exc:  # best effort: the demo session works without the row
+        logger.warning("[auth] could not create the demo user: %s", type(exc).__name__)
+
+
+def _user_email(user_id: str) -> str | None:
+    try:
+        row = (
+            create_database_client()
+            .table("users")
+            .select("email")
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+            .data
+        )
+    except Exception as exc:  # the hint is a convenience; signing in works without it
+        logger.info("[auth] no login hint: %s", type(exc).__name__)
+        return None
+    email = (row or {}).get("email") if isinstance(row, dict) else None
+    return email.strip().lower() if isinstance(email, str) and "@" in email else None
+
+
+@router.get("/open-media/start", include_in_schema=False)
+def open_media_start(request: Request, next: str | None = None, login_hint: str | None = None):
+    next_path = safe_next(next)
+    if DEMO_MODE:
+        # Local development without a database or Open Media: sign in the demo user.
+        _ensure_demo_user()
+        response = RedirectResponse(next_path, status_code=303)
+        set_auth_cookies(response, generate_demo_token(DEMO_USER_ID, DEMO_USER_EMAIL), request)
+        return response
+
+    user_id = get_current_user_id_optional(request)
+    guest_user_id = None
+    reconnect_user_id = None
+    hint = (login_hint or "").strip().lower() or None
+    if user_id:
+        if fetch_user_is_guest(create_database_client(), str(user_id)):
+            guest_user_id = str(user_id)
+        else:
+            reconnect_user_id = str(user_id)
+            hint = _user_email(str(user_id)) or hint
+    if hint and not _EMAIL.match(hint):
+        hint = None
+
+    url, nonce = identity.authorize_url(
+        next_path=next_path,
+        guest_user_id=guest_user_id,
+        user_id=reconnect_user_id,
+        login_hint=hint,
     )
-
-
-def _clear_auth_flow_cookies(response: Response, request: Request) -> None:
-    secure = secure_cookies_enabled(request)
-    for key in (AUTH_NEXT_URL_COOKIE, AUTH_OAUTH_STATE_COOKIE, AUTH_OAUTH_VERIFIER_COOKIE):
-        response.delete_cookie(key=key, path="/", secure=secure, samesite="lax")
-
-
-def get_base_url(request: Request) -> str:
-    forwarded_proto = request.headers.get("x-forwarded-proto")
-    forwarded_host = request.headers.get("x-forwarded-host")
-    if forwarded_proto and forwarded_host:
-        return f"{forwarded_proto}://{forwarded_host}"
-
-    replit_domain = os.environ.get("REPLIT_DEV_DOMAIN")
-    if replit_domain:
-        return f"https://{replit_domain}"
-
-    replit_domains = os.environ.get("REPLIT_DOMAINS")
-    if replit_domains:
-        return f"https://{replit_domains}"
-
-    return str(request.base_url).rstrip("/")
-
-
-def get_frontend_auth_url(request: Request, query: str = "") -> str:
-    base_url = get_base_url(request)
-    return f"{base_url}/auth{query}"
-
-
-@router.get("/login")
-async def login(request: Request):
-    if not replit_auth.client_id:
-        logger.warning("[Auth] OAuth login requested without REPL_ID configured")
-        return RedirectResponse(url=get_frontend_auth_url(request, "?oauth_error=not_configured"))
-
-    base_url = get_base_url(request)
-    redirect_uri = f"{base_url}/auth/callback"
-
-    next_url = request.query_params.get("next", "/")
-
-    login_url, state, code_verifier = replit_auth.prepare_login(redirect_uri)
-
-    response = RedirectResponse(url=login_url)
-    _set_auth_flow_cookie(response, request, AUTH_NEXT_URL_COOKIE, next_url)
-    _set_auth_flow_cookie(response, request, AUTH_OAUTH_STATE_COOKIE, state)
-    _set_auth_flow_cookie(response, request, AUTH_OAUTH_VERIFIER_COOKIE, code_verifier)
+    response = RedirectResponse(url, status_code=303)
+    set_sign_in_nonce_cookie(response, identity.nonce_cookie_value(nonce), request)
     return response
 
 
-@router.get("/callback")
-async def callback(request: Request, response: Response):
-    code = request.query_params.get("code")
-    state = request.query_params.get("state")
-    error = request.query_params.get("error")
+@router.get("/open-media/callback", include_in_schema=False)
+def open_media_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+):
+    if error or not code or not state:
+        response = _login_error("cancelled" if error == "access_denied" else "failed")
+        clear_sign_in_nonce_cookie(response, request)
+        return response
 
-    if error:
-        logger.error(f"[Auth] OAuth error: {error}")
-        return RedirectResponse(url="/?error=auth_failed")
+    session_user_id = get_current_user_id_optional(request)
+    try:
+        result = identity.complete_sign_in(
+            code=code,
+            state=state,
+            nonce_cookie=request.cookies.get(SIGN_IN_NONCE_COOKIE_NAME),
+            session_user_id=str(session_user_id) if session_user_id else None,
+        )
+    except identity.OpenMediaLinkError as exc:
+        logger.info("[auth] Open Media sign-in refused: %s", exc.code)
+        record_security_event(
+            "login_failed",
+            request_ip=_client_ip(request),
+            actor_type="anonymous",
+            action="login",
+            target_type="user",
+            outcome="failed",
+            user_agent=request.headers.get("user-agent"),
+            metadata={"provider": "open_media", "reason": exc.code},
+        )
+        detect_brute_force(user_id=None, request_ip=_client_ip(request))
+        response = _login_error(exc.code)
+        clear_sign_in_nonce_cookie(response, request)
+        return response
 
-    if not code or not state:
-        logger.error("[Auth] Missing code or state in callback")
-        return RedirectResponse(url="/?error=invalid_callback")
+    merged = 0
+    if result.guest_user_id:
+        try:
+            merged = claim_guest_workspace(result.user_id, result.guest_user_id)
+        except Exception as exc:  # sign-in still succeeds; the guest row keeps its TTL
+            logger.warning("[auth] guest workspace merge failed: %s", exc)
 
-    base_url = get_base_url(request)
-    redirect_uri = f"{base_url}/auth/callback"
+    token = create_session_token(result.user_id, email=result.email, request=request)
+    next_path = result.next_path
+    if merged:
+        joiner = "&" if "?" in next_path else "?"
+        next_path = f"{next_path}{joiner}{urlencode({'merged': merged})}"
+    response = RedirectResponse(next_path, status_code=303)
+    set_auth_cookies(response, token, request)
+    clear_sign_in_nonce_cookie(response, request)
+    record_security_event(
+        "signup_success" if result.matched_by == "new" else "login_success",
+        user_id=result.user_id,
+        request_ip=_client_ip(request),
+        actor_id=result.user_id,
+        actor_type="user",
+        action="signup" if result.matched_by == "new" else "login",
+        target_type="user",
+        target_id=result.user_id,
+        outcome="success",
+        user_agent=request.headers.get("user-agent"),
+        metadata={
+            "provider": "open_media",
+            "matched_by": result.matched_by,
+            "guest_ideas_merged": merged,
+        },
+    )
+    detect_impossible_travel(user_id=result.user_id, request_ip=_client_ip(request))
+    _resume_pending_reels(result.user_id)
+    return response
 
-    expected_state = request.cookies.get(AUTH_OAUTH_STATE_COOKIE)
-    code_verifier = request.cookies.get(AUTH_OAUTH_VERIFIER_COOKIE)
-    if not expected_state or expected_state != state or not code_verifier:
-        logger.error("[Auth] OAuth callback state/verifier mismatch")
-        invalid_response = RedirectResponse(url="/?error=invalid_callback")
-        _clear_auth_flow_cookies(invalid_response, request)
-        return invalid_response
 
-    token_response = await replit_auth.exchange_code(code, code_verifier, redirect_uri)
-
-    if not token_response:
-        logger.error("[Auth] Failed to exchange code for tokens")
-        error_response = RedirectResponse(url="/?error=token_exchange_failed")
-        _clear_auth_flow_cookies(error_response, request)
-        return error_response
-
-    id_token = token_response.get("id_token")
-    if not id_token:
-        logger.error("[Auth] No ID token in response")
-        return RedirectResponse(url="/?error=no_id_token")
-
-    claims = replit_auth.decode_id_token(id_token)
-    if not claims:
-        logger.error("[Auth] Failed to decode ID token")
-        return RedirectResponse(url="/?error=invalid_token")
+def _resume_pending_reels(user_id: str) -> None:
+    from app.services.pitch_reels.video_worker import resume_reels_waiting_for_open_media
 
     try:
-        user_id = save_or_update_user(claims)
-    except Exception as e:
-        logger.error(f"[Auth] Failed to save user: {e}")
-        return RedirectResponse(url="/?error=user_save_failed")
-
-    session_token = create_session_token(
-        user_id=user_id,
-        replit_id=str(claims.get("sub")),
-        email=claims.get("email"),
-        request=request,
-    )
-
-    next_url = request.cookies.get(AUTH_NEXT_URL_COOKIE, "/")
-
-    redirect_response = RedirectResponse(url=next_url)
-    set_auth_cookies(redirect_response, session_token, request)
-    _clear_auth_flow_cookies(redirect_response, request)
-
-    logger.info(f"[Auth] User logged in successfully: {user_id}")
-    return redirect_response
+        resume_reels_waiting_for_open_media(user_id)
+    except Exception as exc:  # the sign-in itself succeeded
+        logger.warning("[auth] could not resume pending reels: %s", type(exc).__name__)
 
 
-@router.get("/logout")
-async def logout(request: Request):
-    base_url = get_base_url(request)
-    payload = get_current_token_payload_optional(request)
-    user_id = str(payload.get("sub") or "") if payload else None
-    session_id = str(payload.get("sid") or "") if payload else None
-    if replit_auth.client_id:
-        redirect_url = replit_auth.get_logout_url(base_url)
-    else:
-        logger.info("[Auth] Local logout requested without REPL_ID configured")
-        redirect_url = get_frontend_auth_url(request)
-
-    response = RedirectResponse(url=redirect_url)
+@router.post("/logout", include_in_schema=False)
+def logout(request: Request):
+    payload = get_current_token_payload_optional(request) or {}
+    user_id = str(payload.get("sub") or "")
+    session_id = str(payload.get("sid") or "")
     if user_id and session_id:
         revoke_session(session_id, user_id)
         record_security_event(
@@ -171,33 +244,10 @@ async def logout(request: Request):
             actor_type="user",
             action="logout",
             target_type="session",
-            target_id=str(session_id) if session_id else None,
+            target_id=session_id,
             outcome="success",
+            user_agent=request.headers.get("user-agent"),
         )
+    response = JSONResponse({"ok": True})
     clear_auth_cookies(response, request)
-
-    logger.info("[Auth] User logged out")
     return response
-
-
-@router.get("/me")
-async def get_current_user(request: Request):
-    session = get_current_user_from_session(request)
-
-    if not session:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    return {
-        "user_id": session.get("sub"),
-        "replit_id": session.get("replit_id"),
-        "email": session.get("email"),
-    }
-
-
-@router.get("/status")
-async def auth_status(request: Request):
-    session = get_current_user_from_session(request)
-    return {
-        "authenticated": session is not None,
-        "user_id": session.get("sub") if session else None,
-    }

@@ -1,8 +1,10 @@
 import os
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import jwt
 from app.security.config import demo_mode_enabled, session_secret
-from app.services.identity.sessions import is_session_active, touch_session
+from app.services.identity.sessions import create_user_session, is_session_active, touch_session
 from app.utils.logger import logger
 from dotenv import load_dotenv
 from fastapi import HTTPException, Request
@@ -50,7 +52,6 @@ DEMO_USER_ID = os.getenv("DEMO_USER_ID", "demo-user-123") or "demo-user-123"
 DEMO_USER_EMAIL = (
     os.getenv("DEMO_USER_EMAIL", "hello@manifeststartup.com") or "hello@manifeststartup.com"
 )
-DEMO_USER_PASSWORD = os.getenv("DEMO_USER_PASSWORD", "manifest") or "manifest"
 
 
 def _extract_token(request: Request):
@@ -86,31 +87,42 @@ def generate_demo_token(user_id: str, email: str) -> str:
     return jwt.encode(payload, SESSION_SECRET, algorithm="HS256")
 
 
-def _is_token_password_invalidated(user_id: str, payload: dict) -> bool:
-    """Return True if the user's password has been changed since this
-    token was issued. Used to invalidate stale JWTs after a reset.
-    """
-    try:
-        from app.services.identity.password_reset import get_password_changed_at_epoch
+SESSION_TTL = timedelta(days=7)
 
-        current = get_password_changed_at_epoch(user_id)
-        if current is None:
-            return False
-        token_pwd_iat = payload.get("pwd_iat")
-        # If the token was issued before pwd tracking existed, fall back to
-        # comparing against `iat`.
-        if token_pwd_iat is None:
-            iat = payload.get("iat")
-            if iat is None:
-                return False
-            try:
-                token_pwd_iat = int(iat)
-            except (TypeError, ValueError):
-                return False
-        return int(token_pwd_iat) < int(current)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.debug("[auth_utils] pwd invalidation check failed: %s", exc)
-        return False
+
+def create_session_token(
+    user_id: str,
+    email: str | None = None,
+    request: Request | None = None,
+) -> str:
+    """Mint the Manifest session JWT (HS256) backed by a ``user_sessions`` row.
+
+    ``auth_iat`` records when the person actually signed in (with Open Media);
+    ``app.security.step_up`` treats a recent one as a fresh re-authentication.
+    """
+    session_id = create_user_session(user_id, request)
+    now = datetime.now(UTC)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "sid": session_id,
+        "iat": now,
+        "auth_iat": int(now.timestamp()),
+        "exp": now + SESSION_TTL,
+    }
+    return jwt.encode(payload, SESSION_SECRET, algorithm="HS256")
+
+
+def decode_session_token(token: str) -> dict[str, Any] | None:
+    """The verified claims of a session JWT, or None when it is invalid or expired."""
+    try:
+        return jwt.decode(token, SESSION_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        logger.info("[auth_utils] Session token expired")
+        return None
+    except Exception as e:
+        logger.info("[auth_utils] Failed to decode session token: %s", type(e).__name__)
+        return None
 
 
 def get_current_user_id(request: Request):
@@ -133,12 +145,6 @@ def get_current_user_id(request: Request):
 
         session_id = payload.get("sid")
         if session_id and not is_session_active(str(session_id), str(user_id)):
-            raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
-
-        if _is_token_password_invalidated(user_id, payload):
-            logger.info(
-                "[auth_utils] Token rejected: password changed after issue (user_id=%s)", user_id
-            )
             raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
 
         if _is_user_disabled(user_id):
@@ -175,9 +181,6 @@ def get_current_user_id_optional(request: Request):
         session_id = payload.get("sid")
         if session_id and user_id and not is_session_active(str(session_id), str(user_id)):
             return None
-        if user_id and _is_token_password_invalidated(user_id, payload):
-            logger.info("[auth_utils] Optional token rejected: password changed after issue")
-            return None
         if user_id and _is_user_disabled(user_id):
             return None
         touch_session(str(session_id) if session_id else None, request)
@@ -195,8 +198,6 @@ def get_current_token_payload_optional(request: Request) -> dict | None:
         payload = jwt.decode(token, SESSION_SECRET, algorithms=["HS256"])
         user_id = payload.get("sub")
         session_id = payload.get("sid")
-        if user_id and _is_token_password_invalidated(user_id, payload):
-            return None
         if session_id and user_id and not is_session_active(str(session_id), str(user_id)):
             return None
         touch_session(str(session_id) if session_id else None, request)

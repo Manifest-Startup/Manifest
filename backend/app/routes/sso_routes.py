@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from app.auth.replit_auth import create_session_token
+from app.auth.current_user import create_session_token
 from app.routes.dependencies import require_admin
 from app.security.config import secure_cookies_enabled
 from app.security.cookies import set_auth_cookies

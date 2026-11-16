@@ -17,7 +17,7 @@ const linkResult = (overrides: Record<string, unknown> = {}) => ({
       needsReconnect: false,
       handle: "viewer",
       displayName: "Viewer",
-      connectUrl: "/api/integrations/open-media/connect",
+      connectUrl: "/api/auth/open-media/start",
       ...overrides,
     },
   },

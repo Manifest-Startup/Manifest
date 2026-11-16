@@ -48,12 +48,10 @@ def test_guest_has_workspace_read_write_permissions():
         assert principal.has(perm), f"guest role is missing required workspace permission: {perm}"
 
 
-def test_guest_lacks_social_admin_and_mfa_permissions():
+def test_guest_lacks_social_and_admin_permissions():
     """Defense-in-depth: even if `_require_full_account` ever regresses, RBAC still blocks."""
     principal = _guest_principal()
     for perm in (
-        # MFA self-service — guests have no MFA surface.
-        "mfa.manage",
         # API key issuance is account-only.
         "api_keys.manage",
         # Admin surfaces.

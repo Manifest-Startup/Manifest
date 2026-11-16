@@ -1,10 +1,9 @@
-"""Open Media webhooks (signature, 5-minute window, dedupe) and the linking routes."""
+"""Open Media webhooks (signature, 5-minute window, dedupe)."""
 
 from __future__ import annotations
 
 import json
 import time
-from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from app.routes import open_media_routes
@@ -119,18 +118,10 @@ def test_missing_headers_or_secret_are_rejected(monkeypatch):
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client():
     app = FastAPI()
     app.include_router(open_media_routes.router)
-    state = {"user": "u1", "guest": False}
-    monkeypatch.setattr(
-        open_media_routes, "get_current_user_id_optional", lambda request: state["user"]
-    )
-    monkeypatch.setattr(open_media_routes, "fetch_user_is_guest", lambda db, uid: state["guest"])
-    monkeypatch.setattr(open_media_routes, "create_database_client", lambda: None)
-    test_client = TestClient(app, follow_redirects=False)
-    test_client.state = state
-    return test_client
+    return TestClient(app, follow_redirects=False)
 
 
 def test_webhook_endpoint_verifies_and_dedupes(client):
@@ -155,59 +146,6 @@ def test_webhook_endpoint_verifies_and_dedupes(client):
     assert bad.status_code == 401
 
 
-def test_connect_redirects_full_accounts_to_open_media_authorize(client, monkeypatch):
-    monkeypatch.setenv("OPEN_MEDIA_API_BASE", "https://om.test")
-    response = client.get("/api/integrations/open-media/connect")
-    assert response.status_code == 303
-    location = urlsplit(response.headers["location"])
-    assert (location.netloc, location.path) == ("om.test", "/authorize")
-    assert parse_qs(location.query)["code_challenge_method"] == ["S256"]
-
-
-def test_connect_requires_login_and_a_full_account(client):
-    client.state["user"] = None
-    assert client.get("/api/integrations/open-media/connect").headers["location"] == "/login"
-    client.state.update(user="u1", guest=True)
-    location = client.get("/api/integrations/open-media/connect").headers["location"]
-    assert location == "/account?open_media=full_account_required#open-media"
-
-
-def test_connect_is_hidden_when_open_media_is_off(client, monkeypatch):
-    monkeypatch.setenv("OPEN_MEDIA_ENABLED", "0")
-    location = client.get("/api/integrations/open-media/connect").headers["location"]
-    assert location == "/account?open_media=disabled#open-media"
-
-
-def test_callback_links_then_resumes_waiting_reels(client, monkeypatch):
-    linked = []
-    resumed = []
-    monkeypatch.setattr(
-        open_media_routes.identity,
-        "complete_link",
-        lambda uid, code, state: linked.append((uid, code, state)),
-    )
-    import app.services.pitch_reels.video_worker as worker
-
-    monkeypatch.setattr(
-        worker, "resume_reels_waiting_for_open_media", lambda uid: resumed.append(uid)
-    )
-    response = client.get("/api/integrations/open-media/callback?code=c&state=s")
-    assert response.headers["location"] == "/account?open_media=linked#open-media"
-    assert linked == [("u1", "c", "s")] and resumed == ["u1"]
-
-
-def test_callback_reports_denied_and_bad_state(client, monkeypatch):
-    denied = client.get("/api/integrations/open-media/callback?error=access_denied")
-    assert denied.headers["location"] == "/account?open_media=cancelled#open-media"
-
-    def fail(uid, code, state):
-        raise open_media_routes.identity.OpenMediaLinkError("bad")
-
-    monkeypatch.setattr(open_media_routes.identity, "complete_link", fail)
-    bad = client.get("/api/integrations/open-media/callback?code=c&state=s")
-    assert bad.headers["location"] == "/account?open_media=error#open-media"
-
-
 def test_signature_keys_on_the_utf8_secret_string_not_hex_decoded():
     import hashlib
     import hmac as std_hmac
@@ -223,11 +161,11 @@ def test_context_links_stay_on_manifeststartup_com(monkeypatch):
     from app.services.integrations.open_media import settings
 
     monkeypatch.setenv(
-        "OPEN_MEDIA_REDIRECT_URI", "http://localhost:8000/api/integrations/open-media/callback"
+        "OPEN_MEDIA_REDIRECT_URI", "http://localhost:8000/api/auth/open-media/callback"
     )
     assert settings.clip_url("r1") == "https://manifeststartup.com/pitch-reels?clip=r1"
     monkeypatch.setenv(
         "OPEN_MEDIA_REDIRECT_URI",
-        "https://staging.manifeststartup.com/api/integrations/open-media/callback",
+        "https://staging.manifeststartup.com/api/auth/open-media/callback",
     )
     assert settings.app_origin() == "https://staging.manifeststartup.com"

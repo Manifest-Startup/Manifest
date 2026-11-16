@@ -49,7 +49,7 @@ const LearnMorePage: React.FC = () => {
 
               <div className="mt-4 flex flex-wrap gap-3">
                 <a
-                  href="/auth"
+                  href="/login"
                   className="manifest-control manifest-control-primary"
                 >
                   Start Building

@@ -36,7 +36,6 @@ USER_PERMISSIONS: set[str] = {
     "account.write",
     "api_keys.manage",
     "sessions.manage",
-    "mfa.manage",
 }
 
 # Admin permissions — granted only to users with users.is_admin = TRUE.
@@ -131,7 +130,6 @@ ASSIGNABLE_ROLES = {"viewer", "member", "owner"}
 API_KEY_FORBIDDEN: set[str] = {
     "admin.users.impersonate",
     "admin.users.write",
-    "mfa.manage",
     "sessions.manage",
 }
 
@@ -218,27 +216,11 @@ def require_permission(permission: str):
 def require_admin(principal: Principal = Depends(get_principal)) -> Principal:
     """Convenience dependency: caller must be an admin (and pass step-up upstream).
 
-    Admin accounts MUST have MFA enrolled (SEC-029): a stolen admin
-    password alone must never be sufficient to access admin surfaces. We
-    enforce this here so it applies uniformly to every admin route, even
-    if a future route author forgets to wire step-up explicitly.
+    Second factors are enforced by Open Media, Manifest's identity provider
+    (ADR 0002); admin routes add a recent-sign-in check through ``step_up``.
     """
     if not principal.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    try:
-        from app.services.identity.totp_mfa import get_user_mfa_status
-
-        if not get_user_mfa_status(principal.user_id).get("enabled"):
-            raise HTTPException(
-                status_code=403,
-                detail="MFA enrolment is required for admin accounts.",
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.warning("[permissions] admin MFA check failed: %s", exc)
-        # Fail closed if we cannot determine MFA status for an admin.
-        raise HTTPException(status_code=503, detail="Admin MFA status unavailable") from exc
     return principal
 
 

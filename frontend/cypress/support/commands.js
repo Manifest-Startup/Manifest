@@ -1,31 +1,46 @@
-import { E2E_DEFAULT_PASSWORD, getPersonaBySlug, LEGACY_E2E_USER } from "./e2ePersonas";
+import { getPersonaBySlug, LEGACY_E2E_USER } from "./e2ePersonas";
 
-const emailSelector = 'input[name="email"], input[type="email"]';
-const passwordSelector = 'input[name="password"], input[type="password"]';
 const graphqlUrl = Cypress.env("graphqlUrl") || "http://localhost:8000/graphql";
 
-function loginWithEmailPassword(email, password = E2E_DEFAULT_PASSWORD, visitOptions = {}) {
+/**
+ * Sign in the only way Manifest offers: "Continue with Open Media".
+ *
+ * Against a local stack in demo mode (no DATABASE_URL), the backend signs in the
+ * demo user directly, so specs run without Open Media. Against a stack that talks
+ * to a real Open Media, set `openMediaOrigin` and the persona's password; the
+ * gateway's password form is driven with `cy.origin`.
+ */
+function signInWithOpenMedia(persona = LEGACY_E2E_USER, visitOptions = {}) {
   cy.clearCookies();
   cy.clearLocalStorage();
-  cy.visit("/auth", visitOptions);
-  cy.get(emailSelector, { timeout: 10000 }).first().should("be.visible").clear().type(email);
-  cy.get(passwordSelector).first().clear().type(password);
-  cy.get('button[type="submit"]').click();
-  cy.url({ timeout: 15000 }).should("include", "/ideas");
+  cy.visit("/login", visitOptions);
+  cy.get('[data-testid="continue-with-open-media"]', { timeout: 10000 }).should("be.visible").click();
+  const openMediaOrigin = Cypress.env("openMediaOrigin");
+  if (openMediaOrigin && persona.password) {
+    cy.origin(openMediaOrigin, { args: { email: persona.email, password: persona.password } }, ({ email, password }) => {
+      cy.contains(/use a password instead/i, { timeout: 15000 }).click();
+      cy.get('input[type="email"]').first().clear().type(email);
+      cy.get('input[type="password"]').first().clear().type(password, { log: false });
+      cy.contains("button", /continue|sign in/i).click();
+    });
+  }
+  cy.url({ timeout: 20000 }).should("include", "/ideas");
 }
 
-Cypress.Commands.add("loginWithEmailPassword", (email, password = E2E_DEFAULT_PASSWORD, visitOptions = {}) => {
-  loginWithEmailPassword(email, password, visitOptions);
+Cypress.Commands.add("signInWithOpenMedia", (slug = LEGACY_E2E_USER.slug, visitOptions = {}) => {
+  const persona = getPersonaBySlug(slug);
+  expect(persona, `persona ${slug}`).to.exist;
+  signInWithOpenMedia(persona, visitOptions);
 });
 
 Cypress.Commands.add("loginAsDefaultUser", () => {
-  loginWithEmailPassword(LEGACY_E2E_USER.email, LEGACY_E2E_USER.password);
+  signInWithOpenMedia(LEGACY_E2E_USER);
 });
 
 Cypress.Commands.add("loginAsPersona", (slug) => {
   const persona = getPersonaBySlug(slug);
   expect(persona, `persona ${slug}`).to.exist;
-  loginWithEmailPassword(persona.email, persona.password || E2E_DEFAULT_PASSWORD);
+  signInWithOpenMedia(persona);
 });
 
 Cypress.Commands.add("resetAuthState", () => {

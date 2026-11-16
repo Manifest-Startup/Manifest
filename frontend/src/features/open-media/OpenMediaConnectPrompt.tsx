@@ -1,6 +1,6 @@
 import React from "react";
 
-import { OPEN_MEDIA_CONNECT_URL } from "./useOpenMediaLink";
+import { openMediaConnectUrl } from "./useOpenMediaLink";
 
 interface OpenMediaConnectPromptProps {
   /** What connecting unlocks, e.g. "message founders". */
@@ -10,11 +10,11 @@ interface OpenMediaConnectPromptProps {
   compact?: boolean;
 }
 
-/** One-tap "Connect Open Media" prompt shown where Open Media features need a linked account. */
+/** One-tap "Continue with Open Media" prompt shown where Open Media features need a linked account. */
 const OpenMediaConnectPrompt: React.FC<OpenMediaConnectPromptProps> = ({
   purpose,
   reconnect = false,
-  connectUrl = OPEN_MEDIA_CONNECT_URL,
+  connectUrl,
   compact = false,
 }) => (
   <div
@@ -22,7 +22,7 @@ const OpenMediaConnectPrompt: React.FC<OpenMediaConnectPromptProps> = ({
     data-testid="open-media-connect-prompt"
   >
     <p className="text-sm font-semibold text-neutral900 dark:text-white">
-      {reconnect ? "Reconnect Open Media" : "Connect Open Media"}
+      {reconnect ? "Reconnect Open Media" : "Continue with Open Media"}
     </p>
     <p className="mx-auto mt-2 max-w-sm text-sm text-gray500 dark:text-gray400">
       {reconnect
@@ -31,10 +31,10 @@ const OpenMediaConnectPrompt: React.FC<OpenMediaConnectPromptProps> = ({
     </p>
     <a
       className="manifest-control manifest-control-primary mt-4 inline-flex"
-      href={connectUrl}
+      href={connectUrl ?? openMediaConnectUrl()}
       data-testid="open-media-connect-link"
     >
-      {reconnect ? "Reconnect Open Media" : "Connect Open Media"}
+      {reconnect ? "Reconnect Open Media" : "Continue with Open Media"}
     </a>
   </div>
 );

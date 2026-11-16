@@ -49,6 +49,30 @@ def fetch_user_is_guest(db, user_id: str) -> bool:
         return False
 
 
+def claim_guest_workspace(target_user_id: str, guest_user_id: str) -> int:
+    """Merge the guest workspace the browser is signed in to into ``target_user_id``.
+
+    Used by the Open Media sign-in callback: the guest's own session cookie proves
+    ownership, so the stored merge secret is read here instead of from the client.
+    Idempotent: a guest that was already claimed (a retried callback) merges 0 ideas.
+    """
+    from app.db.database import get_db_connection
+
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT is_guest, guest_merge_secret FROM users WHERE user_id = %s",
+            (guest_user_id,),
+        )
+        row = cur.fetchone()
+        if not row or not row.get("is_guest") or not row.get("guest_merge_secret"):
+            return 0
+        moved = merge_guest_workspace_sql(
+            cur, target_user_id, guest_user_id, str(row["guest_merge_secret"])
+        )
+        conn.commit()
+    return moved
+
+
 def merge_guest_workspace_sql(  # noqa: C901
     cur, target_user_id: str, guest_user_id: str, merge_secret: str
 ) -> int:

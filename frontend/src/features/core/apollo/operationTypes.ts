@@ -134,71 +134,13 @@ export interface ImportIdeasVariables {
 
 // ------------------------------ Auth -------------------------------------
 
-/** Payload returned by login, signup, password reset and guest upgrade. */
-export interface AuthPayload {
-  userId: string;
-  email: string;
-  token: string;
-  isGuest: boolean;
-}
-
-export interface EmailPasswordVariables {
-  email: string;
-  password: string;
-}
-
-export interface LoginUserData {
-  loginUser: AuthPayload | null;
-}
-
-export interface SignupUserData {
-  signupUser: AuthPayload | null;
-}
-
 export interface MessageResult {
   success: boolean;
   message: string;
 }
 
-export interface RequestPasswordResetData {
-  requestPasswordReset: MessageResult | null;
-}
-
-export interface RequestPasswordResetVariables {
-  email: string;
-}
-
-export interface ResetPasswordData {
-  resetPassword: AuthPayload | null;
-}
-
-export interface ResetPasswordVariables {
-  token: string;
-  newPassword: string;
-}
-
 export interface StartGuestSessionData {
   startGuestSession: GuestSessionPayload | null;
-}
-
-export interface MergeGuestWorkspaceData {
-  mergeGuestWorkspace: {
-    mergedIdeaCount: number;
-  } | null;
-}
-
-export interface MergeGuestWorkspaceVariables {
-  guestUserId: string;
-  mergeSecret: string;
-}
-
-export interface CompleteGuestAccountUpgradeData {
-  completeGuestAccountUpgrade: AuthPayload | null;
-}
-
-export interface CompleteGuestAccountUpgradeVariables {
-  token: string;
-  password: string;
 }
 
 // ----------------------------- Account -----------------------------------
@@ -252,32 +194,8 @@ export interface GetIntegrationsData {
   integrations: IntegrationRecord[];
 }
 
-export interface TotpSetup {
-  secret: string;
-  otpAuthUrl: string;
-  recoveryCodes: string[];
-}
-
-export interface BeginTotpSetupData {
-  beginTotpSetup: TotpSetup | null;
-}
-
-export interface BeginTotpSetupVariables {
-  password?: string | null;
-}
-
 export interface RevokeOtherAccountSessionsData {
   revokeOtherAccountSessions: number;
-}
-
-export interface MfaStatus {
-  enabled: boolean;
-  enabledAt: string | null;
-  recoveryCodesRemaining: number;
-}
-
-export interface GetMfaStatusData {
-  mfaStatus: MfaStatus | null;
 }
 
 export interface SessionInfo {
@@ -299,7 +217,6 @@ export interface PrivacyStatus {
   exportAvailable: boolean;
   deletionRequestedAt: string | null;
   guestRetentionDays: number;
-  passwordResetRetentionMinutes: number;
 }
 
 export interface GetPrivacyStatusData {
@@ -478,10 +395,6 @@ export interface OpenMediaLinkStatus {
 
 export interface GetOpenMediaLinkData {
   openMediaLink: OpenMediaLinkStatus | null;
-}
-
-export interface DisconnectOpenMediaData {
-  disconnectOpenMedia: OpenMediaLinkStatus | null;
 }
 
 export interface GetOpenMediaRealtimeTokenData {

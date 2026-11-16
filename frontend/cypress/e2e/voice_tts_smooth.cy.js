@@ -56,7 +56,7 @@ describe('Voice long greeting smoke', () => {
   };
 
   it('opens voice modal and receives TTS for a long spoken greeting', () => {
-    cy.loginWithEmailPassword('hello@manifeststartup.com', 'Mnfst_E2e_CI_9x!', {
+    cy.signInWithOpenMedia('legacy-default', {
       onBeforeLoad: installVoiceStubs,
     });
 

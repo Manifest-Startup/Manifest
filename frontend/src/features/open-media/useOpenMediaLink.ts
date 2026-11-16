@@ -3,8 +3,15 @@ import { useQuery, useReactiveVar } from "@apollo/client/react";
 import { userVar } from "features/core/apollo/localState";
 import { GET_OPEN_MEDIA_LINK } from "features/core/apollo/queries";
 import type { OpenMediaLinkStatus } from "features/core/apollo/operationTypes";
+import { openMediaSignInUrl } from "features/auth/openMediaSignIn";
 
-export const OPEN_MEDIA_CONNECT_URL = "/api/integrations/open-media/connect";
+/** Linking happens by signing in with Open Media again, returning to the current page. */
+export function openMediaConnectUrl(): string {
+  if (typeof window === "undefined") {
+    return openMediaSignInUrl();
+  }
+  return openMediaSignInUrl(`${window.location.pathname}${window.location.search}`);
+}
 
 export interface OpenMediaLinkState {
   loading: boolean;
@@ -30,6 +37,6 @@ export function useOpenMediaLink(): OpenMediaLinkState {
     enabled: status ? status.enabled : true,
     ready: Boolean(status?.enabled && status.linked && !status.needsReconnect),
     status,
-    connectUrl: status?.connectUrl || OPEN_MEDIA_CONNECT_URL,
+    connectUrl: openMediaConnectUrl(),
   };
 }

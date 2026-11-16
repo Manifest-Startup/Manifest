@@ -1,7 +1,5 @@
 import { accountVar, userVar } from "features/core/apollo/localState";
-import { clearLegacyBrowserTokens } from "features/auth/session";
-
-import { clearGuestMergeCredentials } from "./guestSessionStorage";
+import { buildSessionHeaders, clearLegacyBrowserTokens } from "features/auth/session";
 
 const LOGOUT_REDIRECT_KEY = "manifest_logout_redirect";
 
@@ -38,16 +36,15 @@ export function clearLogoutRedirectInProgress(): boolean {
 }
 
 export async function requestServerLogout(): Promise<void> {
-  await fetch("/auth/logout", {
-    method: "GET",
+  await fetch("/api/auth/logout", {
+    method: "POST",
     credentials: "include",
-    redirect: "manual",
+    headers: buildSessionHeaders(),
   }).catch(() => undefined);
 }
 
 export function clearClientLogoutState(): void {
   clearLegacyBrowserTokens();
-  clearGuestMergeCredentials();
   userVar({ isLoggedIn: false, authChecked: true, isGuest: false, userData: null });
   accountVar({ accountData: null, loading: false, error: null });
 }

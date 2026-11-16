@@ -37,7 +37,7 @@ Full dark mode support across all iOS components with system preference synchron
 
 ### Pages
 - `IOSIdeasPage`: iOS-styled ideas list with publish tick indicators and idea detail view
-- `IOSAuthForm`: iOS-styled authentication form
+- Sign-in uses the shared `features/auth/components/LoginPage` ("Continue with Open Media")
 - `IOSAccountPage`: Full-featured account page with portfolio/settings tabs
 
 ### Utilities

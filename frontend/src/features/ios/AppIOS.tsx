@@ -6,7 +6,7 @@ import IOSNavigationBar from "./components/IOSNavigationBar";
 import IOSTabBar from "./components/IOSTabBar";
 import IOSViewToggle from "./components/IOSViewToggle";
 import IOSIdeasPage from "./pages/IOSIdeasPage";
-import IOSAuthForm from "./pages/IOSAuthForm";
+import LoginPage from "features/auth/components/LoginPage";
 import IOSAccountPage from "./pages/IOSAccountPage";
 import PitchPage from "features/marketing/components/PitchPage";
 import LearnMorePage from "features/marketing/components/LearnMorePage";
@@ -49,7 +49,7 @@ const AppIOS: React.FC = () => {
   useAccountSync();
   const location = useLocation();
 
-  const { isLoggedIn } = useReactiveVar(userVar);
+  const { isLoggedIn, isGuest } = useReactiveVar(userVar);
   // Match #25: accept both the canonical `/pitch-reels` and legacy `/shorts`.
   const isImmersiveShorts =
     location.pathname.startsWith("/pitch-reels") || location.pathname.startsWith("/shorts");
@@ -76,9 +76,11 @@ const AppIOS: React.FC = () => {
               <Route path="/ideas/:idea_id" element={<PrivateRoute><IdeaDetailRedirect /></PrivateRoute>} />
               <Route path="/ideas/:idea_id/:ideaAspect" element={<PrivateRoute><IOSIdeasPage /></PrivateRoute>} />
               <Route path="/account" element={<PrivateRoute><IOSAccountPage /></PrivateRoute>} />
-              <Route path="/login" element={<Navigate to="/auth" replace />} />
-              <Route path="/signup" element={<Navigate to="/auth" replace />} />
-              <Route path="/auth" element={isLoggedIn ? <Navigate to="/ideas" replace /> : <IOSAuthForm />} />
+              <Route path="/login" element={isLoggedIn && !isGuest ? <Navigate to="/ideas" replace /> : <LoginPage />} />
+              <Route path="/signup" element={<Navigate to="/login" replace />} />
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
+              <Route path="/auth/forgot-password" element={<Navigate to="/login" replace />} />
+              <Route path="/auth/reset-password" element={<Navigate to="/login" replace />} />
               <Route path="/learn-more" element={<LearnMorePage />} />
               <Route path="/legal/terms" element={<LegalDocumentPage />} />
               <Route path="/legal/privacy" element={<LegalDocumentPage />} />

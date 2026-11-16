@@ -16,8 +16,6 @@ const PrivacyControlsPanel: React.FC<{ accountEmail?: string | null }> = ({ acco
   const [requestDeletion, { loading: deletionLoading }] = useMutation(REQUEST_ACCOUNT_DELETION);
   const { consent, loading: consentLoading, saving: consentSaving, updateConsent } = usePrivacyConsent();
   const [confirmEmail, setConfirmEmail] = React.useState(accountEmail || "");
-  const [password, setPassword] = React.useState("");
-  const [mfaCode, setMfaCode] = React.useState("");
   const [draft, setDraft] = React.useState<PrivacyConsentUpdate>(buildDraftFromConsent(consent));
 
   React.useEffect(() => {
@@ -33,14 +31,8 @@ const PrivacyControlsPanel: React.FC<{ accountEmail?: string | null }> = ({ acco
   const handleDeletionRequest = async () => {
     try {
       await requestDeletion({
-        variables: {
-          confirmEmail,
-          password: password || null,
-          mfaCode: mfaCode || null,
-        },
+        variables: { confirmEmail },
       });
-      setPassword("");
-      setMfaCode("");
       await refetch();
       setMessage("Deletion request recorded. Your browser session was cleared and support can complete the removal flow.", "success");
     } catch (error: any) {
@@ -67,17 +59,11 @@ const PrivacyControlsPanel: React.FC<{ accountEmail?: string | null }> = ({ acco
         {loading ? (
           <p className="mt-3 text-sm text-gray500 dark:text-gray400">Loading privacy settings…</p>
         ) : (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3">
             <div className="rounded-lg border border-stone200 bg-white px-4 py-4 dark:border-neutral700 dark:bg-neutral900">
               <p className="text-xs font-medium text-gray500 dark:text-gray400">Guest workspaces</p>
               <p className="mt-2 text-sm font-semibold text-neutral900 dark:text-white">
                 {privacyStatus?.guestRetentionDays ?? 30} day retention window
-              </p>
-            </div>
-            <div className="rounded-lg border border-stone200 bg-white px-4 py-4 dark:border-neutral700 dark:bg-neutral900">
-              <p className="text-xs font-medium text-gray500 dark:text-gray400">Password reset tokens</p>
-              <p className="mt-2 text-sm font-semibold text-neutral900 dark:text-white">
-                {privacyStatus?.passwordResetRetentionMinutes ?? 30} minute expiry
               </p>
             </div>
           </div>
@@ -123,8 +109,8 @@ const PrivacyControlsPanel: React.FC<{ accountEmail?: string | null }> = ({ acco
       <div className="manifest-card px-5 py-5">
         <p className="text-sm font-semibold text-neutral900 dark:text-white">Delete account</p>
         <p className="mt-2 text-sm leading-6 text-gray500 dark:text-gray400">
-          Export your workspace before continuing. Enter your account email to confirm the request. If your account uses
-          a password, provide it here; if MFA is enabled, include a current MFA or recovery code.
+          Export your workspace before continuing. Enter your account email to confirm the request. Your Open Media
+          account is not affected.
         </p>
         <div className="mt-4 grid gap-4">
           <Input
@@ -132,20 +118,6 @@ const PrivacyControlsPanel: React.FC<{ accountEmail?: string | null }> = ({ acco
             label="Confirm account email"
             value={confirmEmail}
             onChange={(event) => setConfirmEmail(event.target.value)}
-          />
-          <Input
-            type="password"
-            label="Current password"
-            placeholder="Required for password accounts"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          <Input
-            type="text"
-            label="Current MFA or recovery code"
-            placeholder="123456"
-            value={mfaCode}
-            onChange={(event) => setMfaCode(event.target.value)}
           />
           <Button type="button" variant="secondary" onClick={handleDeletionRequest} disabled={deletionLoading || !confirmEmail.trim()}>
             {deletionLoading ? "Submitting..." : "Request account deletion"}

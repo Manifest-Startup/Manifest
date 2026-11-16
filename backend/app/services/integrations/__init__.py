@@ -1,1 +1,1 @@
-"""Third-party services: GitHub, email delivery and encrypted integration tokens."""
+"""Third-party services: GitHub, Open Media and encrypted integration tokens."""

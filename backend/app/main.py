@@ -303,11 +303,9 @@ from app.routes.production_signal_routes import router as production_signal_rout
 from app.routes.production_test_routes import router as production_test_router
 from app.routes.scim_routes import router as scim_router
 from app.routes.sso_routes import router as sso_router
-from app.routes.step_up_routes import router as step_up_router
 from app.routes.survey_ops_routes import router as survey_ops_router
 from app.routes.trust_center_routes import router as trust_center_router
 from app.routes.voice_agent_routes import router as voice_agent_router
-from app.routes.webauthn_routes import router as webauthn_router
 from app.routes.website_testing_routes import router as website_testing_router
 
 validate_oauth_config()
@@ -332,8 +330,6 @@ app.include_router(ops_internal_router)
 app.include_router(open_media_router)
 app.include_router(sso_router)
 app.include_router(scim_router)
-app.include_router(step_up_router)
-app.include_router(webauthn_router)
 
 
 def get_context(request: Request, response: Response):
@@ -432,7 +428,10 @@ def _socketio_resolve_user(environ: dict, auth: dict | None) -> str | None:
     ``ConnectionRefusedError`` so engineio refuses the handshake.
     """
     import jwt as _jwt
-    from app.auth.replit_auth import SESSION_SECRET, get_current_user_from_session
+    from app.auth.current_user import (
+        SESSION_SECRET,
+        get_current_user_id_optional,
+    )
     from app.services.identity.sessions import is_session_active
 
     class _Req:
@@ -446,12 +445,13 @@ def _socketio_resolve_user(environ: dict, auth: dict | None) -> str | None:
         sc = SimpleCookie()
         sc.load(raw_cookie)
         cookies = {k: m.value for k, m in sc.items()}
-    headers = {"authorization": environ.get("HTTP_AUTHORIZATION", "")}
+    authorization = environ.get("HTTP_AUTHORIZATION", "")
+    headers = {"authorization": authorization, "Authorization": authorization}
 
-    # Cookie path — same helper used by /auth/me and friends.
-    payload = get_current_user_from_session(_Req(cookies, headers))
-    if payload and payload.get("sub"):
-        return str(payload["sub"])
+    # Cookie (or bearer) path — the same check every HTTP request goes through.
+    cookie_user = get_current_user_id_optional(_Req(cookies, headers))
+    if cookie_user:
+        return str(cookie_user)
 
     # auth={"token": "<jwt>"} fallback for native socket-io clients.
     if isinstance(auth, dict):
@@ -663,42 +663,6 @@ def _run_startup_migrations() -> None:  # noqa: C901
                     with contextlib.suppress(Exception):
                         cur.execute(privacy_ddl)
 
-                # Password reset tokens: hashed, single-use, short-lived.
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS password_reset_tokens (
-                        token_id    BIGSERIAL PRIMARY KEY,
-                        user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                        token_hash  VARCHAR(128) NOT NULL UNIQUE,
-                        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        expires_at  TIMESTAMPTZ NOT NULL,
-                        used_at     TIMESTAMPTZ NULL,
-                        request_ip  VARCHAR(64) NULL
-                    );
-                """)
-                for prt_ddl in [
-                    "CREATE INDEX IF NOT EXISTS idx_prt_user_id ON password_reset_tokens(user_id);",
-                    "CREATE INDEX IF NOT EXISTS idx_prt_expires_at ON password_reset_tokens(expires_at);",
-                ]:
-                    with contextlib.suppress(Exception):
-                        cur.execute(prt_ddl)
-
-                # Shared rate-limit counters for the password reset flow.
-                # One row per request; the service deletes rows older than
-                # the sliding window so the table stays small.
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS password_reset_rate_limit_events (
-                        id          BIGSERIAL PRIMARY KEY,
-                        bucket_key  VARCHAR(255) NOT NULL,
-                        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                    );
-                """)
-                for prl_ddl in [
-                    "CREATE INDEX IF NOT EXISTS idx_prl_key_created ON password_reset_rate_limit_events(bucket_key, created_at);",
-                    "CREATE INDEX IF NOT EXISTS idx_prl_created ON password_reset_rate_limit_events(created_at);",
-                ]:
-                    with contextlib.suppress(Exception):
-                        cur.execute(prl_ddl)
-
                 # Stage #3 — workspace ideas list hot path (see supabase migration
                 # 20260523180000_ideas_list_performance.sql).
                 for ideas_list_ddl in [
@@ -846,7 +810,7 @@ def _run_startup_migrations() -> None:  # noqa: C901
                             _cascade_exc,
                         )
         logger.info(
-            "[Startup] DB migrations applied to pitch_reels, survey_responses, users guest columns, password_reset_tokens, password_reset_rate_limit_events, and idea-child FK cascade fix (Task #48)."
+            "[Startup] DB migrations applied to pitch_reels, survey_responses, users guest columns, and idea-child FK cascade fix (Task #48)."
         )
     except Exception as _mig_exc:
         logger.warning("[Startup] Could not run DB migration: %s", _mig_exc)
@@ -915,72 +879,6 @@ def _run_startup_migrations() -> None:  # noqa: C901
 if not is_pytest:
     _run_startup_migrations()
 
-
-# ---------------------------------------------------------------------------
-# Periodic sweep of stale password-reset rate-limit rows.
-#
-# The shared rate limiter (Postgres-backed) only deletes rows lazily —
-# when the same bucket key is hit again. Buckets that fire once and
-# never repeat would otherwise leave rows behind forever, slowly
-# bloating the table and degrading the sliding-window query. A daemon
-# thread runs `sweep_stale_rate_limit_rows()` once an hour to keep the
-# table bounded without operators needing to run a manual DELETE.
-# ---------------------------------------------------------------------------
-def _start_password_reset_rate_limit_sweeper() -> None:
-    from threading import Event, Thread
-
-    from app.services.identity.password_reset import sweep_stale_rate_limit_rows
-
-    raw = os.getenv("PASSWORD_RESET_SWEEP_INTERVAL_SEC", "3600")
-    try:
-        interval_sec = int(raw)
-    except (TypeError, ValueError):
-        logger.warning(
-            "[Startup] Invalid PASSWORD_RESET_SWEEP_INTERVAL_SEC=%r; falling back to 3600s.",
-            raw,
-        )
-        interval_sec = 3600
-    if interval_sec <= 0:
-        logger.info(
-            "[Startup] Password-reset rate-limit sweeper disabled "
-            "(PASSWORD_RESET_SWEEP_INTERVAL_SEC=%s).",
-            interval_sec,
-        )
-        return
-
-    stop_event = Event()
-
-    def _loop() -> None:
-        # Run one sweep promptly after boot (with a small delay so it
-        # doesn't race startup migrations / first connections), then
-        # settle into the hourly cadence. Without this, stale rows
-        # left over from the previous process lifetime would persist
-        # for a full interval before the first cleanup.
-        if stop_event.wait(30):
-            return
-        try:
-            sweep_stale_rate_limit_rows()
-        except Exception as exc:
-            logger.warning("[password_reset] Initial sweep failed: %s", exc)
-        while not stop_event.wait(interval_sec):
-            try:
-                sweep_stale_rate_limit_rows()
-            except Exception as exc:  # defensive: never let the loop die
-                logger.warning("[password_reset] Sweeper iteration failed: %s", exc)
-
-    Thread(
-        target=_loop,
-        name="password-reset-rate-limit-sweeper",
-        daemon=True,
-    ).start()
-    logger.info(
-        "[Startup] Password-reset rate-limit sweeper running every %ds.",
-        interval_sec,
-    )
-
-
-if not is_pytest:
-    _start_password_reset_rate_limit_sweeper()
 
 if frontend_build_path.exists() and frontend_index_path.exists() and not is_pytest:
     logger.info(f"Serving frontend static files from: {frontend_build_path}")

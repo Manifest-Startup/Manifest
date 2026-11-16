@@ -93,7 +93,7 @@ const NavigationBar: React.FC = () => {
       await performLogout();
       clearMessage();
       setShowDropdown(false);
-      navigate("/auth", { replace: true });
+      navigate("/login", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
       setMessage("Logout failed. Please try again.", "error");
@@ -292,7 +292,7 @@ const NavigationBar: React.FC = () => {
                 Research. Model. Launch.
               </div>
               <Button
-                onClick={createNavigateHandler("/auth")}
+                onClick={createNavigateHandler("/login")}
                 variant="primary"
                 role="menuitem"
                 aria-label="Sign In"

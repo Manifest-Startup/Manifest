@@ -613,9 +613,9 @@ const AccountPage: React.FC = () => {
               </div>
               <div id="open-media">
                 <SectionCard
-                  eyebrow="Open Media"
-                  title="Connect Open Media"
-                  description="Messages and Pitch Shorts run on your Open Media account. Your pitch shorts also appear in Open Media's clips feed."
+                  eyebrow="Sign-in"
+                  title="Signed in with Open Media"
+                  description="One account for Manifest and Open Media. Messages and Pitch Shorts run on it too, and your pitch shorts appear in Open Media's clips feed."
                 >
                   <OpenMediaSection />
                 </SectionCard>
@@ -624,8 +624,8 @@ const AccountPage: React.FC = () => {
               <ProductFeedbackSurveyCard variant="desktop" />
               <SectionCard
                 eyebrow="Security"
-                title="Authentication and sessions"
-                description="Use an authenticator app, review active browsers, and revoke sessions you no longer trust."
+                title="Sessions"
+                description="Review where you are signed in to Manifest and revoke sessions you no longer trust. Passkeys, passwords and two-step verification are managed in Open Media."
               >
                 <SecuritySettingsPanel />
               </SectionCard>

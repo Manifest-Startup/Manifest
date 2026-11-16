@@ -39,30 +39,6 @@ async def test_toggle_publish_rejects_guest_account():
             await mutation.toggle_publish_idea(info, "00000000-0000-0000-0000-000000000001")
 
 
-@pytest.mark.asyncio
-async def test_merge_guest_workspace_propagates_service_errors():
-    mutation = Mutation()
-    info = MagicMock()
-    info.context = {"request": MagicMock(), "db": MagicMock()}
-    with patch("app.graphql.schema.get_current_user_id", return_value="target-user"), patch(
-        "app.db.database.get_db_connection"
-    ) as gdc:
-        conn = MagicMock()
-        cm = MagicMock()
-        cm.__enter__.return_value = conn
-        cm.__exit__.return_value = False
-        gdc.return_value = cm
-        cur = MagicMock()
-        conn.cursor.return_value.__enter__.return_value = cur
-        conn.cursor.return_value.__exit__.return_value = False
-        with patch(
-            "app.services.identity.guest_workspace.merge_guest_workspace_sql",
-            side_effect=Exception("Invalid or expired merge secret"),
-        ):
-            with pytest.raises(Exception, match="Invalid or expired merge secret"):
-                await mutation.merge_guest_workspace(info, "guest-id", "wrong-secret")
-
-
 def _mock_db_connection_cm(cursor_side_effect=None):
     """Build a get_db_connection() context-manager mock; the cursor's
     execute() optionally raises to simulate a transient DB failure."""
@@ -93,7 +69,7 @@ async def test_start_guest_session_retries_transient_insert_failure():
 
     with patch("app.graphql.schema.DEMO_MODE", False), patch(
         "app.db.database.get_db_connection", side_effect=[cm_fail, cm_ok]
-    ), patch("app.auth.replit_auth.create_session_token", return_value="jwt-token"), patch(
+    ), patch("app.auth.current_user.create_session_token", return_value="jwt-token"), patch(
         "app.graphql.schema._set_browser_auth_session"
     ), patch("app.graphql.schema.record_security_event"):
         result = await mutation.start_guest_session(info)

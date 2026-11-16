@@ -15,7 +15,7 @@ const RESPONSES: Record<string, unknown> = {
       needsReconnect: false,
       handle: "ada",
       displayName: "Ada",
-      connectUrl: "/api/integrations/open-media/connect",
+      connectUrl: "/api/auth/open-media/start",
     },
   },
   GetMyConversations: { myConversations: [] },

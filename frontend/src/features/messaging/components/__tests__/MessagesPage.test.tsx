@@ -17,7 +17,7 @@ const linkMock = (overrides: Record<string, unknown> = {}) => ({
         needsReconnect: false,
         handle: "ada",
         displayName: "Ada",
-        connectUrl: "/api/integrations/open-media/connect",
+        connectUrl: "/api/auth/open-media/start",
         ...overrides,
       },
     },
@@ -59,7 +59,7 @@ describe("MessagesPage", () => {
     expect(await screen.findByTestId("open-media-connect-prompt")).toBeInTheDocument();
     expect(screen.getByTestId("open-media-connect-link")).toHaveAttribute(
       "href",
-      "/api/integrations/open-media/connect",
+      "/api/auth/open-media/start?next=%2F",
     );
     expect(screen.queryByText("Inbox")).not.toBeInTheDocument();
   });

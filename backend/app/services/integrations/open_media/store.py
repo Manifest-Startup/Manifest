@@ -231,12 +231,3 @@ def mark_needs_reconnect(user_id: str) -> None:
             (json.dumps(metadata), user_id, SERVICE_ID),
         )
         conn.commit()
-
-
-def delete_link(user_id: str) -> None:
-    with get_db_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "DELETE FROM integrations WHERE user_id = %s AND service_id = %s",
-            (user_id, SERVICE_ID),
-        )
-        conn.commit()

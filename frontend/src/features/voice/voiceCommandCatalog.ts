@@ -20,8 +20,8 @@ export const VOICE_COMMAND_CATALOG: VoiceCommandDescriptor[] = [
     id: 'account-claim',
     category: 'account',
     title: 'Claim a full account (guest tryouts)',
-    description: 'Open account access or email a one-time upgrade link to an address you say aloud.',
-    examples: ['Claim my account', 'Send upgrade link to you at example dot com'],
+    description: 'Open sign-in to keep a guest workspace: continue with Open Media.',
+    examples: ['Claim my account', 'Finish signup'],
   },
   {
     id: 'integrations-github',

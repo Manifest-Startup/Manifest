@@ -11,10 +11,6 @@ from urllib.parse import unquote, urlparse
 import strawberry
 from app.auth.current_user import (
     DEMO_MODE,
-    DEMO_USER_EMAIL,
-    DEMO_USER_ID,
-    DEMO_USER_PASSWORD,
-    generate_demo_token,
     get_current_session_id_optional,
     get_current_user_id,
     get_current_user_id_optional,
@@ -40,7 +36,6 @@ from app.graphql.pitch_reel_types import (
     map_pitch_reel,
     map_pitch_reel_comment,
 )
-from app.security.config import is_test_environment
 from app.security.cookies import clear_auth_cookies, set_auth_cookies
 from app.services.ai.credentials import start_thread_with_current_key
 from app.services.compliance.security_audit import record_security_event
@@ -52,17 +47,6 @@ from app.services.identity.sessions import (
     revoke_all_other_sessions,
     revoke_all_sessions,
     revoke_session,
-)
-from app.services.identity.totp_mfa import (
-    disable_user_totp,
-    enable_user_totp,
-    generate_recovery_codes,
-    generate_totp_secret,
-    get_user_mfa_record,
-    get_user_mfa_status,
-    otp_auth_uri,
-    verify_totp,
-    verify_user_mfa_code,
 )
 from app.services.operations.survey_ops import survey_ops_service
 from app.services.shared import cache as cache_service
@@ -907,25 +891,10 @@ class SessionInfo:
 
 
 @strawberry.type
-class MfaStatus:
-    enabled: bool
-    enabled_at: datetime | None = None
-    recovery_codes_remaining: int = 0
-
-
-@strawberry.type
-class TotpSetup:
-    secret: str
-    otp_auth_url: str
-    recovery_codes: list[str]
-
-
-@strawberry.type
 class PrivacyStatus:
     export_available: bool
     deletion_requested_at: datetime | None = None
     guest_retention_days: int = 30
-    password_reset_retention_minutes: int = 30
 
 
 @strawberry.type
@@ -936,19 +905,6 @@ class GuestSessionResult:
     email: str
     token: str
     merge_secret: str
-
-
-@strawberry.type
-class MergeGuestWorkspaceResult:
-    merged_idea_count: int
-
-
-@strawberry.type
-class PasswordResetRequestResult:
-    """Always returns the same generic message to prevent email enumeration."""
-
-    success: bool
-    message: str
 
 
 @strawberry.type
@@ -1037,30 +993,6 @@ def _require_full_account(db, request) -> str:
     return user_id
 
 
-def ensure_user_record(db_client, user_id: str, email: str):
-    """Make sure a user row exists for demo/local authentication flows."""
-    if not db_client:
-        return
-    try:
-        existing = db_client.table("users").select("*").eq("user_id", user_id).single().execute()
-        if existing.data:
-            return
-    except Exception as exc:  # pragma: no cover - best-effort guardrail
-        logger.warning(f"[ensure_user_record] Failed to check existing user: {exc}")
-    try:
-        db_client.table("users").upsert(
-            {
-                "user_id": user_id,
-                "email": email,
-                "username": email.split("@")[0],
-                "created_at": datetime.utcnow().isoformat(),
-            },
-            on_conflict=["user_id"],
-        ).execute()
-    except Exception as exc:  # pragma: no cover
-        logger.warning(f"[ensure_user_record] Failed to upsert demo user: {exc}")
-
-
 def _request_ip(info: strawberry.Info) -> str | None:
     request = info.context.get("request")
     client = getattr(request, "client", None) if request else None
@@ -1101,7 +1033,7 @@ def _load_user_auth_record(user_id: str) -> dict[str, object] | None:
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
-                SELECT user_id, email, password_hash, auth_provider,
+                SELECT user_id, email, auth_provider,
                        COALESCE(is_guest, FALSE) AS is_guest,
                        deletion_requested_at
                 FROM users
@@ -1110,19 +1042,6 @@ def _load_user_auth_record(user_id: str) -> dict[str, object] | None:
             (user_id,),
         )
         return cur.fetchone()
-
-
-def _require_password_if_present(user_id: str, password: str | None) -> None:
-    from app.security.passwords import verify_password
-
-    user_row = _load_user_auth_record(user_id)
-    if not user_row:
-        raise Exception("User not found.")
-    password_hash = user_row.get("password_hash")
-    if not password_hash:
-        return
-    if not password or not verify_password(password, password_hash):
-        raise Exception("Current password is required.")
 
 
 def _build_survey_distribution_items(items: list[dict[str, Any]]) -> list[SurveyDistributionItem]:
@@ -2095,16 +2014,6 @@ class Query:
         return await asyncio.to_thread(_load)
 
     @strawberry.field
-    async def mfa_status(self, info: strawberry.Info) -> MfaStatus:
-        user_id = _require_full_account(info.context["db"], info.context["request"])
-        status = get_user_mfa_status(user_id)
-        return MfaStatus(
-            enabled=bool(status.get("enabled")),
-            enabled_at=status.get("enabled_at"),
-            recovery_codes_remaining=int(status.get("recovery_codes_remaining") or 0),
-        )
-
-    @strawberry.field
     async def my_sessions(self, info: strawberry.Info) -> list[SessionInfo]:
         user_id = get_current_user_id(info.context["request"])
         current_session_id = get_current_session_id_optional(info.context["request"])
@@ -2131,7 +2040,6 @@ class Query:
             export_available=True,
             deletion_requested_at=user_row.get("deletion_requested_at"),
             guest_retention_days=30,
-            password_reset_retention_minutes=30,
         )
 
     @strawberry.field
@@ -4108,247 +4016,6 @@ class Mutation:
         )
 
     @strawberry.mutation
-    async def login_user(self, info: strawberry.Info, email: str, password: str) -> AuthUser:
-        if DEMO_MODE:
-            logger.info("[login_user] Demo mode enabled - using bundled credentials")
-            if email.lower() != DEMO_USER_EMAIL.lower() or password != DEMO_USER_PASSWORD:
-                raise Exception("Invalid email or password")
-
-            token = generate_demo_token(DEMO_USER_ID, email)
-            ensure_user_record(info.context.get("db"), DEMO_USER_ID, email)
-            _set_browser_auth_session(info, token)
-            record_security_event(
-                "login_success",
-                user_id=DEMO_USER_ID,
-                request_ip=_request_ip(info),
-                action="login",
-                target_type="user",
-                target_id=DEMO_USER_ID,
-                outcome="success",
-                user_agent=_user_agent(info),
-                metadata={"provider": "demo"},
-            )
-            return AuthUser(user_id=DEMO_USER_ID, email=email, token=token, is_guest=False)
-
-        # PostgreSQL-based email/password authentication
-        from app.auth.replit_auth import create_session_token
-        from app.db.database import get_db_connection
-        from app.security.account_lockout import is_locked, record_failure, record_success
-        from app.security.passwords import verify_password
-
-        logger.info(f"[login_user] Attempting login for email: {email}")
-        request_ip = _request_ip(info)
-
-        # SEC-009: per-email + per-IP brute-force lockout with exponential backoff.
-        locked, retry_after = is_locked(email, request_ip)
-        if locked:
-            record_security_event(
-                "login_blocked_lockout",
-                request_ip=request_ip,
-                actor_type="anonymous",
-                action="login",
-                target_type="user",
-                target_id=email.lower(),
-                outcome="rate_limited",
-                user_agent=_user_agent(info),
-                metadata={"email": email.lower(), "retry_after": retry_after},
-            )
-            raise Exception(f"Too many failed login attempts. Try again in {retry_after} seconds.")
-
-        try:
-            with get_db_connection() as conn, conn.cursor() as cur:
-                cur.execute(
-                    """
-                        SELECT user_id, email, password_hash,
-                               COALESCE(is_guest, FALSE) AS is_guest
-                        FROM users WHERE email = %s
-                        """,
-                    (email.lower(),),
-                )
-                user = cur.fetchone()
-
-                if not user:
-                    logger.warning(f"[login_user] User not found: {email}")
-                    record_failure(email, request_ip)
-                    record_security_event(
-                        "login_failed",
-                        request_ip=request_ip,
-                        action="login",
-                        target_type="user",
-                        target_id=email.lower(),
-                        outcome="failed",
-                        actor_type="anonymous",
-                        user_agent=_user_agent(info),
-                        metadata={"email": email.lower(), "reason": "unknown_user"},
-                    )
-                    # Detector: brute-force walk by IP (no user_id yet).
-                    from app.security.audit_detections import detect_brute_force
-
-                    detect_brute_force(user_id=None, request_ip=request_ip)
-                    raise Exception("Invalid email or password")
-
-                password_hash = user.get("password_hash")
-                if not password_hash:
-                    logger.warning(f"[login_user] User has no password set (OAuth only): {email}")
-                    raise Exception("Please use your social login provider to sign in")
-
-                if not verify_password(password, password_hash):
-                    logger.warning(f"[login_user] Invalid password for user: {email}")
-                    now_locked, lock_seconds = record_failure(email, request_ip)
-                    record_security_event(
-                        "login_failed",
-                        user_id=str(user["user_id"]),
-                        request_ip=request_ip,
-                        action="login",
-                        target_type="user",
-                        target_id=str(user["user_id"]),
-                        outcome="failed",
-                        user_agent=_user_agent(info),
-                        metadata={
-                            "email": email.lower(),
-                            "reason": "bad_password",
-                            "now_locked": now_locked,
-                            "lock_seconds": lock_seconds,
-                        },
-                    )
-                    # Detector: per-user + per-IP brute-force.
-                    from app.security.audit_detections import detect_brute_force
-
-                    detect_brute_force(user_id=str(user["user_id"]), request_ip=request_ip)
-                    raise Exception("Invalid email or password")
-                record_success(email, request_ip)
-
-                user_id = str(user["user_id"])
-                token = create_session_token(
-                    user_id, email=email.lower(), request=info.context.get("request")
-                )
-
-                logger.info(f"[login_user] Successfully authenticated user_id: {user_id}")
-
-                _set_browser_auth_session(info, token)
-                record_security_event(
-                    "login_success",
-                    user_id=user_id,
-                    request_ip=_request_ip(info),
-                    action="login",
-                    target_type="user",
-                    target_id=user_id,
-                    outcome="success",
-                    user_agent=_user_agent(info),
-                    metadata={"provider": "email"},
-                )
-                # Detector: impossible-travel walk against prior successes.
-                from app.security.audit_detections import detect_impossible_travel
-
-                detect_impossible_travel(user_id=user_id, request_ip=_request_ip(info))
-
-                return AuthUser(
-                    user_id=user_id,
-                    email=email,
-                    token=token,
-                    is_guest=bool(user.get("is_guest")),
-                )
-
-        except Exception as e:
-            logger.error(f"[login_user] Exception during login: {str(e)}")
-            raise
-
-    @strawberry.mutation
-    async def signup_user(self, info: strawberry.Info, email: str, password: str) -> AuthUser:
-        if DEMO_MODE:
-            logger.info("[signup_user] Demo mode enabled - auto-creating local account")
-            ensure_user_record(info.context.get("db"), DEMO_USER_ID, email)
-            token = generate_demo_token(DEMO_USER_ID, email)
-            _set_browser_auth_session(info, token)
-            record_security_event(
-                "signup_success",
-                user_id=DEMO_USER_ID,
-                request_ip=_request_ip(info),
-                action="signup",
-                target_type="user",
-                target_id=DEMO_USER_ID,
-                outcome="success",
-                user_agent=_user_agent(info),
-                metadata={"provider": "demo"},
-            )
-            return AuthUser(user_id=DEMO_USER_ID, email=email, token=token, is_guest=False)
-
-        # PostgreSQL-based email/password signup
-        import uuid
-
-        from app.auth.replit_auth import create_session_token
-        from app.db.database import get_db_connection
-        from app.security.passwords import hash_password
-        from app.services.identity.password_reset import validate_password_for_user
-
-        # Enforce composition + breached-password (HIBP) policy at signup so
-        # we never create an account with a credential that is already in a
-        # public dump. Password history check is skipped here (no user_id yet).
-        validation_error = validate_password_for_user(password, user_id=None)
-        if validation_error:
-            raise Exception(validation_error)
-
-        logger.info(f"[signup_user] Attempting signup for email: {email}")
-
-        try:
-            with get_db_connection() as conn, conn.cursor() as cur:
-                # Check if user already exists
-                cur.execute("SELECT user_id FROM users WHERE email = %s", (email.lower(),))
-                existing = cur.fetchone()
-
-                if existing:
-                    logger.warning(f"[signup_user] User already exists: {email}")
-                    raise Exception("An account with this email already exists")
-
-                # Create new user with hashed password
-                user_id = str(uuid.uuid4())
-                password_hash = hash_password(password)
-
-                cur.execute(
-                    """
-                        INSERT INTO users (user_id, email, password_hash, auth_provider, created_at)
-                        VALUES (%s, %s, %s, %s, NOW())
-                    """,
-                    (user_id, email.lower(), password_hash, "email"),
-                )
-                conn.commit()
-                # Seed password history with the initial hash so the user
-                # cannot immediately reuse it on first reset.
-                try:
-                    from app.security.password_history import record_password
-
-                    record_password(user_id, password_hash)
-                except Exception:
-                    pass
-
-                token = create_session_token(
-                    user_id, email=email.lower(), request=info.context.get("request")
-                )
-
-                logger.info(f"[signup_user] Successfully created user_id: {user_id}")
-
-                _set_browser_auth_session(info, token)
-                record_security_event(
-                    "signup_success",
-                    user_id=user_id,
-                    request_ip=_request_ip(info),
-                    actor_id=user_id,
-                    actor_type="user",
-                    action="signup",
-                    target_type="user",
-                    target_id=user_id,
-                    outcome="success",
-                    user_agent=_user_agent(info),
-                    metadata={"provider": "email"},
-                )
-
-                return AuthUser(user_id=user_id, email=email, token=token, is_guest=False)
-
-        except Exception as e:
-            logger.error(f"[signup_user] Exception during signup: {str(e)}")
-            raise
-
-    @strawberry.mutation
     async def start_guest_session(self, info: strawberry.Info) -> GuestSessionResult:
         """Create a server-backed guest user, set session cookie, return one-time merge secret."""
         if DEMO_MODE:
@@ -4356,7 +4023,7 @@ class Mutation:
 
         import secrets
 
-        from app.auth.replit_auth import create_session_token
+        from app.auth.current_user import create_session_token
         from app.db.database import get_db_connection
         from app.services.identity.guest_workspace import check_guest_start_rate_limit
 
@@ -4427,289 +4094,6 @@ class Mutation:
         raise Exception("Could not start guest session") from last_error
 
     @strawberry.mutation
-    async def merge_guest_workspace(
-        self, info: strawberry.Info, guest_user_id: str, merge_secret: str
-    ) -> MergeGuestWorkspaceResult:
-        """Attach a guest user's ideas and related rows to the authenticated account."""
-        from app.db.database import get_db_connection
-        from app.services.identity.guest_workspace import merge_guest_workspace_sql
-
-        target_user_id = get_current_user_id(info.context["request"])
-        try:
-            with get_db_connection() as conn, conn.cursor() as cur:
-                n = merge_guest_workspace_sql(cur, target_user_id, guest_user_id, merge_secret)
-            logger.info(
-                "[merge_guest_workspace] Moved %s ideas from guest %s to %s",
-                n,
-                guest_user_id,
-                target_user_id,
-            )
-            return MergeGuestWorkspaceResult(merged_idea_count=n)
-        except Exception as e:
-            logger.warning("[merge_guest_workspace] %s", e)
-            raise
-
-    @strawberry.mutation
-    async def request_guest_account_upgrade_email(
-        self, info: strawberry.Info, email: str
-    ) -> PasswordResetRequestResult:
-        """Email a one-time link for guests to set a password and claim a full account."""
-
-        generic_response = PasswordResetRequestResult(
-            success=True,
-            message="If this guest session can claim that email, we sent a confirmation link.",
-        )
-
-        if DEMO_MODE and not is_test_environment():
-            logger.info(
-                "[request_guest_account_upgrade_email] Demo mode - skipping (email=%s)", email
-            )
-            return generic_response
-
-        from app.services.identity.guest_upgrade import (
-            build_guest_upgrade_url,
-            create_guest_upgrade_token,
-        )
-        from app.services.identity.password_reset import check_guest_upgrade_request_rate_limit
-        from app.services.integrations.email_sender import send_guest_upgrade_email
-
-        normalised = (email or "").lower().strip()
-        request = info.context.get("request")
-        client = getattr(request, "client", None) if request else None
-        request_ip = getattr(client, "host", None) if client else None
-
-        if not check_guest_upgrade_request_rate_limit(normalised, request_ip):
-            logger.warning(
-                "[request_guest_account_upgrade_email] Rate limit hit (email=%s ip=%s)",
-                normalised,
-                request_ip,
-            )
-            return generic_response
-
-        if not normalised:
-            return generic_response
-
-        try:
-            user_id = get_current_user_id(info.context["request"])
-        except Exception:
-            return generic_response
-
-        try:
-            raw_token = create_guest_upgrade_token(
-                user_id=user_id,
-                email=normalised,
-                db_executor=info.context["db"],
-            )
-        except Exception as exc:
-            logger.error("[request_guest_account_upgrade_email] Token creation failed: %s", exc)
-            return generic_response
-
-        if not raw_token:
-            return generic_response
-
-        claim_url = build_guest_upgrade_url(raw_token)
-        try:
-            await send_guest_upgrade_email(normalised, claim_url)
-        except Exception as exc:
-            logger.error("[request_guest_account_upgrade_email] Email send failed: %s", exc)
-
-        record_security_event(
-            "guest_upgrade_email_requested",
-            user_id=user_id,
-            request_ip=request_ip,
-            action="guest_upgrade_request",
-            target_type="user",
-            target_id=user_id,
-            outcome="success",
-            user_agent=_user_agent(info),
-        )
-        return generic_response
-
-    @strawberry.mutation
-    async def complete_guest_account_upgrade(
-        self, info: strawberry.Info, token: str, password: str
-    ) -> AuthUser:
-        """Consume a guest-upgrade email token, set password, and issue a session."""
-
-        if DEMO_MODE and not is_test_environment():
-            raise Exception("Guest upgrade is not available in demo mode.")
-
-        from app.auth.replit_auth import create_session_token
-        from app.services.identity.guest_upgrade import complete_guest_upgrade
-
-        request = info.context.get("request")
-        client = getattr(request, "client", None) if request else None
-        request_ip = getattr(client, "host", None) if client else None
-
-        payload, err = complete_guest_upgrade(token or "", password, request_ip=request_ip)
-        if err or not payload:
-            raise Exception(err or "Could not complete upgrade.")
-
-        user_id = str(payload["user_id"])
-        em = str(payload["email"])
-        session_token = create_session_token(user_id, email=em, request=info.context.get("request"))
-        _set_browser_auth_session(info, session_token)
-
-        record_security_event(
-            "guest_upgrade_completed",
-            user_id=user_id,
-            request_ip=request_ip,
-            action="guest_upgrade_complete",
-            target_type="user",
-            target_id=user_id,
-            outcome="success",
-            user_agent=_user_agent(info),
-        )
-        return AuthUser(user_id=user_id, email=em, token=session_token, is_guest=False)
-
-    @strawberry.mutation
-    async def request_password_reset(
-        self, info: strawberry.Info, email: str
-    ) -> PasswordResetRequestResult:
-        """Request a password reset email.
-
-        Always returns the same generic success message regardless of whether
-        the email exists, the account is OAuth-only, the account is a guest,
-        or the rate limit has been hit. This prevents the endpoint from being
-        used to enumerate registered email addresses.
-        """
-        generic_response = PasswordResetRequestResult(
-            success=True,
-            message="If an account with that email exists, we've sent a password reset link.",
-        )
-
-        if DEMO_MODE and not is_test_environment():
-            logger.info("[request_password_reset] Demo mode - skipping (email=%s)", email)
-            return generic_response
-
-        from app.services.identity.password_reset import (
-            build_reset_url,
-            check_request_rate_limit,
-            create_reset_token_for_user,
-            find_resettable_user,
-        )
-        from app.services.integrations.email_sender import send_password_reset_email
-
-        normalised_email = (email or "").lower().strip()
-        request = info.context.get("request")
-        client = getattr(request, "client", None) if request else None
-        request_ip = getattr(client, "host", None) if client else None
-
-        if not check_request_rate_limit(normalised_email, request_ip):
-            logger.warning(
-                "[request_password_reset] Rate limit hit (email=%s ip=%s)",
-                normalised_email,
-                request_ip,
-            )
-            record_security_event(
-                "password_reset_request_rate_limited",
-                request_ip=request_ip,
-                action="password_reset_request",
-                target_type="user",
-                target_id=email.lower() if email else None,
-                outcome="rate_limited",
-                user_agent=_user_agent(info),
-            )
-            return generic_response
-
-        if not normalised_email:
-            return generic_response
-
-        try:
-            user = find_resettable_user(normalised_email)
-        except Exception as exc:
-            logger.error("[request_password_reset] User lookup failed: %s", exc)
-            return generic_response
-
-        if not user:
-            logger.info(
-                "[request_password_reset] No resettable account for %s (returning generic)",
-                normalised_email,
-            )
-            return generic_response
-
-        try:
-            user_id = str(user["user_id"])
-            raw_token = create_reset_token_for_user(user_id, request_ip)
-        except Exception as exc:
-            logger.error("[request_password_reset] Token creation failed: %s", exc)
-            return generic_response
-
-        # NOTE: deliberately do *not* derive the reset URL host from the
-        # inbound request — APP_BASE_URL is the only trusted source. See
-        # build_reset_url() for why this prevents host-header poisoning.
-        reset_url = build_reset_url(raw_token)
-        try:
-            await send_password_reset_email(normalised_email, reset_url)
-        except Exception as exc:
-            logger.error("[request_password_reset] Email send failed: %s", exc)
-        record_security_event(
-            "password_reset_requested",
-            user_id=user_id,
-            request_ip=request_ip,
-            action="password_reset_request",
-            target_type="user",
-            target_id=user_id,
-            outcome="success",
-            user_agent=_user_agent(info),
-        )
-
-        return generic_response
-
-    @strawberry.mutation
-    async def reset_password(
-        self, info: strawberry.Info, token: str, new_password: str
-    ) -> AuthUser:
-        """Consume a password reset token and set a new password."""
-        if DEMO_MODE and not is_test_environment():
-            raise Exception("Password reset is not available in demo mode.")
-
-        from app.auth.replit_auth import create_session_token
-        from app.security.passwords import hash_password
-        from app.services.identity.password_reset import (
-            check_reset_attempt_rate_limit,
-            consume_token_and_reset_password,
-            validate_password_strength,
-        )
-
-        request = info.context.get("request")
-        client = getattr(request, "client", None) if request else None
-        request_ip = getattr(client, "host", None) if client else None
-
-        if not check_reset_attempt_rate_limit(request_ip):
-            logger.warning("[reset_password] IP rate limit exceeded ip=%s", request_ip)
-            raise Exception("Too many attempts. Please try again later.")
-
-        validation_error = validate_password_strength(new_password)
-        if validation_error:
-            raise Exception(validation_error)
-
-        new_hash = hash_password(new_password)
-        user_row = consume_token_and_reset_password(token or "", new_hash)
-        if not user_row:
-            raise Exception("This password reset link is invalid or has expired.")
-        user_id = str(user_row["user_id"])
-
-        email = str(user_row.get("email") or "")
-        session_token = create_session_token(
-            user_id, email=email, request=info.context.get("request")
-        )
-        _set_browser_auth_session(info, session_token)
-
-        logger.info("[reset_password] Password reset complete for user_id=%s", user_id)
-        record_security_event(
-            "password_reset_completed",
-            user_id=user_id,
-            request_ip=request_ip,
-            action="password_reset_complete",
-            target_type="user",
-            target_id=user_id,
-            outcome="success",
-            user_agent=_user_agent(info),
-        )
-        return AuthUser(user_id=user_id, email=email, token=session_token, is_guest=False)
-
-    @strawberry.mutation
     async def logout_user(self, info: strawberry.Info) -> bool:
         """Clear auth cookies so the client is fully logged out.
 
@@ -4738,138 +4122,6 @@ class Mutation:
         response = info.context["response"]
         clear_auth_cookies(response, request)
         return True
-
-    @strawberry.mutation
-    async def begin_totp_setup(
-        self, info: strawberry.Info, password: str | None = None
-    ) -> TotpSetup:
-        user_id = _require_full_account(info.context["db"], info.context["request"])
-        _require_password_if_present(user_id, password)
-        user_row = _load_user_auth_record(user_id) or {}
-        secret = generate_totp_secret()
-        recovery_codes = generate_recovery_codes()
-        return TotpSetup(
-            secret=secret,
-            otp_auth_url=otp_auth_uri(
-                email=str(user_row.get("email") or "account@manifeststartup.com"), secret=secret
-            ),
-            recovery_codes=recovery_codes,
-        )
-
-    @strawberry.mutation
-    async def enable_totp(
-        self, info: strawberry.Info, secret: str, code: str, recovery_codes: list[str]
-    ) -> MfaStatus:
-        user_id = _require_full_account(info.context["db"], info.context["request"])
-        if not verify_totp(secret, code):
-            raise Exception("That verification code did not match.")
-        if len(recovery_codes) < 4:
-            raise Exception("At least four recovery codes are required.")
-        enable_user_totp(user_id, secret, recovery_codes)
-        # SEC-031: forcibly end every other live session — the user has
-        # just changed an authentication factor and we must not leave
-        # legacy sessions trusting the pre-MFA cookie.
-        current_session_id = get_current_session_id_optional(info.context["request"])
-        revoked = revoke_all_other_sessions(user_id, current_session_id)
-        record_security_event(
-            "mfa_enabled",
-            user_id=user_id,
-            request_ip=_request_ip(info),
-            session_id=current_session_id,
-            actor_id=user_id,
-            actor_type="user",
-            action="mfa_enable",
-            target_type="user",
-            target_id=user_id,
-            outcome="success",
-            user_agent=_user_agent(info),
-            metadata={"other_sessions_revoked": revoked},
-        )
-        status = get_user_mfa_status(user_id)
-        return MfaStatus(
-            enabled=bool(status.get("enabled")),
-            enabled_at=status.get("enabled_at"),
-            recovery_codes_remaining=int(status.get("recovery_codes_remaining") or 0),
-        )
-
-    @strawberry.mutation
-    async def disable_totp(
-        self, info: strawberry.Info, code: str, password: str | None = None
-    ) -> bool:
-        # SEC-029: disabling MFA is a privileged factor change. We require
-        # BOTH the current password AND a valid TOTP/recovery code as
-        # identity re-proof. (Password is optional in the signature only
-        # for backwards compat; we now require it explicitly.)
-        user_id = _require_full_account(info.context["db"], info.context["request"])
-        if not password:
-            raise Exception("Password is required to disable MFA.")
-        _require_password_if_present(user_id, password)
-        if not verify_user_mfa_code(user_id, code):
-            raise Exception("That MFA code was invalid.")
-        disabled = disable_user_totp(user_id)
-        if disabled:
-            # SEC-031: factor removal must invalidate every active
-            # session, including the current one — the user must re-auth
-            # to confirm the new (weaker) trust posture.
-            revoked = revoke_all_sessions(user_id)
-            clear_auth_cookies(info.context["response"], info.context.get("request"))
-            record_security_event(
-                "mfa_disabled",
-                user_id=user_id,
-                request_ip=_request_ip(info),
-                actor_id=user_id,
-                actor_type="user",
-                action="mfa_disable",
-                target_type="user",
-                target_id=user_id,
-                outcome="success",
-                user_agent=_user_agent(info),
-                metadata={"sessions_revoked": revoked, "reason": "factor_removed"},
-            )
-        return disabled
-
-    @strawberry.mutation
-    async def regenerate_recovery_codes(
-        self,
-        info: strawberry.Info,
-        code: str,
-        password: str | None = None,
-    ) -> list[str]:
-        """Mint a fresh batch of recovery codes, invalidating the old ones.
-
-        Treated as a factor change (SEC-029): requires password + a valid
-        current TOTP code, and revokes other sessions on success.
-        """
-        user_id = _require_full_account(info.context["db"], info.context["request"])
-        if not password:
-            raise Exception("Password is required to regenerate recovery codes.")
-        _require_password_if_present(user_id, password)
-        if not verify_user_mfa_code(user_id, code):
-            raise Exception("That MFA code was invalid.")
-        record = get_user_mfa_record(user_id)
-        if not record:
-            raise Exception("MFA is not enabled on this account.")
-        new_codes = generate_recovery_codes()
-        # Re-encrypt the existing TOTP secret unchanged while replacing
-        # the recovery code set. enable_user_totp does an UPSERT.
-        enable_user_totp(user_id, str(record.get("secret") or ""), new_codes)
-        current_session_id = get_current_session_id_optional(info.context["request"])
-        revoked = revoke_all_other_sessions(user_id, current_session_id)
-        record_security_event(
-            "mfa_recovery_codes_regenerated",
-            user_id=user_id,
-            request_ip=_request_ip(info),
-            session_id=current_session_id,
-            actor_id=user_id,
-            actor_type="user",
-            action="mfa_recovery_codes_regenerate",
-            target_type="user",
-            target_id=user_id,
-            outcome="success",
-            user_agent=_user_agent(info),
-            metadata={"other_sessions_revoked": revoked},
-        )
-        return new_codes
 
     @strawberry.mutation
     async def revoke_account_session(self, info: strawberry.Info, session_id: str) -> bool:
@@ -4920,8 +4172,6 @@ class Mutation:
         self,
         info: strawberry.Info,
         confirm_email: str,
-        password: str | None = None,
-        mfa_code: str | None = None,
     ) -> bool:
         user_id = _require_full_account(info.context["db"], info.context["request"])
         user_row = _load_user_auth_record(user_id)
@@ -4930,10 +4180,6 @@ class Mutation:
         expected_email = str(user_row.get("email") or "").strip().lower()
         if (confirm_email or "").strip().lower() != expected_email:
             raise Exception("Enter your account email to confirm deletion.")
-        _require_password_if_present(user_id, password)
-        mfa_status = get_user_mfa_status(user_id)
-        if mfa_status.get("enabled") and not verify_user_mfa_code(user_id, mfa_code or ""):
-            raise Exception("A valid MFA code is required.")
 
         from app.db.database import get_db_connection
 
@@ -5189,15 +4435,6 @@ class Mutation:
         from app.services.integrations.open_media import messaging as om_messaging
 
         return bool(await call_open_media(om_messaging.mark_read, user_id, conversation_id))
-
-    @strawberry.mutation
-    async def disconnect_open_media(self, info: strawberry.Info) -> OpenMediaLink:
-        """Forget the linked Open Media account (its posts and messages stay on Open Media)."""
-        user_id = get_current_user_id(info.context["request"])
-        from app.services.integrations.open_media import identity as om_identity
-
-        await asyncio.to_thread(om_identity.unlink, user_id)
-        return map_link(await asyncio.to_thread(om_identity.link_status, user_id))
 
     # ==================== COLLABORATION MUTATIONS ====================
 
@@ -5798,17 +5035,7 @@ class _DefaultDenyAuthExtension(SchemaExtension):
     """
 
     PUBLIC_FIELDS = {
-        # auth bootstrap & demo / health
-        "login_user",
-        "loginUser",
-        "signup_user",
-        "signupUser",
-        "request_password_reset",
-        "requestPasswordReset",
-        "reset_password",
-        "resetPassword",
-        "complete_guest_account_upgrade",
-        "completeGuestAccountUpgrade",
+        # guest try-before-signup (signing in goes through /api/auth/open-media/*)
         "start_guest_session",
         "startGuestSession",
         "submit_contact_form",
@@ -5864,16 +5091,6 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "revoke_other_account_sessions": "sessions.manage",
         "revokeOtherAccountSessions": "sessions.manage",
         # --- MFA self-service ---
-        "begin_totp_setup": "mfa.manage",
-        "beginTotpSetup": "mfa.manage",
-        "enable_totp": "mfa.manage",
-        "enableTotp": "mfa.manage",
-        "disable_totp": "mfa.manage",
-        "disableTotp": "mfa.manage",
-        "regenerate_recovery_codes": "mfa.manage",
-        "regenerateRecoveryCodes": "mfa.manage",
-        "mfa_status": "mfa.manage",
-        "mfaStatus": "mfa.manage",
         # --- API key management ---
         "api_keys": "api_keys.manage",
         "apiKeys": "api_keys.manage",
@@ -5914,10 +5131,6 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "removeOpenaiApiKey": "account.write",
         "request_account_deletion": "account.write",
         "requestAccountDeletion": "account.write",
-        "merge_guest_workspace": "account.write",
-        "mergeGuestWorkspace": "account.write",
-        "request_guest_account_upgrade_email": "account.write",
-        "requestGuestAccountUpgradeEmail": "account.write",
         "logout_user": "account.read",
         "logoutUser": "account.read",
         "follow_user": "account.write",
@@ -6076,8 +5289,6 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "openMediaLink": "account.read",
         "open_media_realtime_token": "account.read",
         "openMediaRealtimeToken": "account.read",
-        "disconnect_open_media": "account.write",
-        "disconnectOpenMedia": "account.write",
         # --- Third-party integrations (per-user OAuth links) ---
         "integration": "account.read",
         "integrations": "account.read",

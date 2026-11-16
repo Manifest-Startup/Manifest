@@ -16,7 +16,7 @@ const link = (overrides: Record<string, unknown>) => ({
         needsReconnect: false,
         handle: null,
         displayName: null,
-        connectUrl: "/api/integrations/open-media/connect",
+        connectUrl: "/api/auth/open-media/start",
         ...overrides,
       },
     },
@@ -38,29 +38,32 @@ describe("OpenMediaSection (Account settings)", () => {
     userVar({ isLoggedIn: false, authChecked: false, isGuest: false, userData: null });
   });
 
-  it("offers Connect Open Media when not linked", async () => {
+  it("offers Continue with Open Media when the account is not linked yet", async () => {
     renderSection({});
     const connect = await screen.findByTestId("open-media-connect-button");
-    expect(connect).toHaveAttribute("href", "/api/integrations/open-media/connect");
+    expect(connect).toHaveAttribute("href", "/api/auth/open-media/start?next=%2F");
+    expect(connect).toHaveTextContent("Continue with Open Media");
     expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
   });
 
-  it("shows the linked handle and a disconnect action", async () => {
+  it("says which Open Media account signs in and links to its security settings", async () => {
     renderSection({ linked: true, handle: "ada" });
-    expect(await screen.findByText("Connected as @ada.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Disconnect" })).toBeInTheDocument();
+    expect(await screen.findByText("Signed in with Open Media @ada.")).toBeInTheDocument();
+    expect(screen.getByTestId("open-media-security-link")).toHaveAttribute("href", "https://openmedia.site/signin");
+    expect(screen.getByText("Manage sign-in and security")).toBeInTheDocument();
     expect(screen.queryByTestId("open-media-connect-button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
   });
 
-  it("asks to reconnect an expired link", async () => {
+  it("asks to continue with Open Media again when the link expired", async () => {
     renderSection({ linked: true, handle: "ada", needsReconnect: true });
     expect(await screen.findByText(/expired/)).toBeInTheDocument();
-    expect(screen.getByTestId("open-media-connect-button")).toHaveTextContent("Reconnect Open Media");
+    expect(screen.getByTestId("open-media-connect-button")).toHaveTextContent("Continue with Open Media");
   });
 
-  it("explains when Open Media is off on this server", async () => {
-    renderSection({ enabled: false });
-    expect(await screen.findByText(/isn't available on this server/)).toBeInTheDocument();
-    expect(screen.queryByTestId("open-media-connect-button")).not.toBeInTheDocument();
+  it("still shows the sign-in account when Messages and Pitch Shorts are off", async () => {
+    renderSection({ enabled: false, linked: true, handle: "ada" });
+    expect(await screen.findByText("Signed in with Open Media @ada.")).toBeInTheDocument();
+    expect(screen.getByText(/off on this server/)).toBeInTheDocument();
   });
 });

@@ -51,15 +51,15 @@ const sections: GuideSection[] = [
     kicker: "Access",
     title: "Choose between a full account and the guest path depending on how quickly you want to start.",
     intro:
-      "Manifest supports standard account creation as well as a try-before-signup guest flow. Guest mode is useful when you want to experience the workspace immediately and decide later whether to create a full account.",
+      "Manifest signs you in with your Open Media account (one account for Manifest and Open Media) and also offers a try-before-signup guest flow. Guest mode is useful when you want to experience the workspace immediately and decide later whether to keep it.",
     steps: [
-      "Use the authentication page to sign up or log in with your email-based account.",
+      "On the sign-in page, choose Continue with Open Media. Open Media signs you in with a passkey, an email link or a password; a new Open Media account becomes a new Manifest account, and an existing Manifest account with the same verified email is linked automatically.",
       "If guest mode is available, start there when you want a fast, lower-friction way to explore the product.",
-      "When you later create or log into a real account, the guest workspace can be merged into that full account so you keep the work you already created.",
+      "When you later continue with Open Media from the guest workspace, it is merged into your account so you keep the work you already created.",
     ],
     details: [
       "Guest accounts are intentionally limited. They can explore the workspace but cannot publish, message founders, invest, follow users, or invite collaborators until they upgrade to a full account.",
-      "The merge step is one-time and tied to the guest session credentials stored client-side during the guest flow.",
+      "The merge happens once, on the server, during sign-in; your guest session in this browser proves the workspace is yours.",
     ],
     tip: "Use a full account as soon as you are ready to publish, collaborate, or use messaging. Guest mode is best for evaluation and early note capture.",
     screenshot: {

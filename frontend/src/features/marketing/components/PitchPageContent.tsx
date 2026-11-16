@@ -1,13 +1,11 @@
 import React from "react";
-import { useMutation, useReactiveVar } from "@apollo/client/react";
+import { useReactiveVar } from "@apollo/client/react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { applyGuestSessionPayload } from "features/auth/guestSessionBootstrap";
+import { useStartGuestSession } from "features/auth/hooks/useStartGuestSession";
 import { trackEvent } from "features/analytics/projectAnalytics";
 import Button from "features/common-ui/Button";
 import { userVar } from "features/core/apollo/localState";
-import { START_GUEST_SESSION } from "features/core/apollo/queries";
-import { useMessage } from "features/notifications/context/MessageContext";
 
 const previewSteps = [
   { number: "01", title: "Add your idea", copy: "Start with a simple note." },
@@ -31,9 +29,8 @@ const CheckIcon = () => (
 
 const PitchPageContent = () => {
   const navigate = useNavigate();
-  const { setMessage } = useMessage();
   const { isLoggedIn } = useReactiveVar(userVar);
-  const [startGuestSession, { loading: guestSessionLoading }] = useMutation(START_GUEST_SESSION);
+  const { start: startGuest, loading: guestSessionLoading } = useStartGuestSession("landing");
 
   const handleExploreDemo = async () => {
     trackEvent("landing_cta_clicked", {
@@ -46,19 +43,7 @@ const PitchPageContent = () => {
       return;
     }
 
-    try {
-      const { data } = await startGuestSession();
-      const payload = data?.startGuestSession;
-      if (!applyGuestSessionPayload(payload ?? undefined)) {
-        setMessage("The demo could not be opened. Please try again later.", "error");
-        return;
-      }
-      trackEvent("demo_session_started", { session_type: "guest" });
-      navigate("/ideas");
-    } catch (error) {
-      console.error(error);
-      setMessage("The demo could not be opened. Please try again later.", "error");
-    }
+    await startGuest();
   };
 
   return (
@@ -78,7 +63,7 @@ const PitchPageContent = () => {
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
               Demo · In development
             </span>
-            <Button variant="ghost" onClick={() => navigate(isLoggedIn ? "/ideas" : "/auth")}>
+            <Button variant="ghost" onClick={() => navigate(isLoggedIn ? "/ideas" : "/login")}>
               {isLoggedIn ? "Workspace" : "Sign in"}
             </Button>
           </div>

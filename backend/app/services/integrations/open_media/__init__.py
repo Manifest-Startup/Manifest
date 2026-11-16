@@ -10,7 +10,7 @@ Modules:
 - ``settings``  — ``OPEN_MEDIA_*`` environment settings
 - ``store``     — the encrypted account link in ``integrations`` (service_id ``open_media``)
 - ``client``    — HTTP client: timeouts, retries, access-token refresh
-- ``identity``  — "Sign in with Open Media" (OAuth 2.1 + PKCE) linking and unlinking
+- ``identity``  — "Continue with Open Media" sign-in (OAuth 2.1 + PKCE), account matching and the link
 - ``messaging`` — conversations, messages, unread counts, Realtime token
 - ``clips``     — video upload, clip posts, likes, comments, reshares, the clips feed
 - ``webhooks``  — signed webhook verification, dedupe and cache invalidation

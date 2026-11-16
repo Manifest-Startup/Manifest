@@ -230,6 +230,47 @@ describe('ApiAccessSection', () => {
     });
   });
 
+  describe('Recent sign-in', () => {
+    it('asks for a fresh Open Media sign-in when the backend requires step-up', async () => {
+      mockFetch.mockImplementation((url, init) => {
+        if (url === '/api/keys/clients' && (!init || init.method !== 'POST')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ clients: [{ id: 'c1', name: 'Default', tier: 'free', status: 'active', keys: [] }] })
+          } as Response);
+        }
+        if (url === '/api/keys/usage') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ usage: { tier: 'free', requests_used: 0, requests_limit: 1000, tokens_used: 0, rate_limit_per_minute: 10 } })
+          } as Response);
+        }
+        if (url === '/api/keys/tiers') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ tiers: [] }) } as Response);
+        }
+        if (url === '/api/keys/keys') {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            headers: new Headers({ 'X-Step-Up-Required': '1' }),
+            json: () => Promise.resolve({ detail: 'Re-authentication required' })
+          } as Response);
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+
+      render(<ApiAccessSection />);
+      await waitFor(() => expect(screen.getByText('Create Key')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('Create Key'));
+      fireEvent.change(await screen.findByPlaceholderText('e.g., Production Key'), { target: { value: 'CI' } });
+      fireEvent.click(screen.getAllByRole('button', { name: /create/i }).pop() as HTMLElement);
+
+      const link = await screen.findByTestId('api-keys-sign-in-again');
+      expect(link).toHaveAttribute('href', '/api/auth/open-media/start?next=%2Faccount');
+      expect(screen.queryByText('Failed to create API key')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Billing Tiers', () => {
     it('displays billing tier options', async () => {
       mockFetch.mockImplementation((url) => {

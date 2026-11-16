@@ -67,9 +67,6 @@ class FakeStore:
         )
         return self.links[user_id].metadata
 
-    def delete_link(self, user_id):
-        self.links.pop(user_id, None)
-
 
 class Router:
     """Records requests and answers from a queue of (method, path) -> responses."""
@@ -104,7 +101,6 @@ def om(monkeypatch):
         "update_tokens",
         "mark_needs_reconnect",
         "save_link",
-        "delete_link",
     ):
         monkeypatch.setattr(store, name, getattr(fake, name))
     router = Router()
@@ -255,95 +251,18 @@ def test_4xx_errors_surface_open_media_description(om):
         messaging.start_conversation("u1", handle="ghost")
 
 
-# -- identity (linking) ---------------------------------------------------
+# -- identity (the stored link; signing in is covered in test_open_media_sign_in.py) --
 
 
-def test_authorize_url_uses_pkce_s256_and_signed_state(om):
-    url = urlsplit(identity.authorize_url("u1"))
-    assert f"{url.scheme}://{url.netloc}{url.path}" == "https://om.test/authorize"
-    q = {k: v[0] for k, v in parse_qs(url.query).items()}
-    assert q["response_type"] == "code"
-    assert q["client_id"] == "https://manifeststartup.com/oauth/open-media-client.json"
-    assert q["redirect_uri"] == "https://manifeststartup.com/api/integrations/open-media/callback"
-    assert q["scope"] == "account"
-    assert q["code_challenge_method"] == "S256"
-    assert len(q["code_challenge"]) == 43
-    assert "u1" not in q["state"]  # user id is inside the base64 payload, signed
-    assert "login_hint" not in q
-
-
-def test_authorize_url_prefills_the_open_media_email(om):
-    q = parse_qs(urlsplit(identity.authorize_url("u1", login_hint="ana@example.test")).query)
-    assert q["login_hint"] == ["ana@example.test"]
-
-
-def _start(user_id="u1"):
-    q = parse_qs(urlsplit(identity.authorize_url(user_id)).query)
-    return q["state"][0], q["code_challenge"][0]
-
-
-def test_callback_exchanges_code_with_matching_verifier_and_stores_link(om):
-    state, challenge = _start()
-    om["router"].on(
-        "POST", "/oauth/token", (200, {"access_token": "at", "refresh_token": "rt", "expires_in": 3600})
-    )
-    om["router"].on(
-        "GET", "/v1/connected/me", (200, {"id": "om-9", "handle": "ada", "display_name": "Ada"})
-    )
-    metadata = identity.complete_link("u1", code="the-code", state=state)
-
-    form = parse_qs(om["router"].calls[0].content.decode())
-    assert form["grant_type"] == ["authorization_code"]
-    assert form["code"] == ["the-code"]
-    assert identity.code_challenge(form["code_verifier"][0]) == challenge
-    assert _auth(om["router"].calls[1]) == "Bearer at"
-    assert metadata["handle"] == "ada"
-    assert om["store"].links["u1"].refresh_token == "rt"
-
-
-def test_callback_rejects_state_from_another_account(om):
-    state, _ = _start("someone-else")
-    with pytest.raises(identity.OpenMediaLinkError, match="another account"):
-        identity.complete_link("u1", code="c", state=state)
-    assert om["router"].calls == []
-
-
-def test_callback_rejects_tampered_expired_and_replayed_state(om, monkeypatch):
-    state, _ = _start()
-    body, sig = state.split(".")
-    with pytest.raises(identity.OpenMediaLinkError, match="invalid"):
-        identity.complete_link("u1", code="c", state=f"{body}x.{sig}")
-
-    om["router"].on("POST", "/oauth/token", (200, {"access_token": "at", "refresh_token": "rt"}))
-    om["router"].on("GET", "/v1/connected/me", (200, {"id": "om-9", "handle": "ada"}))
-    identity.complete_link("u1", code="c", state=state)
-    with pytest.raises(identity.OpenMediaLinkError, match="already used"):
-        identity.complete_link("u1", code="c", state=state)
-
-    expired, _ = _start()
-    monkeypatch.setattr(identity.time, "time", lambda: 10**12)
-    with pytest.raises(identity.OpenMediaLinkError, match="expired"):
-        identity.complete_link("u1", code="c", state=expired)
-
-
-def test_failed_exchange_is_reported_without_storing_anything(om):
-    state, _ = _start()
-    om["router"].on("POST", "/oauth/token", (400, {"error": "invalid_grant"}))
-    with pytest.raises(identity.OpenMediaLinkError, match="sign-in failed"):
-        identity.complete_link("u1", code="bad", state=state)
-    assert "u1" not in om["store"].links
-
-
-def test_link_status_and_unlink(om, monkeypatch):
+def test_link_status_reports_the_link_even_when_features_are_off(om, monkeypatch):
     assert identity.link_status("u1") == {"enabled": True, "linked": False}
     om["store"].add()
     status = identity.link_status("u1")
     assert status["linked"] is True and status["handle"] == "handle-u1"
     assert "access_token" not in json.dumps(status)
-    identity.unlink("u1")
-    assert identity.link_status("u1")["linked"] is False
     monkeypatch.setenv("OPEN_MEDIA_ENABLED", "")
-    assert identity.link_status("u1") == {"enabled": False, "linked": False}
+    status = identity.link_status("u1")
+    assert status["enabled"] is False and status["handle"] == "handle-u1"
 
 
 def test_handle_for_user_hides_links_that_need_reconnect(om):

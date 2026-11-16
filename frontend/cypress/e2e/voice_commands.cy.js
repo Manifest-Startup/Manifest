@@ -52,7 +52,7 @@ describe('Voice Commands E2E Tests', () => {
   };
 
   const login = () => {
-    cy.loginWithEmailPassword('hello@manifeststartup.com', 'Mnfst_E2e_CI_9x!', {
+    cy.signInWithOpenMedia('legacy-default', {
       onBeforeLoad: installVoiceStubs,
     });
   };

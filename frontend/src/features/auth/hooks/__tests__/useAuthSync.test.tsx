@@ -35,7 +35,7 @@ const mountHook = () =>
     <MemoryRouter initialEntries={["/ideas"]}>
       <Routes>
         <Route path="/ideas" element={<TestHarness />} />
-        <Route path="/auth" element={<div data-testid="auth-page" />} />
+        <Route path="/login" element={<div data-testid="auth-page" />} />
       </Routes>
     </MemoryRouter>,
   );
