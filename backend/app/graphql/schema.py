@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import json
 import os
 import re
@@ -21,12 +20,22 @@ from app.auth.current_user import (
     get_current_user_id_optional,
 )
 from app.graphql.error_masking import infrastructure_error_masker
+from app.graphql.open_media_types import (
+    Conversation,
+    Message,
+    OpenMediaLink,
+    OpenMediaRealtimeToken,
+    UnreadCount,
+    call_open_media,
+    map_conversation,
+    map_link,
+    map_message,
+)
 from app.graphql.pitch_reel_types import (
     PitchReel,
     PitchReelComment,
     PitchReelCommentCreateResult,
     PitchReelLikeResult,
-    PitchReelSaveResult,
     PitchReelShareResult,
     map_pitch_reel,
     map_pitch_reel_comment,
@@ -2482,10 +2491,13 @@ class Query:
 
     @strawberry.field
     async def pitch_reels_feed(self, info: strawberry.Info, limit: int = 20) -> list[PitchReel]:
-        """Get the published pitch reels feed with viewer-specific social state."""
+        """Published pitch reels joined with their Open Media clips (empty when Open Media is off)."""
         user_id = get_current_user_id(info.context["request"])
+        from app.services.integrations.open_media import settings as open_media_settings
         from app.services.pitch_reels.service import create_pitch_reel_service
 
+        if not open_media_settings.enabled():
+            return []
         service = create_pitch_reel_service(info.context["db"])
         reels_data = await service.list_feed(viewer_id=user_id, limit=max(1, min(limit, 50)))
         return [map_pitch_reel(reel) for reel in reels_data]
@@ -2494,14 +2506,17 @@ class Query:
     async def pitch_reel_comments(
         self, info: strawberry.Info, reel_id: str, limit: int = 120
     ) -> list[PitchReelComment]:
-        """Get comments for a pitch reel."""
+        """Open Media comments on a pitch reel's clip."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
-        comments_data = await service.list_comments(
-            reel_id=reel_id, viewer_id=user_id, limit=max(1, min(limit, 200))
-        )
+        try:
+            comments_data = await service.list_comments(
+                reel_id=reel_id, viewer_id=user_id, limit=max(1, min(limit, 200))
+            )
+        except Exception as exc:
+            raise Exception(str(exc)) from exc
         return [map_pitch_reel_comment(comment) for comment in comments_data]
 
     @strawberry.field
@@ -2785,55 +2800,21 @@ class Query:
 
     @strawberry.field
     async def my_conversations(
-        self, info: strawberry.Info, limit: int = 50, offset: int = 0
-    ) -> list["Conversation"]:
-        """Get current user's conversations."""
+        self,
+        info: strawberry.Info,
+        limit: int = 50,
+        offset: int = 0,
+        all_apps: bool = False,
+    ) -> list[Conversation]:
+        """Open Media conversations; Manifest ones (``context.app = manifest``) unless ``allApps``."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+        from app.services.integrations.open_media import messaging as om_messaging
 
-        service = create_messaging_service(info.context["db"])
-
-        convs = await service.get_user_conversations(user_id, limit, offset)
-
-        result = []
-        for conv in convs:
-            other_user = (
-                conv.get("participant_2_user")
-                if conv["participant_1"] == user_id
-                else conv.get("participant_1_user")
-            )
-            other_user = other_user or {}
-            other_id = (
-                conv["participant_2"] if conv["participant_1"] == user_id else conv["participant_1"]
-            )
-
-            unread = (
-                conv.get("participant_1_unread_count", 0)
-                if conv["participant_1"] == user_id
-                else conv.get("participant_2_unread_count", 0)
-            )
-
-            idea = conv.get("idea") or {}
-
-            result.append(
-                Conversation(
-                    conversation_id=conv["conversation_id"],
-                    other_user_id=other_id,
-                    other_user_name=_display_name(other_user),
-                    other_user_avatar=other_user.get("profile_picture_url"),
-                    idea_id=conv.get("idea_id"),
-                    idea_title=idea.get("title"),
-                    last_message_at=(
-                        datetime.fromisoformat(conv["last_message_at"].replace("Z", "+00:00"))
-                        if isinstance(conv.get("last_message_at"), str)
-                        else (conv.get("last_message_at") or datetime.utcnow())
-                    ),
-                    last_message_preview=conv.get("last_message_preview"),
-                    unread_count=unread,
-                )
-            )
-
-        return result
+        convs = await call_open_media(
+            om_messaging.list_conversations, user_id, app_only=not all_apps
+        )
+        start = max(0, offset)
+        return [map_conversation(c) for c in convs[start : start + max(1, min(limit, 100))]]
 
     @strawberry.field
     async def conversation_messages(
@@ -2842,62 +2823,40 @@ class Query:
         conversation_id: str,
         limit: int = 100,
         before_id: str | None = None,
-    ) -> list["Message"]:
-        """Get messages for a conversation."""
+    ) -> list[Message]:
+        """Messages in an Open Media conversation, oldest first."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+        from app.services.integrations.open_media import identity as om_identity
+        from app.services.integrations.open_media import messaging as om_messaging
 
-        service = create_messaging_service(info.context["db"])
-
-        messages = await service.get_conversation_messages(
-            conversation_id, user_id, limit, before_id
+        messages = await call_open_media(
+            om_messaging.list_messages, user_id, conversation_id, limit=limit, before=before_id
         )
-
-        result = []
-        for msg in messages:
-            sender = msg.get("sender") or {}
-            result.append(
-                Message(
-                    message_id=msg["message_id"],
-                    conversation_id=msg["conversation_id"],
-                    sender_id=msg["sender_id"],
-                    content=msg["content"],
-                    message_type=msg.get("message_type", "text"),
-                    is_encrypted=msg.get("is_encrypted", True),
-                    is_read=msg.get("is_read", False),
-                    created_at=(
-                        datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00"))
-                        if isinstance(msg["created_at"], str)
-                        else msg["created_at"]
-                    ),
-                    is_mine=msg["sender_id"] == user_id,
-                    sender_name=_display_name(sender),
-                    sender_avatar=sender.get("profile_picture_url"),
-                )
-            )
-
-        return result
+        me = await asyncio.to_thread(om_identity.om_user_id_for, user_id)
+        return [map_message(m, me) for m in messages]
 
     @strawberry.field
-    async def unread_message_count(self, info: strawberry.Info) -> "UnreadCount":
-        """Get total unread message count for current user."""
+    async def unread_message_count(self, info: strawberry.Info) -> UnreadCount:
+        """Unread Manifest messages (0 when Open Media is off, unlinked or unreachable)."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+        from app.services.integrations.open_media import messaging as om_messaging
+        from app.services.integrations.open_media import settings as open_media_settings
 
-        service = create_messaging_service(info.context["db"])
-
-        count = await service.get_unread_count(user_id)
-        return UnreadCount(count=count)
+        if not open_media_settings.enabled():
+            return UnreadCount(count=0)
+        try:
+            count = await call_open_media(om_messaging.unread_count, user_id)
+        except Exception:
+            count = 0  # never break the nav badge
+        return UnreadCount(count=int(count or 0))
 
     @strawberry.field
     async def idea_owner(self, info: strawberry.Info, idea_id: str) -> Optional["IdeaOwner"]:
-        """Get the owner of an idea for messaging."""
+        """The founder of an idea, and whether the viewer can message them on Open Media."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+        from app.services.social.founder_contact import get_idea_owner
 
-        service = create_messaging_service(info.context["db"])
-
-        data = await service.get_idea_owner(idea_id, user_id)
+        data = await asyncio.to_thread(get_idea_owner, info.context["db"], idea_id, user_id)
         if not data:
             return None
 
@@ -2907,23 +2866,37 @@ class Query:
             username=owner.get("username"),
             first_name=owner.get("first_name"),
             last_name=owner.get("last_name"),
-            email=owner.get("email"),
             bio=owner.get("bio"),
             profile_picture_url=owner.get("profile_picture_url"),
             idea_id=data["idea_id"],
             idea_title=data.get("idea_title"),
             is_published=bool(data.get("is_published", False)),
             can_message=bool(data.get("can_message", False)),
+            open_media_handle=data.get("open_media_handle"),
         )
 
     @strawberry.field
-    async def user_public_key(self, info: strawberry.Info, user_id: str) -> str | None:
-        """Get a user's public encryption key."""
-        from app.services.social.messaging import create_messaging_service
+    async def open_media_link(self, info: strawberry.Info) -> OpenMediaLink:
+        """Whether Open Media is enabled here and linked to the current account."""
+        user_id = get_current_user_id(info.context["request"])
+        from app.services.integrations.open_media import identity as om_identity
 
-        service = create_messaging_service(info.context["db"])
+        return map_link(await asyncio.to_thread(om_identity.link_status, user_id))
 
-        return await service.get_user_public_key(user_id)
+    @strawberry.field
+    async def open_media_realtime_token(self, info: strawberry.Info) -> OpenMediaRealtimeToken:
+        """Short-lived Open Media Supabase credentials for live message updates."""
+        user_id = get_current_user_id(info.context["request"])
+        from app.services.integrations.open_media import messaging as om_messaging
+
+        token = await call_open_media(om_messaging.realtime_token, user_id)
+        return OpenMediaRealtimeToken(
+            supabase_url=token["supabase_url"],
+            anon_key=token["anon_key"],
+            access_token=token["access_token"],
+            expires_at=str(token["expires_at"]) if token.get("expires_at") else None,
+            om_user_id=token.get("om_user_id"),
+        )
 
     # ==================== COLLABORATION QUERIES ====================
 
@@ -3594,8 +3567,7 @@ class Mutation:
                 idea_row.get("title"),
                 idea_row.get("description"),
             )
-            video_mode = (os.getenv("PITCH_REEL_VIDEO_MODE") or "thread").strip().lower()
-            if video_mode != "disabled" and needs_video:
+            if needs_video:  # no-op unless Open Media and video generation are enabled
                 schedule_pitch_reel_video_generation(
                     reel_id,
                     str(idea_row.get("title") or ""),
@@ -3604,7 +3576,9 @@ class Mutation:
         else:
             from app.services.pitch_reels.service import create_pitch_reel_service
 
-            create_pitch_reel_service(info.context["db"]).unpublish_reel_for_idea(idea_id)
+            await asyncio.to_thread(
+                create_pitch_reel_service(info.context["db"]).unpublish_reel_for_idea, idea_id
+            )
 
         return PublishResult(idea_id=idea_id, is_published=new_status)
 
@@ -3982,48 +3956,37 @@ class Mutation:
 
     @strawberry.mutation
     async def toggle_pitch_reel_like(
-        self, info: strawberry.Info, reel_id: str
+        self, info: strawberry.Info, reel_id: str, liked: bool
     ) -> PitchReelLikeResult:
-        """Toggle like state for a pitch reel."""
+        """Like (``liked: true``) or unlike a pitch reel's Open Media clip."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
-        result = await service.toggle_like(reel_id=reel_id, user_id=user_id)
+        try:
+            result = await service.set_like(reel_id=reel_id, user_id=user_id, liked=liked)
+        except Exception as exc:
+            raise Exception(str(exc)) from exc
         return PitchReelLikeResult(
-            reel_id=result["reel_id"],
-            liked=result["liked"],
-            like_count=result["like_count"],
+            reel_id=result["reel_id"], liked=result["liked"], like_count=result["like_count"]
         )
 
     @strawberry.mutation
-    async def toggle_pitch_reel_save(
-        self, info: strawberry.Info, reel_id: str
-    ) -> PitchReelSaveResult:
-        """Toggle saved/bookmarked state for a pitch reel."""
-        user_id = get_current_user_id(info.context["request"])
-        from app.services.pitch_reels.service import create_pitch_reel_service
-
-        service = create_pitch_reel_service(info.context["db"])
-        result = await service.toggle_save(reel_id=reel_id, user_id=user_id)
-        return PitchReelSaveResult(
-            reel_id=result["reel_id"],
-            saved=result["saved"],
-            save_count=result["save_count"],
-        )
-
-    @strawberry.mutation
-    async def record_pitch_reel_share(
-        self, info: strawberry.Info, reel_id: str
+    async def reshare_pitch_reel(
+        self, info: strawberry.Info, reel_id: str, reshared: bool
     ) -> PitchReelShareResult:
-        """Record a successful pitch reel share event."""
+        """Reshare (or undo) a pitch reel's clip on the viewer's Open Media profile."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
-        result = await service.record_share(reel_id=reel_id, user_id=user_id)
+        try:
+            result = await service.set_reshare(reel_id=reel_id, user_id=user_id, reshared=reshared)
+        except Exception as exc:
+            raise Exception(str(exc)) from exc
         return PitchReelShareResult(
             reel_id=result["reel_id"],
+            reshared=result["reshared"],
             share_count=result["share_count"],
         )
 
@@ -4031,16 +3994,16 @@ class Mutation:
     async def create_pitch_reel_comment(
         self, info: strawberry.Info, reel_id: str, body: str
     ) -> PitchReelCommentCreateResult:
-        """Create a comment on a pitch reel."""
+        """Comment on a pitch reel's Open Media clip."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.pitch_reels.service import create_pitch_reel_service
 
         service = create_pitch_reel_service(info.context["db"])
-        result = await service.create_comment(reel_id=reel_id, user_id=user_id, body=body)
-        return PitchReelCommentCreateResult(
-            comment=map_pitch_reel_comment(result["comment"]),
-            comment_count=result["comment_count"],
-        )
+        try:
+            result = await service.create_comment(reel_id=reel_id, user_id=user_id, body=body)
+        except Exception as exc:
+            raise Exception(str(exc)) from exc
+        return PitchReelCommentCreateResult(comment=map_pitch_reel_comment(result["comment"]))
 
     @strawberry.mutation
     async def generate_pitch_deck(
@@ -5159,70 +5122,46 @@ class Mutation:
     @strawberry.mutation
     async def start_conversation(
         self, info: strawberry.Info, other_user_id: str, idea_id: str | None = None
-    ) -> "Conversation":
-        """Start or get existing conversation with another user, optionally about a specific idea."""
+    ) -> Conversation:
+        """Open (or reuse) an Open Media conversation with an idea's founder.
+
+        ``otherUserId`` is the founder's Manifest user id; the founder must have
+        linked Open Media. With ``ideaId`` the idea must be published and owned
+        by that founder; the conversation is tagged with the idea.
+        """
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+        from app.services.integrations.open_media import identity as om_identity
+        from app.services.integrations.open_media import messaging as om_messaging
+        from app.services.social.founder_contact import (
+            FOUNDER_NOT_LINKED_MESSAGE,
+            founder_handle_for_idea,
+        )
 
-        service = create_messaging_service(info.context["db"])
-
+        db = info.context["db"]
+        context = None
         if idea_id:
+            idea_owner = (
+                db.table("ideas").select("user_id").eq("idea_id", idea_id).single().execute()
+            )
+            owner_row = idea_owner.data if isinstance(idea_owner.data, dict) else {}
+            if str(owner_row.get("user_id") or "") != str(other_user_id):
+                raise Exception("That conversation must be with the founder of this idea.")
             try:
-                await service.require_messaging_allowed_for_idea(idea_id, user_id)
+                handle, title = await asyncio.to_thread(
+                    founder_handle_for_idea, db, idea_id, user_id
+                )
             except ValueError as exc:
                 raise Exception(str(exc)) from exc
+            context = om_messaging.idea_context(idea_id, title)
+        else:
+            handle = await asyncio.to_thread(om_identity.handle_for_user, other_user_id)
+            if not handle:
+                raise Exception(FOUNDER_NOT_LINKED_MESSAGE)
 
-            idea_owner_resp = (
-                info.context["db"]
-                .table("ideas")
-                .select("user_id")
-                .eq("idea_id", idea_id)
-                .single()
-                .execute()
-            )
-            idea_owner_row = (
-                idea_owner_resp.data if isinstance(idea_owner_resp.data, dict) else None
-            )
-            founder_uid = str((idea_owner_row or {}).get("user_id") or "")
-            if founder_uid and str(other_user_id) != founder_uid:
-                raise Exception("That conversation must be with the founder of this idea.")
-
-        conv = await service.get_or_create_conversation(user_id, other_user_id, idea_id)
-
-        # Get other user info
-        other_id = (
-            other_user_id if conv["participant_1"] != other_user_id else conv["participant_2"]
+        conv = await call_open_media(
+            om_messaging.start_conversation, user_id, handle=handle, context=context
         )
-        other_user_response = (
-            info.context["db"]
-            .table("users")
-            .select("user_id, username, first_name, last_name, email, profile_picture_url")
-            .eq("user_id", other_id)
-            .single()
-            .execute()
-        )
-        other_user = other_user_response.data or {}
-
-        unread = (
-            conv.get("participant_1_unread_count", 0)
-            if conv["participant_1"] == user_id
-            else conv.get("participant_2_unread_count", 0)
-        )
-
-        return Conversation(
-            conversation_id=conv["conversation_id"],
-            other_user_id=other_id,
-            other_user_name=_display_name(other_user),
-            other_user_avatar=other_user.get("profile_picture_url"),
-            idea_id=conv.get("idea_id"),
-            last_message_at=(
-                datetime.fromisoformat(conv["last_message_at"].replace("Z", "+00:00"))
-                if isinstance(conv.get("last_message_at"), str)
-                else (conv.get("last_message_at") or datetime.utcnow())
-            ),
-            last_message_preview=conv.get("last_message_preview"),
-            unread_count=unread,
-        )
+        return map_conversation(conv)
 
     @strawberry.mutation
     async def send_message(
@@ -5230,65 +5169,35 @@ class Mutation:
         info: strawberry.Info,
         conversation_id: str,
         content: str,
-        message_type: str = "text",
-        metadata: str | None = None,
-    ) -> "Message":
-        """Send a message in a conversation."""
+        client_id: str | None = None,
+    ) -> Message:
+        """Send a message in an Open Media conversation (``clientId`` makes retries land once)."""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        import json
+        from app.services.integrations.open_media import messaging as om_messaging
 
-        from app.services.social.messaging import create_messaging_service
-
-        service = create_messaging_service(info.context["db"])
-
-        meta_dict = None
-        if metadata:
-            with contextlib.suppress(Exception):
-                meta_dict = json.loads(metadata)
-
-        msg = await service.send_message(
-            conversation_id=conversation_id,
-            sender_id=user_id,
-            content=content,
-            message_type=message_type,
-            metadata=meta_dict,
+        msg = await call_open_media(
+            om_messaging.send_message, user_id, conversation_id, body=content, client_id=client_id
         )
-
-        return Message(
-            message_id=msg["message_id"],
-            conversation_id=msg["conversation_id"],
-            sender_id=msg["sender_id"],
-            content=msg["content"],
-            message_type=msg.get("message_type", "text"),
-            is_encrypted=msg.get("is_encrypted", True),
-            is_read=msg.get("is_read", False),
-            created_at=(
-                datetime.fromisoformat(msg["created_at"].replace("Z", "+00:00"))
-                if isinstance(msg["created_at"], str)
-                else msg["created_at"]
-            ),
-            is_mine=True,
-        )
+        mapped = map_message(msg, None)
+        mapped.is_mine = True
+        return mapped
 
     @strawberry.mutation
     async def mark_conversation_read(self, info: strawberry.Info, conversation_id: str) -> bool:
-        """Mark all messages in a conversation as read."""
+        """Mark an Open Media conversation as read."""
         user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+        from app.services.integrations.open_media import messaging as om_messaging
 
-        service = create_messaging_service(info.context["db"])
-
-        return await service.mark_messages_as_read(conversation_id, user_id)
+        return bool(await call_open_media(om_messaging.mark_read, user_id, conversation_id))
 
     @strawberry.mutation
-    async def set_encryption_key(self, info: strawberry.Info, public_key: str) -> bool:
-        """Set or update user's public encryption key for E2E messaging."""
-        user_id = _require_full_account(info.context["db"], info.context["request"])
-        from app.services.social.messaging import create_messaging_service
+    async def disconnect_open_media(self, info: strawberry.Info) -> OpenMediaLink:
+        """Forget the linked Open Media account (its posts and messages stay on Open Media)."""
+        user_id = get_current_user_id(info.context["request"])
+        from app.services.integrations.open_media import identity as om_identity
 
-        service = create_messaging_service(info.context["db"])
-
-        return await service.set_user_public_key(user_id, public_key)
+        await asyncio.to_thread(om_identity.unlink, user_id)
+        return map_link(await asyncio.to_thread(om_identity.link_status, user_id))
 
     # ==================== COLLABORATION MUTATIONS ====================
 
@@ -5782,51 +5691,18 @@ class Mutation:
 
 
 @strawberry.type
-class Conversation:
-    conversation_id: str
-    other_user_id: str
-    other_user_name: str
-    other_user_avatar: str | None = None
-    idea_id: str | None = None
-    idea_title: str | None = None
-    last_message_at: datetime
-    last_message_preview: str | None = None
-    unread_count: int = 0
-
-
-@strawberry.type
-class Message:
-    message_id: str
-    conversation_id: str
-    sender_id: str
-    content: str
-    message_type: str = "text"
-    is_encrypted: bool = True
-    is_read: bool = False
-    created_at: datetime
-    is_mine: bool = False
-    sender_name: str | None = None
-    sender_avatar: str | None = None
-
-
-@strawberry.type
 class IdeaOwner:
     user_id: str
     username: str | None = None
     first_name: str | None = None
     last_name: str | None = None
-    email: str | None = None
     bio: str | None = None
     profile_picture_url: str | None = None
     idea_id: str
     idea_title: str | None = None
     is_published: bool = False
     can_message: bool = False
-
-
-@strawberry.type
-class UnreadCount:
-    count: int
+    open_media_handle: str | None = None
 
 
 # ==================== COLLABORATION TYPES ====================
@@ -6022,8 +5898,6 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "profile": "account.read",
         "privacy_status": "account.read",
         "privacyStatus": "account.read",
-        "user_public_key": "account.read",
-        "userPublicKey": "account.read",
         "user_followers": "account.read",
         "userFollowers": "account.read",
         "user_following": "account.read",
@@ -6040,8 +5914,6 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "removeOpenaiApiKey": "account.write",
         "request_account_deletion": "account.write",
         "requestAccountDeletion": "account.write",
-        "set_encryption_key": "account.write",
-        "setEncryptionKey": "account.write",
         "merge_guest_workspace": "account.write",
         "mergeGuestWorkspace": "account.write",
         "request_guest_account_upgrade_email": "account.write",
@@ -6182,12 +6054,10 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "pitchReelComments": "ideas.read",
         "create_pitch_reel_comment": "ideas.write",
         "createPitchReelComment": "ideas.write",
-        "record_pitch_reel_share": "ideas.write",
-        "recordPitchReelShare": "ideas.write",
+        "reshare_pitch_reel": "ideas.write",
+        "resharePitchReel": "ideas.write",
         "toggle_pitch_reel_like": "ideas.write",
         "togglePitchReelLike": "ideas.write",
-        "toggle_pitch_reel_save": "ideas.write",
-        "togglePitchReelSave": "ideas.write",
         # --- Conversations / DMs ---
         "my_conversations": "account.read",
         "myConversations": "account.read",
@@ -6201,6 +6071,13 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "startConversation": "account.write",
         "mark_conversation_read": "account.write",
         "markConversationRead": "account.write",
+        # --- Open Media account link (messages and pitch shorts) ---
+        "open_media_link": "account.read",
+        "openMediaLink": "account.read",
+        "open_media_realtime_token": "account.read",
+        "openMediaRealtimeToken": "account.read",
+        "disconnect_open_media": "account.write",
+        "disconnectOpenMedia": "account.write",
         # --- Third-party integrations (per-user OAuth links) ---
         "integration": "account.read",
         "integrations": "account.read",

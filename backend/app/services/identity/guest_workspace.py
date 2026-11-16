@@ -123,7 +123,6 @@ def merge_guest_workspace_sql(  # noqa: C901
     _run("UPDATE idea_votes SET user_id = %s WHERE user_id = %s", uid_pair)
     _run("UPDATE idea_collaborators SET user_id = %s WHERE user_id = %s", uid_pair)
     _run("UPDATE idea_versions SET created_by = %s WHERE created_by = %s", uid_pair)
-    _run("DELETE FROM user_encryption_keys WHERE user_id = %s", (guest_user_id,))
 
     cur.execute("UPDATE ideas SET user_id = %s WHERE user_id = %s RETURNING idea_id", uid_pair)
     moved = cur.fetchall() or []

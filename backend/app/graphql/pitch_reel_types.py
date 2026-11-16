@@ -32,16 +32,17 @@ class PitchReelCreator:
 
 @strawberry.type
 class PitchReelSocialStats:
+    """Open Media counts for the clip (``shareCount`` = Open Media reshares)."""
+
     like_count: int
     comment_count: int
-    save_count: int
     share_count: int
 
 
 @strawberry.type
 class PitchReelViewerState:
     liked: bool = False
-    saved: bool = False
+    reshared: bool = False
 
 
 @strawberry.type
@@ -54,6 +55,8 @@ class PitchReel:
     description: str | None = None
     tags: list[str]
     video_url: str
+    poster_url: str | None = None
+    # pending | processing | ready | failed | needs_open_media
     video_status: str = "ready"
     workspace_path: str
     accent_from: str
@@ -69,8 +72,9 @@ class PitchReel:
 class PitchReelComment:
     comment_id: str
     reel_id: str
-    author_id: str
+    author_id: str  # Open Media user id
     author_name: str
+    author_handle: str | None = None
     author_avatar: str | None = None
     body: str
     created_at: datetime
@@ -81,26 +85,19 @@ class PitchReelComment:
 class PitchReelLikeResult:
     reel_id: str
     liked: bool
-    like_count: int
-
-
-@strawberry.type
-class PitchReelSaveResult:
-    reel_id: str
-    saved: bool
-    save_count: int
+    like_count: int | None = None  # None when Open Media did not return counts
 
 
 @strawberry.type
 class PitchReelShareResult:
     reel_id: str
-    share_count: int
+    reshared: bool
+    share_count: int | None = None
 
 
 @strawberry.type
 class PitchReelCommentCreateResult:
     comment: PitchReelComment
-    comment_count: int
 
 
 def map_pitch_reel(payload: dict[str, object]) -> PitchReel:
@@ -123,6 +120,7 @@ def map_pitch_reel(payload: dict[str, object]) -> PitchReel:
         description=payload.get("description"),
         tags=[str(tag) for tag in (payload.get("tags") or [])],
         video_url=str(payload.get("video_url") or ""),
+        poster_url=payload.get("poster_url"),
         video_status=str(payload.get("video_status") or "ready"),
         workspace_path=str(payload.get("workspace_path") or "/ideas"),
         accent_from=str(payload.get("accent_from") or "#09111f"),
@@ -141,12 +139,11 @@ def map_pitch_reel(payload: dict[str, object]) -> PitchReel:
         stats=PitchReelSocialStats(
             like_count=int(stats.get("like_count") or 0),
             comment_count=int(stats.get("comment_count") or 0),
-            save_count=int(stats.get("save_count") or 0),
             share_count=int(stats.get("share_count") or 0),
         ),
         viewer_state=PitchReelViewerState(
             liked=bool(viewer_state.get("liked") or False),
-            saved=bool(viewer_state.get("saved") or False),
+            reshared=bool(viewer_state.get("reshared") or False),
         ),
         idea_id=mapped_idea_id,
     )
@@ -157,7 +154,8 @@ def map_pitch_reel_comment(payload: dict[str, object]) -> PitchReelComment:
         comment_id=str(payload.get("comment_id") or ""),
         reel_id=str(payload.get("reel_id") or ""),
         author_id=str(payload.get("author_id") or ""),
-        author_name=str(payload.get("author_name") or "Manifest founder"),
+        author_name=str(payload.get("author_name") or "Open Media user"),
+        author_handle=payload.get("author_handle"),
         author_avatar=payload.get("author_avatar"),
         body=str(payload.get("body") or ""),
         created_at=_coerce_datetime(payload.get("created_at")),

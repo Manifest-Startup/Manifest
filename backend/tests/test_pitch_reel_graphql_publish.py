@@ -6,8 +6,9 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_pitch_reels_feed_calls_list_feed_with_viewer_id_kwarg():
+async def test_pitch_reels_feed_calls_list_feed_with_viewer_id_kwarg(monkeypatch):
     """Regression: list_feed must receive viewer_id=..., not user_id=."""
+    monkeypatch.setenv("OPEN_MEDIA_ENABLED", "true")
     mock_service = MagicMock()
     mock_service.list_feed = AsyncMock(return_value=[])
 
@@ -29,6 +30,19 @@ async def test_pitch_reels_feed_calls_list_feed_with_viewer_id_kwarg():
     assert call_kw.get("viewer_id") == "viewer-uuid-1"
     assert call_kw.get("limit") == 12
     assert "user_id" not in call_kw
+
+
+@pytest.mark.asyncio
+async def test_pitch_reels_feed_is_empty_when_open_media_is_off(monkeypatch):
+    monkeypatch.delenv("OPEN_MEDIA_ENABLED", raising=False)
+    info = MagicMock()
+    info.context = {"db": MagicMock(), "request": MagicMock()}
+    with patch("app.graphql.schema.get_current_user_id", return_value="viewer"):
+        with patch("app.services.pitch_reels.service.create_pitch_reel_service") as factory:
+            from app.graphql.schema import Query
+
+            assert await Query().pitch_reels_feed(info, limit=12) == []
+    factory.assert_not_called()
 
 
 def _ideas_table_mocks(*, idea_row: dict, update_rows: list):
@@ -104,8 +118,7 @@ async def test_toggle_publish_idea_publish_path_upserts_reel_and_schedules_video
 
 
 @pytest.mark.asyncio
-async def test_toggle_publish_idea_respects_pitch_reel_video_mode_disabled(monkeypatch):
-    monkeypatch.setenv("PITCH_REEL_VIDEO_MODE", "disabled")
+async def test_toggle_publish_idea_skips_scheduling_when_reel_already_has_a_clip():
     idea_id = "cccccccc-cccc-cccc-cccc-cccccccccccc"
     user_id = "dddddddd-dddd-dddd-dddd-dddddddddddd"
     idea_row = {
@@ -119,7 +132,7 @@ async def test_toggle_publish_idea_respects_pitch_reel_video_mode_disabled(monke
     info.context = {"db": db, "request": MagicMock()}
 
     mock_reel_svc = MagicMock()
-    mock_reel_svc.upsert_reel_for_published_idea.return_value = ("reel-x", True)
+    mock_reel_svc.upsert_reel_for_published_idea.return_value = ("reel-x", False)
 
     with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
         with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
