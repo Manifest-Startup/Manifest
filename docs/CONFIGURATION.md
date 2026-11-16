@@ -2,6 +2,17 @@
 
 [`.env.example`](../.env.example) is the canonical list of environment variables, with defaults and comments. This page explains the groups that need more than a comment.
 
+## Sessions and the Manifest CLI
+
+Browser sessions last 7 days with a 24-hour idle timeout (`SESSION_IDLE_TIMEOUT_SECONDS`, at most `SESSION_CONCURRENCY_CAP` = 10 per person). Sessions minted for the `manifest` CLI ([ADR 0003](adr/0003-manifest-cli-browser-login.md), [CLI.md](CLI.md)) use their own limits; both are optional.
+
+| Variable | Where | Default | Notes |
+| --- | --- | --- | --- |
+| `CLI_SESSION_TTL_DAYS` | backend | `30` | Lifetime of a CLI session; afterwards the person runs `manifest login` again. |
+| `CLI_SESSION_IDLE_TIMEOUT_SECONDS` | backend | `1209600` (14 days) | A CLI session unused this long is revoked. |
+
+The CLI reads `MANIFEST_API_URL`, `MANIFEST_API_TOKEN` and `MANIFEST_CONFIG` on the user's machine (not the server).
+
 ## Open Media (sign-in, Messages and Pitch Shorts)
 
 Sign-in always uses Open Media ([ADR 0002](adr/0002-open-media-is-the-only-sign-in.md)); the defaults below work in production without setting anything. See [ADR 0001](adr/0001-open-media-for-messages-and-pitch-shorts.md) and [API.md § Environment variables (Open Media)](API.md#environment-variables-open-media).

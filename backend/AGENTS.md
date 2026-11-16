@@ -23,6 +23,7 @@ Module names say what the code is about, without suffixes: `services/documents/f
 - Find the resolver or route first: `query.py graphql <field>` / `query.py routes <path>`, then `outline` the service it calls.
 - Add a GraphQL field with the `manifest-graphql-resolver-template` skill; keep the resolver thin and put logic in a service.
 - Set auth cookies only through `app/security/cookies.set_auth_cookies` / `secure_cookies_enabled`; outbound HTTP to user-supplied URLs only through `app/security/safe_http`.
+- GraphQL schema changes: regenerate the `manifest` CLI catalog (`../.venv/bin/python ../scripts/generate_cli_catalog.py`); `check.py` fails until it matches.
 - Schema changes: add a timestamped SQL file in `../supabase/migrations/`; never apply it unless asked.
 - `scripts/` holds operator and CI scripts (Autopilot, security autofix); they may import `app.*` and are not part of the lint gate.
 

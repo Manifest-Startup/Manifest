@@ -142,6 +142,20 @@ Client configuration examples are in [`mcp_server/README.md`](mcp_server/README.
 
 </details>
 
+## Command line
+
+`manifest` does everything you can do in the app from a terminal: every GraphQL query and mutation is a command, generated from the schema, plus API keys, privacy and data requests.
+
+```bash
+pip install -e mcp_server        # installs `manifest` (and the MCP server)
+manifest login                   # approve this computer in the browser (Open Media sign-in)
+manifest ideas
+manifest create-idea --title "Lawn robots"
+manifest commands --search idea  # list every command
+```
+
+Sessions last 30 days and show up under Account → Security, where you can revoke them. See [docs/CLI.md](docs/CLI.md).
+
 ## How it works
 
 ```text
@@ -233,6 +247,7 @@ Manifest is **in development**. The public site at [manifeststartup.com](https:/
 | [Docs hub](docs/README.md) | Every maintained guide |
 | [Quick start](docs/QUICKSTART.md) | Local setup in detail |
 | [API](docs/API.md) | The backend API |
+| [CLI](docs/CLI.md) | The `manifest` command line |
 | [Voice agent API](docs/VOICE_AGENT_API.md) | Manifest Voice |
 | [Product vision](docs/PRODUCT_VISION.md) | What Manifest is for and how it is built |
 | [Founding memo](docs/FOUNDING_MEMO.md) | Edited founding notes |
