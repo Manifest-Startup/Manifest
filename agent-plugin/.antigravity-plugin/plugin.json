@@ -1,0 +1,33 @@
+{
+  "name": "manifest",
+  "displayName": "Manifest",
+  "description": "Manifest for AI agents: turn a rough startup idea into an investable plan. Create and qualify ideas; generate Business Model Canvas, pitch deck, PRD and provisional patent drafts; browse pitch shorts and message founders; track investments and cap tables; manage collaborators, privacy and your account. Everything you can do in Manifest, with every destructive change confirmed first.",
+  "version": "2.0.0",
+  "logo": "./assets/icon.png",
+  "suggestedPrompts": [
+    "Turn my idea for a solar-powered cold storage startup into a Manifest idea",
+    "Generate the pitch deck and PRD for my newest idea",
+    "Who has messaged me about my ideas?"
+  ],
+  "author": {
+    "name": "Manifest",
+    "url": "https://manifeststartup.com"
+  },
+  "homepage": "https://manifeststartup.com/agents.md",
+  "repository": "https://github.com/Manifest-Startup/Manifest",
+  "license": "MIT",
+  "keywords": [
+    "startup",
+    "founder",
+    "business-plan",
+    "pitch-deck",
+    "business-model-canvas",
+    "prd",
+    "patent",
+    "cap-table",
+    "ideas",
+    "mcp",
+    "open-source"
+  ],
+  "skills": "./skills/"
+}

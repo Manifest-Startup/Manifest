@@ -1,0 +1,51 @@
+{
+  "name": "manifest",
+  "version": "2.0.0",
+  "description": "Manifest for AI agents: turn a rough startup idea into an investable plan. Create and qualify ideas; generate Business Model Canvas, pitch deck, PRD and provisional patent drafts; browse pitch shorts and message founders; track investments and cap tables; manage collaborators, privacy and your account. Everything you can do in Manifest, with every destructive change confirmed first.",
+  "author": {
+    "name": "Manifest",
+    "url": "https://manifeststartup.com"
+  },
+  "homepage": "https://manifeststartup.com/agents.md",
+  "repository": "https://github.com/Manifest-Startup/Manifest",
+  "license": "MIT",
+  "keywords": [
+    "startup",
+    "founder",
+    "business-plan",
+    "pitch-deck",
+    "business-model-canvas",
+    "prd",
+    "patent",
+    "cap-table",
+    "ideas",
+    "mcp",
+    "open-source"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Manifest",
+    "shortDescription": "From a rough idea to an investable plan",
+    "longDescription": "Capture and qualify startup ideas, check novelty, generate a Business Model Canvas, pitch deck, PRD and provisional patent draft, browse pitch shorts, message founders through Open Media, track investments and cap tables, and manage collaborators, privacy and settings. Sign in with Manifest once; anything destructive is shown to you first.",
+    "developerName": "Manifest",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://manifeststartup.com/",
+    "supportURL": "https://manifeststartup.com/contact",
+    "privacyPolicyURL": "https://manifeststartup.com/legal/privacy",
+    "termsOfServiceURL": "https://manifeststartup.com/legal/terms",
+    "defaultPrompt": [
+      "Turn my idea for a solar-powered cold storage startup into a Manifest idea",
+      "Generate the pitch deck and PRD for my newest idea",
+      "Who has messaged me about my ideas?"
+    ],
+    "brandColor": "#171717",
+    "brandColorDark": "#FAFAFA",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
+  }
+}

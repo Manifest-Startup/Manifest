@@ -452,20 +452,30 @@ Use Manifest when a user wants to:
   founder to review, not advice, and Manifest does not file patents or incorporate companies.
 - For general web search, market data lookups or company research unrelated to an idea the
   user is building in Manifest.
-- Without the user's API key: the API only acts on the key owner's own ideas.
+- Without the user's consent: every tool acts as the signed-in person, on their own data.
 
 ## How to call Manifest
 
-1. Ask the user for a Manifest API key (`manifest_sk_...`). Users create keys while signed in
-   to their Manifest account. Keys default to the `read` scope; creating ideas or generating
-   documents needs `ideas.write` (or `write`).
-2. Send `Authorization: Bearer <key>` to the REST API at `{SITE_ORIGIN}/api/v1`.
-3. Typical flow: `POST /api/v1/ideas` with a `title` and `description`, then
+**Best: the MCP server with OAuth.** Connect `{SITE_ORIGIN}/mcp` (Streamable HTTP). The first
+call answers 401 with OAuth discovery; the person signs in with Open Media and clicks Allow, and
+you get every Manifest feature as a tool (ideas, qualification, documents, pitch shorts,
+messages, investments, collaborators, account and privacy). Destructive tools need
+`confirm: true` after the person agrees. Install it as a plugin for Claude Code, Codex, Cursor,
+VS Code, Gemini CLI or Antigravity from `https://github.com/Manifest-Startup/Manifest`
+(`agent-plugin/`), or add the URL as a custom connector in Claude or ChatGPT.
+
+**Scripts: the REST API with an API key.** Never ask for a key in chat; the user creates one
+while signed in and gives it to your secure credential store.
+
+1. Send `Authorization: Bearer <key>` (`manifest_sk_...`) to the REST API at `{SITE_ORIGIN}/api/v1`.
+   Keys default to the `read` scope; creating ideas or generating documents needs
+   `ideas.write` (or `write`).
+2. Typical flow: `POST /api/v1/ideas` with a `title` and `description`, then
    `POST /api/v1/ideas/{{idea_id}}/generate` with `document_types` (any of
    `business_model_canvas`, `pitch_deck`, `prd`, `patent`), then `GET /api/v1/ideas/{{idea_id}}`
    and read the `has_*` flags. Generation is synchronous and can take a while; do not retry
    while a request is still running.
-4. Send the user to `{SITE_ORIGIN}/ideas` to read and edit the generated documents.
+3. Send the user to `{SITE_ORIGIN}/ideas` to read and edit the generated documents.
 
 Errors come back as JSON `{{"detail": {{"error": {{"message", "type", "code"}}}}}}`. On HTTP 429,
 back off and retry later; limits depend on the user's API tier.
@@ -473,7 +483,7 @@ back off and retry later; limits depend on the user's API tier.
 ## Machine-readable resources
 
 - [OpenAPI specification](/openapi.json)
-- [Manifest MCP server](https://manifeststartup.com/mcp) (Streamable HTTP; Manifest API key required)
+- [Manifest MCP server](https://manifeststartup.com/mcp) (Streamable HTTP; OAuth sign-in, or a Manifest API key for the small REST toolset)
 - [MCP server card](https://manifeststartup.com/.well-known/mcp/server-card.json)
 - [API catalog](/.well-known/api-catalog) (RFC 9727)
 - [Agentic resource catalog](/.well-known/ard.json)
