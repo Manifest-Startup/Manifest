@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useMutation, useQuery, useReactiveVar } from "@apollo/client/react";
 
 import Button from "features/common-ui/Button";
-import { ChevronLeftIcon, ChevronRightIcon } from "features/common-ui/icons";
+import { ChevronLeftIcon, SidebarRightIcon } from "features/common-ui/icons";
 import SimilarIdeas from "features/ideas/components/SimilarIdeas";
 import { userVar } from "features/core/apollo/localState";
 import { GET_IDEA_CORE, GET_IDEA_OWNER, START_CONVERSATION } from "features/core/apollo/queries";
@@ -75,17 +75,16 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
   );
 
   const collapseAction = onToggleCollapse ? (
-    <Button
+    <button
       aria-expanded
       aria-label="Collapse similar ideas"
-      className="manifest-panel-toggle h-11 w-11 p-0"
+      className="manifest-sidebar-icon"
       onClick={onToggleCollapse}
       title="Collapse similar ideas"
       type="button"
-      variant="ghost"
     >
-      <ChevronRightIcon className="h-5 w-5" />
-    </Button>
+      <SidebarRightIcon className="h-[18px] w-[18px]" strokeWidth={1.6} />
+    </button>
   ) : null;
 
   if (collapsed) {
@@ -118,13 +117,13 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
 
   if (coreLoading) {
     return renderScrollableContent(
-      <SimilarIdeas compact headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />,
+      <SimilarIdeas headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />,
     );
   }
 
   if (isOwnIdea) {
     return renderScrollableContent(
-      <SimilarIdeas compact headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />,
+      <SimilarIdeas headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />,
     );
   }
 
@@ -172,7 +171,7 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
   if (ownerLoading) {
     return renderScrollableContent(
       <>
-        <SimilarIdeas compact headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />
+        <SimilarIdeas headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />
         <div className="manifest-panel flex h-full flex-col overflow-hidden">
           <div className="border-b border-gray200 px-5 py-4 dark:border-neutral700">
             <h3 className="text-base font-semibold text-neutral900 dark:text-white">Founder</h3>
@@ -194,7 +193,7 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
   if (ownerError || !owner) {
     return renderScrollableContent(
       <>
-        <SimilarIdeas compact headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />
+        <SimilarIdeas headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />
         <div className="manifest-empty px-5 py-6 text-sm leading-6">
           Founder details are unavailable right now.
         </div>
@@ -212,7 +211,7 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
 
   return renderScrollableContent(
     <>
-      <SimilarIdeas compact headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />
+      <SimilarIdeas headerAction={collapseAction} ideaId={ideaId} similarIdeas={similarIdeas} />
 
       <div className="manifest-panel overflow-hidden">
         <div className="border-b border-gray200 px-5 py-4 dark:border-neutral700">
