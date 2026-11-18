@@ -165,3 +165,11 @@ def test_vault_names_are_file_safe_and_unique():
     paths = {f["path"] for f in vault.build_files(twins, {}, [])}
     assert "Manifest/Ideas/Same name here.md" in paths
     assert "Manifest/Ideas/Same name here (x2).md" in paths
+
+
+def test_interview_names_end_on_a_word():
+    label = vault._short_label(
+        "Street-level flood warnings from cheap solar sensors on storm drains, texted ahead."
+    )
+    assert label == "Street-level flood warnings from cheap solar sensors on"
+    assert vault._short_label("Short idea") == "Short idea"
