@@ -348,11 +348,12 @@ describe('IdeasList Component - Delete Functionality', () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText('New Idea')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'New Idea' })).toBeInTheDocument();
     });
 
     expect(screen.getByRole('heading', { name: 'Ideas' })).toBeInTheDocument();
-    expect(screen.getByText('2 ideas.')).toBeInTheDocument();
+    expect(screen.getByTestId('ideas-count-label')).toHaveTextContent('2');
+    expect(screen.getByLabelText('2 ideas')).toBeInTheDocument();
   });
 
   it('supports arrow-key navigation between ideas', async () => {
@@ -388,7 +389,7 @@ describe('IdeasList Component - Delete Functionality', () => {
     expect(screen.getByLabelText('Expand ideas')).toHaveClass('manifest-control-secondary');
   });
 
-  it('uses a visible secondary button for the expanded collapse control', async () => {
+  it('uses a quiet icon button for the expanded collapse control', async () => {
     render(
       <BrowserRouter>
         <IdeasList onToggleCollapse={jest.fn()} />
@@ -399,7 +400,8 @@ describe('IdeasList Component - Delete Functionality', () => {
       expect(screen.getByLabelText('Collapse ideas')).toBeInTheDocument();
     });
 
-    expect(screen.getByLabelText('Collapse ideas')).toHaveClass('manifest-control-ghost', 'h-11', 'w-11');
+    expect(screen.getByLabelText('Collapse ideas')).toHaveClass('manifest-sidebar-icon');
+    expect(screen.getByLabelText('Collapse ideas')).toHaveAttribute('aria-expanded', 'true');
   });
 
   // Task #48: Lock in that the Apollo cache update REALLY removes the
