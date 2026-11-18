@@ -22,20 +22,32 @@ const GraphMap: React.FC<{ graph: KnowledgeGraph; selected?: string; ideaTitle: 
   selected,
   ideaTitle,
 }) => {
-  const size = 520;
-  const c = size / 2;
   const concepts = graph.concepts;
   const others = useMemo(() => {
     const map = new Map<string, string>();
     for (const concept of concepts) for (const idea of concept.ideas) map.set(idea.ideaId, idea.title);
     return [...map.entries()];
   }, [concepts]);
+  // The concept ring grows with the number of concepts so labels keep their own space.
+  const conceptR = Math.min(240, Math.max(130, concepts.length * 8));
+  const ideaR = conceptR + (others.length ? 90 : 0);
+  const size = 2 * (ideaR + 120);
+  const c = size / 2;
   const at = (i: number, n: number, r: number, offset = 0) => {
     const a = (2 * Math.PI * i) / Math.max(n, 1) - Math.PI / 2 + offset;
-    return { x: c + r * Math.cos(a), y: c + r * Math.sin(a) };
+    return { x: c + r * Math.cos(a), y: c + r * Math.sin(a), cos: Math.cos(a), sin: Math.sin(a) };
   };
-  const conceptAt = new Map(concepts.map((k, i) => [k.label, at(i, concepts.length, 150)]));
-  const ideaAt = new Map(others.map(([id], i) => [id, at(i, others.length, 235, 0.2)]));
+  type Point = ReturnType<typeof at>;
+  // Labels sit outside their node, pointing away from the centre.
+  const labelProps = (p: Point, gap: number) => ({
+    x: p.x + p.cos * gap,
+    y: p.y + p.sin * gap,
+    textAnchor: (p.cos > 0.25 ? "start" : p.cos < -0.25 ? "end" : "middle") as "start" | "end" | "middle",
+    dominantBaseline: (p.sin > 0.6 ? "hanging" : p.sin < -0.6 ? "auto" : "middle") as "hanging" | "auto" | "middle",
+  });
+  const clip = (text: string, n: number) => (text.length > n ? `${text.slice(0, n - 1)}…` : text);
+  const conceptAt = new Map(concepts.map((k, i) => [k.label, at(i, concepts.length, conceptR)]));
+  const ideaAt = new Map(others.map(([id], i) => [id, at(i, others.length, ideaR, 0.2)]));
   return (
     <svg
       className="manifest-graph-map"
@@ -60,8 +72,9 @@ const GraphMap: React.FC<{ graph: KnowledgeGraph; selected?: string; ideaTitle: 
         return (
           <Link key={id} to={`/ideas/${id}/knowledge-graph`}>
             <circle cx={q.x} cy={q.y} r={7} className="node node--idea" />
-            <text x={q.x} y={q.y + 19} textAnchor="middle" className="label label--idea">
-              {name.length > 22 ? `${name.slice(0, 21)}…` : name}
+            <title>{name}</title>
+            <text {...labelProps(q, 12)} className="label label--idea">
+              {clip(name, 24)}
             </text>
           </Link>
         );
@@ -78,8 +91,9 @@ const GraphMap: React.FC<{ graph: KnowledgeGraph; selected?: string; ideaTitle: 
               className="node node--concept"
               data-active={selected === slug || undefined}
             />
-            <text x={p.x} y={p.y - 12} textAnchor="middle" className="label">
-              {title(k.label)}
+            <title>{title(k.label)}</title>
+            <text {...labelProps(p, 14)} className="label">
+              {clip(title(k.label), 22)}
             </text>
           </Link>
         );
