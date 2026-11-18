@@ -2265,23 +2265,9 @@ summary:focus-visible,
 .voice-shell .voice-mode-primary-button:hover:not(:disabled) { transform: none; opacity: 0.9; }
 
 /* Side panels share the quiet, compact rhythm of the note canvas. */
-.manifest-panel-heading {
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-}
-.manifest-panel-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
-.manifest-panel-title { color: var(--text-primary); font-size: 0.9375rem; line-height: 1.4; font-weight: 600; letter-spacing: -0.02em; }
 .manifest-panel-toggle { flex-shrink: 0; border-radius: 6px; color: var(--text-secondary); }
 .manifest-panel-description { display: flex; align-items: center; min-height: 44px; color: var(--text-secondary); font-size: 0.8125rem; }
 .manifest-similar-panel { background: var(--bg-tertiary); color: var(--text-primary); }
-.manifest-similar-panel > .manifest-panel-heading { position: sticky; top: 0; z-index: 1; }
-.manifest-similar-body { padding: 16px 12px; }
-.manifest-panel-empty { padding: 16px 4px; }
-.manifest-panel-empty h4 { font-size: 0.875rem; font-weight: 500; }
-.manifest-panel-empty p { font-size: 0.8125rem; line-height: 1.6; }
-.manifest-similar-panel section > div:first-child { flex-direction: row; align-items: center; gap: 8px; }
-.manifest-similar-panel section h4 { font-size: 0.6875rem; letter-spacing: 0.08em; }
-.manifest-related-card { border: 0; border-radius: 16px; background: var(--surface-raised); box-shadow: none; padding: 16px; }
 @media (max-width: 1023px) {
   .manifest-workspace-context { grid-row: 1; }
   .manifest-note-header { position: sticky; top: 0; background: var(--bg-primary); z-index: 1; }
@@ -2402,14 +2388,16 @@ summary:focus-visible,
 /* Ideas sidebar: Finder/Notes-style source list. Motion uses only transform
    and opacity (compositor-only), runs once on mount, and is removed by the
    global prefers-reduced-motion rule. */
-.manifest-sidebar {
+.manifest-sidebar,
+.manifest-related {
   --sb-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --sb-hover: rgba(0, 0, 0, 0.04);
   --sb-active: rgba(0, 0, 0, 0.065);
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
-.dark .manifest-sidebar {
+.dark .manifest-sidebar,
+.dark .manifest-related {
   --sb-hover: rgba(255, 255, 255, 0.05);
   --sb-active: rgba(255, 255, 255, 0.09);
 }
@@ -2555,4 +2543,68 @@ summary:focus-visible,
 .manifest-ideas-empty-copy { margin-top: 6px; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.55; }
 .manifest-ideas-empty-action { margin-top: 20px; }
 @keyframes manifest-ideas-empty-in { from { opacity: 0; transform: translateY(calc(-4vh + 8px)); } }
+
+/* Similar ideas (right panel): one line per result, mirrors the ideas sidebar. */
+.manifest-related-header {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 52px; padding: 10px 8px 4px 16px; background: var(--bg-tertiary);
+}
+.manifest-related-title { color: var(--text-primary); font-size: 0.9375rem; font-weight: 600; letter-spacing: -0.022em; }
+.manifest-related-body { padding: 4px 8px 20px; }
+.manifest-related-body > section + section { margin-top: 18px; }
+.manifest-related-label {
+  display: flex; align-items: baseline; gap: 6px; padding: 8px 8px 6px;
+  color: var(--text-tertiary); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.manifest-related-label span { font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.manifest-related-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+.manifest-related-item { animation: manifest-sidebar-in 420ms var(--sb-ease) both; animation-delay: calc(min(var(--i, 0), 12) * 28ms); }
+.manifest-related-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px; border-radius: 10px; color: var(--text-primary); text-decoration: none;
+  transition: background-color 180ms var(--sb-ease);
+}
+a.manifest-related-row:hover { background: var(--sb-hover); }
+a.manifest-related-row:active { background: var(--sb-active); }
+a.manifest-related-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.manifest-related-logo {
+  position: relative; flex-shrink: 0; width: 28px; height: 28px; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  border-radius: 7px; background: var(--sb-active); color: var(--text-secondary);
+  font-size: 0.625rem; font-weight: 600; letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 1px var(--border-primary);
+}
+.manifest-related-logo img {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: 5px; object-fit: contain;
+  background: #fff; opacity: 0; transition: opacity 240ms var(--sb-ease);
+}
+.manifest-related-logo img[data-loaded="true"] { opacity: 1; }
+.manifest-related-text { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.manifest-related-name { display: flex; min-width: 0; align-items: baseline; gap: 6px; font-size: 0.8125rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; }
+.manifest-related-name > .truncate:first-child { flex: 0 1 auto; min-width: 4ch; }
+.manifest-related-domain { flex: 1 1 0%; min-width: 0; color: var(--text-tertiary); font-size: 0.6875rem; font-weight: 400; }
+.manifest-related-line {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  color: var(--text-secondary); font-size: 0.75rem; line-height: 1.45;
+}
+.manifest-related-arrow {
+  flex-shrink: 0; width: 12px; height: 12px; margin-top: 3px; color: var(--text-tertiary);
+  opacity: 0; transform: translate(-3px, 3px);
+  transition: opacity 180ms var(--sb-ease), transform 220ms var(--sb-ease);
+}
+a.manifest-related-row:hover .manifest-related-arrow,
+a.manifest-related-row:focus-visible .manifest-related-arrow { opacity: 1; transform: none; }
+.manifest-related-note { padding: 12px 8px; }
+.manifest-related-note h4 { color: var(--text-primary); font-size: 0.8125rem; font-weight: 600; }
+.manifest-related-note p { margin-top: 4px; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.55; }
+.manifest-related-warning { padding: 12px 8px 0; color: #b7791f; font-size: 0.75rem; line-height: 1.5; }
+.dark .manifest-related-warning { color: #f6c26b; }
+.manifest-related-skeleton { display: grid; gap: 14px; padding: 12px 8px; }
+.manifest-related-skeleton-row { display: flex; gap: 10px; }
+.manifest-related-skeleton-row i { width: 28px; height: 28px; border-radius: 7px; background: var(--sb-active); animation: manifest-sidebar-pulse 1.4s ease-in-out infinite; }
+.manifest-related-skeleton-row div { display: grid; flex: 1; gap: 6px; padding-top: 2px; }
+.manifest-related-skeleton-row b { display: block; height: 10px; border-radius: 5px; background: var(--sb-active); animation: manifest-sidebar-pulse 1.4s ease-in-out infinite; }
+.manifest-related-skeleton-row b:first-child { width: 45%; }
+.manifest-related-skeleton-row b:last-child { width: 85%; animation-delay: 120ms; }
 

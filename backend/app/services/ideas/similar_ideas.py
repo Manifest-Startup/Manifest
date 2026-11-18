@@ -3,6 +3,10 @@ from urllib.parse import urlparse
 
 from app.utils.logger import logger
 
+# The side panel shows one compact line per result, so it can carry more of them.
+MAX_COMPARABLES = 8
+MAX_RESEARCH_TOPICS = 5
+
 
 class SimilarIdeas:
     """
@@ -56,7 +60,7 @@ class SimilarIdeas:
     }}
 
     Requirements:
-    - Return exactly 4 comparables and exactly 3 research topics when the web results support it.
+    - Return 8 comparables and 5 research topics when the web results support them; return fewer rather than pad with weak matches.
     - Prefer real, recognizable companies when confident; otherwise use a precise category label.
     - For comparable URLs, prefer the official homepage or product page.
     - For research sources, prefer exact public pages from authoritative publishers, government agencies, trade associations, reputable research firms, or public market reports.
@@ -81,7 +85,7 @@ class SimilarIdeas:
     - Why Similar: [one-line explanation]
     - Distinguishing Signal: [one-line differentiator, traction signal, or category note]
 
-    Repeat the comparable company entry format for 4 companies or product categories.
+    Repeat the comparable company entry format for 8 companies or product categories.
 
     ## Research Watchlist
     ### [Research topic or market thread]
@@ -89,7 +93,7 @@ class SimilarIdeas:
     - Why It Matters: [one-line reason]
     - What To Validate: [specific thing the founder should confirm]
 
-    Repeat the research entry format for 3 topics.
+    Repeat the research entry format for 5 topics.
 
     Rules:
     - Be concrete, concise, and professional.
@@ -199,7 +203,7 @@ class SimilarIdeas:
         ]
 
         valid_comparables = [item for item in comparables if isinstance(item, dict)]
-        for comparable in valid_comparables[:4]:
+        for comparable in valid_comparables[:MAX_COMPARABLES]:
             title = self._clean_text(comparable.get("title"))
             if not title:
                 continue
@@ -226,7 +230,7 @@ class SimilarIdeas:
         lines.append("## Research Watchlist")
 
         valid_topics = [item for item in research_topics if isinstance(item, dict)]
-        for topic in valid_topics[:3]:
+        for topic in valid_topics[:MAX_RESEARCH_TOPICS]:
             title = self._clean_text(topic.get("title"))
             if not title:
                 continue

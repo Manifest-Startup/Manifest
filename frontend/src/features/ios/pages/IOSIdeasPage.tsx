@@ -151,7 +151,7 @@ const IOSIdeasPage: React.FC = () => {
           </button>
           {showSimilarIdeas && (
             <div className="px-4 pb-4 max-h-64 overflow-y-auto">
-              <SimilarIdeas compact ideaId={idea_id} similarIdeas={similarIdeas} />
+              <SimilarIdeas ideaId={idea_id} similarIdeas={similarIdeas} />
             </div>
           )}
         </div>

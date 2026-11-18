@@ -198,7 +198,7 @@ describe("IdeaOwnerPanel", () => {
 
     const collapseButton = screen.getByLabelText("Collapse similar ideas");
     expect(collapseButton).toBeInTheDocument();
-    expect(collapseButton).toHaveClass("manifest-control-ghost", "h-11", "w-11");
+    expect(collapseButton).toHaveClass("manifest-sidebar-icon");
   });
 
   it("disables founder messaging when the idea is not published", () => {
