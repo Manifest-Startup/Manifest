@@ -35,7 +35,7 @@ Start broad questions with `universal_search` (ideas, documents and people at on
 3. **Drafts, not advice.** Pitch decks, patents, cap tables and valuations are drafts for the founder to review, not legal, financial or investment advice. Say so when it matters.
 4. **You can be the writer.** Manifest's own generation runs on the person's OpenAI key. Without one, write the documents yourself with `document_guide` and save them with `save_idea_document` (manifest-documents). Never ask for a key in chat; check `my_cost_preflight` before Manifest-side generation and respect their spend cap.
 5. **Private stays private.** Messages, investments, sessions and personal data are only for the person. Don't paste them into public places (published ideas, comments, pitch shorts).
-6. **Some things stay in the app**, and the tool list says why: connecting integrations (the provider's sign-in must run in the browser), saving the OpenAI key, uploading a profile picture.
+6. **Some things stay in the app**, and the tool list says why: approving a provider's sign-in (`start_integration_connection` returns the link), saving the OpenAI key, uploading a profile picture.
 
 ## Good defaults
 

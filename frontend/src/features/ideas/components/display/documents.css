@@ -449,3 +449,39 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
+
+/* Key partners: connected partners first, then suggestions to connect. */
+.manifest-partners { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 12px; }
+.manifest-partner-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.manifest-partner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  background: var(--surface-raised, #fff);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.manifest-partner-chip:hover { background: var(--border-primary); }
+.manifest-partner-chip span:not(.manifest-partner-initial):not(.manifest-partner-action) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manifest-partner-chip--suggested { background: transparent; color: var(--text-secondary); box-shadow: inset 0 0 0 1px var(--border-secondary); }
+.manifest-partner-action { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+.manifest-partner-initial {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-size: 10px;
+  font-weight: 700;
+}
+.manifest-partner-label { margin: 2px 0 0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-tertiary); }
+.manifest-partner-add { align-self: flex-start; font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.manifest-partner-add:hover { text-decoration: underline; }

@@ -34,3 +34,14 @@ class ConnectIntegrationInput:
     refresh_token: str | None = None
     expires_at: datetime | None = None
     metadata: str | None = None
+
+
+@strawberry.type
+class IntegrationConnection:
+    """Result of starting a connection. ``status``: "connected", "already_connected"
+    or "needs_browser" (open ``connectUrl`` to approve it on the provider's page)."""
+
+    service_id: str
+    status: str
+    message: str
+    connect_url: str | None = None

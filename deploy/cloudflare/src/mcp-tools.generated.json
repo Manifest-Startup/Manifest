@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "0981ce5d056ea928adaefa4bcad39c7d352a2a7b5aba4643f35746d1dfc748bc",
+ "catalog_sha256": "eac5828ff141fa08ed08a799b8ca0f329cf7a2e189f536370513e239aa1d3218",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -3452,6 +3452,42 @@
     "document": "mutation StartIdeaQualification($initialIdeaText: String!) { startIdeaQualification(initialIdeaText: $initialIdeaText) { id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt } }",
     "variables": [
      "initialIdeaText"
+    ]
+   }
+  },
+  {
+   "name": "start_integration_connection",
+   "title": "Start integration connection",
+   "description": "Connect a partner (Notion, Stripe, any service) so it appears in Key Partners. Partners with their own sign-in return a connectUrl to approve in a browser. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "serviceId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "serviceId"
+    ]
+   },
+   "annotations": {
+    "title": "Start integration connection",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "startIntegrationConnection",
+    "document": "mutation StartIntegrationConnection($serviceId: String!, $name: String) { startIntegrationConnection(serviceId: $serviceId, name: $name) { serviceId status message connectUrl } }",
+    "variables": [
+     "serviceId",
+     "name"
     ]
    }
   },

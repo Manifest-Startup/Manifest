@@ -26,6 +26,8 @@ import type {
   GetIdeaVersionsData,
   GetIdeasData,
   GetIntegrationsData,
+  StartIntegrationConnectionData,
+  StartIntegrationConnectionVars,
   GetMyCollaborationInvitationsData,
   GetMyConversationsData,
   GetMyConversationsVariables,
@@ -310,6 +312,20 @@ export const CONNECT_INTEGRATION = gql`
       serviceId
       connectedAt
       metadata
+    }
+  }
+`;
+
+export const START_INTEGRATION_CONNECTION: TypedDocumentNode<
+  StartIntegrationConnectionData,
+  StartIntegrationConnectionVars
+> = gql`
+  mutation StartIntegrationConnection($serviceId: String!, $name: String) {
+    startIntegrationConnection(serviceId: $serviceId, name: $name) {
+      serviceId
+      status
+      message
+      connectUrl
     }
   }
 `;

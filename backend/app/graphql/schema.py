@@ -406,6 +406,8 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "integrations": "account.read",
         "connect_integration": "account.write",
         "connectIntegration": "account.write",
+        "start_integration_connection": "account.write",
+        "startIntegrationConnection": "account.write",
         "disconnect_integration": "account.write",
         "disconnectIntegration": "account.write",
     }

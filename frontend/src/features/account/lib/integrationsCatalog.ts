@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import type { IconType } from 'react-icons';
 import {
   FaLinkedin,
@@ -60,9 +61,31 @@ export interface IntegrationCatalogEntry {
   category: string;
   brandColor: string;
   availability?: IntegrationAvailability;
+  /** Linked and unlinked in its own Account section (not the integrations grid). */
+  managedElsewhere?: boolean;
 }
 
+// Open Media's own mark (a bitmap), sized like a react-icons glyph.
+const OpenMediaIcon: IconType = ({ size = '1em', className, title }) =>
+  createElement('img', {
+    src: '/brand/open-media-mark-light.png',
+    width: size,
+    height: size,
+    alt: title ?? '',
+    className,
+    style: { borderRadius: '22%' },
+  });
+
 export const integrationCatalog: IntegrationCatalogEntry[] = [
+  {
+    id: 'open_media',
+    name: 'Open Media',
+    description: 'Messages, pitch shorts and your sign-in, across open social networks',
+    icon: OpenMediaIcon,
+    category: 'Social Media',
+    brandColor: '#1d1d1f',
+    managedElsewhere: true,
+  },
   {
     id: 'google',
     name: 'Google',
