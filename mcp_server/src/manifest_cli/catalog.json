@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "85b7a6c1faee7f84b6b001c1d5611ccb34c75a1c6bfd9fbb4d125f41c7a57bb4",
+ "schema_sha256": "a5123512c2a04e389eb30f16c37f8568f53f8be605c1ed31f35b1e31dba7cddc",
  "operations": [
   {
    "name": "me",
@@ -269,7 +269,7 @@
    "description": "Your connected integrations (GitHub, Google and others); credentials are never returned.",
    "destructive": false,
    "returns": "[Integration!]!",
-   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata }",
+   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata linked }",
    "args": []
   },
   {
@@ -279,7 +279,7 @@
    "description": "One connected integration by serviceId; credentials are never returned.",
    "destructive": false,
    "returns": "Integration",
-   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata }",
+   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata linked }",
    "args": [
     {
      "name": "serviceId",
@@ -1308,7 +1308,7 @@
    "description": "Connect an integration with provider tokens.",
    "destructive": false,
    "returns": "Integration!",
-   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata }",
+   "selection": "{ integrationId userId serviceName serviceId accessToken refreshToken expiresAt connectedAt metadata linked }",
    "args": [
     {
      "name": "input",

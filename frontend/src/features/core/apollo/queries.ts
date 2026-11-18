@@ -286,6 +286,7 @@ export const GET_INTEGRATIONS: TypedDocumentNode<GetIntegrationsData, NoVariable
       serviceId
       connectedAt
       metadata
+      linked
     }
   }
 `;

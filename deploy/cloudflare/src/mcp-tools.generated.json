@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "eac5828ff141fa08ed08a799b8ca0f329cf7a2e189f536370513e239aa1d3218",
+ "catalog_sha256": "41de8279bdce9dc0e857860093e2dea6f5fbbd087c70f4b3e79424a0eea6b13c",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -1757,7 +1757,7 @@
    "_call": {
     "via": "graphql",
     "field": "integration",
-    "document": "query Integration($serviceId: String!) { integration(serviceId: $serviceId) { integrationId userId serviceName serviceId expiresAt connectedAt metadata } }",
+    "document": "query Integration($serviceId: String!) { integration(serviceId: $serviceId) { integrationId userId serviceName serviceId expiresAt connectedAt metadata linked } }",
     "variables": [
      "serviceId"
     ]
@@ -1782,7 +1782,7 @@
    "_call": {
     "via": "graphql",
     "field": "integrations",
-    "document": "query Integrations { integrations { integrationId userId serviceName serviceId expiresAt connectedAt metadata } }",
+    "document": "query Integrations { integrations { integrationId userId serviceName serviceId expiresAt connectedAt metadata linked } }",
     "variables": []
    }
   },

@@ -119,6 +119,13 @@ class ManifestManager:
 
         # ------------------------- Idea Methods -------------------------
 
+    # Names of the idea owner's connected partners, read by canvas generation.
+    connected_partners: list[str] = []
+
+    def set_connected_partners(self, names: list[str] | None) -> None:
+        """Set the owner's connected partners for the next generation (never credentials)."""
+        self.connected_partners = list(names or [])
+
     def set_idea(self, idea_description: str):
         """
         Set the idea description explicitly without triggering downstream updates.

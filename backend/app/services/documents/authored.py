@@ -105,8 +105,14 @@ def guide(document_type: str) -> dict[str, str]:
     """Manifest's own instructions for a document, for an agent to follow."""
     kind = kind_for(document_type)
     prompt = SIMILAR_IDEAS_GUIDE if kind.prompt is None else _prompt(kind.prompt)
-    instructions = str(prompt.get("user", "")).replace(
-        "{{idea_description}}", "<the idea's description: read it with the idea tool>"
+    instructions = (
+        str(prompt.get("user", ""))
+        .replace("{{idea_description}}", "<the idea's description: read it with the idea tool>")
+        .replace(
+            "{{connected_partners}}",
+            "<the founder's connected partners: list them with the integrations tool; they are "
+            "current partners, so list the relevant ones first under Key Partners>",
+        )
     )
     return {
         "document_type": kind.key,

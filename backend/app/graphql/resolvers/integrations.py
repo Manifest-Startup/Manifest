@@ -19,6 +19,17 @@ def _visible_integrations(rows: list[dict]) -> list[dict]:
     return [row for row in rows if row.get("service_id") != "openai"]
 
 
+def _is_linked(row: dict) -> bool:
+    """Whether the partner's own sign-in completed (credentials are held, never returned)."""
+    if row.get("service_id") == "open_media":
+        return True  # linked by signing in with Open Media
+    return bool(
+        row.get("access_token")
+        or row.get("access_token_ciphertext")
+        or row.get("refresh_token_ciphertext")
+    )
+
+
 def _ai_key_status(user_id: str) -> AiKeyStatus:
     from app.services.ai.credentials import platform_key
     from app.services.ai.user_keys import key_last4
@@ -52,6 +63,7 @@ class IntegrationsQuery:
         for integration_data in _visible_integrations(response.data):
             integration_fields = {field.name for field in Integration.__dataclass_fields__.values()}
             filtered_data = {k: v for k, v in integration_data.items() if k in integration_fields}
+            filtered_data["linked"] = _is_linked(integration_data)
             # Don't expose sensitive tokens in the response
             if "access_token" in filtered_data:
                 filtered_data["access_token"] = "***" if filtered_data["access_token"] else None
@@ -102,6 +114,7 @@ class IntegrationsQuery:
             return None
         integration_fields = {field.name for field in Integration.__dataclass_fields__.values()}
         filtered_data = {k: v for k, v in response.data.items() if k in integration_fields}
+        filtered_data["linked"] = _is_linked(response.data)
         # Don't expose sensitive tokens in the response
         if "access_token" in filtered_data:
             filtered_data["access_token"] = "***" if filtered_data["access_token"] else None
@@ -233,6 +246,7 @@ class IntegrationsMutation:
         )
         integration_fields = {field.name for field in Integration.__dataclass_fields__.values()}
         filtered_data = {k: v for k, v in result_data.items() if k in integration_fields}
+        filtered_data["linked"] = _is_linked(result_data)
         # Don't expose sensitive tokens in the response
         if "access_token" in filtered_data:
             filtered_data["access_token"] = "***" if filtered_data["access_token"] else None
