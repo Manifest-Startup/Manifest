@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "a5123512c2a04e389eb30f16c37f8568f53f8be605c1ed31f35b1e31dba7cddc",
+ "schema_sha256": "8300adaedc431065d6c3ec4ba03255b72aca381ca776ccf232e0ba888674baf5",
  "operations": [
   {
    "name": "me",
@@ -571,6 +571,26 @@
      "kind": "scalar",
      "required": false,
      "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "myEmailThreads",
+   "command": "my-email-threads",
+   "kind": "query",
+   "description": "Email from mailboxes connected in Open Media, grouped into threads (read-only, not stored).",
+   "destructive": false,
+   "returns": "[EmailThread!]!",
+   "selection": "{ threadId subject account participants lastMessageAt preview messageCount replyUrl messages { messageId sender senderName recipients subject text sentAt folder senderVerified attachmentCount } }",
+   "args": [
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 200,
      "description": ""
     }
    ]
