@@ -1,4 +1,4 @@
-import { knownIntegrationServiceIds } from 'features/account/lib/integrationsCatalog';
+import { knownIntegrationServiceIds } from 'features/account/lib/integrationServiceIds';
 
 const BMC_SECTION_SPLIT_REGEX = /(?=^#{1,3}\s+)/gm;
 const INTEGRATION_HINT_BLOCK_REGEX = /```bmc-key-partners-integrations\s*([\s\S]*?)```/i;

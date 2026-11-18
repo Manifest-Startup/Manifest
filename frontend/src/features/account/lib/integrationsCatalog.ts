@@ -416,4 +416,4 @@ export const integrationCatalogById = integrationCatalog.reduce<Record<string, I
 
 export const getIntegrationCatalogEntry = (serviceId: string) => integrationCatalogById[serviceId];
 
-export const knownIntegrationServiceIds = new Set(integrationCatalog.map((integration) => integration.id));
+export { knownIntegrationServiceIds } from './integrationServiceIds';

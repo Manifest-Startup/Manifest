@@ -17,13 +17,22 @@ import { detectDevice } from "features/ios/utils/deviceDetection";
 import { getViewMode, shouldShowIOSView } from "features/ios/utils/viewMode";
 import { loadPitchReelsPage } from "features/pitch-reels/loadPitchReelsPage";
 import PrivacyConsentBanner from "features/privacy/PrivacyConsentBanner";
+// The landing page and the auth gate are tiny and on almost every first paint:
+// ship them in the boot chunk so "/" and signed-in routes skip a round trip.
+import PitchPage from "features/marketing/components/PitchPage";
+import PrivateRoute from "features/auth/components/PrivateRoute";
 import { usePrivacyConsent } from "features/privacy/PrivacyConsentContext";
 
-const PitchPage = lazy(() => import("features/marketing/components/PitchPage"));
 const LoginPage = lazy(() => import("features/auth/components/LoginPage"));
-const PrivateRoute = lazy(() => import("features/auth/components/PrivateRoute"));
 const GuestSessionBanner = lazy(() => import("features/auth/components/GuestSessionBanner"));
-const IdeasPage = lazy(() => import("features/ideas/components/IdeasPage"));
+const loadIdeasPage = () => import("features/ideas/components/IdeasPage");
+const IdeasPage = lazy(loadIdeasPage);
+if (typeof window !== "undefined" && window.location.pathname.startsWith("/ideas")) {
+  // Deep links into the workspace: fetch the page and the idea view now,
+  // instead of after auth sync and the route render.
+  void loadIdeasPage();
+  void import("features/ideas/components/Idea");
+}
 const IdeaQualificationPage = lazy(() => import("features/ideas/components/IdeaQualificationPage"));
 const PitchReelsPage = lazy(loadPitchReelsPage);
 const MessagesPage = lazy(() => import("features/messaging/components/MessagesPage"));

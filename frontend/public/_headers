@@ -1,0 +1,6 @@
+# Cloudflare static-asset headers (Workers Static Assets reads this file; it is
+# not served). Vite fingerprints everything under /assets, so a file's URL
+# changes whenever its contents do: browsers can keep it for a year and skip
+# revalidation. HTML stays revalidated so new deploys show up immediately.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

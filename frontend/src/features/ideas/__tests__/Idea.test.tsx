@@ -134,7 +134,7 @@ describe('Idea Component - Title Editing', () => {
     mockUseMutation.mockImplementation(() => [mockPatchIdea, { loading: false, error: null }]);
   });
 
-  it('shows cached note content on mount and when switching ideas without saving it', () => {
+  it('shows cached note content on mount and when switching ideas without saving it', async () => {
     const cached = {
       'idea-1': { data: { idea: { ideaId: 'idea-1', title: 'First', description: 'First saved words' } }, loading: false },
       'idea-2': { data: { idea: { ideaId: 'idea-2', title: 'Second', description: 'Second saved words' } }, loading: false },
@@ -144,7 +144,7 @@ describe('Idea Component - Title Editing', () => {
       options?.skip ? skipped : cached[options?.variables?.ideaId as keyof typeof cached] || skipped
     );
     const { rerender } = render(<Idea />);
-    expect(screen.getByTestId('idea-textarea')).toHaveValue('First saved words');
+    expect(await screen.findByTestId('idea-textarea')).toHaveValue('First saved words');
     actualLocalState.sidebarVar({ ...mockSidebarVar, currentIdeaId: 'idea-2' });
     rerender(<Idea />);
     expect(screen.getByTestId('idea-textarea')).toHaveValue('Second saved words');
@@ -337,10 +337,10 @@ describe('Idea Component - Title Editing', () => {
     });
   });
 
-  it('uses a growable note editor shell for long imported notes', () => {
+  it('uses a growable note editor shell for long imported notes', async () => {
     render(<Idea />);
 
-    expect(screen.getByTestId('idea-textarea')).toHaveClass('min-h-[16rem]');
+    expect(await screen.findByTestId('idea-textarea')).toHaveClass('min-h-[16rem]');
     expect(screen.getByTestId('idea-textarea')).not.toHaveClass('h-full');
   });
 
