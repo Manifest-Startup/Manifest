@@ -386,6 +386,8 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         # --- Conversations / DMs ---
         "my_conversations": "account.read",
         "myConversations": "account.read",
+        "my_email_threads": "account.read",
+        "myEmailThreads": "account.read",
         "conversation_messages": "account.read",
         "conversationMessages": "account.read",
         "unread_message_count": "account.read",

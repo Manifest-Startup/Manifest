@@ -6,6 +6,7 @@ import { resolveBackendAssetUrl } from "features/core/network/urls";
 import type { Conversation } from "features/core/apollo/operationTypes";
 
 import { MESSAGES_FALLBACK_POLL_MS } from "../hooks/useLiveMessages";
+import { formatListTime } from "../utils/formatListTime";
 
 interface ConversationsListProps {
   onSelectConversation: (conv: Conversation) => void;
@@ -34,21 +35,6 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
   const conversations: Conversation[] = providedConversations ?? data?.myConversations ?? [];
   const isLoading = providedLoading ?? loading;
   const queryError = providedError ?? error;
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
 
   if (isLoading) {
     return (
@@ -88,7 +74,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
             </svg>
           </div>
           <p className="mt-4 text-sm font-semibold text-neutral900 dark:text-white">No conversations yet</p>
-          <p className="mt-1 text-sm text-gray500 dark:text-gray400">Message idea owners to start collaborating</p>
+          <p className="mt-1 text-sm text-gray500 dark:text-gray400">Your Open Media chats show up here. Message an idea&apos;s founder to start one.</p>
         </div>
       </div>
     );
@@ -138,7 +124,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                       <span className="ml-1 font-normal text-gray500 dark:text-gray400">@{conversation.otherUserHandle}</span>
                     ) : null}
                   </p>
-                  <span className="text-xs font-medium text-gray500 dark:text-gray400">{formatTime(conversation.lastMessageAt)}</span>
+                  <span className="text-xs font-medium text-gray500 dark:text-gray400">{formatListTime(conversation.lastMessageAt)}</span>
                 </div>
                 {conversation.ideaTitle ? (
                   <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-accent-600 dark:text-accent-300">

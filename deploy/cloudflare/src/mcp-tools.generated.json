@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "eac5828ff141fa08ed08a799b8ca0f329cf7a2e189f536370513e239aa1d3218",
+ "catalog_sha256": "0e71177eb62829751c2d8bcb2a8ed5a92a8e7e227b230f3e6c3180156af938b2",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -2306,6 +2306,36 @@
     "variables": [
      "agentKind",
      "estCostUsd"
+    ]
+   }
+  },
+  {
+   "name": "my_email_threads",
+   "title": "My email threads",
+   "description": "Email from mailboxes connected in Open Media, grouped into threads (read-only, not stored).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 200
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My email threads",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myEmailThreads",
+    "document": "query MyEmailThreads($limit: Int) { myEmailThreads(limit: $limit) { threadId subject account participants lastMessageAt preview messageCount replyUrl messages { messageId sender senderName recipients subject text sentAt folder senderVerified attachmentCount } } }",
+    "variables": [
+     "limit"
     ]
    }
   },

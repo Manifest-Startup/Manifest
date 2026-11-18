@@ -327,6 +327,39 @@ export interface GetMyConversationsVariables {
   allApps?: boolean | null;
 }
 
+export interface EmailMessage {
+  messageId: string;
+  sender: string;
+  senderName: string;
+  recipients: string[];
+  subject: string;
+  text: string;
+  sentAt: string;
+  folder?: string | null;
+  senderVerified: boolean;
+  attachmentCount: number;
+}
+
+export interface EmailThread {
+  threadId: string;
+  subject: string;
+  account?: string | null;
+  participants: string[];
+  lastMessageAt: string;
+  preview?: string | null;
+  messageCount: number;
+  replyUrl: string;
+  messages: EmailMessage[];
+}
+
+export interface GetMyEmailThreadsData {
+  myEmailThreads: EmailThread[];
+}
+
+export interface GetMyEmailThreadsVariables {
+  limit?: number | null;
+}
+
 export interface ChatMessage {
   messageId: string;
   conversationId?: string;

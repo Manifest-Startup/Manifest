@@ -1,6 +1,6 @@
 # Manifest Privacy Policy
 
-Last updated: **April 19, 2026**
+Last updated: **November 17, 2026**
 
 This Privacy Policy explains how Manifest collects, uses, shares, and stores personal information when you use our website, applications, APIs, account tools, AI-assisted features, messaging, collaboration, and related services (collectively, the "Service").
 
@@ -174,7 +174,9 @@ We do not say in this policy that we "sell" personal information in the ordinary
 If you use discovery, publishing, collaboration, investor-facing, or marketplace-like features:
 
 - information you intentionally publish or share may be visible to other users,
-- messages and collaboration activity may be stored so the feature works,
+- direct messages are stored by Open Media, the messaging service you link your account to, not by Manifest; Manifest reads and sends them through that link only while you use Messages,
+- if you connected a mailbox in Open Media, Manifest shows that email in Messages by reading it live from Open Media when you open the Email tab; Manifest does not store your email or messages, and replies to email are made in Open Media,
+- collaboration activity may be stored so the feature works,
 - and startup-related profile/activity information may be surfaced as part of the product experience.
 
 You are responsible for deciding what to disclose publicly or to other users.

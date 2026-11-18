@@ -18,6 +18,7 @@ Base: `https://api.openmedia.site` (local: the URL `npm run local` prints for th
 - `GET  /v1/connected/me/conversations/{id}/messages?limit=&before=` → `{messages:[{id, conversation_id, sender_id, body, created_at, reply_to_message_id|null}]}` newest-last.
 - `POST /v1/connected/me/conversations/{id}/messages` `{body, client_id?}` (header `Idempotency-Key` also accepted) → 201 `{message:{…}}`.
 - `POST /v1/connected/me/conversations/{id}/read` → 200.
+- `GET  /v1/connected/me/email?limit=` (≤ 500) → `{data:[{mailboxId, account, folder, from, to:[…], subject, text, sentAt, messageId, inReplyTo|null, senderVerified, attachments:int}], note}` newest first: mail from mailboxes the person connected in Open Media. Read-only over `/v1/connected` (sending and marking read stay in Open Media). Manifest groups it into threads (`In-Reply-To`, then mailbox + subject) for the Messages → Email tab and never stores it.
 - `POST /v1/connected/me/realtime-token` → `{supabase_url, anon_key, access_token, expires_at}` — the person's own short-lived Supabase access token so a browser can subscribe to Realtime `postgres_changes` on `messages` (RLS-limited).
 
 ## 3. Video clips

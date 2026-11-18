@@ -60,5 +60,7 @@ describe("MessagesPage performance guards", () => {
     expect(await screen.findByTestId("messages-empty-state")).toBeInTheDocument();
     expect(operationNames.filter((name) => name === "GetMyConversations")).toHaveLength(1);
     expect(operationNames.filter((name) => name === "GetOpenMediaLink")).toHaveLength(1);
+    // Email is only read from Open Media when the Email tab opens.
+    expect(operationNames).not.toContain("GetMyEmailThreads");
   });
 });

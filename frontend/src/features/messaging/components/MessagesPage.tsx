@@ -2,29 +2,44 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@apollo/client/react";
 
-import { GET_MY_CONVERSATIONS } from "features/core/apollo/queries";
+import { GET_MY_CONVERSATIONS, GET_MY_EMAIL_THREADS } from "features/core/apollo/queries";
 import OpenMediaConnectPrompt from "features/open-media/OpenMediaConnectPrompt";
 import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 
 import { MESSAGES_FALLBACK_POLL_MS, useLiveMessages } from "../hooks/useLiveMessages";
 import ChatPanel from "./ChatPanel";
 import ConversationsList from "./ConversationsList";
-import type { Conversation } from "features/core/apollo/operationTypes";
+import EmailThreadPanel from "./EmailThreadPanel";
+import EmailThreadsList from "./EmailThreadsList";
+import type { Conversation, EmailThread } from "features/core/apollo/operationTypes";
+
+type InboxTab = "chats" | "email";
+const EMAIL_LIMIT = 100;
 
 const MessagesPage: React.FC = () => {
   const { conversationId: routeConversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Conversation | null>(null);
+  const [tab, setTab] = useState<InboxTab>("chats");
+  const [selectedEmail, setSelectedEmail] = useState<EmailThread | null>(null);
   const openMedia = useOpenMediaLink();
 
+  // Every Open Media chat, not only the ones started from Manifest: one place for all of them.
   const { data, loading, error } = useQuery(GET_MY_CONVERSATIONS, {
-    variables: { limit: 50, offset: 0 },
+    variables: { limit: 50, offset: 0, allApps: true },
     skip: !openMedia.ready,
     pollInterval: MESSAGES_FALLBACK_POLL_MS,
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
   });
   useLiveMessages(openMedia.ready);
+
+  // Email is read live from Open Media when the tab opens; Manifest never stores it.
+  const email = useQuery(GET_MY_EMAIL_THREADS, {
+    variables: { limit: EMAIL_LIMIT },
+    skip: !openMedia.ready || tab !== "email",
+    fetchPolicy: "cache-and-network",
+  });
 
   useEffect(() => {
     const list: Conversation[] = data?.myConversations || [];
@@ -47,8 +62,11 @@ const MessagesPage: React.FC = () => {
     navigate("/messages", { replace: true });
   };
 
-  const showListMobile = !selected;
-  const showThreadMobile = Boolean(selected);
+  const handleEmailBack = () => setSelectedEmail(null);
+
+  const openItem = tab === "chats" ? selected : selectedEmail;
+  const showListMobile = !openItem;
+  const showThreadMobile = Boolean(openItem);
 
   if (!openMedia.ready) {
     return (
@@ -89,22 +107,52 @@ const MessagesPage: React.FC = () => {
             >
               <div className="border-b border-stone200 px-4 py-3 dark:border-neutral700">
                 <h1 className="text-lg font-semibold text-neutral900 dark:text-white">Inbox</h1>
+                <div role="tablist" aria-label="Inbox" className="mt-3 flex gap-2">
+                  {(["chats", "email"] as const).map((name) => (
+                    <button
+                      key={name}
+                      role="tab"
+                      aria-selected={tab === name}
+                      data-testid={`inbox-tab-${name}`}
+                      onClick={() => setTab(name)}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        tab === name
+                          ? "bg-neutral900 text-white dark:bg-white dark:text-neutral900"
+                          : "text-gray500 hover:bg-white dark:text-gray400 dark:hover:bg-neutral800"
+                      }`}
+                    >
+                      {name === "chats" ? "Chats" : "Email"}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto">
-                <ConversationsList
-                  onSelectConversation={handleSelect}
-                  selectedConversationId={selected?.conversationId}
-                  conversations={data?.myConversations || []}
-                  loading={loading}
-                  error={error}
-                />
+                {tab === "chats" ? (
+                  <ConversationsList
+                    onSelectConversation={handleSelect}
+                    selectedConversationId={selected?.conversationId}
+                    conversations={data?.myConversations || []}
+                    loading={loading}
+                    error={error}
+                  />
+                ) : (
+                  <EmailThreadsList
+                    threads={email.data?.myEmailThreads || []}
+                    loading={email.loading}
+                    error={email.error}
+                    selectedThreadId={selectedEmail?.threadId}
+                    onSelectThread={setSelectedEmail}
+                  />
+                )}
               </div>
             </aside>
 
             <section
               className={`min-h-0 flex-1 overflow-hidden ${showThreadMobile ? "flex flex-col" : "hidden md:flex md:flex-col"}`}
             >
-              {selected ? (
+              {tab === "email" && selectedEmail ? (
+                <EmailThreadPanel thread={selectedEmail} onBack={handleEmailBack} />
+              ) : tab === "chats" && selected ? (
                 <ChatPanel
                   conversationId={selected.conversationId}
                   otherUserAvatar={selected.otherUserAvatar}
@@ -117,9 +165,13 @@ const MessagesPage: React.FC = () => {
                   className="manifest-empty flex flex-1 flex-col items-center justify-center px-6 py-16 text-center"
                   data-testid="messages-empty-state"
                 >
-                  <p className="text-base font-semibold text-neutral900 dark:text-white">Pick a conversation</p>
+                  <p className="text-base font-semibold text-neutral900 dark:text-white">
+                    {tab === "chats" ? "Pick a conversation" : "Pick an email"}
+                  </p>
                   <p className="mt-2 max-w-sm text-sm text-gray500 dark:text-gray400">
-                    New threads open from a published idea&apos;s founder panel. Messages are sent through Open Media.
+                    {tab === "chats"
+                      ? "All your Open Media chats are here. New ones open from a published idea's founder panel."
+                      : "Email from the mailboxes you connected in Open Media. Reply in Open Media."}
                   </p>
                 </div>
               )}
