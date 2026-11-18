@@ -172,7 +172,7 @@ def _collect_subject_data(user_id: str) -> dict[str, Any]:
     errors: dict[str, str] = {}
     profile = _user_row(user_id)
     sessions = _fetchall_required(
-        "SELECT session_id, created_at, last_seen_at, ip_hash, "
+        "SELECT session_id, created_at, last_seen_at, request_ip, "
         "user_agent, revoked_at FROM user_sessions WHERE user_id = %s",
         (user_id,),
         label="sessions",
@@ -196,7 +196,7 @@ def _collect_subject_data(user_id: str) -> dict[str, Any]:
             label="mfa_factors",
         ),
         "webauthn_credentials": _fetchall_safe(
-            "SELECT credential_id, label, created_at, last_used_at "
+            "SELECT credential_id, nickname AS label, created_at, last_used_at "
             "FROM webauthn_credentials WHERE user_id = %s",
             (user_id,),
             errors=errors,
@@ -204,15 +204,15 @@ def _collect_subject_data(user_id: str) -> dict[str, Any]:
         ),
         "privacy_consents": privacy_consents,
         "integrations": _fetchall_safe(
-            "SELECT provider, created_at, updated_at, status "
-            "FROM integrations WHERE user_id = %s",
+            "SELECT service_id AS provider, service_name, connected_at AS created_at, "
+            "expires_at FROM integrations WHERE user_id = %s",
             (user_id,),
             errors=errors,
             label="integrations",
         ),
         "api_keys": _fetchall_safe(
-            "SELECT key_id, label, created_at, last_used_at, revoked_at "
-            "FROM api_keys WHERE user_id = %s",
+            "SELECT k.id AS key_id, k.name AS label, k.created_at, k.last_used_at, k.revoked_at "
+            "FROM api_keys k JOIN api_clients c ON c.id = k.client_id WHERE c.user_id = %s",
             (user_id,),
             errors=errors,
             label="api_keys",
