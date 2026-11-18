@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "97f248ff6c25a4eca5cc3863d1f89fa418d403ab9e504efad2b817070c5c661a",
+ "catalog_sha256": "54b601391cbb0cecfab9a56a582b97dd2e8fe559995fc6afa3fe44c87de6034f",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -1732,6 +1732,38 @@
    }
   },
   {
+   "name": "inbox_conversation",
+   "title": "Inbox conversation",
+   "description": "One inbox conversation laid out for reading by Open Media (email as clean text).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "conversationId"
+    ]
+   },
+   "annotations": {
+    "title": "Inbox conversation",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "inboxConversation",
+    "document": "query InboxConversation($conversationId: String!) { inboxConversation(conversationId: $conversationId) { conversation { conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply } items { kind key at messageId isMine senderName sentAt source subject attachmentCount quotedHistoryHidden groupStart groupEnd } } }",
+    "variables": [
+     "conversationId"
+    ]
+   }
+  },
+  {
    "name": "integration",
    "title": "Integration",
    "description": "One connected integration by serviceId; credentials are never returned.",
@@ -2138,6 +2170,38 @@
    }
   },
   {
+   "name": "mark_inbox_read",
+   "title": "Mark inbox read",
+   "description": "Mark an inbox conversation read everywhere it came from (chat or mailbox). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "conversationId"
+    ]
+   },
+   "annotations": {
+    "title": "Mark inbox read",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "markInboxRead",
+    "document": "mutation MarkInboxRead($conversationId: String!) { markInboxRead(conversationId: $conversationId) }",
+    "variables": [
+     "conversationId"
+    ]
+   }
+  },
+  {
    "name": "me",
    "title": "Me",
    "description": "Your profile: name, username, email, bio, location, skills and picture.",
@@ -2310,36 +2374,6 @@
    }
   },
   {
-   "name": "my_email_threads",
-   "title": "My email threads",
-   "description": "Email from mailboxes connected in Open Media, grouped into threads (read-only, not stored).",
-   "inputSchema": {
-    "type": "object",
-    "properties": {
-     "limit": {
-      "type": "integer",
-      "default": 200
-     }
-    },
-    "additionalProperties": false
-   },
-   "annotations": {
-    "title": "My email threads",
-    "readOnlyHint": true,
-    "destructiveHint": false,
-    "idempotentHint": true,
-    "openWorldHint": false
-   },
-   "_call": {
-    "via": "graphql",
-    "field": "myEmailThreads",
-    "document": "query MyEmailThreads($limit: Int) { myEmailThreads(limit: $limit) { threadId subject account participants lastMessageAt preview messageCount replyUrl messages { messageId sender senderName recipients subject text sentAt folder senderVerified attachmentCount } } }",
-    "variables": [
-     "limit"
-    ]
-   }
-  },
-  {
    "name": "my_idea_qualification_sessions",
    "title": "My idea qualification sessions",
    "description": "List your idea-qualification interviews.",
@@ -2360,6 +2394,36 @@
     "field": "myIdeaQualificationSessions",
     "document": "query MyIdeaQualificationSessions { myIdeaQualificationSessions { id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt } }",
     "variables": []
+   }
+  },
+  {
+   "name": "my_inbox",
+   "title": "My inbox",
+   "description": "The whole Open Media inbox, newest first: chats and email in one list (read live, not stored).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 100
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My inbox",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myInbox",
+    "document": "query MyInbox($limit: Int) { myInbox(limit: $limit) { conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply } }",
+    "variables": [
+     "limit"
+    ]
    }
   },
   {
@@ -3005,6 +3069,51 @@
     "document": "mutation RemoveVote($ideaId: String!) { removeVote(ideaId: $ideaId) { voted ideaId voteCount } }",
     "variables": [
      "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "reply_in_inbox",
+   "title": "Reply in inbox",
+   "description": "Reply in an inbox conversation: Open Media sends a chat message, or a threaded email to the right people from the mailbox that received it (`clientId` makes retries land once). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "replyToMessageId": {
+      "type": "string"
+     },
+     "clientId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "conversationId",
+     "content"
+    ]
+   },
+   "annotations": {
+    "title": "Reply in inbox",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "replyInInbox",
+    "document": "mutation ReplyInInbox($conversationId: String!, $content: String!, $replyToMessageId: String, $clientId: String) { replyInInbox(conversationId: $conversationId, content: $content, replyToMessageId: $replyToMessageId, clientId: $clientId) }",
+    "variables": [
+     "conversationId",
+     "content",
+     "replyToMessageId",
+     "clientId"
     ]
    }
   },

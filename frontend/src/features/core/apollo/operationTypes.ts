@@ -319,80 +319,75 @@ export interface Conversation {
   unreadCount: number;
 }
 
-export interface GetMyConversationsData {
-  myConversations: Conversation[];
-}
-
-export interface GetMyConversationsVariables {
-  limit?: number | null;
-  offset?: number | null;
-  allApps?: boolean | null;
-}
-
-export interface EmailMessage {
-  messageId: string;
-  sender: string;
-  senderName: string;
-  recipients: string[];
-  subject: string;
-  text: string;
-  sentAt: string;
-  folder?: string | null;
-  senderVerified: boolean;
-  attachmentCount: number;
-}
-
-export interface EmailThread {
-  threadId: string;
-  subject: string;
-  account?: string | null;
-  participants: string[];
-  lastMessageAt: string;
+export interface InboxConversation {
+  conversationId: string;
+  kind: "chat" | "email" | "bridged" | string;
+  source: string;
+  title: string;
+  initials: string;
+  avatarColor?: string | null;
+  avatarUrl?: string | null;
+  group: boolean;
+  company?: string | null;
   preview?: string | null;
-  messageCount: number;
-  replyUrl: string;
-  messages: EmailMessage[];
+  lastMessageAt: string;
+  unreadCount: number;
+  ideaId?: string | null;
+  ideaTitle?: string | null;
+  canReply: boolean;
 }
 
-export interface GetMyEmailThreadsData {
-  myEmailThreads: EmailThread[];
+export interface InboxTextSegment {
+  text: string;
+  url?: string | null;
 }
 
-export interface GetMyEmailThreadsVariables {
-  limit?: number | null;
-}
-
-export interface ChatMessage {
-  messageId: string;
-  conversationId?: string;
-  senderId?: string;
-  content: string;
+export interface InboxItem {
+  kind: "time" | "message" | string;
+  key: string;
+  at?: string | null;
+  messageId?: string | null;
   isMine: boolean;
-  createdAt: string;
+  senderName?: string | null;
+  sentAt?: string | null;
+  source?: string | null;
+  subject?: string | null;
+  body: InboxTextSegment[];
+  attachmentCount: number;
+  quotedHistoryHidden: boolean;
+  groupStart: boolean;
+  groupEnd: boolean;
 }
 
-export interface GetConversationMessagesData {
-  conversationMessages: ChatMessage[];
+export interface GetMyInboxData {
+  myInbox: InboxConversation[];
 }
 
-export interface GetConversationMessagesVariables {
-  conversationId: string;
+export interface GetMyInboxVariables {
   limit?: number | null;
-  beforeId?: string | null;
 }
 
-export interface SendMessageData {
-  sendMessage: ChatMessage | null;
+export interface GetInboxConversationData {
+  inboxConversation: { conversation: InboxConversation; items: InboxItem[] };
 }
 
-export interface SendMessageVariables {
+export interface GetInboxConversationVariables {
+  conversationId: string;
+}
+
+export interface ReplyInInboxData {
+  replyInInbox: boolean;
+}
+
+export interface ReplyInInboxVariables {
   conversationId: string;
   content: string;
+  replyToMessageId?: string | null;
   clientId?: string | null;
 }
 
-export interface MarkConversationReadData {
-  markConversationRead: boolean;
+export interface MarkInboxReadData {
+  markInboxRead: boolean;
 }
 
 export interface MarkConversationReadVariables {

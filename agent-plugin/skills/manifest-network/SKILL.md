@@ -17,7 +17,9 @@ Pitch shorts, likes, comments, reshares and messages run on the person's linked 
 
 ## Messages
 - `my_conversations` lists conversations (pass `allApps` for every Open Media chat, not only Manifest ones); `unread_message_count` for a quick check; `conversation_messages` reads one.
-- `my_email_threads` reads email from the mailboxes the person connected in Open Media, grouped into threads. It is read-only: replying happens in Open Media (`replyUrl`).
+- `my_inbox` is the person's whole Open Media inbox, newest first: chats and email in one list (Open Media assembles it). `inbox_conversation` reads one, with email as clean text.
+- `reply_in_inbox` replies in any of them: a chat message, or a threaded email to the right people from the mailbox that received it. Draft it, show it, and send only after the person says yes.
+- `mark_inbox_read` when the person has read a conversation.
 - `start_conversation` opens (or reuses) a conversation with an idea's founder (otherUserId, optional ideaId).
 - `send_message`: draft the text, show it, send only after the person says yes. Pass a `clientId` so a retry doesn't send twice.
 - `mark_conversation_read` only when the person asks or has clearly read it.

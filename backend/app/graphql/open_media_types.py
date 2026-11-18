@@ -74,32 +74,56 @@ class Message:
 
 
 @strawberry.type
-class EmailMessage:
-    message_id: str
-    sender: str
-    sender_name: str
-    recipients: list[str]
-    subject: str
-    text: str
-    sent_at: datetime
-    folder: str | None = None
-    sender_verified: bool = False
-    attachment_count: int = 0
+class InboxConversation:
+    """One row of the Open Media inbox: a chat, a bridged chat or an email conversation."""
+
+    conversation_id: str
+    kind: str
+    source: str
+    title: str
+    initials: str
+    avatar_color: str | None = None
+    avatar_url: str | None = None
+    group: bool = False
+    company: str | None = None
+    preview: str | None = None
+    last_message_at: datetime
+    unread_count: int = 0
+    idea_id: str | None = None
+    idea_title: str | None = None
+    can_reply: bool = True
 
 
 @strawberry.type
-class EmailThread:
-    """Email from a mailbox connected in Open Media (read-only; reply in Open Media)."""
+class InboxTextSegment:
+    text: str
+    url: str | None = None
 
-    thread_id: str
-    subject: str
-    account: str | None = None
-    participants: list[str]
-    last_message_at: datetime
-    preview: str | None = None
-    message_count: int
-    reply_url: str
-    messages: list[EmailMessage]
+
+@strawberry.type
+class InboxItem:
+    """A time break (``kind = time``) or a message, laid out by Open Media."""
+
+    kind: str
+    key: str
+    at: datetime | None = None
+    message_id: str | None = None
+    is_mine: bool = False
+    sender_name: str | None = None
+    sent_at: datetime | None = None
+    source: str | None = None
+    subject: str | None = None
+    body: list[InboxTextSegment] = strawberry.field(default_factory=list)
+    attachment_count: int = 0
+    quoted_history_hidden: bool = False
+    group_start: bool = True
+    group_end: bool = True
+
+
+@strawberry.type
+class InboxThread:
+    conversation: InboxConversation
+    items: list[InboxItem]
 
 
 @strawberry.type
@@ -154,34 +178,65 @@ def map_message(msg: dict[str, Any], me_om_id: str | None) -> Message:
     )
 
 
-def map_email_thread(thread: dict[str, Any], reply_url: str) -> EmailThread:
-    from app.services.integrations.open_media.email import sender_name
-
-    messages = [
-        EmailMessage(
-            message_id=str(m.get("message_id") or ""),
-            sender=str(m.get("from") or ""),
-            sender_name=sender_name(str(m.get("from") or "")),
-            recipients=list(m.get("to") or []),
-            subject=str(m.get("subject") or ""),
-            text=str(m.get("text") or ""),
-            sent_at=_when(m.get("sent_at")),
-            folder=m.get("folder") or None,
-            sender_verified=bool(m.get("sender_verified")),
-            attachment_count=int(m.get("attachments") or 0),
-        )
-        for m in thread.get("messages") or []
+def map_inbox_conversation(raw: dict[str, Any]) -> InboxConversation:
+    context = raw.get("context") if isinstance(raw.get("context"), dict) else {}
+    urls = [
+        u for u in raw.get("avatar_urls") or [] if isinstance(u, str) and u.startswith("https://")
     ]
-    return EmailThread(
-        thread_id=str(thread.get("id") or ""),
-        subject=str(thread.get("subject") or "(no subject)"),
-        account=thread.get("account") or None,
-        participants=list(thread.get("participants") or []),
-        last_message_at=_when(thread.get("last_at")),
-        preview=thread.get("preview"),
-        message_count=len(messages),
-        reply_url=reply_url,
-        messages=messages,
+    return InboxConversation(
+        conversation_id=str(raw.get("id") or ""),
+        kind=str(raw.get("kind") or "chat"),
+        source=str(raw.get("source") or "open_media"),
+        title=str(raw.get("title") or "Someone"),
+        initials=str(raw.get("initials") or "?"),
+        avatar_color=raw.get("avatar_color"),
+        avatar_url=urls[0] if urls else None,
+        group=bool(raw.get("group")),
+        company=raw.get("company"),
+        preview=str(raw.get("preview") or "")[:280] or None,
+        last_message_at=_when(raw.get("last_message_at")),
+        unread_count=int(raw.get("unread_count") or 0),
+        idea_id=context.get("idea_id") if context.get("app") == "manifest" else None,
+        idea_title=context.get("title") if context.get("app") == "manifest" else None,
+        can_reply=raw.get("can_reply") is not False,
+    )
+
+
+def map_inbox_item(raw: dict[str, Any]) -> InboxItem:
+    if raw.get("kind") == "time":
+        return InboxItem(kind="time", key=str(raw.get("key") or ""), at=_when(raw.get("at")))
+    segments = [
+        InboxTextSegment(
+            text=str(s.get("text") or ""),
+            url=s["url"]
+            if isinstance(s.get("url"), str)
+            and s["url"].startswith(("https://", "http://", "mailto:"))
+            else None,
+        )
+        for s in raw.get("body") or []
+        if isinstance(s, dict)
+    ]
+    return InboxItem(
+        kind="message",
+        key=str(raw.get("key") or raw.get("id") or ""),
+        message_id=str(raw.get("id") or ""),
+        is_mine=raw.get("direction") == "outbound",
+        sender_name=raw.get("sender_name"),
+        sent_at=_when(raw.get("sent_at")),
+        source=raw.get("source"),
+        subject=raw.get("subject"),
+        body=segments,
+        attachment_count=int(raw.get("attachments") or 0),
+        quoted_history_hidden=bool(raw.get("quoted_history_hidden")),
+        group_start=raw.get("group_start") is not False,
+        group_end=raw.get("group_end") is not False,
+    )
+
+
+def map_inbox_thread(raw: dict[str, Any]) -> InboxThread:
+    return InboxThread(
+        conversation=map_inbox_conversation(raw.get("conversation") or {}),
+        items=[map_inbox_item(i) for i in raw.get("items") or [] if isinstance(i, dict)],
     )
 
 
