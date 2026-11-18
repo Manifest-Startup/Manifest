@@ -234,3 +234,47 @@ def test_guests_cannot_message(monkeypatch):
     finally:
         loop.close()
     assert "Create an account" in result.errors[0].message
+
+
+def test_my_email_threads_maps_threads_with_reply_link(monkeypatch):
+    from app.services.integrations.open_media import email as om_email
+
+    monkeypatch.delenv("OPEN_MEDIA_API_BASE", raising=False)
+    monkeypatch.setattr(
+        om_email,
+        "list_threads",
+        lambda uid, limit=200: [
+            {
+                "id": "t1",
+                "subject": "Seed round",
+                "account": "me@x.com",
+                "participants": ["Ada L"],
+                "last_at": "2026-11-03T00:00:00+00:00",
+                "preview": "Sounds good",
+                "messages": [
+                    {"message_id": "<m1>", "from": '"Ada L" <ada@x.com>', "to": ["me@x.com"],
+                     "subject": "Seed round", "text": "Sounds good", "sent_at": "2026-11-03T00:00:00Z",
+                     "folder": "INBOX", "attachments": 1}
+                ],
+            }
+        ],
+    )
+    result = run(
+        "query { myEmailThreads { threadId subject participants messageCount replyUrl messages { senderName recipients attachmentCount } } }"
+    )
+    assert not result.errors
+    assert result.data["myEmailThreads"] == [
+        {
+            "threadId": "t1",
+            "subject": "Seed round",
+            "participants": ["Ada L"],
+            "messageCount": 1,
+            "replyUrl": "https://openmedia.site",
+            "messages": [{"senderName": "Ada L", "recipients": ["me@x.com"], "attachmentCount": 1}],
+        }
+    ]
+
+
+def test_my_email_threads_requires_a_signed_in_user():
+    result = run("query { myEmailThreads { threadId } }", user=None)
+    assert result.errors and "Authentication required" in result.errors[0].message

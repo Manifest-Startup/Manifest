@@ -30,6 +30,8 @@ import type {
   StartIntegrationConnectionVars,
   GetMyCollaborationInvitationsData,
   GetMyConversationsData,
+  GetMyEmailThreadsData,
+  GetMyEmailThreadsVariables,
   GetMyConversationsVariables,
   GetMyPortfolioData,
   GetMySessionsData,
@@ -862,6 +864,33 @@ export const GET_MY_CONVERSATIONS: TypedDocumentNode<GetMyConversationsData, Get
   query GetMyConversations($limit: Int, $offset: Int, $allApps: Boolean) {
     myConversations(limit: $limit, offset: $offset, allApps: $allApps) {
       ${CONVERSATION_FIELDS}
+    }
+  }
+`;
+
+export const GET_MY_EMAIL_THREADS: TypedDocumentNode<GetMyEmailThreadsData, GetMyEmailThreadsVariables> = gql`
+  query GetMyEmailThreads($limit: Int) {
+    myEmailThreads(limit: $limit) {
+      threadId
+      subject
+      account
+      participants
+      lastMessageAt
+      preview
+      messageCount
+      replyUrl
+      messages {
+        messageId
+        sender
+        senderName
+        recipients
+        subject
+        text
+        sentAt
+        folder
+        senderVerified
+        attachmentCount
+      }
     }
   }
 `;

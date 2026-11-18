@@ -132,14 +132,14 @@ def mark_read(user_id: str, conversation_id: str) -> bool:
 
 
 def unread_count(user_id: str) -> int:
-    """Unread messages in Manifest conversations (cached; webhooks invalidate)."""
+    """Unread messages in every Open Media conversation (cached; webhooks invalidate)."""
     om_user_id = identity.om_user_id_for(user_id)
     if not om_user_id:
         return 0
     cached = cache_get(_unread_key(om_user_id))
     if isinstance(cached, int):
         return cached
-    total = sum(c["unread_count"] for c in list_conversations(user_id))
+    total = sum(c["unread_count"] for c in list_conversations(user_id, app_only=False))
     cache_set(_unread_key(om_user_id), total, UNREAD_TTL_SECONDS)
     return total
 

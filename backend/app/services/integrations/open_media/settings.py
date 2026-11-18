@@ -23,6 +23,13 @@ def api_base() -> str:
     return (os.getenv("OPEN_MEDIA_API_BASE") or DEFAULT_API_BASE).strip().rstrip("/")
 
 
+def web_origin() -> str:
+    """Open Media's app, where people reply to email: ``api.openmedia.site`` -> ``openmedia.site``."""
+    parts = urlsplit(api_base())
+    host = parts.netloc[4:] if parts.netloc.startswith("api.") else parts.netloc
+    return f"{parts.scheme or 'https'}://{host}"
+
+
 def client_id() -> str:
     return (os.getenv("OPEN_MEDIA_CLIENT_ID") or DEFAULT_CLIENT_ID).strip()
 

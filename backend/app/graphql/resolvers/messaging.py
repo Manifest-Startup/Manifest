@@ -7,12 +7,14 @@ import strawberry
 from app.auth.current_user import get_current_user_id
 from app.graphql.open_media_types import (
     Conversation,
+    EmailThread,
     Message,
     OpenMediaLink,
     OpenMediaRealtimeToken,
     UnreadCount,
     call_open_media,
     map_conversation,
+    map_email_thread,
     map_link,
     map_message,
 )
@@ -39,6 +41,17 @@ class MessagingQuery:
         )
         start = max(0, offset)
         return [map_conversation(c) for c in convs[start : start + max(1, min(limit, 100))]]
+
+    @strawberry.field
+    async def my_email_threads(self, info: strawberry.Info, limit: int = 200) -> list[EmailThread]:
+        """Email from mailboxes connected in Open Media, grouped into threads (read-only, not stored)."""
+        user_id = get_current_user_id(info.context["request"])
+        from app.services.integrations.open_media import email as om_email
+        from app.services.integrations.open_media import settings as open_media_settings
+
+        threads = await call_open_media(om_email.list_threads, user_id, limit=limit)
+        reply_url = open_media_settings.web_origin()
+        return [map_email_thread(t, reply_url) for t in threads]
 
     @strawberry.field
     async def conversation_messages(

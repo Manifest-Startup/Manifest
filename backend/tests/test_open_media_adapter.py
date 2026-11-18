@@ -595,3 +595,104 @@ def test_start_conversation_reads_the_final_response_container(om):
     )
     conv = messaging.start_conversation("u1", handle="ada")
     assert conv["id"] == "c1" and conv["other"]["handle"] == "ada"
+
+
+# -- email (read-only) -----------------------------------------------------
+
+
+def test_email_is_read_live_and_grouped_into_threads(om):
+    from app.services.integrations.open_media import email as om_email
+
+    om["store"].add()
+    om["router"].on(
+        "GET",
+        "/v1/connected/me/email",
+        (
+            200,
+            {
+                "data": [
+                    {
+                        "mailboxId": "mb1",
+                        "account": "me@x.com",
+                        "folder": "INBOX",
+                        "from": '"Ada L" <ada@x.com>',
+                        "to": ["me@x.com"],
+                        "subject": "Re: Seed round",
+                        "text": "Sounds  good\n see you",
+                        "sentAt": "2026-11-03T00:00:00Z",
+                        "messageId": "<m2@x>",
+                        "inReplyTo": "<m1@x>",
+                    },
+                    {
+                        "mailboxId": "mb1",
+                        "account": "me@x.com",
+                        "folder": "INBOX",
+                        "from": "bob@y.com",
+                        "to": ["me@x.com"],
+                        "subject": "Lunch?",
+                        "text": "tomorrow",
+                        "sentAt": "2026-11-02T00:00:00Z",
+                        "messageId": "<m3@y>",
+                    },
+                    {
+                        "mailboxId": "mb1",
+                        "account": "me@x.com",
+                        "folder": "Sent",
+                        "from": "me@x.com",
+                        "to": ["ada@x.com"],
+                        "subject": "Seed round (different subject)",
+                        "text": "Want to talk?",
+                        "sentAt": "2026-11-01T00:00:00Z",
+                        "messageId": "<m1@x>",
+                    },
+                ],
+                "note": "Imported email is not end-to-end encrypted.",
+            },
+        ),
+    )
+    threads = om_email.list_threads("u1", limit=9999)
+    request = om["router"].calls[0]
+    assert _auth(request) == "Bearer at-1"
+    assert request.url.params["limit"] == "500"
+    assert [t["subject"] for t in threads] == ["Seed round (different subject)", "Lunch?"]
+    seed = threads[0]
+    assert [m["message_id"] for m in seed["messages"]] == ["<m1@x>", "<m2@x>"]
+    assert seed["participants"] == ["Ada L", "me@x.com"]
+    assert seed["preview"] == "Sounds good see you"
+    assert seed["id"] != threads[1]["id"]
+
+
+def test_email_threads_by_subject_without_reply_headers():
+    from app.services.integrations.open_media import email as om_email
+
+    def mail(i, subject, mailbox="mb1"):
+        return om_email._email(
+            {"mailboxId": mailbox, "from": "a@x", "subject": subject, "messageId": f"<{i}>",
+             "sentAt": f"2026-11-0{i}T00:00:00Z"}
+        )
+
+    threads = om_email.group_threads(
+        [mail(1, "Hello"), mail(2, "RE: Fwd: hello"), mail(3, "Hello", "mb2"), mail(4, ""), mail(5, "")]
+    )
+    sizes = sorted(len(t["messages"]) for t in threads)
+    assert sizes == [1, 1, 1, 2]
+    assert all(t["subject"] for t in threads)
+
+
+def test_email_reply_loop_does_not_recurse():
+    from app.services.integrations.open_media import email as om_email
+
+    a = om_email._email({"messageId": "<a>", "inReplyTo": "<b>", "subject": "x"})
+    b = om_email._email({"messageId": "<b>", "inReplyTo": "<a>", "subject": "y"})
+    assert len(om_email.group_threads([a, b])) == 1
+
+
+def test_sender_name_and_web_origin(monkeypatch):
+    from app.services.integrations.open_media import email as om_email
+    from app.services.integrations.open_media import settings
+
+    assert om_email.sender_name('"Ada L" <ada@x.com>') == "Ada L"
+    assert om_email.sender_name("<ada@x.com>") == "ada@x.com"
+    assert om_email.sender_name("") == "Unknown sender"
+    monkeypatch.delenv("OPEN_MEDIA_API_BASE", raising=False)
+    assert settings.web_origin() == "https://openmedia.site"

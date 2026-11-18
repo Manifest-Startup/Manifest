@@ -74,6 +74,35 @@ class Message:
 
 
 @strawberry.type
+class EmailMessage:
+    message_id: str
+    sender: str
+    sender_name: str
+    recipients: list[str]
+    subject: str
+    text: str
+    sent_at: datetime
+    folder: str | None = None
+    sender_verified: bool = False
+    attachment_count: int = 0
+
+
+@strawberry.type
+class EmailThread:
+    """Email from a mailbox connected in Open Media (read-only; reply in Open Media)."""
+
+    thread_id: str
+    subject: str
+    account: str | None = None
+    participants: list[str]
+    last_message_at: datetime
+    preview: str | None = None
+    message_count: int
+    reply_url: str
+    messages: list[EmailMessage]
+
+
+@strawberry.type
 class UnreadCount:
     count: int
 
@@ -122,6 +151,37 @@ def map_message(msg: dict[str, Any], me_om_id: str | None) -> Message:
         content=str(msg.get("body") or ""),
         created_at=_when(msg.get("created_at")),
         is_mine=bool(me_om_id and sender == me_om_id),
+    )
+
+
+def map_email_thread(thread: dict[str, Any], reply_url: str) -> EmailThread:
+    from app.services.integrations.open_media.email import sender_name
+
+    messages = [
+        EmailMessage(
+            message_id=str(m.get("message_id") or ""),
+            sender=str(m.get("from") or ""),
+            sender_name=sender_name(str(m.get("from") or "")),
+            recipients=list(m.get("to") or []),
+            subject=str(m.get("subject") or ""),
+            text=str(m.get("text") or ""),
+            sent_at=_when(m.get("sent_at")),
+            folder=m.get("folder") or None,
+            sender_verified=bool(m.get("sender_verified")),
+            attachment_count=int(m.get("attachments") or 0),
+        )
+        for m in thread.get("messages") or []
+    ]
+    return EmailThread(
+        thread_id=str(thread.get("id") or ""),
+        subject=str(thread.get("subject") or "(no subject)"),
+        account=thread.get("account") or None,
+        participants=list(thread.get("participants") or []),
+        last_message_at=_when(thread.get("last_at")),
+        preview=thread.get("preview"),
+        message_count=len(messages),
+        reply_url=reply_url,
+        messages=messages,
     )
 
 

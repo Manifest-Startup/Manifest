@@ -16,7 +16,8 @@ Pitch shorts, likes, comments, reshares and messages run on the person's linked 
 - `follow_user`, `unfollow_user`, `toggle_follow`; `user_followers`, `user_following`, `user_social_stats`.
 
 ## Messages
-- `my_conversations` lists conversations; `unread_message_count` for a quick check; `conversation_messages` reads one.
+- `my_conversations` lists conversations (pass `allApps` for every Open Media chat, not only Manifest ones); `unread_message_count` for a quick check; `conversation_messages` reads one.
+- `my_email_threads` reads email from the mailboxes the person connected in Open Media, grouped into threads. It is read-only: replying happens in Open Media (`replyUrl`).
 - `start_conversation` opens (or reuses) a conversation with an idea's founder (otherUserId, optional ideaId).
 - `send_message`: draft the text, show it, send only after the person says yes. Pass a `clientId` so a retry doesn't send twice.
 - `mark_conversation_read` only when the person asks or has clearly read it.
