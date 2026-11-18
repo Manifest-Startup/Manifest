@@ -23,6 +23,11 @@
     "mcp",
     "open-source"
   ],
+  "icon": "./assets/icon.png",
+  "documentationUrl": "https://manifeststartup.com/agents.md",
+  "supportUrl": "https://manifeststartup.com/contact",
+  "privacyPolicyUrl": "https://manifeststartup.com/legal/privacy",
+  "termsOfServiceUrl": "https://manifeststartup.com/legal/terms",
   "skills": [
     "./skills/"
   ],
