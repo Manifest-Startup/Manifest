@@ -9,6 +9,7 @@ import { subscribeToVoiceWorkspaceLayoutCommand } from "features/voice/voiceComm
 import Button from "features/common-ui/Button";
 import { SidebarLeftIcon, SidebarRightIcon } from "features/common-ui/icons";
 
+import IdeasEmptyState from "./IdeasEmptyState";
 import IdeasList from "./IdeasList";
 
 const Idea = lazy(() => import("./Idea").then((module) => ({ default: module.Idea })));
@@ -134,18 +135,14 @@ const IdeasPage: React.FC = () => {
 
   if (!idea_id) {
     return (
-      <div className="manifest-page">
-        <div className="manifest-page-shell">
-          <div className="px-4 py-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-neutral900 dark:text-white">
-              Your ideas
-            </h1>
-            <p className="mt-1 text-sm text-gray500 dark:text-gray400">
-              Open an idea or create a new one.
-            </p>
-          </div>
-          <div className="h-[calc(100dvh-11rem)] min-h-[18rem] sm:h-[min(42rem,calc(100dvh-12rem))] lg:h-[calc(100dvh-12rem)]">
-            <IdeasList />
+      <div className="manifest-page manifest-page-workspace">
+        <h1 className="sr-only">Your ideas</h1>
+        <div className="manifest-workspace-shell">
+          <div className="manifest-workspace-grid manifest-ideas-index" data-library-open="true" data-context-open="false">
+            <div className="manifest-workspace-library">
+              <IdeasList />
+            </div>
+            <IdeasEmptyState />
           </div>
         </div>
       </div>
