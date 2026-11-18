@@ -170,6 +170,8 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "generation_job": "ideas.read",
         "generationJob": "ideas.read",
         "vaultExport": "ideas.read",
+        "ideaKnowledgeGraph": "ideas.read",
+        "idea_knowledge_graph": "ideas.read",
         "search_ideas": "ideas.read",
         "searchIdeas": "ideas.read",
         "shared_ideas": "ideas.read",

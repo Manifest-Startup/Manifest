@@ -20,7 +20,7 @@ description: "Create, find, edit, publish, import, export and qualify startup id
 ## Qualification interview
 Manifest interviews the founder to sharpen an idea before documents are generated.
 1. `start_idea_qualification` with the person's rough idea text; it returns the first questions.
-2. Ask the person those questions in your own words; don't invent answers. Send their answers with `continue_idea_qualification` (sessionId + userMessage).
+2. Ask the person those questions in your own words; don't invent answers. Send their answers with `continue_idea_qualification` (sessionId + userMessage). Each answer becomes a citable passage in the idea's knowledge graph, so after every answer sync the local vault (manifest-vault) if the person keeps one.
 3. Repeat until the session reports it is complete; summarise the verdict.
 - `my_idea_qualification_sessions` lists past interviews; `idea_qualification_session` reads one.
 

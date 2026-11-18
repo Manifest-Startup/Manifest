@@ -21,12 +21,13 @@ Whenever the person describes an idea, thinks out loud, or dictates a note, save
 1. `manifest_vault.py since` prints the last sync time (empty the first time).
 2. Call `vault_export` with `sinceUpdatedAt` set to it (omit it the first time, or for a full refresh).
 3. Save the tool's JSON result to a temporary file and run `manifest_vault.py sync <file>`; it prints what was created or updated. Remove the temporary file.
-4. Sync after you create an idea, write or generate documents, or finish an interview, so the vault matches Manifest.
+4. Sync automatically, without being asked, after you create an idea, after **every** answer you send with `continue_idea_qualification`, and after documents are written or generated, so the knowledge graph grows while the person talks. Keep it quiet: one short line at most.
 
 ## What's in the vault
 - `Manifest/Home.md`: the map of everything.
-- `Manifest/Ideas/<title>.md`: description, documents, skills needed, related ideas, link to the app, and a `## My notes` section that's theirs.
-- `Manifest/Documents/<idea>/<document>.md`: canvas, pitch deck, PRD, patent draft, similar ideas.
+- `Manifest/Ideas/<title>.md`: the idea note one sentence per paragraph with block ids (`^p1`…), the founder's interview answers (`^a1`…), documents, concepts, skills needed, related ideas (with the concepts they share), link to the app, and a `## My notes` section that's theirs.
+- `Manifest/Documents/<idea>/<document>.md`: canvas, pitch deck, PRD, patent draft, similar ideas. Every substantial line ends with a citation such as `[[Manifest/Ideas/<idea>#^p3|↩]]` to the sentence or answer it draws on, and concepts link to their hub notes. The app shows the same links (ADR 0006).
+- `Manifest/Concepts/<concept>.md`: hubs linking every idea, cited passage and document that mentions a concept, across all the person's ideas. `idea_knowledge_graph` returns one idea's graph without writing files.
 - `Manifest/Skills/<skill>.md` and `Manifest/Interviews/<date> <idea>.md`.
 - `Notes/<date> <title>.md`: their notes, with `ideas:` and `tags:` frontmatter.
 

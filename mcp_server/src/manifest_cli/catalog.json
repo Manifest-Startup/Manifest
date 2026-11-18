@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "a5123512c2a04e389eb30f16c37f8568f53f8be605c1ed31f35b1e31dba7cddc",
+ "schema_sha256": "c06d2112e58245e9fe1747af23dd3d60ccf898ed3ce5fa7ee4f2d8fc17249620",
  "operations": [
   {
    "name": "me",
@@ -1032,6 +1032,26 @@
      "type": "String",
      "kind": "scalar",
      "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "ideaKnowledgeGraph",
+   "command": "idea-knowledge-graph",
+   "kind": "query",
+   "description": "One of your ideas as a knowledge graph: the note's sentences and your interview answers as citable passages, the concepts they share with your other ideas, and every document with [[wiki-link]] citations back to the original idea note. Built live, so it grows as you answer interview questions and documents are generated. Owner only.",
+   "destructive": false,
+   "returns": "IdeaKnowledgeGraph",
+   "selection": "{ ideaId ideaPath passages { id kind text } concepts { label path passageIds documentTypes } related { ideaId title path concepts } documents { documentType markdown } }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
      "default": null,
      "description": ""
     }
