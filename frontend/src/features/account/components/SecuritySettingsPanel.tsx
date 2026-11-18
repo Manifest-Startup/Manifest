@@ -70,8 +70,8 @@ const SecuritySettingsPanel: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-neutral900 dark:text-white">
-                      {session.kind === "cli"
-                        ? session.userAgent || "Manifest CLI"
+                      {session.kind === "cli" || session.kind === "agent"
+                        ? session.userAgent || (session.kind === "cli" ? "Manifest CLI" : "AI agent")
                         : session.current
                           ? "Current session"
                           : "Browser session"}
@@ -81,7 +81,9 @@ const SecuritySettingsPanel: React.FC = () => {
                   <p className="mt-1 text-xs leading-5 text-gray500 dark:text-gray400">
                     {session.kind === "cli"
                       ? "Command-line access approved in this browser"
-                      : session.userAgent || "User agent unavailable"}
+                      : session.kind === "agent"
+                        ? "AI agent access approved in this browser (MCP). Revoke to disconnect it."
+                        : session.userAgent || "User agent unavailable"}
                   </p>
                   <p className="mt-2 text-xs leading-5 text-gray500 dark:text-gray400">
                     Last seen {formatSessionDate(session.lastSeenAt)} · Created {formatSessionDate(session.createdAt)}

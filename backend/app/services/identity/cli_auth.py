@@ -57,6 +57,7 @@ class CodeGrant:
     email: str | None
     browser_session_id: str | None
     auth_iat: int | None
+    scope: str | None = None
 
 
 def _key(purpose: str) -> bytes:
@@ -125,10 +126,16 @@ def issue_code(
     auth_iat: int | None,
     redirect_uri: str,
     code_challenge: str,
+    audience: str = CODE_AUDIENCE,
+    client_id: str | None = None,
+    scope: str | None = None,
 ) -> str:
+    """A one-time code; agents (ADR 0004) use their own ``audience`` and bind ``client_id``."""
     now = int(time.time())
     claims = {
-        "aud": CODE_AUDIENCE,
+        "aud": audience,
+        "cid": client_id,
+        "scope": scope,
         "sub": user_id,
         "email": email,
         "bsid": browser_session_id,
@@ -160,14 +167,21 @@ def _claim_once(jti: str, expires_at: float) -> bool:
     return True
 
 
-def redeem_code(code: str | None, code_verifier: str | None, redirect_uri: str | None) -> CodeGrant:
-    """Check the code, its PKCE verifier and redirect URI, and spend it."""
+def redeem_code(
+    code: str | None,
+    code_verifier: str | None,
+    redirect_uri: str | None,
+    *,
+    audience: str = CODE_AUDIENCE,
+    client_id: str | None = None,
+) -> CodeGrant:
+    """Check the code, its PKCE verifier, redirect URI and client, and spend it."""
     if not code or not code_verifier:
         raise CliAuthError("invalid_request", "code and code_verifier are required.")
     if not _VERIFIER.match(code_verifier):
         raise CliAuthError("invalid_grant", "code_verifier is malformed.")
     try:
-        claims = jwt.decode(code, _key("cli-code"), algorithms=["HS256"], audience=CODE_AUDIENCE)
+        claims = jwt.decode(code, _key("cli-code"), algorithms=["HS256"], audience=audience)
     except jwt.ExpiredSignatureError:
         raise CliAuthError(
             "invalid_grant", "The sign-in code expired. Run `manifest login` again."
@@ -178,6 +192,8 @@ def redeem_code(code: str | None, code_verifier: str | None, redirect_uri: str |
         raise CliAuthError(
             "invalid_grant", "redirect_uri does not match the authorization request."
         )
+    if (claims.get("cid") or None) != (client_id or None):
+        raise CliAuthError("invalid_grant", "The code was issued to a different client.")
     if not hmac.compare_digest(_s256(code_verifier), str(claims.get("chal") or "")):
         raise CliAuthError("invalid_grant", "code_verifier does not match the code_challenge.")
     if not _claim_once(str(claims.get("jti") or ""), float(claims.get("exp") or 0)):
@@ -187,6 +203,7 @@ def redeem_code(code: str | None, code_verifier: str | None, redirect_uri: str |
         email=claims.get("email"),
         browser_session_id=claims.get("bsid"),
         auth_iat=claims.get("auth_iat"),
+        scope=claims.get("scope"),
     )
 
 

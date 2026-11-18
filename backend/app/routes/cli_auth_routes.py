@@ -136,7 +136,7 @@ def cli_authorize(
 
     payload = get_current_token_payload_optional(request) or {}
     user_id = get_current_user_id_optional(request) if payload else None
-    if not user_id or payload.get("kind") == "cli" or _is_guest(str(user_id)):
+    if not user_id or payload.get("kind") in ("cli", "agent") or _is_guest(str(user_id)):
         # Guests and signed-out visitors sign in with Open Media first.
         return _login_redirect(request)
     user_id = str(user_id)

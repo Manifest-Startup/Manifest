@@ -119,6 +119,10 @@ def create_session_token(
     return jwt.encode(payload, SESSION_SECRET, algorithm="HS256")
 
 
+# CLI and AI-agent sessions (ADR 0003, 0004): longer idle window, label kept on use.
+LONG_LIVED_KINDS = frozenset({"cli", "agent"})
+
+
 def create_cli_session_token(
     user_id: str,
     *,
@@ -126,6 +130,9 @@ def create_cli_session_token(
     label: str,
     auth_iat: int | None,
     request: Request | None = None,
+    kind: str = "cli",
+    token_ttl: timedelta | None = None,
+    extra_claims: dict[str, Any] | None = None,
 ) -> tuple[str, datetime]:
     """Mint a revocable, longer-lived Manifest CLI session (ADR 0003).
 
@@ -135,12 +142,13 @@ def create_cli_session_token(
     """
     session_id = create_user_session(user_id, request, ttl_days=CLI_SESSION_TTL_DAYS, label=label)
     now = datetime.now(UTC)
-    expires_at = now + timedelta(days=CLI_SESSION_TTL_DAYS)
+    expires_at = now + (token_ttl or timedelta(days=CLI_SESSION_TTL_DAYS))
     payload = {
+        **(extra_claims or {}),
         "sub": user_id,
         "email": email,
         "sid": session_id,
-        "kind": "cli",
+        "kind": kind,
         "iat": now,
         "auth_iat": int(auth_iat or now.timestamp()),
         "exp": expires_at,
@@ -153,7 +161,7 @@ def _session_is_active(payload: dict[str, Any]) -> bool:
     session_id, user_id = payload.get("sid"), payload.get("sub")
     if not session_id or not user_id:
         return True
-    if payload.get("kind") == "cli":
+    if payload.get("kind") in LONG_LIVED_KINDS:
         return is_session_active(
             str(session_id), str(user_id), idle_timeout_seconds=CLI_SESSION_IDLE_TIMEOUT_SECONDS
         )
@@ -162,7 +170,7 @@ def _session_is_active(payload: dict[str, Any]) -> bool:
 
 def _touch(payload: dict[str, Any], request: Request) -> None:
     session_id = payload.get("sid")
-    if payload.get("kind") == "cli":
+    if payload.get("kind") in LONG_LIVED_KINDS:
         touch_session(str(session_id) if session_id else None, request, keep_user_agent=True)
     else:
         touch_session(str(session_id) if session_id else None, request)

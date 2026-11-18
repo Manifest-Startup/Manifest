@@ -287,6 +287,7 @@ import contextlib
 
 from app.routes.account_routes import router as account_router
 from app.routes.agent_discovery_routes import router as agent_discovery_router
+from app.routes.agent_oauth_routes import router as agent_oauth_router
 from app.routes.api_keys_routes import router as api_keys_router
 from app.routes.api_v1_routes import router as api_v1_router
 from app.routes.auth_routes import router as auth_router
@@ -318,6 +319,7 @@ app.include_router(api_v1_router)
 app.include_router(agent_discovery_router)
 app.include_router(api_keys_router)
 app.include_router(cli_auth_router)
+app.include_router(agent_oauth_router)
 app.include_router(account_router)
 app.include_router(privacy_router)
 app.include_router(dsar_router)
