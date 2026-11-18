@@ -190,6 +190,8 @@ function apiRequestFor(request, path, method, body) {
   const headers = new Headers({ accept: "application/json" });
   const authorization = request.headers.get("authorization");
   if (authorization) headers.set("authorization", authorization);
+  const clientIp = request.headers.get("cf-connecting-ip");
+  if (clientIp) headers.set("cf-connecting-ip", clientIp);
   if (body !== undefined) headers.set("content-type", "application/json");
   return new Request(url, {
     method,

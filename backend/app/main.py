@@ -922,6 +922,9 @@ async def _startup_async_db_pool() -> None:
     from app.db.async_pool import init_async_pool
 
     await init_async_pool()
+    from app.workers.generation_worker import start_in_background
+
+    start_in_background()
 
 
 @app.on_event("shutdown")
@@ -929,6 +932,9 @@ async def _shutdown_async_db_pool() -> None:
     from app.db.async_pool import close_async_pool
 
     await close_async_pool()
+    from app.workers.generation_worker import stop_background
+
+    stop_background()
 
 
 app = ASGIApp(sio, other_asgi_app=app)
