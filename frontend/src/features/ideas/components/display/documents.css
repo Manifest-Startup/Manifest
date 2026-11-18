@@ -3,7 +3,7 @@
 .manifest-deck,
 .manifest-canvas,
 .manifest-costs {
-  color: var(--manifest-text, #202a32);
+  color: var(--manifest-text, #1d1d1f);
   min-width: 0;
 }
 .manifest-document-header {
@@ -12,7 +12,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 4px 0 16px;
-  border-bottom: 1px solid #e4e5e3;
+  border-bottom: 1px solid var(--border-primary);
   margin-bottom: 20px;
 }
 .manifest-document-header h3 {
@@ -26,13 +26,13 @@
 .manifest-document-empty {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #737b81;
+  color: var(--text-secondary);
 }
 .manifest-document-button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid #dedfdd;
+  border: 1px solid var(--border-secondary);
   border-radius: 6px;
   padding: 7px 10px;
   font-size: 12px;
@@ -40,7 +40,7 @@
   color: inherit;
 }
 .manifest-document-button:hover {
-  background: #f5f5f3;
+  background: var(--bg-tertiary);
 }
 .manifest-document-button:disabled {
   opacity: 0.5;
@@ -51,7 +51,7 @@
 }
 .manifest-document-contents summary {
   cursor: pointer;
-  color: #737b81;
+  color: var(--text-secondary);
 }
 .manifest-document-contents nav {
   display: flex;
@@ -81,7 +81,7 @@
   line-height: 1.4;
   margin: 28px 0 12px;
   padding-top: 12px;
-  border-top: 1px solid #e8e9e7;
+  border-top: 1px solid var(--border-primary);
 }
 .manifest-document-body h3,
 .manifest-document-body h4 {
@@ -111,14 +111,14 @@
   text-underline-offset: 3px;
 }
 .manifest-document-body blockquote {
-  border-left: 2px solid #cbd0d2;
+  border-left: 2px solid var(--text-primary);
   padding-left: 16px;
-  color: #737b81;
+  color: var(--text-secondary);
 }
 .manifest-document-body pre {
   overflow-x: auto;
   padding: 12px;
-  background: #f6f6f4;
+  background: var(--bg-tertiary);
 }
 .manifest-document-table {
   overflow-x: auto;
@@ -136,12 +136,12 @@
 .manifest-document-table th,
 .manifest-document-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid #e4e5e3;
+  border-bottom: 1px solid var(--border-primary);
   vertical-align: top;
   min-width: 100px;
 }
 .manifest-document-table th {
-  background: #f5f5f3;
+  background: var(--bg-tertiary);
   font-weight: 600;
 }
 .manifest-document--legal > .manifest-document-body {
@@ -163,7 +163,7 @@
   position: relative;
   aspect-ratio: 16 / 9;
   padding: clamp(20px, 4vw, 44px);
-  border: 1px solid #dedfdd;
+  border: 1px solid var(--border-secondary);
   background: #fff;
   margin: 0 0 24px;
   display: flex;
@@ -171,7 +171,7 @@
 }
 .manifest-slide-number {
   font-size: 11px;
-  color: #737b81;
+  color: var(--text-secondary);
   margin-bottom: 18px;
 }
 .manifest-slide h4 {
@@ -195,13 +195,13 @@
 .manifest-canvas-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid #dedfdd;
-  border-left: 1px solid #dedfdd;
+  border-top: 1px solid var(--border-secondary);
+  border-left: 1px solid var(--border-secondary);
 }
 .manifest-canvas-block {
   min-width: 0;
-  border-right: 1px solid #dedfdd;
-  border-bottom: 1px solid #dedfdd;
+  border-right: 1px solid var(--border-secondary);
+  border-bottom: 1px solid var(--border-secondary);
   padding: 15px;
 }
 .manifest-canvas-block h4 {
@@ -223,7 +223,7 @@
 }
 .manifest-canvas-attribution {
   font-size: 11px;
-  color: #737b81;
+  color: var(--text-secondary);
   margin-top: 12px;
 }
 @container (min-width: 760px) {
@@ -289,15 +289,15 @@
 .dark .manifest-deck,
 .dark .manifest-canvas,
 .dark .manifest-costs {
-  color: #e6e8e9;
+  color: #f5f5f7;
 }
 .dark .manifest-slide {
-  background: #171c22;
+  background: #1d1d1f;
 }
 .dark .manifest-document-table th,
 .dark .manifest-document-body pre,
 .dark .manifest-document-button:hover {
-  background: #22282e;
+  background: #2c2c2e;
 }
 .dark .manifest-document-header,
 .dark .manifest-document-body h2,
@@ -307,7 +307,7 @@
 .dark .manifest-canvas-grid,
 .dark .manifest-canvas-block,
 .dark .manifest-document-button {
-  border-color: #343b41;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 @media print {
   .manifest-document-contents,
@@ -330,4 +330,122 @@
   .manifest-document-table tr {
     break-inside: avoid;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Reading theme (matches the workspace Markdown theme): Apple.com rhythm with
+   Nike.com contrast. SF Pro, tight-tracked headlines, a heavy rule above each
+   section, uppercase spec-sheet table headers, Geist Mono code.
+   --------------------------------------------------------------------------- */
+.manifest-document-body {
+  font-size: 16px;
+  line-height: 1.65;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "kern", "liga", "calt";
+}
+.manifest-document-body h1 {
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.032em;
+  margin: 8px 0 18px;
+  text-wrap: balance;
+}
+.manifest-document-body h2 {
+  font-size: 23px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  margin: 44px 0 14px;
+  padding-top: 16px;
+  border-top: 2px solid var(--text-primary);
+  text-wrap: balance;
+}
+.dark .manifest-document-body h2 { border-color: var(--text-primary); }
+.manifest-document-body h3 {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.016em;
+  margin: 28px 0 8px;
+}
+.manifest-document-body h4 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 22px 0 6px;
+}
+.manifest-document-body h5,
+.manifest-document-body h6 {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 22px 0 6px;
+}
+.manifest-document-body p,
+.manifest-document-body ul,
+.manifest-document-body ol { margin: 0 0 16px; }
+.manifest-document-body li { margin: 5px 0; }
+.manifest-document-body ul li::marker { color: var(--text-tertiary); }
+.manifest-document-body ol li::marker { color: var(--text-secondary); font-weight: 600; }
+.manifest-document-body strong { font-weight: 600; }
+.manifest-document-body a,
+.manifest-document-contents a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.manifest-document-body a:hover,
+.manifest-document-contents a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+.manifest-document-body blockquote {
+  margin: 22px 0;
+  border-left: 3px solid var(--text-primary);
+  padding: 2px 0 2px 18px;
+  color: var(--text-primary);
+  font-size: 17.5px;
+  line-height: 1.5;
+  letter-spacing: -0.016em;
+}
+.manifest-document-body code {
+  font-family: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.86em;
+  padding: 0.12em 0.4em;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+.manifest-document-body pre {
+  border-radius: 14px;
+  padding: 18px 22px;
+  font-size: 13px;
+  line-height: 1.65;
+  background: var(--bg-tertiary);
+}
+.manifest-document-body pre code { padding: 0; background: transparent; font-size: inherit; }
+.manifest-document-body hr {
+  border: 0;
+  height: 1px;
+  background: var(--border-primary);
+  margin: 40px 0;
+}
+.manifest-document-table th,
+.dark .manifest-document-table th {
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--text-primary);
+}
+.manifest-document-table td { font-variant-numeric: tabular-nums; }
+.manifest-document-header h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.022em; }
+.manifest-slide { border-radius: 14px; }
+.manifest-slide-number,
+.manifest-document-contents summary {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
