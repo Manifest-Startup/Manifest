@@ -28,9 +28,10 @@
 | **Codex** | `codex plugin marketplace add Manifest-Startup/Manifest` then `codex plugin add manifest@manifest` |
 | **Claude, ChatGPT (connectors)** | Add a custom connector with `https://manifeststartup.com/mcp` and sign in |
 | **VS Code** | Command palette → *Chat: Install Plugin from Source* → `Manifest-Startup/Manifest`, or [add the MCP server](vscode:mcp/install?%7B%22name%22%3A%22manifest%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmanifeststartup.com%2Fmcp%22%7D) |
-| **Cursor** | Plugins → install from `Manifest-Startup/Manifest`, or [add the MCP server](cursor://anysphere.cursor-deeplink/mcp/install?name=manifest&config=eyJ1cmwiOiJodHRwczovL21hbmlmZXN0c3RhcnR1cC5jb20vbWNwIn0=) |
+| **Cursor** | Plugins marketplace → *Manifest*, or install from `Manifest-Startup/Manifest`, or [add the MCP server](cursor://anysphere.cursor-deeplink/mcp/install?name=manifest&config=eyJ1cmwiOiJodHRwczovL21hbmlmZXN0c3RhcnR1cC5jb20vbWNwIn0=) |
 | **Antigravity** | `agy plugin install ./agent-plugin` from a clone of the repository |
 | **Gemini CLI** | `gemini extensions install https://github.com/Manifest-Startup/Manifest` |
+| **OpenCode, Amp, Goose, Windsurf** | Add a remote MCP server with the URL `https://manifeststartup.com/mcp` in its MCP settings |
 | **Any MCP client** | Streamable HTTP at `https://manifeststartup.com/mcp`; OAuth is discovered automatically |
 | **Skills only** | `npx skills add Manifest-Startup/Manifest` |
 
@@ -71,9 +72,11 @@ skills/*/SKILL.md ◀── tests/tooling/test_agent_plugin.py fails if any tool
 
 | File | Read by |
 |---|---|
-| `.claude-plugin/plugin.json`, `.mcp.json`, `commands/` | Claude Code, Claude Cowork, VS Code agent plugins |
+| `.claude-plugin/plugin.json`, `.mcp.json`, `commands/` | Claude Code, Claude Cowork, VS Code agent plugins, GitHub Copilot CLI |
 | `.codex-plugin/plugin.json` | Codex |
-| `plugin.json` + `mcp.json` | Agent Plugins standard (agent-plugins.org) |
+| `plugin.json` + `mcp.json` | Agent Plugins standard (agent-plugins.org), Kiro powers |
+| `.cursor-plugin/plugin.json` + `.cursor-plugin/mcp.json`, `../.cursor-plugin/marketplace.json` | Cursor (cursor.com/docs/reference/plugins) |
+| `../glama.json` | Glama |
 | `.antigravity-plugin/plugin.json` + `mcp_config.json` | Antigravity |
 | `registry/manifest.server.json` | Official MCP Registry (`com.manifeststartup/manifest`) |
 | `skills/` | every host above, and `npx skills` |

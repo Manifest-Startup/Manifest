@@ -1,0 +1,13 @@
+{
+  "name": "manifest",
+  "owner": {
+    "name": "Manifest"
+  },
+  "plugins": [
+    {
+      "name": "manifest",
+      "source": "agent-plugin",
+      "description": "From a rough idea to an investable plan: ideas, documents, pitch shorts, investments and your account, for AI agents."
+    }
+  ]
+}

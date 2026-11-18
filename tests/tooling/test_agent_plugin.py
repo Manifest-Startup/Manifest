@@ -36,6 +36,7 @@ def test_every_manifest_agrees():
         load("agent-plugin/.claude-plugin/plugin.json"),
         load("agent-plugin/.codex-plugin/plugin.json"),
         load("agent-plugin/.antigravity-plugin/plugin.json"),
+        load("agent-plugin/.cursor-plugin/plugin.json"),
         load("gemini-extension.json"),
     ]
     assert {m["name"] for m in manifests} == {"manifest"}
@@ -45,6 +46,7 @@ def test_every_manifest_agrees():
         load("agent-plugin/.mcp.json")["mcpServers"]["manifest"]["url"],
         load("agent-plugin/mcp.json")["mcpServers"]["manifest"]["url"],
         load("agent-plugin/mcp_config.json")["mcpServers"]["manifest"]["serverUrl"],
+        load("agent-plugin/.cursor-plugin/mcp.json")["mcpServers"]["manifest"]["url"],
         load("gemini-extension.json")["mcpServers"]["manifest"]["httpUrl"],
         load("agent-plugin/registry/manifest.server.json")["remotes"][0]["url"],
     ]
@@ -56,6 +58,8 @@ def test_every_manifest_agrees():
         (entry,) = marketplace["plugins"]
         source = entry["source"] if isinstance(entry["source"], str) else entry["source"]["path"]
         assert entry["name"] == "manifest" and source == "./agent-plugin"
+    (cursor,) = load(".cursor-plugin/marketplace.json")["plugins"]
+    assert cursor["name"] == "manifest" and cursor["source"] == "agent-plugin"
     assert (ROOT / load("gemini-extension.json")["contextFileName"]).is_file()
 
 

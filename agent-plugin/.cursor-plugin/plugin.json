@@ -1,0 +1,28 @@
+{
+  "name": "manifest",
+  "version": "2.0.0",
+  "description": "Manifest for AI agents: turn a rough startup idea into an investable plan. Create and qualify ideas; generate Business Model Canvas, pitch deck, PRD and provisional patent drafts; browse pitch shorts and message founders; track investments and cap tables; manage collaborators, privacy and your account. Everything you can do in Manifest, with every destructive change confirmed first.",
+  "author": {
+    "name": "Manifest"
+  },
+  "homepage": "https://manifeststartup.com/agents.md",
+  "repository": "https://github.com/Manifest-Startup/Manifest",
+  "license": "MIT",
+  "keywords": [
+    "startup",
+    "founder",
+    "business-plan",
+    "pitch-deck",
+    "business-model-canvas",
+    "prd",
+    "patent",
+    "cap-table",
+    "ideas",
+    "mcp",
+    "open-source"
+  ],
+  "logo": "assets/icon.png",
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "mcpServers": "./.cursor-plugin/mcp.json"
+}
