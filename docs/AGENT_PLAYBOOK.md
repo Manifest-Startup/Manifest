@@ -18,7 +18,7 @@ Manifest is a full-stack platform with four main execution paths:
 ### Backend bootstrap and routing
 
 - App bootstrap and middleware: `backend/app/main.py`
-- GraphQL contract and resolvers: `backend/app/graphql/schema.py`
+- GraphQL contract and resolvers: `backend/app/graphql/schema.py` (root composition and auth), `backend/app/graphql/resolvers/<domain>.py`, `backend/app/graphql/types/<domain>.py`
 - REST routes: `backend/app/routes/*.py`
 - Shared route auth dependency: `backend/app/routes/dependencies.py`
 - Website audit and GitHub issue sync: `backend/app/routes/website_testing_routes.py`, `backend/app/services/operations/website_issue_sync.py`
@@ -83,7 +83,7 @@ Use this to dispatch tasks quickly.
 
 1. Add/extend backend service under `backend/app/services/`.
 2. Register in `backend/app/managers/manifest_manager.py`.
-3. Add GraphQL resolver(s) in `backend/app/graphql/schema.py`.
+3. Add GraphQL resolver(s) in `backend/app/graphql/resolvers/<domain>.py`.
 4. If background-generated, integrate in `backend/app/services/ideas/document_generation.py`.
 5. Add frontend GraphQL operation in `frontend/src/features/core/apollo/queries.ts`.
 6. Add UI surface in ideas display components.
@@ -91,7 +91,7 @@ Use this to dispatch tasks quickly.
 
 ### B) Add a new GraphQL field used by UI
 
-1. Update Strawberry types and resolver return mapping in `backend/app/graphql/schema.py`.
+1. Update Strawberry types and resolver return mapping in `backend/app/graphql/types/<domain>.py` and `resolvers/<domain>.py`.
 2. Update query or mutation in `frontend/src/features/core/apollo/queries.ts`.
 3. Update consuming component typings and render logic.
 4. Run GraphQL-focused backend tests and affected frontend tests.

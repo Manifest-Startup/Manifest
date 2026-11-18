@@ -69,7 +69,6 @@ ignore = [
 # E402 (module-level import not at top): the files below interleave imports
 # with side-effecting setup (sys.path, env detection, lazy imports inside
 # wrappers) intentionally. Refactoring would change runtime semantics.
-"backend/app/graphql/schema.py" = ["E402"]
 "backend/app/main.py" = ["E402"]
 "backend/app/routes/customer_routes.py" = ["E402"]
 "backend/app/security/config.py" = ["E402"]

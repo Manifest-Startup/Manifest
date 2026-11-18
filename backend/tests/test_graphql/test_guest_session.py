@@ -21,7 +21,7 @@ def _info_with_response():
 async def test_start_guest_session_disabled_in_demo_mode():
     mutation = Mutation()
     info = _info_with_response()
-    with patch("app.graphql.schema.DEMO_MODE", True):
+    with patch("app.graphql.resolvers.account.DEMO_MODE", True):
         with pytest.raises(Exception, match="not available in demo mode"):
             await mutation.start_guest_session(info)
 
@@ -32,7 +32,7 @@ async def test_toggle_publish_rejects_guest_account():
     info = MagicMock()
     info.context = {"db": MagicMock(), "request": MagicMock()}
     with patch(
-        "app.graphql.schema._require_full_account",
+        "app.graphql.resolvers.ideas._require_full_account",
         side_effect=Exception("Create an account to use this feature."),
     ):
         with pytest.raises(Exception, match="Create an account"):
@@ -67,11 +67,11 @@ async def test_start_guest_session_retries_transient_insert_failure():
     )
     cm_ok, cur_ok = _mock_db_connection_cm()
 
-    with patch("app.graphql.schema.DEMO_MODE", False), patch(
+    with patch("app.graphql.resolvers.account.DEMO_MODE", False), patch(
         "app.db.database.get_db_connection", side_effect=[cm_fail, cm_ok]
     ), patch("app.auth.current_user.create_session_token", return_value="jwt-token"), patch(
-        "app.graphql.schema._set_browser_auth_session"
-    ), patch("app.graphql.schema.record_security_event"):
+        "app.graphql.resolvers.account._set_browser_auth_session"
+    ), patch("app.graphql.resolvers.account.record_security_event"):
         result = await mutation.start_guest_session(info)
 
     assert result.token == "jwt-token"
@@ -92,10 +92,10 @@ async def test_start_guest_session_fails_after_both_attempts():
     cm1, _ = _mock_db_connection_cm(cursor_side_effect=Exception("still down"))
     cm2, _ = _mock_db_connection_cm(cursor_side_effect=Exception("still down"))
 
-    with patch("app.graphql.schema.DEMO_MODE", False), patch(
+    with patch("app.graphql.resolvers.account.DEMO_MODE", False), patch(
         "app.db.database.get_db_connection", side_effect=[cm1, cm2]
-    ), patch("app.graphql.schema._set_browser_auth_session"), patch(
-        "app.graphql.schema.record_security_event"
+    ), patch("app.graphql.resolvers.account._set_browser_auth_session"), patch(
+        "app.graphql.resolvers.account.record_security_event"
     ):
         with pytest.raises(Exception, match="Could not start guest session"):
             await mutation.start_guest_session(info)

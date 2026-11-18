@@ -4,7 +4,7 @@ from app.graphql.schema import _generate_documents_for_idea, _start_background_g
 
 
 def test_start_background_generation_starts_thread_when_ai_is_unavailable():
-    with patch("app.graphql.schema.start_thread_with_current_key") as mock_start:
+    with patch("app.graphql.resolvers.documents.start_thread_with_current_key") as mock_start:
         result = _start_background_generation("idea-1", "Test idea")
 
     assert result is True
@@ -13,7 +13,7 @@ def test_start_background_generation_starts_thread_when_ai_is_unavailable():
 
 
 def test_start_background_generation_starts_thread_when_ai_is_available():
-    with patch("app.graphql.schema.start_thread_with_current_key") as mock_start:
+    with patch("app.graphql.resolvers.documents.start_thread_with_current_key") as mock_start:
         result = _start_background_generation("idea-1", "Test idea")
 
     assert result is True

@@ -16,7 +16,7 @@ async def test_survey_insights_requires_auth_and_maps_summary_payload():
     info = SimpleNamespace(context={"request": request, "db": MagicMock()})
 
     with patch(
-        "app.graphql.schema.survey_ops_service.get_summary",
+        "app.graphql.resolvers.survey.survey_ops_service.get_summary",
         return_value={
             "generated_at": "2026-04-05T12:00:00Z",
             "window_days": 30,

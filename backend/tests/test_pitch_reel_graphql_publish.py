@@ -15,7 +15,7 @@ async def test_pitch_reels_feed_calls_list_feed_with_viewer_id_kwarg(monkeypatch
     info = MagicMock()
     info.context = {"db": MagicMock(), "request": MagicMock()}
 
-    with patch("app.graphql.schema.get_current_user_id", return_value="viewer-uuid-1"):
+    with patch("app.graphql.resolvers.pitch_reels.get_current_user_id", return_value="viewer-uuid-1"):
         with patch(
             "app.services.pitch_reels.service.create_pitch_reel_service",
             return_value=mock_service,
@@ -37,7 +37,7 @@ async def test_pitch_reels_feed_is_empty_when_open_media_is_off(monkeypatch):
     monkeypatch.delenv("OPEN_MEDIA_ENABLED", raising=False)
     info = MagicMock()
     info.context = {"db": MagicMock(), "request": MagicMock()}
-    with patch("app.graphql.schema.get_current_user_id", return_value="viewer"):
+    with patch("app.graphql.resolvers.pitch_reels.get_current_user_id", return_value="viewer"):
         with patch("app.services.pitch_reels.service.create_pitch_reel_service") as factory:
             from app.graphql.schema import Query
 
@@ -87,7 +87,7 @@ async def test_toggle_publish_idea_publish_path_upserts_reel_and_schedules_video
     mock_reel_svc = MagicMock()
     mock_reel_svc.upsert_reel_for_published_idea.return_value = ("reel-uuid-9", True)
 
-    with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+    with patch("app.graphql.resolvers.shared.get_current_user_id", return_value=user_id):
         with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
             with patch(
                 "app.services.pitch_reels.service.create_pitch_reel_service",
@@ -134,7 +134,7 @@ async def test_toggle_publish_idea_skips_scheduling_when_reel_already_has_a_clip
     mock_reel_svc = MagicMock()
     mock_reel_svc.upsert_reel_for_published_idea.return_value = ("reel-x", False)
 
-    with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+    with patch("app.graphql.resolvers.shared.get_current_user_id", return_value=user_id):
         with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
             with patch(
                 "app.services.pitch_reels.service.create_pitch_reel_service",
@@ -167,7 +167,7 @@ async def test_toggle_publish_idea_unpublish_calls_unpublish_reel():
 
     mock_reel_svc = MagicMock()
 
-    with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+    with patch("app.graphql.resolvers.shared.get_current_user_id", return_value=user_id):
         with patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False):
             with patch(
                 "app.services.pitch_reels.service.create_pitch_reel_service",

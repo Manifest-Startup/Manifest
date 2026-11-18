@@ -52,7 +52,9 @@ def mock_supabase():
 @pytest.fixture
 def mock_get_current_user_id():
     """Mock get_current_user_id to return a test user ID."""
-    with patch('app.graphql.schema.get_current_user_id', return_value='test_user_id'):
+    with patch('app.graphql.schema.get_current_user_id', return_value='test_user_id'), patch(
+        'app.graphql.resolvers.ideas.get_current_user_id', return_value='test_user_id'
+    ):
         yield
 
 def test_delete_idea_success(mock_supabase, mock_get_current_user_id):

@@ -34,6 +34,7 @@ def run_idea(query):
     }
     with (
         patch("app.graphql.schema.get_current_user_id", return_value="synthetic-user"),
+        patch("app.graphql.resolvers.ideas.get_current_user_id", return_value="synthetic-user"),
         patch(
             "app.graphql.schema.resolve_principal", return_value=SimpleNamespace(has=lambda _: True)
         ),

@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "84dd25d7f7599d1f0af531a295dffc16cdb3c84956fbb66e4766423aead17502",
+ "schema_sha256": "bf174558368f117edbdf04395b0141cf98c96ce968f5fe16b97187a56b4037d6",
  "operations": [
   {
    "name": "me",
@@ -11,6 +11,46 @@
    "destructive": false,
    "returns": "User!",
    "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
+   "args": []
+  },
+  {
+   "name": "account",
+   "command": "account",
+   "kind": "query",
+   "description": "Your account settings (same fields as me), for editing with update_account.",
+   "destructive": false,
+   "returns": "User!",
+   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
+   "args": []
+  },
+  {
+   "name": "mySessions",
+   "command": "my-sessions",
+   "kind": "query",
+   "description": "Every signed-in session on your account (browsers, CLI, agents), with the current one marked.",
+   "destructive": false,
+   "returns": "[SessionInfo!]!",
+   "selection": "{ sessionId current createdAt expiresAt revokedAt lastSeenAt requestIp userAgent kind }",
+   "args": []
+  },
+  {
+   "name": "privacyStatus",
+   "command": "privacy-status",
+   "kind": "query",
+   "description": "Your privacy choices and any pending data requests.",
+   "destructive": false,
+   "returns": "PrivacyStatus!",
+   "selection": "{ exportAvailable deletionRequestedAt guestRetentionDays }",
+   "args": []
+  },
+  {
+   "name": "availableSkills",
+   "command": "available-skills",
+   "kind": "query",
+   "description": "Return the canonical list of skills available on the platform.",
+   "destructive": false,
+   "returns": "[String!]!",
+   "selection": "",
    "args": []
   },
   {
@@ -25,6 +65,76 @@
     {
      "name": "jobId",
      "flag": "--job-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "patents",
+   "command": "patents",
+   "kind": "query",
+   "description": "List your provisional patent drafts.",
+   "destructive": false,
+   "returns": "[Patent!]!",
+   "selection": "{ patentId title description createdAt }",
+   "args": []
+  },
+  {
+   "name": "pitchDeck",
+   "command": "pitch-deck",
+   "kind": "query",
+   "description": "Read the pitch deck generated for an idea.",
+   "destructive": false,
+   "returns": "PitchDeckOutput!",
+   "selection": "{ pitchDeck }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "productRequirementsDocument",
+   "command": "product-requirements-document",
+   "kind": "query",
+   "description": "Read the product requirements document (PRD) generated for an idea.",
+   "destructive": false,
+   "returns": "ProductRequirementsDocumentOutput!",
+   "selection": "{ productRequirementsDocument }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "provisionalPatent",
+   "command": "provisional-patent",
+   "kind": "query",
+   "description": "Read the provisional patent draft generated for an idea.",
+   "destructive": false,
+   "returns": "ProvisionalPatentOutput!",
+   "selection": "{ provisionalPatent coversheetPdf specificationPdf }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
      "type": "String!",
      "kind": "scalar",
      "required": true,
@@ -83,34 +193,24 @@
    ]
   },
   {
-   "name": "account",
-   "command": "account",
+   "name": "findSimilarIdeas",
+   "command": "find-similar-ideas",
    "kind": "query",
-   "description": "Your account settings (same fields as me), for editing with update_account.",
+   "description": "Find existing ideas similar to a description, to check novelty and competition.",
    "destructive": false,
-   "returns": "User!",
-   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
-   "args": []
-  },
-  {
-   "name": "mySessions",
-   "command": "my-sessions",
-   "kind": "query",
-   "description": "Every signed-in session on your account (browsers, CLI, agents), with the current one marked.",
-   "destructive": false,
-   "returns": "[SessionInfo!]!",
-   "selection": "{ sessionId current createdAt expiresAt revokedAt lastSeenAt requestIp userAgent kind }",
-   "args": []
-  },
-  {
-   "name": "privacyStatus",
-   "command": "privacy-status",
-   "kind": "query",
-   "description": "Your privacy choices and any pending data requests.",
-   "destructive": false,
-   "returns": "PrivacyStatus!",
-   "selection": "{ exportAvailable deletionRequestedAt guestRetentionDays }",
-   "args": []
+   "returns": "SimilarIdeas!",
+   "selection": "{ similarIdeas }",
+   "args": [
+    {
+     "name": "ideaDescription",
+     "flag": "--idea-description",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
   },
   {
    "name": "surveyInsights",
@@ -183,17 +283,57 @@
    "args": []
   },
   {
-   "name": "findSimilarIdeas",
-   "command": "find-similar-ideas",
+   "name": "userFollowers",
+   "command": "user-followers",
    "kind": "query",
-   "description": "Find existing ideas similar to a description, to check novelty and competition.",
+   "description": "Get followers for a user",
    "destructive": false,
-   "returns": "SimilarIdeas!",
-   "selection": "{ similarIdeas }",
+   "returns": "[UserFollow!]!",
+   "selection": "{ followId followerId followedId createdAt userName userAvatar }",
    "args": [
     {
-     "name": "ideaDescription",
-     "flag": "--idea-description",
+     "name": "userId",
+     "flag": "--user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "userFollowing",
+   "command": "user-following",
+   "kind": "query",
+   "description": "Get users that a user is following",
+   "destructive": false,
+   "returns": "[UserFollow!]!",
+   "selection": "{ followId followerId followedId createdAt userName userAvatar }",
+   "args": [
+    {
+     "name": "userId",
+     "flag": "--user-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "userSocialStats",
+   "command": "user-social-stats",
+   "kind": "query",
+   "description": "Get social statistics for a user",
+   "destructive": false,
+   "returns": "SocialStats!",
+   "selection": "{ followerCount followingCount isFollowing }",
+   "args": [
+    {
+     "name": "userId",
+     "flag": "--user-id",
      "type": "String!",
      "kind": "scalar",
      "required": true,
@@ -253,61 +393,39 @@
    "args": []
   },
   {
-   "name": "userFollowers",
-   "command": "user-followers",
+   "name": "calculateSweatEquity",
+   "command": "calculate-sweat-equity",
    "kind": "query",
-   "description": "Get followers for a user",
+   "description": "Calculate sweat equity value and percentage",
    "destructive": false,
-   "returns": "[UserFollow!]!",
-   "selection": "{ followId followerId followedId createdAt userName userAvatar }",
+   "returns": "SweatEquityCalculation!",
+   "selection": "{ sweatValue equityPercentage hours hourlyRate }",
    "args": [
     {
-     "name": "userId",
-     "flag": "--user-id",
-     "type": "String!",
+     "name": "hours",
+     "flag": "--hours",
+     "type": "Float!",
      "kind": "scalar",
      "required": true,
      "default": null,
      "description": ""
-    }
-   ]
-  },
-  {
-   "name": "userFollowing",
-   "command": "user-following",
-   "kind": "query",
-   "description": "Get users that a user is following",
-   "destructive": false,
-   "returns": "[UserFollow!]!",
-   "selection": "{ followId followerId followedId createdAt userName userAvatar }",
-   "args": [
+    },
     {
-     "name": "userId",
-     "flag": "--user-id",
-     "type": "String!",
+     "name": "hourlyRate",
+     "flag": "--hourly-rate",
+     "type": "Float!",
      "kind": "scalar",
-     "required": true,
-     "default": null,
+     "required": false,
+     "default": 50,
      "description": ""
-    }
-   ]
-  },
-  {
-   "name": "userSocialStats",
-   "command": "user-social-stats",
-   "kind": "query",
-   "description": "Get social statistics for a user",
-   "destructive": false,
-   "returns": "SocialStats!",
-   "selection": "{ followerCount followingCount isFollowing }",
-   "args": [
+    },
     {
-     "name": "userId",
-     "flag": "--user-id",
-     "type": "String!",
+     "name": "totalValuation",
+     "flag": "--total-valuation",
+     "type": "Float!",
      "kind": "scalar",
-     "required": true,
-     "default": null,
+     "required": false,
+     "default": 100000,
      "description": ""
     }
    ]
@@ -398,124 +516,6 @@
      "description": ""
     }
    ]
-  },
-  {
-   "name": "calculateSweatEquity",
-   "command": "calculate-sweat-equity",
-   "kind": "query",
-   "description": "Calculate sweat equity value and percentage",
-   "destructive": false,
-   "returns": "SweatEquityCalculation!",
-   "selection": "{ sweatValue equityPercentage hours hourlyRate }",
-   "args": [
-    {
-     "name": "hours",
-     "flag": "--hours",
-     "type": "Float!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    },
-    {
-     "name": "hourlyRate",
-     "flag": "--hourly-rate",
-     "type": "Float!",
-     "kind": "scalar",
-     "required": false,
-     "default": 50,
-     "description": ""
-    },
-    {
-     "name": "totalValuation",
-     "flag": "--total-valuation",
-     "type": "Float!",
-     "kind": "scalar",
-     "required": false,
-     "default": 100000,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "patents",
-   "command": "patents",
-   "kind": "query",
-   "description": "List your provisional patent drafts.",
-   "destructive": false,
-   "returns": "[Patent!]!",
-   "selection": "{ patentId title description createdAt }",
-   "args": []
-  },
-  {
-   "name": "pitchDeck",
-   "command": "pitch-deck",
-   "kind": "query",
-   "description": "Read the pitch deck generated for an idea.",
-   "destructive": false,
-   "returns": "PitchDeckOutput!",
-   "selection": "{ pitchDeck }",
-   "args": [
-    {
-     "name": "ideaId",
-     "flag": "--idea-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "productRequirementsDocument",
-   "command": "product-requirements-document",
-   "kind": "query",
-   "description": "Read the product requirements document (PRD) generated for an idea.",
-   "destructive": false,
-   "returns": "ProductRequirementsDocumentOutput!",
-   "selection": "{ productRequirementsDocument }",
-   "args": [
-    {
-     "name": "ideaId",
-     "flag": "--idea-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "provisionalPatent",
-   "command": "provisional-patent",
-   "kind": "query",
-   "description": "Read the provisional patent draft generated for an idea.",
-   "destructive": false,
-   "returns": "ProvisionalPatentOutput!",
-   "selection": "{ provisionalPatent coversheetPdf specificationPdf }",
-   "args": [
-    {
-     "name": "ideaId",
-     "flag": "--idea-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "availableSkills",
-   "command": "available-skills",
-   "kind": "query",
-   "description": "Return the canonical list of skills available on the platform.",
-   "destructive": false,
-   "returns": "[String!]!",
-   "selection": "",
-   "args": []
   },
   {
    "name": "myConversations",
@@ -1114,6 +1114,124 @@
    ]
   },
   {
+   "name": "upvoteIdea",
+   "command": "upvote-idea",
+   "kind": "mutation",
+   "description": "Upvote an idea",
+   "destructive": false,
+   "returns": "VoteResult!",
+   "selection": "{ voted ideaId voteCount }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "removeVote",
+   "command": "remove-vote",
+   "kind": "mutation",
+   "description": "Remove vote from an idea",
+   "destructive": true,
+   "returns": "VoteResult!",
+   "selection": "{ voted ideaId voteCount }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "toggleUpvote",
+   "command": "toggle-upvote",
+   "kind": "mutation",
+   "description": "Toggle upvote on an idea",
+   "destructive": false,
+   "returns": "VoteResult!",
+   "selection": "{ voted ideaId voteCount }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "exportIdeas",
+   "command": "export-ideas",
+   "kind": "mutation",
+   "description": "Export all user's ideas in the specified format (json, csv, markdown).",
+   "destructive": false,
+   "returns": "ExportResult!",
+   "selection": "{ content format filename }",
+   "args": [
+    {
+     "name": "format",
+     "flag": "--format",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "json",
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "importIdeas",
+   "command": "import-ideas",
+   "kind": "mutation",
+   "description": "Import startup ideas from note exports and backups.",
+   "destructive": false,
+   "returns": "ImportResult!",
+   "selection": "{ importedCount skippedCount errors }",
+   "args": [
+    {
+     "name": "fileContent",
+     "flag": "--file-content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "fileFormat",
+     "flag": "--file-format",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "filename",
+     "flag": "--filename",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
    "name": "saveOpenaiApiKey",
    "command": "save-openai-api-key",
    "kind": "mutation",
@@ -1142,26 +1260,6 @@
    "returns": "AiKeyStatus!",
    "selection": "{ configured source last4 }",
    "args": []
-  },
-  {
-   "name": "updateAccount",
-   "command": "update-account",
-   "kind": "mutation",
-   "description": "Update your profile: name, username, bio, location, skills or picture URL.",
-   "destructive": false,
-   "returns": "User!",
-   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
-   "args": [
-    {
-     "name": "input",
-     "flag": "--input",
-     "type": "AccountUpdateInput!",
-     "kind": "input",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
   },
   {
    "name": "connectIntegration",
@@ -1195,6 +1293,96 @@
     {
      "name": "serviceId",
      "flag": "--service-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "updateAccount",
+   "command": "update-account",
+   "kind": "mutation",
+   "description": "Update your profile: name, username, bio, location, skills or picture URL.",
+   "destructive": false,
+   "returns": "User!",
+   "selection": "{ userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills }",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "AccountUpdateInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "startGuestSession",
+   "command": "start-guest-session",
+   "kind": "mutation",
+   "description": "Create a server-backed guest user, set session cookie, return one-time merge secret.",
+   "destructive": false,
+   "returns": "GuestSessionResult!",
+   "selection": "{ userId email token mergeSecret }",
+   "args": []
+  },
+  {
+   "name": "logoutUser",
+   "command": "logout-user",
+   "kind": "mutation",
+   "description": "Clear auth cookies so the client is fully logged out.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": []
+  },
+  {
+   "name": "revokeAccountSession",
+   "command": "revoke-account-session",
+   "kind": "mutation",
+   "description": "Sign out one session (a browser, the CLI or an agent) by sessionId.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "sessionId",
+     "flag": "--session-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "revokeOtherAccountSessions",
+   "command": "revoke-other-account-sessions",
+   "kind": "mutation",
+   "description": "Sign out every session except the current one; returns how many.",
+   "destructive": true,
+   "returns": "Int!",
+   "selection": "",
+   "args": []
+  },
+  {
+   "name": "requestAccountDeletion",
+   "command": "request-account-deletion",
+   "kind": "mutation",
+   "description": "Request permanent deletion of your account; confirmEmail must be your account email.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "confirmEmail",
+     "flag": "--confirm-email",
      "type": "String!",
      "kind": "scalar",
      "required": true,
@@ -1364,66 +1552,6 @@
     {
      "name": "followedId",
      "flag": "--followed-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "upvoteIdea",
-   "command": "upvote-idea",
-   "kind": "mutation",
-   "description": "Upvote an idea",
-   "destructive": false,
-   "returns": "VoteResult!",
-   "selection": "{ voted ideaId voteCount }",
-   "args": [
-    {
-     "name": "ideaId",
-     "flag": "--idea-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "removeVote",
-   "command": "remove-vote",
-   "kind": "mutation",
-   "description": "Remove vote from an idea",
-   "destructive": true,
-   "returns": "VoteResult!",
-   "selection": "{ voted ideaId voteCount }",
-   "args": [
-    {
-     "name": "ideaId",
-     "flag": "--idea-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "toggleUpvote",
-   "command": "toggle-upvote",
-   "kind": "mutation",
-   "description": "Toggle upvote on an idea",
-   "destructive": false,
-   "returns": "VoteResult!",
-   "selection": "{ voted ideaId voteCount }",
-   "args": [
-    {
-     "name": "ideaId",
-     "flag": "--idea-id",
      "type": "String!",
      "kind": "scalar",
      "required": true,
@@ -1607,76 +1735,6 @@
    ]
   },
   {
-   "name": "startGuestSession",
-   "command": "start-guest-session",
-   "kind": "mutation",
-   "description": "Create a server-backed guest user, set session cookie, return one-time merge secret.",
-   "destructive": false,
-   "returns": "GuestSessionResult!",
-   "selection": "{ userId email token mergeSecret }",
-   "args": []
-  },
-  {
-   "name": "logoutUser",
-   "command": "logout-user",
-   "kind": "mutation",
-   "description": "Clear auth cookies so the client is fully logged out.",
-   "destructive": true,
-   "returns": "Boolean!",
-   "selection": "",
-   "args": []
-  },
-  {
-   "name": "revokeAccountSession",
-   "command": "revoke-account-session",
-   "kind": "mutation",
-   "description": "Sign out one session (a browser, the CLI or an agent) by sessionId.",
-   "destructive": true,
-   "returns": "Boolean!",
-   "selection": "",
-   "args": [
-    {
-     "name": "sessionId",
-     "flag": "--session-id",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "revokeOtherAccountSessions",
-   "command": "revoke-other-account-sessions",
-   "kind": "mutation",
-   "description": "Sign out every session except the current one; returns how many.",
-   "destructive": true,
-   "returns": "Int!",
-   "selection": "",
-   "args": []
-  },
-  {
-   "name": "requestAccountDeletion",
-   "command": "request-account-deletion",
-   "kind": "mutation",
-   "description": "Request permanent deletion of your account; confirmEmail must be your account email.",
-   "destructive": true,
-   "returns": "Boolean!",
-   "selection": "",
-   "args": [
-    {
-     "name": "confirmEmail",
-     "flag": "--confirm-email",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
    "name": "runBackgroundTasks",
    "command": "run-background-tasks",
    "kind": "mutation",
@@ -1738,64 +1796,6 @@
      "type": "String",
      "kind": "scalar",
      "required": false,
-     "default": null,
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "exportIdeas",
-   "command": "export-ideas",
-   "kind": "mutation",
-   "description": "Export all user's ideas in the specified format (json, csv, markdown).",
-   "destructive": false,
-   "returns": "ExportResult!",
-   "selection": "{ content format filename }",
-   "args": [
-    {
-     "name": "format",
-     "flag": "--format",
-     "type": "String!",
-     "kind": "scalar",
-     "required": false,
-     "default": "json",
-     "description": ""
-    }
-   ]
-  },
-  {
-   "name": "importIdeas",
-   "command": "import-ideas",
-   "kind": "mutation",
-   "description": "Import startup ideas from note exports and backups.",
-   "destructive": false,
-   "returns": "ImportResult!",
-   "selection": "{ importedCount skippedCount errors }",
-   "args": [
-    {
-     "name": "fileContent",
-     "flag": "--file-content",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    },
-    {
-     "name": "fileFormat",
-     "flag": "--file-format",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
-     "default": null,
-     "description": ""
-    },
-    {
-     "name": "filename",
-     "flag": "--filename",
-     "type": "String!",
-     "kind": "scalar",
-     "required": true,
      "default": null,
      "description": ""
     }

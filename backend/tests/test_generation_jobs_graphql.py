@@ -17,7 +17,7 @@ def _info(db):
 async def test_enqueue_then_poll_status():
     db = InMemoryDatabaseClient()
     info = _info(db)
-    with patch("app.graphql.schema.get_current_user_id", return_value="user-1"):
+    with patch("app.graphql.resolvers.documents.get_current_user_id", return_value="user-1"):
         from app.graphql.schema import Mutation, Query
 
         result = await Mutation().enqueue_background_tasks(
@@ -37,7 +37,7 @@ async def test_enqueue_then_poll_status():
 async def test_enqueue_is_idempotent():
     db = InMemoryDatabaseClient()
     info = _info(db)
-    with patch("app.graphql.schema.get_current_user_id", return_value="user-1"):
+    with patch("app.graphql.resolvers.documents.get_current_user_id", return_value="user-1"):
         from app.graphql.schema import Mutation
 
         r1 = await Mutation().enqueue_background_tasks(
@@ -53,13 +53,13 @@ async def test_enqueue_is_idempotent():
 async def test_generation_job_ownership_enforced():
     db = InMemoryDatabaseClient()
     info = _info(db)
-    with patch("app.graphql.schema.get_current_user_id", return_value="owner"):
+    with patch("app.graphql.resolvers.documents.get_current_user_id", return_value="owner"):
         from app.graphql.schema import Mutation
 
         created = await Mutation().enqueue_background_tasks(
             info, idea_id="i1", document_types=["prd"]
         )
-    with patch("app.graphql.schema.get_current_user_id", return_value="intruder"):
+    with patch("app.graphql.resolvers.documents.get_current_user_id", return_value="intruder"):
         from app.graphql.schema import Query
 
         assert await Query().generation_job(info, job_id=created.job_id) is None
@@ -69,7 +69,7 @@ async def test_generation_job_ownership_enforced():
 async def test_generation_job_missing_returns_none():
     db = InMemoryDatabaseClient()
     info = _info(db)
-    with patch("app.graphql.schema.get_current_user_id", return_value="u"):
+    with patch("app.graphql.resolvers.documents.get_current_user_id", return_value="u"):
         from app.graphql.schema import Query
 
         assert await Query().generation_job(info, job_id="does-not-exist") is None
