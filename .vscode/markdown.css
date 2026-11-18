@@ -1,0 +1,330 @@
+/* ==========================================================================
+   Manifest Markdown Theme, for the VS Code Markdown preview
+   Apple.com reading rhythm (SF Pro, 17px, tight-tracked headlines, quiet
+   greys) + Nike.com punch (black/white contrast, heavy headlines, uppercase
+   tracked labels, strong rules). Follows VS Code light/dark automatically.
+   Loaded via "markdown.styles" in .vscode/settings.json.
+   ========================================================================== */
+
+/* ---------- Tokens ---------- */
+body {
+  --md-bg: #ffffff;
+  --md-text: #1d1d1f;          /* Apple primary ink */
+  --md-text-2: #6e6e73;        /* Apple secondary */
+  --md-text-3: #86868b;
+  --md-rule: #d2d2d7;          /* hairline */
+  --md-rule-strong: #1d1d1f;   /* Nike heavy rule */
+  --md-surface: #f5f5f7;       /* Apple light surface */
+  --md-surface-2: #e8e8ed;
+  --md-link: #0066cc;          /* Apple link blue */
+  --md-mark: #fff3b0;
+  --md-select: rgba(0, 113, 227, 0.18);
+  --md-note: #0071e3;
+  --md-tip: #1d8a3a;
+  --md-important: #8e44ec;
+  --md-warning: #b25e00;
+  --md-caution: #d70015;
+
+  --md-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --md-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --md-mono: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+body.vscode-dark,
+body.vscode-high-contrast:not(.vscode-high-contrast-light) {
+  --md-bg: #161617;
+  --md-text: #f5f5f7;
+  --md-text-2: #a1a1a6;
+  --md-text-3: #86868b;
+  --md-rule: #3a3a3c;
+  --md-rule-strong: #f5f5f7;
+  --md-surface: #1d1d1f;
+  --md-surface-2: #2c2c2e;
+  --md-link: #2997ff;          /* Apple dark-mode link */
+  --md-mark: #5c4a00;
+  --md-select: rgba(41, 151, 255, 0.32);
+  --md-note: #2997ff;
+  --md-tip: #30d158;
+  --md-important: #bf5af2;
+  --md-warning: #ff9f0a;
+  --md-caution: #ff453a;
+}
+
+/* ---------- Page ---------- */
+html, body {
+  background: var(--md-bg) !important;
+}
+
+body {
+  color: var(--md-text);
+  font-family: var(--md-sans) !important;
+  font-size: 17px !important;
+  line-height: 1.62 !important;
+  letter-spacing: -0.012em;
+  font-weight: 400;
+  max-width: 720px;            /* ~70 characters per line */
+  margin: 0 auto !important;
+  padding: 56px 32px 120px !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "liga", "calt";
+  hanging-punctuation: first;
+}
+
+::selection { background: var(--md-select); }
+
+/* ---------- Headlines ---------- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--md-display);
+  color: var(--md-text);
+  border: 0 !important;
+  padding: 0 !important;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: 44px;
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin: 0 0 24px;
+}
+
+h2 {
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 64px 0 18px;
+  padding-top: 20px !important;
+  border-top: 2px solid var(--md-rule-strong) !important;   /* Nike section rule */
+}
+
+h1 + h2 { margin-top: 32px; }
+
+h3 {
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  margin: 40px 0 12px;
+}
+
+h4 {
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  margin: 32px 0 8px;
+}
+
+/* Nike-style eyebrow labels */
+h5, h6 {
+  font-family: var(--md-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--md-text-2);
+  margin: 32px 0 8px;
+}
+h6 { font-weight: 600; color: var(--md-text-3); }
+
+/* The first paragraph after the title reads as a lede */
+h1 + p {
+  font-size: 21px;
+  line-height: 1.45;
+  letter-spacing: -0.018em;
+  color: var(--md-text-2);
+  margin-bottom: 32px;
+}
+
+/* ---------- Text ---------- */
+p, ul, ol, dl, table, pre, blockquote, details, .markdown-alert {
+  margin: 0 0 20px;
+}
+
+strong, b { font-weight: 600; color: var(--md-text); }
+em, i { font-style: italic; }
+del { color: var(--md-text-3); }
+small { font-size: 14px; color: var(--md-text-2); }
+
+mark {
+  background: var(--md-mark);
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 3px;
+}
+
+a, a:hover {
+  color: var(--md-link) !important;
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+a:focus { outline: 2px solid var(--md-link); outline-offset: 2px; border-radius: 3px; }
+
+/* ---------- Lists ---------- */
+ul, ol { padding-left: 1.4em; }
+li { margin: 6px 0; padding-left: 0.15em; }
+li > ul, li > ol { margin: 6px 0 0; }
+ul li::marker { color: var(--md-text-3); }
+ol li::marker { color: var(--md-text-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Task lists */
+.contains-task-list { padding-left: 0.2em; list-style: none; }
+.task-list-item { list-style: none; }
+.task-list-item input[type="checkbox"] {
+  accent-color: var(--md-text);
+  width: 16px; height: 16px;
+  margin: 0 0.55em 0 0;
+  vertical-align: -2px;
+}
+
+dt { font-weight: 600; margin-top: 12px; }
+dd { margin: 4px 0 0 1.2em; color: var(--md-text-2); }
+
+/* ---------- Quotes ---------- */
+blockquote {
+  margin: 28px 0 !important;
+  padding: 2px 0 2px 22px !important;
+  border-left: 3px solid var(--md-rule-strong) !important;
+  background: transparent !important;
+  color: var(--md-text);
+  font-size: 19px;
+  line-height: 1.5;
+  letter-spacing: -0.016em;
+}
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ---------- Code ---------- */
+code, kbd, samp, pre {
+  font-family: var(--md-mono) !important;
+  font-feature-settings: "liga" 0, "calt" 0;
+  letter-spacing: 0;
+}
+
+:not(pre) > code {
+  font-size: 0.84em;
+  padding: 0.14em 0.42em;
+  border-radius: 6px;
+  background: var(--md-surface) !important;
+  color: var(--md-text) !important;
+  border: 1px solid var(--md-surface-2);
+  white-space: break-spaces;
+}
+
+pre {
+  background: var(--md-surface) !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 20px 24px !important;
+  margin: 24px 0 !important;
+  font-size: 13.5px !important;
+  line-height: 1.65 !important;
+  overflow-x: auto;
+}
+pre code { background: transparent !important; padding: 0; border: 0; font-size: inherit; }
+
+kbd {
+  font-size: 0.8em;
+  padding: 0.12em 0.45em;
+  border-radius: 6px;
+  border: 1px solid var(--md-rule);
+  border-bottom-width: 2px;
+  background: var(--md-bg);
+  color: var(--md-text);
+}
+
+/* ---------- Tables (Nike spec-sheet) ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  display: table;
+}
+table th, table td {
+  border: 0 !important;
+  border-bottom: 1px solid var(--md-rule) !important;
+  padding: 12px 16px 12px 0 !important;
+  text-align: left;
+  vertical-align: top;
+  background: transparent !important;
+}
+table th {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-text-2);
+  border-bottom: 2px solid var(--md-rule-strong) !important;
+}
+table tr { background: transparent !important; border: 0 !important; }
+table th[align="right"], table td[align="right"] { text-align: right; }
+table th[align="center"], table td[align="center"] { text-align: center; }
+
+/* ---------- Rules, media ---------- */
+hr {
+  border: 0 !important;
+  height: 1px !important;
+  background: var(--md-rule) !important;
+  margin: 56px 0 !important;
+}
+
+img, video {
+  max-width: 100%;
+  border-radius: 14px;
+}
+
+/* ---------- Details ---------- */
+details {
+  border-top: 1px solid var(--md-rule);
+  border-bottom: 1px solid var(--md-rule);
+  padding: 14px 0;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style-position: outside;
+}
+details[open] summary { margin-bottom: 10px; }
+
+/* ---------- GitHub-style alerts (> [!NOTE]) ---------- */
+.markdown-alert {
+  border: 0 !important;
+  border-radius: 14px;
+  background: var(--md-surface);
+  padding: 16px 20px !important;
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+.markdown-alert .markdown-alert-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.markdown-alert p:last-child { margin-bottom: 0; }
+.markdown-alert-note .markdown-alert-title { color: var(--md-note); }
+.markdown-alert-tip .markdown-alert-title { color: var(--md-tip); }
+.markdown-alert-important .markdown-alert-title { color: var(--md-important); }
+.markdown-alert-warning .markdown-alert-title { color: var(--md-warning); }
+.markdown-alert-caution .markdown-alert-title { color: var(--md-caution); }
+.markdown-alert .octicon { fill: currentColor; }
+
+/* ---------- Footnotes ---------- */
+.footnotes { font-size: 14px; color: var(--md-text-2); }
+.footnotes hr { margin: 48px 0 20px !important; }
+sup a { font-size: 0.75em; font-weight: 600; }
+
+/* ---------- Small windows ---------- */
+@media (max-width: 600px) {
+  body { padding: 32px 18px 80px !important; }
+  h1 { font-size: 34px; }
+  h2 { font-size: 25px; margin-top: 48px; }
+  h1 + p { font-size: 19px; }
+}

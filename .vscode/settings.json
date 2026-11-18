@@ -13,5 +13,12 @@
   },
   "cursorpyright.analysis.extraPaths": [
     "${workspaceFolder}/backend/app"
-  ]
+  ],
+  "markdown.styles": [
+    ".vscode/markdown.css"
+  ],
+  "markdown.preview.fontFamily": "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif",
+  "markdown.preview.fontSize": 17,
+  "markdown.preview.lineHeight": 1.62,
+  "markdown.preview.typographer": true
 }
