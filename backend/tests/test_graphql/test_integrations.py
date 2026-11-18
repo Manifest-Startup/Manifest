@@ -49,7 +49,7 @@ class TestConnectIntegration:
     """Test the connect_integration mutation."""
     
     @pytest.mark.asyncio
-    @patch('app.graphql.schema.get_current_user_id')
+    @patch('app.graphql.resolvers.integrations.get_current_user_id')
     async def test_connect_new_integration(self, mock_get_user_id, mock_info, mock_supabase_client, sample_user_id):
         """Test connecting a new integration when none exists."""
         from app.graphql.schema import Mutation, ConnectIntegrationInput
@@ -95,7 +95,7 @@ class TestConnectIntegration:
         mock_supabase_client.table.assert_called_with("integrations")
     
     @pytest.mark.asyncio
-    @patch('app.graphql.schema.get_current_user_id')
+    @patch('app.graphql.resolvers.integrations.get_current_user_id')
     async def test_connect_existing_integration(self, mock_get_user_id, mock_info, mock_supabase_client, sample_user_id):
         """Test updating an existing integration."""
         from app.graphql.schema import Mutation, ConnectIntegrationInput
@@ -147,7 +147,7 @@ class TestGetIntegrations:
     """Test the integrations query."""
     
     @pytest.mark.asyncio
-    @patch('app.graphql.schema.get_current_user_id')
+    @patch('app.graphql.resolvers.integrations.get_current_user_id')
     async def test_get_integrations_empty(self, mock_get_user_id, mock_info, mock_supabase_client, sample_user_id):
         """Test getting integrations when user has none."""
         from app.graphql.schema import Query
@@ -163,7 +163,7 @@ class TestGetIntegrations:
         assert result == []
     
     @pytest.mark.asyncio
-    @patch('app.graphql.schema.get_current_user_id')
+    @patch('app.graphql.resolvers.integrations.get_current_user_id')
     async def test_get_integrations_with_data(self, mock_get_user_id, mock_info, mock_supabase_client, sample_user_id):
         """Test getting integrations when user has some."""
         from app.graphql.schema import Query

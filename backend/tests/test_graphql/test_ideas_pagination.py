@@ -57,7 +57,9 @@ def in_memory_db():
 
 @pytest.fixture
 def mock_get_current_user_id():
-    with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"):
+    with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"), patch(
+        "app.graphql.resolvers.ideas.get_current_user_id", return_value="test_user_id"
+    ):
         yield
 
 

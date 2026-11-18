@@ -175,7 +175,9 @@ def test_universal_search_returns_internal_and_published_matches():
     search_db.table.side_effect = table_side_effect
 
     with _override_request_db(search_db):
-        with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"):
+        with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"), patch(
+            "app.graphql.resolvers.search.get_current_user_id", return_value="test_user_id"
+        ):
             response = client.post(
                 "/graphql",
                 json={
@@ -217,6 +219,7 @@ def test_universal_search_includes_web_results_and_ai_summary():
 
     with _override_request_db(search_db):
         with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"), \
+             patch("app.graphql.resolvers.search.get_current_user_id", return_value="test_user_id"), \
              patch.object(manifest_manager.ai_layer, "is_available", return_value=True), \
              patch.object(
                  manifest_manager.ai_layer,

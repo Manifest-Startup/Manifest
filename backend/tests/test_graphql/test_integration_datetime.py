@@ -261,7 +261,7 @@ class TestIntegrationResolverConversion:
         
         mock_info.context["supabase"].table.return_value.select.return_value.eq.return_value.execute.return_value = mock_response
         
-        with patch('app.graphql.schema.get_current_user_id', return_value="user-123"):
+        with patch('app.graphql.resolvers.integrations.get_current_user_id', return_value="user-123"):
             from app.graphql.schema import Query
             query = Query()
             result = await query.integrations(mock_info)
@@ -288,7 +288,7 @@ class TestIntegrationResolverConversion:
         
         mock_info.context["supabase"].table.return_value.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = mock_response
         
-        with patch('app.graphql.schema.get_current_user_id', return_value="user-123"):
+        with patch('app.graphql.resolvers.integrations.get_current_user_id', return_value="user-123"):
             from app.graphql.schema import Query
             query = Query()
             result = await query.integration(mock_info, service_id="slack")
@@ -305,7 +305,7 @@ class TestIntegrationResolverConversion:
         
         mock_info.context["supabase"].table.return_value.select.return_value.eq.return_value.execute.return_value = mock_response
         
-        with patch('app.graphql.schema.get_current_user_id', return_value="user-123"):
+        with patch('app.graphql.resolvers.integrations.get_current_user_id', return_value="user-123"):
             from app.graphql.schema import Query
             query = Query()
             result = await query.integrations(mock_info)
@@ -320,7 +320,7 @@ class TestIntegrationResolverConversion:
         
         mock_info.context["supabase"].table.return_value.select.return_value.eq.return_value.execute.return_value = mock_response
         
-        with patch('app.graphql.schema.get_current_user_id', return_value="user-123"):
+        with patch('app.graphql.resolvers.integrations.get_current_user_id', return_value="user-123"):
             from app.graphql.schema import Query
             query = Query()
             result = await query.integrations(mock_info)

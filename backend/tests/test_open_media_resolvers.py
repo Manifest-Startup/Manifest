@@ -19,6 +19,9 @@ def run(query, *, user="viewer", db=None):
     try:
         with (
             patch("app.graphql.schema.get_current_user_id", return_value=user),
+            patch("app.graphql.resolvers.messaging.get_current_user_id", return_value=user),
+            patch("app.graphql.resolvers.pitch_reels.get_current_user_id", return_value=user),
+            patch("app.graphql.resolvers.shared.get_current_user_id", return_value=user),
             patch("app.graphql.schema.resolve_principal", return_value=SimpleNamespace(has=lambda _: True)),
             patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False),
         ):
@@ -218,6 +221,7 @@ def test_guests_cannot_message(monkeypatch):
     try:
         with (
             patch("app.graphql.schema.get_current_user_id", return_value="guest"),
+            patch("app.graphql.resolvers.shared.get_current_user_id", return_value="guest"),
             patch("app.graphql.schema.resolve_principal", return_value=SimpleNamespace(has=lambda _: True)),
             patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=True),
         ):

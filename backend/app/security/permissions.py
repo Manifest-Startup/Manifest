@@ -74,7 +74,7 @@ VIEWER_PERMISSIONS: set[str] = {
 # self-service) so they can build, save, generate, and upgrade. The cross-
 # user social actions they must NOT do (publish, invest, follow, messaging,
 # collaborator invite, MFA) are independently blocked at the resolver layer
-# via `_require_full_account` in `backend/app/graphql/schema.py` — see
+# via `_require_full_account` in `backend/app/graphql/resolvers/shared.py` — see
 # `AGENTS.md` § "Guest try-before-signup" for the canonical contract.
 # `api_keys.manage` and every `admin.*` permission stay out by omission.
 GUEST_PERMISSIONS: set[str] = {

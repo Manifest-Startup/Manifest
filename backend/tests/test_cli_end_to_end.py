@@ -29,7 +29,7 @@ class NotATty(io.StringIO):
 
 @pytest.fixture
 def app(monkeypatch, sessions):  # noqa: F811
-    from app.graphql import schema as schema_module
+    from app.graphql.resolvers import account as account_resolvers
     from app.main import app as fastapi_app
 
     def list_sessions(user_id, current_sid):
@@ -44,7 +44,7 @@ def app(monkeypatch, sessions):  # noqa: F811
             if row["user_id"] == user_id and not row["revoked"]
         ]
 
-    monkeypatch.setattr(schema_module, "list_user_sessions", list_sessions)
+    monkeypatch.setattr(account_resolvers, "list_user_sessions", list_sessions)
     return fastapi_app
 
 

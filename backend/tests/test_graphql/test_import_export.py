@@ -79,6 +79,7 @@ def mock_get_current_user_id():
     # Bulk export now requires recent auth (step-up MFA OR fresh login).
     # In unit tests there is no real session, so short-circuit the helper.
     with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"), \
+         patch("app.graphql.resolvers.ideas.get_current_user_id", return_value="test_user_id"), \
          patch("app.security.step_up._recent_login_satisfies", return_value=True):
         yield
 

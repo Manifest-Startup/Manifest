@@ -100,7 +100,7 @@ async def test_update_account_saves_skills():
     info = MagicMock()
     info.context = {"request": MagicMock(), "response": MagicMock(), "db": db}
 
-    with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+    with patch("app.graphql.resolvers.account.get_current_user_id", return_value=user_id):
         mutation = Mutation()
         result = await mutation.update_account(info, input_obj)
 
@@ -125,7 +125,7 @@ async def test_update_account_skips_skills_when_none():
     info = MagicMock()
     info.context = {"request": MagicMock(), "response": MagicMock(), "db": db}
 
-    with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+    with patch("app.graphql.resolvers.account.get_current_user_id", return_value=user_id):
         mutation = Mutation()
         await mutation.update_account(info, input_obj)
 
@@ -162,7 +162,7 @@ async def test_update_idea_saves_required_skills():
     _collab_mod.create_collaboration_service = lambda _db: mock_collab
     _idea_utils_mod.generate_background_tasks = MagicMock()
     try:
-        with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+        with patch("app.graphql.resolvers.ideas.get_current_user_id", return_value=user_id):
             mutation = Mutation()
             result = await mutation.update_idea(info, idea_id, required_skills=skills)
     finally:
@@ -196,7 +196,7 @@ async def test_update_idea_skips_required_skills_when_none():
     _collab_mod.create_collaboration_service = lambda _db: mock_collab
     _idea_utils_mod.generate_background_tasks = MagicMock()
     try:
-        with patch("app.graphql.schema.get_current_user_id", return_value=user_id):
+        with patch("app.graphql.resolvers.ideas.get_current_user_id", return_value=user_id):
             mutation = Mutation()
             await mutation.update_idea(info, idea_id, title="Updated Title")
     finally:
