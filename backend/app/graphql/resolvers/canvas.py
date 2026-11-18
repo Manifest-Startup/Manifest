@@ -67,6 +67,28 @@ class CanvasQuery:
 @strawberry.type
 class CanvasMutation:
     @strawberry.mutation
+    async def save_bmc_section(
+        self, info: strawberry.Info, idea_id: str, section_name: str, content: str
+    ) -> BmcSection:
+        """Save one Business Model Canvas section you wrote (Markdown), marked as a user edit.
+        Sections: customer_segments, value_propositions, channels, customer_relationships,
+        revenue_streams, key_resources, key_activities, key_partners, cost_structure."""
+        from app.services.canvas import orchestrator as bmc
+        from app.services.ideas.collaboration import CollaborationService
+
+        user_id = str(get_current_user_id(info.context["request"]))
+        role = await CollaborationService(info.context["db"]).get_user_role(idea_id, user_id)
+        if role not in ("owner", "editor"):
+            raise Exception("Idea not found or you don't have permission to edit it")
+        try:
+            row = bmc.save_user_section(
+                db=info.context["db"], idea_id=idea_id, section_name=section_name, content=content
+            )
+        except bmc.BmcSectionError as exc:
+            raise Exception(str(exc)) from exc
+        return _map_bmc_section(row)
+
+    @strawberry.mutation
     async def regenerate_bmc_section(
         self, info: strawberry.Info, idea_id: str, section_name: str
     ) -> BmcSection:

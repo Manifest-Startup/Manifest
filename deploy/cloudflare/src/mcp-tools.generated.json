@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "eef597b7edb8442f7734d2e3022f3a83ac1f0e34fe12aa54b27227d495c12af4",
+ "catalog_sha256": "0981ce5d056ea928adaefa4bcad39c7d352a2a7b5aba4643f35746d1dfc748bc",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -857,6 +857,38 @@
     "document": "mutation DisconnectIntegration($serviceId: String!) { disconnectIntegration(serviceId: $serviceId) }",
     "variables": [
      "serviceId"
+    ]
+   }
+  },
+  {
+   "name": "document_guide",
+   "title": "Document guide",
+   "description": "Manifest's own instructions for writing a document yourself (business_model_canvas, pitch_deck, product_requirements_document, provisional_patent, similar_ideas). Use it when the person has no OpenAI key: write the document following it, then save_idea_document.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "documentType": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "documentType"
+    ]
+   },
+   "annotations": {
+    "title": "Document guide",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "documentGuide",
+    "document": "query DocumentGuide($documentType: String!) { documentGuide(documentType: $documentType) { documentType title system instructions saveWith } }",
+    "variables": [
+     "documentType"
     ]
    }
   },
@@ -3198,6 +3230,90 @@
    }
   },
   {
+   "name": "save_bmc_section",
+   "title": "Save bmc section",
+   "description": "Save one Business Model Canvas section you wrote (Markdown), marked as a user edit. Sections: customer_segments, value_propositions, channels, customer_relationships, revenue_streams, key_resources, key_activities, key_partners, cost_structure. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "sectionName": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "sectionName",
+     "content"
+    ]
+   },
+   "annotations": {
+    "title": "Save bmc section",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "saveBmcSection",
+    "document": "mutation SaveBmcSection($ideaId: String!, $sectionName: String!, $content: String!) { saveBmcSection(ideaId: $ideaId, sectionName: $sectionName, content: $content) { sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt } }",
+    "variables": [
+     "ideaId",
+     "sectionName",
+     "content"
+    ]
+   }
+  },
+  {
+   "name": "save_idea_document",
+   "title": "Save idea document",
+   "description": "Save a document you wrote for an idea (Markdown), replacing the current one: the canvas, pitch deck, PRD, provisional patent draft or similar ideas. Owners and editors only. Snapshot the idea with create_idea_version first if a version already exists. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "documentType": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "documentType",
+     "content"
+    ]
+   },
+   "annotations": {
+    "title": "Save idea document",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "saveIdeaDocument",
+    "document": "mutation SaveIdeaDocument($ideaId: String!, $documentType: String!, $content: String!) { saveIdeaDocument(ideaId: $ideaId, documentType: $documentType, content: $content) { ideaId documentType title characters } }",
+    "variables": [
+     "ideaId",
+     "documentType",
+     "content"
+    ]
+   }
+  },
+  {
    "name": "send_message",
    "title": "Send message",
    "description": "Send a message in an Open Media conversation (`clientId` makes retries land once). Changes the person's Manifest account; say what you will do before calling.",
@@ -4062,6 +4178,35 @@
     "document": "query UserSocialStats($userId: String!) { userSocialStats(userId: $userId) { followerCount followingCount isFollowing } }",
     "variables": [
      "userId"
+    ]
+   }
+  },
+  {
+   "name": "vault_export",
+   "title": "Vault export",
+   "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt to get only ideas changed since then.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "sinceUpdatedAt": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Vault export",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "vaultExport",
+    "document": "query VaultExport($sinceUpdatedAt: String) { vaultExport(sinceUpdatedAt: $sinceUpdatedAt) { generatedAt root ideaCount files { path content updatedAt } } }",
+    "variables": [
+     "sinceUpdatedAt"
     ]
    }
   },

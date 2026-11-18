@@ -101,6 +101,10 @@ def test_skills_and_commands_only_name_real_tools():
         "pitch_deck",
         "prd",
         "patent",
+        # document types named in the documents skill, not tools
+        "similar_ideas",
+        "product_requirements_document",
+        "provisional_patent",
     }
     unknown = sorted(w for w in words - NAMES - allowed if not w.startswith("manifest"))
     assert not unknown, f"skills or commands name tools that don't exist: {unknown}"

@@ -60,3 +60,22 @@ class Patent:
     title: str
     description: str | None
     created_at: datetime
+
+
+@strawberry.type
+class DocumentGuide:
+    """Manifest's own instructions for a document, for the person's AI agent to follow."""
+
+    document_type: str
+    title: str
+    system: str
+    instructions: str
+    save_with: str
+
+
+@strawberry.type
+class SavedDocument:
+    idea_id: str
+    document_type: str
+    title: str
+    characters: int
