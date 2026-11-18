@@ -7,6 +7,7 @@ import { clearLogoutRedirectInProgress } from "features/auth/logout";
 import { useStartGuestSession } from "features/auth/hooks/useStartGuestSession";
 import { openMediaSignInUrl, signInErrorMessage } from "features/auth/openMediaSignIn";
 import { userVar } from "features/core/apollo/localState";
+import ManifestLogo from "features/common-ui/ManifestLogo";
 
 interface LoginLocationState {
   from?: { pathname?: string; search?: string };
@@ -55,9 +56,7 @@ const LoginPage: React.FC = () => {
       <div className="manifest-auth-shell px-4">
         <section className="flex flex-col items-center py-10 text-center" aria-labelledby="login-title">
           <Link to="/" className="flex items-center gap-3" aria-label="Manifest home">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral900 text-sm font-bold text-white dark:bg-white dark:text-neutral900">
-              M
-            </span>
+            <ManifestLogo size={40} />
             <span className="text-lg font-bold tracking-[-0.02em] text-theme-primary">Manifest</span>
           </Link>
 
