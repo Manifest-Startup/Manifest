@@ -138,6 +138,15 @@ def _note_names(ideas: list[dict[str, Any]]) -> dict[str, str]:
     return names
 
 
+def _short_label(text: str, limit: int = 60) -> str:
+    """A file-safe label cut at a word boundary, never mid-word."""
+    clean = safe_name(text, "Interview")
+    if len(clean) <= limit:
+        return clean
+    cut = clean[:limit].rsplit(" ", 1)[0]
+    return cut if len(cut) >= 20 else clean[:limit]
+
+
 def _transcript(session: dict[str, Any]) -> str:
     turns = session.get("transcript") or []
     if isinstance(turns, str):
@@ -269,7 +278,7 @@ def build_files(
         updated = _iso(session.get("updated_at")) or created
         if since and updated and updated < since:
             continue
-        label = safe_name((session.get("initial_idea_text") or "Interview")[:60])
+        label = _short_label(session.get("initial_idea_text") or "Interview")
         path = f"{ROOT}/Interviews/{created[:10]} {label}.md"
         idea_line = (
             f"About {_link(idea_path[iid], by_id[iid].get('title') or 'idea')}.\n\n"

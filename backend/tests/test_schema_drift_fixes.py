@@ -54,3 +54,8 @@ def test_migration_restores_what_the_code_selects():
     ):
         assert needed in sql, needed
     assert "DROP " not in sql.upper(), "this migration must stay additive"
+
+
+def test_ideas_updated_at_is_kept_by_a_trigger():
+    sql = (MIGRATION.parent / "20261118050000_ideas_updated_at_trigger.sql").read_text()
+    assert "BEFORE UPDATE ON public.ideas" in sql and "SET search_path" in sql
