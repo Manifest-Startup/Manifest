@@ -1,6 +1,6 @@
 /* Knowledge graph view and citation banner (ADR 0006). */
 .manifest-knowledge {
-  color: var(--manifest-text, #1d1d1f);
+  color: var(--text-primary, #1d1d1f);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -30,7 +30,7 @@
   stroke-opacity: 0.7;
 }
 .manifest-graph-map .node {
-  fill: var(--manifest-surface, #fff);
+  fill: var(--bg-primary, #fff);
   stroke: currentColor;
   stroke-width: 1.5;
 }
@@ -48,7 +48,15 @@
 }
 .manifest-graph-map .label {
   fill: currentColor;
-  font-size: 10px;
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: var(--bg-primary, #fff);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.manifest-graph-map a:hover .label,
+.manifest-graph-map a:focus-visible .label {
+  font-weight: 600;
 }
 .manifest-graph-map .label--idea {
   fill-opacity: 0.65;
