@@ -15,6 +15,7 @@ each other and cause flaky Jest timeouts):
   cli      the Manifest CLI catalog matches the GraphQL schema (generate_cli_catalog.py --check)
   plugin   agent tools are regenerated and the agent plugin covers every tool (ADR 0004)
   tooling  pytest tests (developer CLI + code graph)
+  ios      iOS GraphQL operations validate against the schema; Swift unit tests on macOS
 """
 
 from __future__ import annotations
@@ -175,6 +176,34 @@ def check_tooling(files: list[str]) -> tuple[int, str]:
     return code, out.splitlines()[-1] if out else ""
 
 
+def check_ios(files: list[str]) -> tuple[int, str]:
+    """The native app must speak the current schema, and its unit tests must pass."""
+    if files and not any(f.startswith(("ios/", "backend/app/graphql/")) for f in files):
+        return 0, "iOS app and schema unchanged"
+    code, out = sh([PY, "scripts/check_ios_graphql.py"])
+    if code or not shutil.which("xcodebuild"):
+        return code, out.strip().splitlines()[-1] if out else ""
+    if files and not any(f.startswith("ios/") for f in files):
+        return 0, out.strip().splitlines()[-1]
+    test_code, test_out = sh(
+        [
+            "xcodebuild",
+            "test",
+            "-quiet",
+            "-project",
+            "ios/Manifest Startup.xcodeproj",
+            "-scheme",
+            "Manifest Startup",
+            "-destination",
+            "platform=macOS",
+            "-only-testing:Manifest StartupTests",
+        ]
+    )
+    failures = [ln for ln in test_out.splitlines() if "error:" in ln or "failed" in ln]
+    summary = "Swift unit tests passed" if test_code == 0 else "\n".join(failures[-10:])
+    return test_code, f"{out.strip().splitlines()[-1]}; {summary}"
+
+
 CHECKS = {
     "python": check_python,
     "backend": check_backend,
@@ -184,6 +213,7 @@ CHECKS = {
     "cli": check_cli,
     "plugin": check_plugin,
     "tooling": check_tooling,
+    "ios": check_ios,
 }
 
 

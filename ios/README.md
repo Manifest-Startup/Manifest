@@ -1,174 +1,63 @@
-# Manifest Startup - Native iOS App
+# Manifest for iPhone, iPad and Mac
 
-A native SwiftUI iOS application for the Manifest startup building platform. This app provides full feature parity with the web application, allowing users to manage startup ideas, view their portfolio, discover community ideas, and manage their account.
+The native Manifest app: one SwiftUI codebase and one Xcode target that runs on iPhone, iPad, Mac and Apple Vision Pro. It talks to the same GraphQL API as the web app at `https://manifeststartup.com/graphql`.
 
-## Features
+## What's in it
 
-### Core Features (Full Parity with Web App)
-- **Ideas Management**: Create, view, edit, and delete startup ideas
-- **Publish Status**: Toggle publish status with verified badge indicators (blue = published, grey = unpublished)
-- **Idea Details**: View description, pitch deck, business model canvas, and patent information
-- **Document Generation**: Generate AI-powered documents for your ideas
-
-### Social Features
-- **Discover Feed**: TikTok-style vertical scrolling feed of community ideas
-- **Upvoting**: Vote on ideas you find interesting
-- **Verified Badges**: Visual indicators for published ideas
-
-### Portfolio Management
-- **Investment Tracking**: View all your investments with status indicators
-- **Portfolio Statistics**: Total investments, total value, and equity percentage
-- **Investment Details**: Cash amount, sweat equity, and equity breakdown
-
-### Account Management
-- **Profile Editing**: Update first name, last name, and email
-- **Appearance Settings**: Light mode, dark mode, or system theme
-- **Integrations**: Connect with Google, GitHub, Slack (coming soon)
-- **API Access**: Manage API keys for programmatic access
-- **Data Management**: Import and export ideas
-
-## Project Structure
-
-```
-Manifest Startup/
-├── Manifest Startup/
-│   ├── Models/
-│   │   ├── Idea.swift           # Idea and BusinessModelCanvas models
-│   │   ├── User.swift           # User and account models
-│   │   ├── Investment.swift     # Investment and portfolio models
-│   │   └── FeedItem.swift       # Discover feed models
-│   ├── Services/
-│   │   ├── APIService.swift     # REST API client for backend
-│   │   └── AuthService.swift    # Authentication management
-│   ├── ViewModels/
-│   │   ├── IdeasViewModel.swift      # Ideas list state management
-│   │   ├── DiscoverViewModel.swift   # Discover feed state management
-│   │   └── AccountViewModel.swift    # Account/portfolio state management
-│   ├── Views/
-│   │   ├── MainTabView.swift         # Main tab navigation
-│   │   ├── Ideas/
-│   │   │   ├── IdeasView.swift       # Ideas list screen
-│   │   │   └── IdeaDetailView.swift  # Idea detail screen
-│   │   ├── Discover/
-│   │   │   └── DiscoverView.swift    # Discover feed screen
-│   │   ├── Shorts/
-│   │   │   └── ShortsView.swift      # Pitch shorts screen
-│   │   └── Account/
-│   │       └── AccountView.swift     # Account/settings screen
-│   ├── ContentView.swift        # Root view with auth handling
-│   ├── Manifest_StartupApp.swift    # App entry point
-│   └── Assets.xcassets/         # App icons and colors
-├── Manifest StartupTests/       # Unit tests
-└── Manifest StartupUITests/     # UI tests
-```
-
-## Requirements
-
-- iOS 17.0+
-- Xcode 15.0+
-- Swift 5.9+
-
-## Configuration
-
-### API Configuration
-
-Set the `API_BASE_URL` environment variable to your Manifest backend URL:
-
-```swift
-// In APIService.swift, the default is:
-self.baseURL = ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "https://manifeststartup.com"
-```
-
-For local development, you can:
-1. Edit the scheme in Xcode and add an environment variable
-2. Or directly modify the fallback URL in `APIService.swift`
-
-### Authentication
-
-The app uses token-based authentication. The auth token is stored securely in UserDefaults and automatically included in API requests.
-
-## Building and Running
-
-1. Open `Manifest Startup.xcodeproj` in Xcode
-2. Select your target device or simulator
-3. Configure the API base URL (see Configuration section)
-4. Press Cmd+R to build and run
+| Tab | What it does |
+|---|---|
+| **Ideas** | Your ideas, invitations and ideas shared with you. Create, edit, publish, delete. Each idea opens to its pitch, a live Business Model Canvas, four AI documents (pitch deck, PRD, provisional patent, landscape), a "pressure test" interview with a score, team and roles, cap table and investments, and version history. |
+| **Shorts** | Full-screen pitch shorts. Swipe up, double-tap to like, comment, share, follow founders, jump to the idea. |
+| **Inbox** | Founder messages through Open Media, with live updates, optimistic sending and unread badges. |
+| **Portfolio** | Your cash and sweat-equity positions, totals and allocation chart. |
+| **Search** | Your ideas and published ones, with an assistant summary and recent searches. |
+| **Account** (avatar button) | Profile, your OpenAI key (bring your own key), Open Media connection, signed-in devices, import and export, privacy and account deletion, feedback, appearance. |
 
 ## Architecture
 
-The app follows the MVVM (Model-View-ViewModel) architecture:
-
-- **Models**: Data structures that match the backend API responses
-- **Views**: SwiftUI views that display the UI
-- **ViewModels**: Observable objects that manage state and business logic
-- **Services**: Singleton services for API communication and authentication
-
-### Key Design Decisions
-
-1. **Async/Await**: All API calls use Swift's modern concurrency with async/await
-2. **@MainActor**: ViewModels are marked with @MainActor for safe UI updates
-3. **ObservableObject**: State is managed using Combine's ObservableObject protocol
-4. **Environment Objects**: Auth state is shared via SwiftUI's environment
-
-## Feature Parity Checklist
-
-| Feature | Web | iOS | Status |
-|---------|-----|-----|--------|
-| Ideas List | ✅ | ✅ | UI Complete, API Ready |
-| Create Idea | ✅ | ✅ | UI Complete, API Ready |
-| Delete Idea | ✅ | ✅ | UI Complete, API Ready |
-| Publish Toggle | ✅ | ✅ | UI Complete, API Ready |
-| Idea Details | ✅ | ✅ | UI Complete |
-| Pitch Deck View | ✅ | 🔧 | UI Scaffold, Generation Pending |
-| Business Model Canvas | ✅ | 🔧 | UI Scaffold, Generation Pending |
-| Patent Generation | ✅ | 🔧 | UI Scaffold, Generation Pending |
-| Discover Feed | ✅ | ✅ | UI Complete, API Ready |
-| Upvoting | ✅ | ✅ | UI Complete, API Ready |
-| Portfolio Stats | ✅ | ✅ | UI Complete, API Ready |
-| Investment List | ✅ | ✅ | UI Complete, API Ready |
-| Profile Editing | ✅ | ✅ | UI Complete, API Ready |
-| Theme Toggle | ✅ | ✅ | Fully Implemented |
-| Authentication | ✅ | 🔧 | Scaffold, Needs Backend Wiring |
-| Import/Export | ✅ | 🔧 | UI Ready, API Pending |
-| Integrations | ✅ | 🔧 | UI Ready, OAuth Pending |
-| API Keys | ✅ | 🔧 | UI Ready, API Pending |
-| Pitch Shorts | ✅ | ⏳ | Coming Soon |
-| Voice Agent | ✅ | ⏳ | Planned |
-
-✅ = Fully Implemented | 🔧 = UI Complete, Backend Integration Needed | ⏳ = Planned
-
-### Implementation Notes
-
-The iOS app provides a complete UI scaffold with MVVM architecture. To achieve full feature parity:
-
-1. **Authentication**: Wire `AuthService.login()` to your backend's login endpoint
-2. **Document Generation**: Connect pitch deck/BMC/patent buttons to backend AI generation endpoints
-3. **OAuth Integrations**: Implement OAuth flows for Google, GitHub, Slack
-4. **API Key Management**: Connect to `/api/v1/api-keys` endpoints
-5. **Import/Export**: Implement file picker and document sharing
-
-## Testing
-
-Run unit tests:
-```bash
-# In Xcode: Cmd+U
-# Or via command line:
-xcodebuild test -scheme "Manifest Startup" -destination "platform=iOS Simulator,name=iPhone 15"
+```
+Manifest Startup/
+├── App/            entry point, session state, tab shell, observable stores
+├── Core/
+│   ├── Auth/       OAuth 2.1 + PKCE sign-in, Keychain, token refresh
+│   ├── Networking/ GraphQL client (actor), typed operations (API.swift), demo fixtures
+│   ├── Models/     Codable mirrors of the GraphQL types
+│   └── Cache/      last-known responses on disk for instant launch
+├── DesignSystem/   theme tokens, rising-M mark, components, image pipeline, Markdown
+└── Features/       Onboarding, Ideas, Shorts, Inbox, Portfolio, Search, Account
 ```
 
-## Dark Mode Support
+- **SwiftUI + Observation, no third-party dependencies.** `@Observable` stores per feature, injected through the environment. Swift 6 language mode with `MainActor` default isolation; networking, decoding, image decoding and Markdown parsing run off the main actor.
+- **Sign-in** uses Manifest's own OAuth server (`/api/oauth/*`, ADR 0004) as an RFC 8252 native app: dynamic client registration, PKCE S256, the `com.manifeststartup.ios:` callback scheme and `ASWebAuthenticationSession`. The web sheet handles "Continue with Open Media", so the app never sees a password. Tokens live in the Keychain. Refresh tokens rotate, and concurrent refreshes are coalesced. The session appears under Account → Signed-in devices as "Manifest for iPhone/iPad/Mac". Guests get a server-backed guest workspace.
+- **Performance.** Stale-while-revalidate disk cache, so tabs paint before the network returns. Lean GraphQL selections. Lazy stacks. Downsampled images cached in memory. At most three video players alive in Shorts. Debounced search. Polling only while the scene is active.
+- **Design.** Ink, paper and one blue, taken from the web theme (`frontend/src/index.css`). Liquid Glass for floating controls. Adaptive layouts: a tab bar on iPhone, a sidebar on iPad and Mac, and a full canvas grid on wide screens. Dynamic Type, VoiceOver labels and Reduce Motion are respected.
 
-The app fully supports dark mode with three options:
-- **System**: Follows iOS system appearance
-- **Light**: Always light mode
-- **Dark**: Always dark mode
+## Run it
 
-Theme preference is persisted using @AppStorage.
+1. Open `Manifest Startup.xcodeproj` in Xcode 26 or later (deployment target iOS / macOS / visionOS 26.2).
+2. Choose the **Manifest Startup** scheme and an iPhone simulator, then Run.
 
-## License
+To work against a local backend, set `MANIFEST_API_URL` (for example `http://localhost:8000`) in the scheme's environment variables. Debug builds only; release builds always use production.
 
-Proprietary - Manifest Startup Platform
+**Demo mode.** Launch with the `-demo` argument (Debug builds) to use synthetic fixtures with no network and no account. UI tests and design review use it.
 
-## Contact
+## Test
 
-For questions or support, contact the Manifest team.
+```bash
+# Unit tests (Swift Testing) on macOS, fast and no simulator needed
+xcodebuild test -project "ios/Manifest Startup.xcodeproj" -scheme "Manifest Startup" \
+  -destination platform=macOS -only-testing:"Manifest StartupTests"
+
+# UI journeys + screen tour on a simulator (demo fixtures)
+xcodebuild test -project "ios/Manifest Startup.xcodeproj" -scheme "Manifest Startup" \
+  -destination "platform=iOS Simulator,name=iPhone 17 Pro" -only-testing:"Manifest StartupUITests"
+
+# Every GraphQL operation in the app validates against the backend schema
+python3 scripts/check_ios_graphql.py
+```
+
+`python3 scripts/check.py` runs the schema check and the unit tests whenever `ios/` or the GraphQL schema changes (area `ios`).
+
+## Release
+
+Bundle ID `com.manifeststartup.Manifest-Startup`, team `RWUG6FUV62`, automatic signing. Ship through Xcode Cloud or Archive → TestFlight. Before you submit, bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`. The app declares no non-exempt encryption.
