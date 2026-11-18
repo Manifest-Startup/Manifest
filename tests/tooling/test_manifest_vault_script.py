@@ -118,3 +118,46 @@ def test_server_and_script_share_the_markers_and_names(mv):
     assert vault.BEGIN.startswith(mv.BEGIN_PREFIX) and vault.END == mv.END
     for title in ("TideLine: a/b?", "  x  ", "[[weird]] #tag"):
         assert vault.safe_name(title) == mv.safe_name(title)
+
+
+def test_sync_without_sign_in_says_how_and_status_works_offline(mv, tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("MANIFEST_CONFIG", str(tmp_path / "none.json"))
+    monkeypatch.delenv("MANIFEST_API_TOKEN", raising=False)
+    vault = tmp_path / "vault"
+    assert mv.main(["sync", "--vault", str(vault)]) == 2
+    assert "manifest_vault.py login" in capsys.readouterr().err
+    (vault / "Notes").mkdir(parents=True)
+    (vault / "Notes/a.md").write_text("hi")
+    assert mv.main(["status", "--vault", str(vault)]) == 0
+    out = capsys.readouterr().out
+    assert "not signed in" in out and "1 to upload" in out
+
+
+def test_only_your_files_and_writing_sync(mv, tmp_path):
+    vault = tmp_path / "vault"
+    mv.main(
+        [
+            "sync",
+            "--vault",
+            str(vault),
+            str(
+                export(
+                    tmp_path,
+                    [
+                        {"path": "Manifest/Ideas/A.md", "content": generated("# A")},
+                    ],
+                )
+            ),
+        ]
+    )
+    (vault / ".obsidian").mkdir(exist_ok=True)
+    (vault / ".obsidian/workspace.md").write_text("private")
+    (vault / "Notes/n.md").write_text("mine")
+    (vault / "photo.png").write_bytes(b"x")
+    found = mv.local_files(vault)
+    assert found["Notes/n.md"] == ("file", "mine")
+    assert found["Manifest/Ideas/A.md"][0] == "overlay"
+    assert ".obsidian/workspace.md" not in found and "photo.png" not in found
+    # The untouched "## My notes" scaffold isn't worth uploading.
+    changed, _ = mv.pending_changes(vault, {})
+    assert "Manifest/Ideas/A.md" not in changed and "Notes/n.md" in changed

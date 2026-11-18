@@ -1,5 +1,5 @@
 ---
-description: Sync your Manifest ideas and documents into your local Obsidian-style vault
+description: Sync your Manifest vault with your account (like iCloud Drive or OneDrive)
 ---
 
-Sync my Manifest vault (manifest-vault skill): `manifest_vault.py since`, then `vault_export` with that time, then `manifest_vault.py sync`. Tell me what changed and where the vault is, and remind me I can open it in Obsidian's Graph view.
+Sync my Manifest vault (manifest-vault skill). Run `manifest_vault.py status`; if this computer isn't signed in, run `manifest_vault.py login`. Then `manifest_vault.py sync`, and if background sync is off, offer `manifest_vault.py install`. Tell me what changed, any conflicted copies, and where the vault is; remind me to start at `Manifest/Home.md` in Obsidian. Without a local shell, fall back to `vault_export` + `manifest_vault.py sync <file>`.

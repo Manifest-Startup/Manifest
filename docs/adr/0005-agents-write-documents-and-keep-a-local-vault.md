@@ -18,4 +18,4 @@ Manifest exists to get a founder from idea to execution. Its document generators
 - No key is needed to get real documents; the founder's own agent does the work and the founder's key, if any, still powers Manifest-side generation.
 - Agent-written documents carry no "AI-written" marker in the database; the skill snapshots the previous version with `createIdeaVersion` before overwriting.
 - The vault needs a host with a local shell (Claude Code, Codex, Cursor, Gemini CLI); web connectors can create documents but not local files.
-- Notes are local only; syncing notes back into Manifest is a possible next step.
+- Notes are local only; syncing notes back into Manifest is a possible next step. Superseded by [0007](0007-the-vault-syncs-with-your-account.md): the vault now syncs with the account.

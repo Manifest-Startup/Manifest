@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "29eb985814a756926fc4d3a9c4962f4c7028b8bc870f0ee6b579b7aff2ade55f",
+ "schema_sha256": "b183abd7899e9cb04d382bd04a051e69e152c0645d4c21a55f90791d7a616def",
  "operations": [
   {
    "name": "me",
@@ -1072,6 +1072,26 @@
      "type": "String!",
      "kind": "scalar",
      "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "vaultFiles",
+   "command": "vault-files",
+   "kind": "query",
+   "description": "Your own vault files kept in your account (notes and your writing around Manifest's generated blocks), changed after sinceUpdatedAt, with deletions. The vault sync in manifest_vault.py uses this to keep every computer's vault the same.",
+   "destructive": false,
+   "returns": "VaultSyncPage!",
+   "selection": "{ serverTime files { path content sha256 deleted device updatedAt } }",
+   "args": [
+    {
+     "name": "sinceUpdatedAt",
+     "flag": "--since-updated-at",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
      "default": null,
      "description": ""
     }
@@ -2491,6 +2511,62 @@
     {
      "name": "persona",
      "flag": "--persona",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "putVaultFile",
+   "command": "put-vault-file",
+   "kind": "mutation",
+   "description": "Save one vault file to your account (or delete it with delete: true). Pass the sha256 you last synced as baseSha256; if the account changed since, nothing is written and status is \"conflict\" with the account's version, so you can keep both.",
+   "destructive": false,
+   "returns": "VaultPutResult!",
+   "selection": "{ status file { path content sha256 deleted device updatedAt } }",
+   "args": [
+    {
+     "name": "path",
+     "flag": "--path",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "content",
+     "flag": "--content",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "baseSha256",
+     "flag": "--base-sha256",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "delete",
+     "flag": "--delete",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    },
+    {
+     "name": "device",
+     "flag": "--device",
      "type": "String",
      "kind": "scalar",
      "required": false,
