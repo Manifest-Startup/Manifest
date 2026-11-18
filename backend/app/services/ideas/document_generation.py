@@ -18,6 +18,7 @@ except ImportError:
 from app.assets import ASSETS_DIR
 from app.db.database import create_database_client, get_db_connection
 from app.services.documents.demo_documents import build_demo_documents
+from app.services.integrations.connections import connected_partner_names
 from app.utils.logger import logger
 
 if os.path.exists(".env"):
@@ -358,6 +359,9 @@ def generate_background_tasks(  # noqa: C901
         with _manifest_manager_lock:
             logger.info(f"[Lock] Acquired lock for idea_id {idea_id}")
             manifest_manager.set_idea(idea_description)
+            manifest_manager.set_connected_partners(
+                connected_partner_names((owner_profile or {}).get("user_id"))
+            )
 
             # Verify the idea description was set correctly before proceeding
             current_description = manifest_manager.idea.description

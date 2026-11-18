@@ -16,6 +16,9 @@ class Integration:
     expires_at: datetime | None = None
     connected_at: datetime
     metadata: str | None = None  # JSON string for additional service-specific data
+    # True when the partner's own sign-in (OAuth) completed and Manifest holds
+    # credentials; False for partners added by name or before OAuth is set up.
+    linked: bool = False
 
 
 @strawberry.type

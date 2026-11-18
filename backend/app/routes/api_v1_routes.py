@@ -399,8 +399,11 @@ async def delete_idea(idea_id: str, auth_info: AuthInfo = Depends(require_scope(
 
 
 def _prepare_manager(idea: dict) -> ManifestManager:
+    from app.services.integrations.connections import connected_partner_names
+
     manager = ManifestManager()
     manager.set_idea(idea.get("description") or "")
+    manager.set_connected_partners(connected_partner_names(idea.get("user_id")))
     return manager
 
 

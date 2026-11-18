@@ -62,3 +62,52 @@ def test_already_connected_is_reported_not_duplicated(db):
 def test_rejects_bad_or_reserved_ids(db, bad):
     with pytest.raises(ValueError):
         connections.start_connection(db, "u1", bad, oauth_ready=False, site_origin=SITE)
+
+
+def test_connected_partner_names_skip_the_openai_key(db, monkeypatch):
+    from app.db import database
+
+    monkeypatch.setattr(database, "create_database_client", lambda: db)
+    connections.start_connection(db, "u1", "stripe", oauth_ready=False, site_origin=SITE)
+    db.table("integrations").insert(
+        {"integration_id": "k", "user_id": "u1", "service_id": "openai", "service_name": "OpenAI"}
+    ).execute()
+    db.table("integrations").insert(
+        {"integration_id": "om", "user_id": "u1", "service_id": "open_media", "service_name": ""}
+    ).execute()
+    assert connections.connected_partner_names("u1") == ["Stripe", "Open Media"]
+    assert connections.connected_partner_names(None) == []
+
+
+def test_section_prompt_carries_connected_partners():
+    from app.services.canvas import orchestrator
+
+    seen = {}
+
+    class FakeAI:
+        def is_available(self):
+            return True
+
+        def generate_structured_response(self, messages):
+            seen["user"] = messages[1]["content"]
+            return {"section_name": "key_partners", "content": "- Stripe for payments"}
+
+    orchestrator._run_section_agent(
+        ai_layer=FakeAI(),
+        section_name="key_partners",
+        idea_description="Pet transport",
+        qualification_summary="",
+        sibling_sections={},
+        connected_partners=["Stripe", "Open Media"],
+    )
+    assert "Stripe, Open Media" in seen["user"]
+    assert "{{" not in seen["user"]
+    assert "not connected any partners" in connections.partners_prompt_block([])
+
+
+def test_linked_means_the_partners_own_sign_in_completed():
+    from app.graphql.resolvers.integrations import _is_linked
+
+    assert _is_linked({"service_id": "notion", "access_token": None}) is False
+    assert _is_linked({"service_id": "notion", "access_token_ciphertext": b"x"}) is True
+    assert _is_linked({"service_id": "open_media"}) is True

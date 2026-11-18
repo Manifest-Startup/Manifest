@@ -188,6 +188,8 @@ export interface IntegrationRecord {
   serviceId: string;
   connectedAt: string;
   metadata: string | null;
+  /** The partner's own sign-in completed (Manifest holds credentials). */
+  linked?: boolean;
 }
 
 export interface StartIntegrationConnectionData {

@@ -9,11 +9,12 @@ import { useSafeQuery } from "features/common-ui/api/useSafeQuery";
 import { trackEvent } from "features/analytics/projectAnalytics";
 import Button from "features/common-ui/Button";
 import { useMessage } from "features/notifications/context/MessageContext";
-import { GET_IDEAS, CREATE_IDEA, DELETE_IDEA } from "features/core/apollo/queries";
+import { GET_IDEAS, DELETE_IDEA } from "features/core/apollo/queries";
 import { sidebarVar, userVar } from "features/core/apollo/localState";
 import { createLogger, logError } from "features/core/logError";
 import { IdeaPublishBadge } from "features/social/components";
 import { withRenderLog } from "hoc/withRenderLog";
+import { useCreateIdea } from "features/ideas/hooks/useCreateIdea";
 import { safeNavigate } from "utils/safeNavigate";
 import { toSlug } from "utils/toSlug";
 import { ChevronRightIcon, PlusIcon, SidebarLeftIcon } from "features/common-ui/icons";
@@ -136,9 +137,7 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
     return [...initialIds, currentIdeaId];
   }, [sortedIdeaIds, currentIdeaId, visibleCount]);
 
-  const [createIdea] = useMutation(CREATE_IDEA, {
-    refetchQueries: [{ query: GET_IDEAS }],
-  });
+  const { createIdea, createAndOpen } = useCreateIdea();
   // Task #48: drop refetchQueries here. Apollo v4 mutate() resolves to
   // { data, error? } (no plural `errors` field) and a refetch race could
   // re-introduce the deleted idea before the cache evict landed. Each
@@ -236,18 +235,10 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
   };
 
   const handleNewIdeaClick = async () => {
-    try {
-      setAutoCreateError(false);
-      const { data } = await createIdea({ variables: { title: "Brand New Idea" } });
-      if (data?.createIdea) {
-        const newIdeaId = data.createIdea.ideaId;
-        trackEvent("idea_created", { creation_surface: "new_button" });
-        navigate(`/ideas/${newIdeaId}/description`);
-        setExpandedIdeaId(newIdeaId);
-      }
-    } catch (creationError) {
-      setMessage("Failed to create new idea. Please try again.", "error");
-      logger.error("Error saving new idea:", creationError);
+    setAutoCreateError(false);
+    const newIdeaId = await createAndOpen("new_button");
+    if (newIdeaId) {
+      setExpandedIdeaId(newIdeaId);
     }
   };
 

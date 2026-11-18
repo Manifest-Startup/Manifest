@@ -44,6 +44,7 @@ const twoConnectedIntegrations = {
       serviceId: "google",
       connectedAt: "2024-01-01T00:00:00Z",
       metadata: null,
+      linked: true,
     },
     {
       integrationId: "2",
@@ -52,6 +53,7 @@ const twoConnectedIntegrations = {
       serviceId: "github",
       connectedAt: "2024-01-02T00:00:00Z",
       metadata: null,
+      linked: false,
     },
   ],
 } as const;
@@ -156,11 +158,11 @@ describe("IntegrationsSection", () => {
       expect(screen.getByText("Google")).toBeInTheDocument();
     });
 
-    const connectedTexts = screen.getAllByText("Connected");
-    expect(connectedTexts.length).toBeGreaterThan(0);
-
+    // Linked = the partner's own sign-in completed; otherwise it was added by name.
     const googleCard = screen.getByText("Google").closest(".group");
-    expect(googleCard).toBeInTheDocument();
+    expect(googleCard).toHaveTextContent("Linked");
+    const githubCard = screen.getByText("GitHub").closest(".group");
+    expect(githubCard).toHaveTextContent("Added as partner");
   });
 
   it("calls connect mutation when connecting an integration", async () => {
@@ -248,29 +250,26 @@ describe("IntegrationsSection", () => {
     expect(developmentHeaders.length).toBeGreaterThan(0);
   });
 
-  it("regression #6: shows 'Coming soon' (not 'Connect') for unsupported providers like Trello", async () => {
+  it("every catalogue partner can be connected (no dead 'Coming soon' cards)", async () => {
     renderSection();
-
     await waitFor(() => {
       expect(screen.getByText("Trello")).toBeInTheDocument();
     });
-
-    // The Trello card should expose the coming-soon affordance and NOT a Connect button.
-    expect(screen.getByTestId("integration-coming-soon-trello")).toBeInTheDocument();
-
-    const trelloCard = screen.getByText("Trello").closest(".group");
-    expect(trelloCard).toBeInTheDocument();
-    expect(trelloCard?.querySelector("button")).toBeNull();
+    for (const name of ["Trello", "Jira", "Monday.com", "ClickUp"]) {
+      const card = screen.queryByText(name)?.closest(".group");
+      if (card) {
+        expect(card.querySelector("button")).toHaveTextContent("Connect");
+      }
+    }
+    expect(screen.queryByTestId("integration-coming-soon-trello")).not.toBeInTheDocument();
   });
 
-  it("regression #6: also hides Connect for jira, monday, clickup", async () => {
+  it("keeps Open Media out of the grid (it has its own Account section)", async () => {
     renderSection();
     await waitFor(() => {
-      expect(screen.getByText("Jira")).toBeInTheDocument();
+      expect(screen.getByText("Trello")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("integration-coming-soon-jira")).toBeInTheDocument();
-    expect(screen.getByTestId("integration-coming-soon-monday")).toBeInTheDocument();
-    expect(screen.getByTestId("integration-coming-soon-clickup")).toBeInTheDocument();
+    expect(screen.queryByText("Open Media")).not.toBeInTheDocument();
   });
 
   it("applies the focusIntegration query param to search and category state", async () => {

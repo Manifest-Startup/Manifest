@@ -3,7 +3,12 @@ import { useQuery, useMutation } from '@apollo/client/react';
 import { useSearchParams } from 'react-router-dom';
 import { useMessage } from 'features/notifications/context/MessageContext';
 import { trackEvent } from 'features/analytics/projectAnalytics';
-import { GET_INTEGRATIONS, CONNECT_INTEGRATION, DISCONNECT_INTEGRATION } from 'features/core/apollo/queries';
+import {
+  GET_INTEGRATIONS,
+  CONNECT_INTEGRATION,
+  DISCONNECT_INTEGRATION,
+  START_INTEGRATION_CONNECTION,
+} from 'features/core/apollo/queries';
 import OtherPartners from './OtherPartners';
 import { 
   HiSearch,
@@ -51,6 +56,8 @@ interface Integration {
   icon: IntegrationCatalogEntry['icon'];
   category: IntegrationCatalogEntry['category'];
   connected: boolean;
+  /** Connected through the partner's own sign-in (vs. added as a partner by name). */
+  linked: boolean;
   brandColor: IntegrationCatalogEntry['brandColor'];
   availability: IntegrationAvailability;
 }
@@ -92,7 +99,9 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({
             {integration.connected && (
               <div className="flex items-center gap-1 mt-1">
                 <CheckIcon className="w-4 h-4 text-green-700 dark:text-green-400" />
-                <span className="text-xs text-green-700 dark:text-green-400 font-medium">Connected</span>
+                <span className="text-xs text-green-700 dark:text-green-400 font-medium">
+                  {integration.linked ? 'Linked' : 'Added as partner'}
+                </span>
               </div>
             )}
           </div>
@@ -142,12 +151,18 @@ const IntegrationsSection: React.FC = () => {
   const [connectIntegration] = useMutation(CONNECT_INTEGRATION, {
     refetchQueries: [{ query: GET_INTEGRATIONS }],
   });
+  const [startConnection] = useMutation(START_INTEGRATION_CONNECTION, {
+    refetchQueries: [{ query: GET_INTEGRATIONS }],
+  });
   const [disconnectIntegration] = useMutation(DISCONNECT_INTEGRATION, {
     refetchQueries: [{ query: GET_INTEGRATIONS }],
   });
 
   const connectedIntegrations = new Set(
-    integrationsData?.integrations?.map((integration: any) => integration.serviceId) || []
+    integrationsData?.integrations?.map((integration) => integration.serviceId) || []
+  );
+  const linkedIntegrations = new Set(
+    integrationsData?.integrations?.filter((integration) => integration.linked).map((integration) => integration.serviceId) || []
   );
 
   // Open Media has its own Account section (it is also how people sign in).
@@ -155,6 +170,7 @@ const IntegrationsSection: React.FC = () => {
     ...integration,
     availability: integration.availability ?? 'available',
     connected: connectedIntegrations.has(integration.id),
+    linked: linkedIntegrations.has(integration.id),
   }));
 
   useEffect(() => {
@@ -190,8 +206,28 @@ const IntegrationsSection: React.FC = () => {
     setConnectingId(integrationId);
     trackEvent('integration_connect_started', { service: integrationId });
     try {
-      setMessage(`Initiating connection to ${integrationId}...`, 'info');
-      
+      // One path for the app and agents: partners without their own sign-in
+      // are added straight away; the rest continue to the provider's sign-in.
+      const started = await startConnection({ variables: { serviceId: integrationId } });
+      const outcome = started.data?.startIntegrationConnection;
+      if (outcome && outcome.status !== 'needs_browser') {
+        setMessage(outcome.message, 'success');
+        trackEvent('integration_connect_outcome', {
+          service: integrationId,
+          outcome: 'saved_without_oauth',
+          oauth: false,
+        });
+        refetch();
+        setConnectingId(null);
+        return;
+      }
+      if (outcome?.connectUrl && integrationId === 'open_media') {
+        window.location.assign(outcome.connectUrl);
+        return;
+      }
+
+      setMessage(`Opening ${integrationId} sign-in...`, 'info');
+
       const response = await fetch(`/auth/${integrationId}/start`, {
         method: 'GET',
         credentials: 'include',
@@ -218,7 +254,7 @@ const IntegrationsSection: React.FC = () => {
             }
           }
         });
-        setMessage(`${integrationId} integration saved. OAuth will be available soon.`, 'success');
+        setMessage(`${integrationId} added as a partner. Linking its account will be available once its sign-in is set up.`, 'success');
         trackEvent('integration_connect_outcome', {
           service: integrationId,
           outcome: 'saved_without_oauth',

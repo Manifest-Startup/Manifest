@@ -15,6 +15,7 @@ This folder contains the maintained documentation for the Manifest platform.
 - [Architecture decision records](./adr/README.md) (`adr/`)
 - [Configuration](./CONFIGURATION.md)
 - [Open Media integration](./OPEN_MEDIA_INTEGRATION_PLAN.md) and its [API contract](./OPEN_MEDIA_CONTRACT.md)
+- [Partner connections](./PARTNER_CONNECTIONS.md): key partners, official sign-ins and the owner setup for each provider
 - [Agent Playbook](./AGENT_PLAYBOOK.md)
 - [Contributing Guide for Agents](./CONTRIBUTING_AGENTS.md)
 - [Voice Agent API](./VOICE_AGENT_API.md)

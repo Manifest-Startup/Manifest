@@ -117,3 +117,48 @@ def start_connection(
         STATUS_CONNECTED,
         f"{label} is now a connected partner. It shows under Key Partners on your canvases.",
     )
+
+
+def connected_partner_names(user_id: str | None) -> list[str]:
+    """Names of the partners ``user_id`` has connected (never credentials).
+
+    Feeds canvas generation so Key Partners starts from real relationships.
+    Best effort: an empty list when there is no database or no user.
+    """
+    if not user_id:
+        return []
+    try:
+        from app.db.database import create_database_client
+
+        rows = (
+            create_database_client()
+            .table("integrations")
+            .select("service_id, service_name")
+            .eq("user_id", user_id)
+            .execute()
+        ).data or []
+    except Exception:  # noqa: BLE001 - generation must not fail on this lookup
+        return []
+    names: list[str] = []
+    for row in rows:
+        service_id = str(row.get("service_id") or "")
+        if not service_id or service_id in _RESERVED:
+            continue
+        label = display_name(service_id, row.get("service_name"))
+        if label not in names:
+            names.append(label)
+    return names
+
+
+def partners_prompt_block(names: list[str]) -> str:
+    """The prompt paragraph describing the founder's connected partners."""
+    if not names:
+        return "The founder has not connected any partners in Manifest yet."
+    return (
+        "Partners the founder already works with (connected in Manifest, so these are facts, "
+        "not candidates): "
+        + ", ".join(names)
+        + ". List the relevant ones first under Key Partners as current partners, say what each "
+        "contributes to this idea, and leave out any that don't fit it. Do not repeat them in "
+        "suggestedServiceIds."
+    )
