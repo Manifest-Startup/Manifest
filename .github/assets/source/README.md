@@ -1,6 +1,6 @@
 # Banner source
 
-`banner.html` is the self-contained source of `../banner-light.png` and `../banner-dark.png`. One file holds both themes; the dark theme is a `prefers-color-scheme: dark` media query using the site's `.dark` tokens. It loads Manrope and Newsreader from Google Fonts. Nothing here is served by the app.
+`banner.html` is the self-contained source of `../banner-light.png` and `../banner-dark.png`. One file holds both themes; the dark theme is a `prefers-color-scheme: dark` media query using the site's `.dark` tokens. It uses the SF Pro system font stack, so render it on a Mac. Nothing here is served by the app.
 
 Re-render from the repository root with headless Chromium at a 1600 × 600 viewport and a device scale factor of 2, once per color scheme. With Playwright:
 

@@ -6,6 +6,7 @@ import { useStartGuestSession } from "features/auth/hooks/useStartGuestSession";
 import { trackEvent } from "features/analytics/projectAnalytics";
 import Button from "features/common-ui/Button";
 import { userVar } from "features/core/apollo/localState";
+import ManifestLogo from "features/common-ui/ManifestLogo";
 
 const previewSteps = [
   { number: "01", title: "Add your idea", copy: "Start with a simple note." },
@@ -52,9 +53,7 @@ const PitchPageContent = () => {
       <div className="relative mx-auto flex min-h-screen min-h-[100dvh] w-full max-w-[1200px] flex-col px-4 sm:px-5">
         <header className="flex items-center justify-between border-b border-stone200/80 py-5 dark:border-neutral700/70">
           <Link to="/" className="flex items-center gap-3" aria-label="Manifest home">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral900 text-sm font-bold text-white shadow-none dark:bg-white dark:text-neutral900">
-              M
-            </span>
+            <ManifestLogo size={40} />
             <span className="text-base font-bold tracking-[-0.02em]">Manifest</span>
           </Link>
 

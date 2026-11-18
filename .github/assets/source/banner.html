@@ -3,35 +3,34 @@
 <head>
 <meta charset="utf-8">
 <title>Manifest README banner</title>
-<!-- Same fonts as manifeststartup.com: Manrope for UI and headlines, Newsreader for the editorial accent. -->
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@1,6..72,500;1,6..72,600&display=block" rel="stylesheet">
+<!-- Same type as manifeststartup.com: the SF Pro system stack (Inter elsewhere). -->
 <style>
   :root {
-    --bg: #ffffff; --panel: #ffffff; --tint: #f7f7f5;
-    --ink: #16212c; --ink-2: #566170; --ink-3: #7b8694;
-    --border: #e7e7e5; --border-2: #d4d4d1;
-    --accent: #2f62e8; --accent-soft: #ecf1ff; --success: #079455;
-    --grid: rgba(22, 33, 44, 0.045);
+    --bg: #ffffff; --panel: #ffffff; --tint: #f5f5f7;
+    --ink: #1d1d1f; --ink-2: #6e6e73; --ink-3: #86868b;
+    --border: #ececf0; --border-2: #e0e0e5;
+    --accent: #0071e3; --accent-soft: #eef5ff; --success: #1d8a3a;
+    --grid: rgba(29, 29, 31, 0.04);
     --warn-bg: #fffaeb; --warn-border: #fde68a; --warn-ink: #b54708;
-    --mark-bg: #16212c; --mark-ink: #ffffff;
+    --mark-bg: #1d1d1f; --mark-ink: #ffffff;
     --shadow: 0 28px 80px -40px rgba(15, 23, 42, 0.34), 0 16px 28px -20px rgba(15, 23, 42, 0.18);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #10151c; --panel: #141a22; --tint: #171d26;
-      --ink: #f5f7fa; --ink-2: #b7c1cb; --ink-3: #8f99a5;
-      --border: rgba(148, 163, 184, 0.18); --border-2: rgba(148, 163, 184, 0.28);
-      --accent: #8faeff; --accent-soft: rgba(143, 174, 255, 0.12); --success: #7be0b4;
+      --bg: #161617; --panel: #1d1d1f; --tint: #1d1d1f;
+      --ink: #f5f5f7; --ink-2: #a1a1a6; --ink-3: #86868b;
+      --border: rgba(255, 255, 255, 0.08); --border-2: rgba(255, 255, 255, 0.14);
+      --accent: #2997ff; --accent-soft: rgba(41, 151, 255, 0.14); --success: #30d158;
       --grid: rgba(255, 255, 255, 0.04);
       --warn-bg: rgba(250, 204, 21, 0.08); --warn-border: rgba(250, 204, 21, 0.3); --warn-ink: #fcd34d;
-      --mark-bg: #f5f7fa; --mark-ink: #10151c;
+      --mark-bg: #f5f5f7; --mark-ink: #161617;
       --shadow: 0 28px 80px -36px rgba(0, 0, 0, 0.55), 0 12px 24px -16px rgba(0, 0, 0, 0.34);
     }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
-    width: 1600px; height: 600px; overflow: hidden; position: relative; color: var(--ink); font-family: Manrope, system-ui, sans-serif;
+    width: 1600px; height: 600px; overflow: hidden; position: relative; color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
     background:
       linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
       linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 40px 40px,
@@ -40,12 +39,12 @@
   .copy { position: absolute; left: 110px; top: 86px; width: 720px; }
   .top { display: flex; align-items: center; gap: 22px; }
   .brand { display: flex; align-items: center; gap: 14px; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
-  .mark { width: 46px; height: 46px; border-radius: 12px; background: var(--mark-bg); color: var(--mark-ink); display: grid; place-items: center; font-size: 20px; font-weight: 700; }
+  .mark { width: 46px; height: 46px; display: block; } .mark rect { fill: var(--mark-bg); } .mark path { fill: none; stroke: var(--mark-ink); stroke-width: 11; stroke-linejoin: miter; stroke-miterlimit: 10; }
   .pill { display: inline-flex; align-items: center; gap: 10px; padding: 7px 15px; border: 1px solid var(--warn-border); border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 13.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
   .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .eyebrow { margin: 52px 0 14px; color: var(--accent); font-size: 19px; font-weight: 600; }
-  h1 { margin: 0; font-size: 92px; line-height: 1.02; letter-spacing: -0.045em; font-weight: 600; }
-  h1 em { font-family: Newsreader, Georgia, serif; font-style: italic; font-weight: 500; letter-spacing: -0.03em; color: var(--accent); }
+  h1 { margin: 0; font-size: 92px; line-height: 1.02; letter-spacing: -0.045em; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--accent); }
   .lede { margin: 26px 0 0; color: var(--ink-2); font-size: 25px; line-height: 1.45; }
 
   /* Signature motif: an idea note that becomes a Business Model Canvas. */
@@ -78,7 +77,7 @@
 </head>
 <body>
   <div class="copy">
-    <div class="top"><div class="brand"><span class="mark">M</span>Manifest</div><span class="pill">Demo · In development</span></div>
+    <div class="top"><div class="brand"><svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="23"/><path d="M25 78V35L50 60L75 26V78"/></svg>Manifest</div><span class="pill">Demo · In development</span></div>
     <p class="eyebrow">Ideas, made actionable</p>
     <h1>Turn your idea<br>into a <em>plan.</em></h1>
     <p class="lede">One workspace for the canvas, research,<br>documents and pitch, with founders in control.</p>

@@ -13,6 +13,7 @@ import { getAvatarUrl } from "features/account/utils/gravatar";
 import { loadPitchReelsPage } from "features/pitch-reels/loadPitchReelsPage";
 import { safeNavigate } from "utils/safeNavigate";
 import UniversalSearch from "./UniversalSearch";
+import ManifestLogo from "features/common-ui/ManifestLogo";
 
 interface NavItem {
   label: string;
@@ -160,9 +161,7 @@ const NavigationBar: React.FC = () => {
           aria-label="Navigate to Home"
           tabIndex={0}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-neutral900 text-base font-semibold text-white dark:bg-white dark:text-neutral900">
-            M
-          </div>
+          <ManifestLogo size={32} />
           <span className="hidden text-sm font-semibold text-neutral900 dark:text-white sm:block">Manifest</span>
         </div>
 

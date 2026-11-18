@@ -12,8 +12,9 @@ Images used by the root `README.md`. Nothing here is served by the app.
 
 The README follows manifeststartup.com's own design tokens:
 
-- **Type:** Manrope 600 with tight tracking for headlines and UI, Newsreader italic for the accent word, the same pair the site loads.
-- **Colors:** ink `#16212c`, secondary `#566170`, border `#e7e7e5`, accent `#2f62e8`, accent soft `#ecf1ff`, success `#079455`, and the amber "Demo · In development" pill (`#b54708`). The dark banner uses the site's `.dark` tokens (`#10151c`, accent `#8faeff`). Badges use ink, accent and amber for the demo status.
+- **Type:** SF Pro (system stack) with tight tracking for headlines and UI; the accent word is the same face in Apple blue.
+- **Mark:** the rising M (`frontend/public/brand/manifest-mark.svg`), the same geometry as the app, favicons and app icons.
+- **Colors:** ink `#1d1d1f`, secondary `#6e6e73`, hairline `#ececf0`, accent `#0071e3`, accent soft `#eef5ff`, success `#1d8a3a`, and the amber "Demo · In development" pill (`#b54708`). The dark banner uses the site's dark tokens (`#161617`, accent `#2997ff`). Badges use ink, accent and amber for the demo status.
 - **Layout and motif:** left-aligned copy on the site's faint 40 px grid; a demo idea note (the same example as the public landing page) flows into a draft Business Model Canvas with market brief, business model and pitch outline. It is an illustration, not a screenshot.
 - **Tone:** numbered promises (01, 02, 03, as on the landing page) instead of emoji.
 

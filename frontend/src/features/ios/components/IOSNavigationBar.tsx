@@ -10,6 +10,7 @@ import { getAvatarUrl } from "features/account/utils/gravatar";
 import { performLogout } from "features/auth/logout";
 import { createLogger } from "features/core/logError";
 import { safeNavigate } from 'utils/safeNavigate';
+import ManifestLogo from "features/common-ui/ManifestLogo";
 
 const logger = createLogger("IOSNavigationBar");
 
@@ -56,9 +57,10 @@ const IOSNavigationBar: React.FC = () => {
     <nav className="ios-nav-bar bg-white/95 dark:bg-neutral800/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-neutral700/50 safe-area-top transition-colors">
       <div className="mx-auto flex h-14 max-w-screen-sm items-center justify-between ps-[max(1rem,env(safe-area-inset-left,0px))] pe-[max(1rem,env(safe-area-inset-right,0px))]">
         <div
-          className="text-xl font-semibold text-gray-900 dark:text-white cursor-pointer"
+          className="flex cursor-pointer items-center gap-2 text-lg font-bold tracking-[-0.02em] text-gray-900 dark:text-white"
           onClick={handleLogoClick}
         >
+          <ManifestLogo size={28} />
           Manifest
         </div>
 

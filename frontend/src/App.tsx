@@ -22,6 +22,7 @@ import PrivacyConsentBanner from "features/privacy/PrivacyConsentBanner";
 import PitchPage from "features/marketing/components/PitchPage";
 import PrivateRoute from "features/auth/components/PrivateRoute";
 import { usePrivacyConsent } from "features/privacy/PrivacyConsentContext";
+import ManifestLogo from "features/common-ui/ManifestLogo";
 
 const LoginPage = lazy(() => import("features/auth/components/LoginPage"));
 const GuestSessionBanner = lazy(() => import("features/auth/components/GuestSessionBanner"));
@@ -57,9 +58,7 @@ const RouteFallback: React.FC = () => (
   <div className="manifest-page">
     <div className="manifest-shell">
       <div className="manifest-panel flex min-h-[42vh] flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-neutral900 text-xl font-bold text-white dark:bg-white dark:text-neutral900">
-          M
-        </div>
+        <ManifestLogo size={56} />
         <div>
           <p className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-gray500 dark:text-gray400">
             Manifest
