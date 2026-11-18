@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "d6bb472b7ebdfeea6868d982073ee111bb22451fdf194d166e37fff3f50b84a5",
+ "catalog_sha256": "eef597b7edb8442f7734d2e3022f3a83ac1f0e34fe12aa54b27227d495c12af4",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
