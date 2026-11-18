@@ -6,7 +6,7 @@ import { handleManifestMcpRequest } from "../src/mcp.mjs";
 const URL_MCP = "https://manifeststartup.com/mcp";
 
 function rpc(method, params, token = "session.jwt.token") {
-  const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+  const headers = { "content-type": "application/json", accept: "application/json, text/event-stream", "cf-connecting-ip": "203.0.113.7" };
   if (token) headers.authorization = `Bearer ${token}`;
   return new Request(URL_MCP, {
     method: "POST",
@@ -18,7 +18,7 @@ function rpc(method, params, token = "session.jwt.token") {
 function recorder(reply = { data: {} }, status = 200) {
   const calls = [];
   const proxy = async (request) => {
-    calls.push({ url: request.url, method: request.method, auth: request.headers.get("authorization"), body: request.body ? await request.json() : null });
+    calls.push({ url: request.url, method: request.method, auth: request.headers.get("authorization"), ip: request.headers.get("cf-connecting-ip"), body: request.body ? await request.json() : null });
     return Response.json(typeof reply === "function" ? reply(calls.at(-1)) : reply, { status });
   };
   return { calls, proxy };
@@ -66,6 +66,7 @@ test("GraphQL tools forward the caller's token and variables", async () => {
   const { result } = await res.json();
   assert.equal(calls[0].url, "https://manifeststartup.com/graphql");
   assert.equal(calls[0].auth, "Bearer session.jwt.token");
+  assert.equal(calls[0].ip, "203.0.113.7");
   assert.match(calls[0].body.query, /^mutation CreateIdea\(/);
   assert.deepEqual(calls[0].body.variables, { title: "Solar" });
   assert.equal(result.isError, false);

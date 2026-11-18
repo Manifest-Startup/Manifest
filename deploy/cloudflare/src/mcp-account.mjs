@@ -47,6 +47,9 @@ export function checkArguments(tool, args) {
 function forward(request, path, method, body) {
   const headers = new Headers({ accept: "application/json", "user-agent": "manifest-mcp" });
   headers.set("authorization", request.headers.get("authorization") || "");
+  // Keep the caller's address, so the session list shows where the agent really is.
+  const clientIp = request.headers.get("cf-connecting-ip");
+  if (clientIp) headers.set("cf-connecting-ip", clientIp);
   if (body !== undefined) headers.set("content-type", "application/json");
   return new Request(new URL(path, request.url), {
     method,

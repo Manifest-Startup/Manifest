@@ -16,7 +16,13 @@ Env:
                                 (default: ``host:pid``)
 
 Safe to deploy before producers enqueue anything — with an empty queue it just
-idles. It is intentionally NOT started by the web process.
+idles. The web process also runs this loop in a background thread
+(:func:`start_in_background`, on unless ``GENERATION_WORKER_IN_PROCESS=0``), because
+the free Render plan has no worker services; ``FOR UPDATE SKIP LOCKED`` keeps an
+extra dedicated worker safe.
+
+Each job runs with the idea owner's own OpenAI key (bring your own key) and saves
+the documents onto the idea, exactly like the request-time path.
 """
 
 from __future__ import annotations
@@ -70,17 +76,63 @@ def _idea_description(db: Any, idea_id: str | None) -> str:
     return (rows[0].get("description") if rows else "") or ""
 
 
+# Job document types -> ideas columns for the single-document generators.
+IDEA_COLUMNS = {
+    "pitch_deck": "pitch_deck",
+    "product_requirements_document": "product_requirements_document",
+    "prd": "product_requirements_document",
+    "provisional_patent": "provisional_patent",
+    "patent": "provisional_patent",
+}
+# Types produced by the full pipeline (it also refreshes similar ideas and the canvas).
+FULL_PIPELINE_TYPES = frozenset({"business_model_canvas", "bmc", "similar_ideas", "all"})
+
+
+def _owner_key(job: dict[str, Any]) -> str | None:
+    """The job owner's own OpenAI key; None falls back to template documents."""
+    user_id = job.get("user_id")
+    if not user_id:
+        return None
+    try:
+        from app.services.ai.user_keys import load_user_key
+
+        return load_user_key(str(user_id))
+    except Exception as exc:  # noqa: BLE001 — a missing key must not fail the job
+        logger.warning(
+            "[worker] key lookup failed for job %s: %s", job.get("id"), type(exc).__name__
+        )
+        return None
+
+
 def run_job(db: Any, job: dict[str, Any]) -> dict[str, Any]:
-    """Execute every requested document generation for one claimed job."""
+    """Execute every requested document generation for one claimed job and save it on the idea."""
+    from app.services.ai.credentials import use_openai_key
+    from app.services.ideas import document_generation
+
     generators = _load_generators()
-    description = _idea_description(db, job.get("idea_id"))
-    results: dict[str, str] = {}
-    for doc_type in job.get("document_types") or []:
-        generator = generators.get(doc_type)
-        if generator is None:
-            logger.warning("[worker] no generator for document_type=%s", doc_type)
-            continue
-        results[doc_type] = generator(description)
+    idea_id = job.get("idea_id")
+    description = _idea_description(db, idea_id)
+    requested = [str(t) for t in job.get("document_types") or []]
+    results: dict[str, Any] = {}
+    with use_openai_key(_owner_key(job)):
+        if FULL_PIPELINE_TYPES.intersection(requested) and idea_id:
+            document_generation.generate_background_tasks(description, idea_id)
+            results["full_pipeline"] = "saved"
+        updates: dict[str, Any] = {}
+        for doc_type in requested:
+            if doc_type in FULL_PIPELINE_TYPES:
+                continue
+            generator = generators.get(doc_type)
+            if generator is None:
+                logger.warning("[worker] no generator for document_type=%s", doc_type)
+                results[doc_type] = "unsupported"
+                continue
+            updates[IDEA_COLUMNS[doc_type]] = generator(description)
+            results[doc_type] = "saved"
+        if updates and idea_id:
+            document_generation._update_idea_documents(
+                idea_id, {**updates, "user_id": job.get("user_id")}
+            )
     return results
 
 
@@ -99,6 +151,50 @@ def process_once(db: Any, worker_id: str) -> bool:
         logger.error("[worker] job %s failed: %s", job_id, exc)
         job_service.mark_failed(db, job_id, str(exc))
     return True
+
+
+def run_loop(db: Any, worker_id: str, stop: Any, poll_interval: float) -> None:
+    """Drain the queue until ``stop`` (a threading.Event or similar) is set."""
+    while not stop.is_set():
+        try:
+            did_work = process_once(db, worker_id)
+        except Exception as exc:  # noqa: BLE001 — keep the loop alive on transient errors
+            logger.error("[worker] poll error: %s", exc)
+            did_work = False
+        if not did_work:
+            stop.wait(poll_interval)
+
+
+_background: dict[str, Any] = {}
+
+
+def start_in_background() -> bool:
+    """Run the worker loop in a daemon thread of the web process (once). Returns True if started."""
+    import threading
+
+    if _background or os.getenv("GENERATION_WORKER_IN_PROCESS", "1") == "0":
+        return False
+    if not os.getenv("DATABASE_URL") or os.getenv("PYTEST_CURRENT_TEST"):
+        return False  # in-memory dev database or the test suite: nothing durable to drain
+    stop = threading.Event()
+    poll_interval = float(os.getenv("WORKER_POLL_INTERVAL_SECONDS", "2.0"))
+    worker_id = f"{_worker_id()}:web"
+    thread = threading.Thread(
+        target=run_loop,
+        args=(create_database_client(), worker_id, stop, poll_interval),
+        name="generation-worker",
+        daemon=True,
+    )
+    _background.update(stop=stop, thread=thread)
+    thread.start()
+    logger.info("[worker] in-process generation worker started (id=%s)", worker_id)
+    return True
+
+
+def stop_background() -> None:
+    stop = _background.get("stop")
+    if stop is not None:
+        stop.set()
 
 
 def main() -> int:
