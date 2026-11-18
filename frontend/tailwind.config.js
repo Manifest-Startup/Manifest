@@ -107,6 +107,27 @@ module.exports = {
         blue500: "#0071E3",
         blue600: "#0066CC",
       },
+      // Borders stay whisper-quiet: separation comes from space and soft
+      // surfaces, not outlines (same rule as the Markdown reading theme).
+      borderColor: {
+        neutral900: "#2C2C2E",
+        neutral800: "#262628",
+        neutral700: "#262628",
+        neutral600: "#333336",
+        gray300: "#E0E0E5",
+        gray200: "#ECECF0",
+        gray100: "#F2F2F5",
+        stone300: "#E0E0E5",
+        stone200: "#ECECF0",
+        stone100: "#F2F2F5",
+        border: "#ECECF0",
+        borderLight: "#F2F2F5",
+        stone: {
+          100: "#F2F2F5",
+          200: "#ECECF0",
+          300: "#E0E0E5",
+        },
+      },
       backgroundImage: {
         "gradient-hero":
           "linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%)",

@@ -11,8 +11,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 4px 0 16px;
-  border-bottom: 1px solid var(--border-primary);
+  padding: 4px 0 8px;
   margin-bottom: 20px;
 }
 .manifest-document-header h3 {
@@ -32,8 +31,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   padding: 7px 10px;
   font-size: 12px;
   background: transparent;
@@ -163,8 +162,9 @@
   position: relative;
   aspect-ratio: 16 / 9;
   padding: clamp(20px, 4vw, 44px);
-  border: 1px solid var(--border-secondary);
-  background: #fff;
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg-tertiary);
   margin: 0 0 24px;
   display: flex;
   flex-direction: column;
