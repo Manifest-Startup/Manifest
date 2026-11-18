@@ -145,6 +145,12 @@ def merge_guest_workspace_sql(  # noqa: C901
     _run("UPDATE integrations SET user_id = %s WHERE user_id = %s", uid_pair)
     _run("UPDATE pitch_reels SET creator_user_id = %s WHERE creator_user_id = %s", uid_pair)
     _run("UPDATE idea_votes SET user_id = %s WHERE user_id = %s", uid_pair)
+    # A guest collaborating on an idea the account already collaborates on keeps one row.
+    _run(
+        "DELETE FROM idea_collaborators g USING idea_collaborators a "
+        "WHERE g.user_id = %s AND a.user_id = %s AND a.idea_id = g.idea_id",
+        (uid_pair[1], uid_pair[0]),
+    )
     _run("UPDATE idea_collaborators SET user_id = %s WHERE user_id = %s", uid_pair)
     _run("UPDATE idea_versions SET created_by = %s WHERE created_by = %s", uid_pair)
 

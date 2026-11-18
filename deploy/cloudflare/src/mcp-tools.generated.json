@@ -125,7 +125,7 @@
    "_call": {
     "via": "graphql",
     "field": "adminAgentRuns",
-    "document": "query AdminAgentRuns($limit: Int!, $agentKind: String, $status: String) { adminAgentRuns(limit: $limit, agentKind: $agentKind, status: $status) { id userId userEmail agentKind status startedAt completedAt totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage ideaId qualificationSessionId } }",
+    "document": "query AdminAgentRuns($limit: Int, $agentKind: String, $status: String) { adminAgentRuns(limit: $limit, agentKind: $agentKind, status: $status) { id userId userEmail agentKind status startedAt completedAt totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage ideaId qualificationSessionId } }",
     "variables": [
      "limit",
      "agentKind",
@@ -186,7 +186,7 @@
    "_call": {
     "via": "graphql",
     "field": "adminProductionTestStats",
-    "document": "query AdminProductionTestStats($hours: Int!) { adminProductionTestStats(hours: $hours) { windowHours totalRuns passCount failCount flakyCount errorCount skippedCount failureRate issuesOpened issuesDeduped topFailingTests { testName failures } } }",
+    "document": "query AdminProductionTestStats($hours: Int) { adminProductionTestStats(hours: $hours) { windowHours totalRuns passCount failCount flakyCount errorCount skippedCount failureRate issuesOpened issuesDeduped topFailingTests { testName failures } } }",
     "variables": [
      "hours"
     ]
@@ -307,7 +307,7 @@
    "_call": {
     "via": "graphql",
     "field": "adminVoiceTestRuns",
-    "document": "query AdminVoiceTestRuns($limit: Int!, $scenario: String, $emotion: String, $passOnly: Boolean) { adminVoiceTestRuns(limit: $limit, scenario: $scenario, emotion: $emotion, passOnly: $passOnly) { id scenario userPersona userEmotion userGoal userInput expectedBehavior assistantResponse executorKind scoreIntentUnderstanding scoreEmotionalAwareness scoreHelpfulness overallScore passStatus detectedFailures rootCauseAnalysis improvedResponseExample simulatorRunId executorRunId evaluatorRunId createdAt } }",
+    "document": "query AdminVoiceTestRuns($limit: Int, $scenario: String, $emotion: String, $passOnly: Boolean) { adminVoiceTestRuns(limit: $limit, scenario: $scenario, emotion: $emotion, passOnly: $passOnly) { id scenario userPersona userEmotion userGoal userInput expectedBehavior assistantResponse executorKind scoreIntentUnderstanding scoreEmotionalAwareness scoreHelpfulness overallScore passStatus detectedFailures rootCauseAnalysis improvedResponseExample simulatorRunId executorRunId evaluatorRunId createdAt } }",
     "variables": [
      "limit",
      "scenario",
@@ -340,7 +340,7 @@
    "_call": {
     "via": "graphql",
     "field": "adminVoiceTestStats",
-    "document": "query AdminVoiceTestStats($hours: Int!) { adminVoiceTestStats(hours: $hours) { windowHours totalRuns passed failed notEvaluated passRate averageScores { intentUnderstanding emotionalAwareness helpfulness } byScenario { label total passCount failCount } byEmotion { label total passCount failCount } topFailures { failure count } } }",
+    "document": "query AdminVoiceTestStats($hours: Int) { adminVoiceTestStats(hours: $hours) { windowHours totalRuns passed failed notEvaluated passRate averageScores { intentUnderstanding emotionalAwareness helpfulness } byScenario { label total passCount failCount } byEmotion { label total passCount failCount } topFailures { failure count } } }",
     "variables": [
      "hours"
     ]
@@ -399,7 +399,7 @@
    "_call": {
     "via": "graphql",
     "field": "approvePartnerCandidate",
-    "document": "mutation ApprovePartnerCandidate($candidateId: String!, $approved: Boolean!) { approvePartnerCandidate(candidateId: $candidateId, approved: $approved) { id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt } }",
+    "document": "mutation ApprovePartnerCandidate($candidateId: String!, $approved: Boolean) { approvePartnerCandidate(candidateId: $candidateId, approved: $approved) { id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt } }",
     "variables": [
      "candidateId",
      "approved"
@@ -495,7 +495,7 @@
    "_call": {
     "via": "graphql",
     "field": "calculateSweatEquity",
-    "document": "query CalculateSweatEquity($hours: Float!, $hourlyRate: Float!, $totalValuation: Float!) { calculateSweatEquity(hours: $hours, hourlyRate: $hourlyRate, totalValuation: $totalValuation) { sweatValue equityPercentage hours hourlyRate } }",
+    "document": "query CalculateSweatEquity($hours: Float!, $hourlyRate: Float, $totalValuation: Float) { calculateSweatEquity(hours: $hours, hourlyRate: $hourlyRate, totalValuation: $totalValuation) { sweatValue equityPercentage hours hourlyRate } }",
     "variables": [
      "hours",
      "hourlyRate",
@@ -605,7 +605,7 @@
    "_call": {
     "via": "graphql",
     "field": "conversationMessages",
-    "document": "query ConversationMessages($conversationId: String!, $limit: Int!, $beforeId: String) { conversationMessages(conversationId: $conversationId, limit: $limit, beforeId: $beforeId) { messageId conversationId senderId content createdAt isMine } }",
+    "document": "query ConversationMessages($conversationId: String!, $limit: Int, $beforeId: String) { conversationMessages(conversationId: $conversationId, limit: $limit, beforeId: $beforeId) { messageId conversationId senderId content createdAt isMine } }",
     "variables": [
      "conversationId",
      "limit",
@@ -1148,7 +1148,7 @@
    "_call": {
     "via": "graphql",
     "field": "exportIdeas",
-    "document": "mutation ExportIdeas($format: String!) { exportIdeas(format: $format) { content format filename } }",
+    "document": "mutation ExportIdeas($format: String) { exportIdeas(format: $format) { content format filename } }",
     "variables": [
      "format"
     ]
@@ -1650,7 +1650,7 @@
    "_call": {
     "via": "graphql",
     "field": "ideas",
-    "document": "query Ideas($first: Int!, $after: String) { ideas(first: $first, after: $after) { ideaId userId title description hasDescription createdAt isPublished generatedAssetCount } }",
+    "document": "query Ideas($first: Int, $after: String) { ideas(first: $first, after: $after) { ideaId userId title description hasDescription createdAt isPublished generatedAssetCount } }",
     "variables": [
      "first",
      "after"
@@ -2152,7 +2152,7 @@
    "_call": {
     "via": "graphql",
     "field": "myAgentRuns",
-    "document": "query MyAgentRuns($limit: Int!) { myAgentRuns(limit: $limit) { id agentKind status startedAt completedAt totalModelCostUsd totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage qualificationSessionId ideaId } }",
+    "document": "query MyAgentRuns($limit: Int) { myAgentRuns(limit: $limit) { id agentKind status startedAt completedAt totalModelCostUsd totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage qualificationSessionId ideaId } }",
     "variables": [
      "limit"
     ]
@@ -2213,7 +2213,7 @@
    "_call": {
     "via": "graphql",
     "field": "myConversations",
-    "document": "query MyConversations($limit: Int!, $offset: Int!, $allApps: Boolean!) { myConversations(limit: $limit, offset: $offset, allApps: $allApps) { conversationId otherUserId otherUserName otherUserHandle otherUserAvatar ideaId ideaTitle lastMessageAt lastMessagePreview unreadCount } }",
+    "document": "query MyConversations($limit: Int, $offset: Int, $allApps: Boolean) { myConversations(limit: $limit, offset: $offset, allApps: $allApps) { conversationId otherUserId otherUserName otherUserHandle otherUserAvatar ideaId ideaTitle lastMessageAt lastMessagePreview unreadCount } }",
     "variables": [
      "limit",
      "offset",
@@ -2509,7 +2509,7 @@
    "_call": {
     "via": "graphql",
     "field": "pitchReelComments",
-    "document": "query PitchReelComments($reelId: String!, $limit: Int!) { pitchReelComments(reelId: $reelId, limit: $limit) { commentId reelId authorId authorName authorHandle authorAvatar body createdAt isMine } }",
+    "document": "query PitchReelComments($reelId: String!, $limit: Int) { pitchReelComments(reelId: $reelId, limit: $limit) { commentId reelId authorId authorName authorHandle authorAvatar body createdAt isMine } }",
     "variables": [
      "reelId",
      "limit"
@@ -2540,7 +2540,7 @@
    "_call": {
     "via": "graphql",
     "field": "pitchReelsFeed",
-    "document": "query PitchReelsFeed($limit: Int!) { pitchReelsFeed(limit: $limit) { reelId slug title subtitle thesis description tags videoUrl posterUrl videoStatus workspacePath accentFrom accentTo createdAt creator { userId handle name role initials avatar followerCount isFollowing } stats { likeCount commentCount shareCount } viewerState { liked reshared } ideaId } }",
+    "document": "query PitchReelsFeed($limit: Int) { pitchReelsFeed(limit: $limit) { reelId slug title subtitle thesis description tags videoUrl posterUrl videoStatus workspacePath accentFrom accentTo createdAt creator { userId handle name role initials avatar followerCount isFollowing } stats { likeCount commentCount shareCount } viewerState { liked reshared } ideaId } }",
     "variables": [
      "limit"
     ]
@@ -3464,7 +3464,7 @@
    "_call": {
     "via": "graphql",
     "field": "surveyInsights",
-    "document": "query SurveyInsights($windowDays: Int!) { surveyInsights(windowDays: $windowDays) { generatedAt windowDays totalResponses researchResponses productFeedbackResponses researchSignupIntentAvg researchFollowUpRate productPmfVeryDisappointedPct productNpsScore productProgressAvg productDeliverableAvg productSatisfactionAvg productEaseAvg productSatisfactionTopboxPct productAiQualityAvg topResearchRoles { label count percentage } topResearchValueProps { label count percentage } topResearchBarriers { label count percentage } topResearchFirstOutputs { label count percentage } topResearchTrustSignals { label count percentage } topProductBenefits { label count percentage } topProductTasks { label count percentage } topActionThemes { theme count } } }",
+    "document": "query SurveyInsights($windowDays: Int) { surveyInsights(windowDays: $windowDays) { generatedAt windowDays totalResponses researchResponses productFeedbackResponses researchSignupIntentAvg researchFollowUpRate productPmfVeryDisappointedPct productNpsScore productProgressAvg productDeliverableAvg productSatisfactionAvg productEaseAvg productSatisfactionTopboxPct productAiQualityAvg topResearchRoles { label count percentage } topResearchValueProps { label count percentage } topResearchBarriers { label count percentage } topResearchFirstOutputs { label count percentage } topResearchTrustSignals { label count percentage } topProductBenefits { label count percentage } topProductTasks { label count percentage } topActionThemes { theme count } } }",
     "variables": [
      "windowDays"
     ]
@@ -3701,7 +3701,7 @@
    "_call": {
     "via": "graphql",
     "field": "universalSearch",
-    "document": "query UniversalSearch($query: String!, $limit: Int!, $includeWeb: Boolean!) { universalSearch(query: $query, limit: $limit, includeWeb: $includeWeb) { query myIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } publishedIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } assistantSummary webSummary webSources { title url hostname } } }",
+    "document": "query UniversalSearch($query: String!, $limit: Int, $includeWeb: Boolean) { universalSearch(query: $query, limit: $limit, includeWeb: $includeWeb) { query myIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } publishedIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } assistantSummary webSummary webSources { title url hostname } } }",
     "variables": [
      "query",
      "limit",

@@ -196,6 +196,15 @@ def get_db_connection():
                 conn.close()
 
 
+def _adapt_value(value: Any) -> Any:
+    """psycopg2 sends lists as arrays but cannot send dicts; send dicts as JSON (jsonb columns)."""
+    if isinstance(value, dict):
+        from psycopg2.extras import Json
+
+        return Json(value)
+    return value
+
+
 class QueryBuilder:
     def __init__(self, table_name: str, client: "DatabaseClient"):
         self._table = table_name
@@ -391,7 +400,7 @@ class QueryBuilder:
 
     def _execute_insert(self, cursor) -> "QueryResponse":
         columns = list(self._insert_data.keys())
-        values = list(self._insert_data.values())
+        values = [_adapt_value(v) for v in self._insert_data.values()]
         col_str = ", ".join(f'"{c}"' for c in columns)
         placeholders = ", ".join(["%s"] * len(values))
 
@@ -406,7 +415,7 @@ class QueryBuilder:
         update_values = []
         for col, val in self._update_data.items():
             set_clauses.append(f'"{col}" = %s')
-            update_values.append(val)
+            update_values.append(_adapt_value(val))
 
         sql = f'UPDATE "{self._table}" SET {", ".join(set_clauses)}'
 
@@ -425,7 +434,7 @@ class QueryBuilder:
 
     def _execute_upsert(self, cursor) -> "QueryResponse":
         columns = list(self._upsert_data.keys())
-        values = list(self._upsert_data.values())
+        values = [_adapt_value(v) for v in self._upsert_data.values()]
         col_str = ", ".join(f'"{c}"' for c in columns)
         placeholders = ", ".join(["%s"] * len(values))
 

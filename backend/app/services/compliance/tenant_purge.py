@@ -25,6 +25,8 @@ OPTIONAL_PURGE_TABLES: frozenset = frozenset(
     {
         "scim_group_members",
         "step_up_verifications",
+        # Legacy TOTP store: sign-in moved to Open Media (ADR 0002) and no table exists now.
+        "user_totp_mfa",
         "privacy_consents",
     }
 )
