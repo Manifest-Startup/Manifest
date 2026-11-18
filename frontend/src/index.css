@@ -2271,13 +2271,6 @@ summary:focus-visible,
 }
 .manifest-panel-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .manifest-panel-title { color: var(--text-primary); font-size: 0.9375rem; line-height: 1.4; font-weight: 600; letter-spacing: -0.02em; }
-.manifest-panel-count { color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap; }
-.manifest-panel-tools { display: flex; align-items: center; gap: 8px; }
-.manifest-panel-sort {
-  width: 100%; height: 36px; border: 0; border-radius: 10px;
-  padding: 0 10px; background: var(--border-primary); color: var(--text-secondary); font-size: 0.8125rem;
-}
-.manifest-panel-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .manifest-panel-toggle { flex-shrink: 0; border-radius: 6px; color: var(--text-secondary); }
 .manifest-panel-description { display: flex; align-items: center; min-height: 44px; color: var(--text-secondary); font-size: 0.8125rem; }
 .manifest-similar-panel { background: var(--bg-tertiary); color: var(--text-primary); }
@@ -2405,3 +2398,132 @@ summary:focus-visible,
   .manifest-markdown h1 { font-size: 32px; }
   .manifest-markdown h2 { font-size: 24px; margin-top: 44px; }
 }
+
+/* Ideas sidebar: Finder/Notes-style source list. Motion uses only transform
+   and opacity (compositor-only), runs once on mount, and is removed by the
+   global prefers-reduced-motion rule. */
+.manifest-sidebar {
+  --sb-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sb-hover: rgba(0, 0, 0, 0.04);
+  --sb-active: rgba(0, 0, 0, 0.065);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+.dark .manifest-sidebar {
+  --sb-hover: rgba(255, 255, 255, 0.05);
+  --sb-active: rgba(255, 255, 255, 0.09);
+}
+.manifest-workspace-library:not([hidden]) > .manifest-sidebar {
+  animation: manifest-sidebar-panel-in 360ms var(--sb-ease) both;
+}
+
+.manifest-sidebar-header { padding: 10px 8px 4px 16px; }
+.manifest-sidebar-header-row { display: flex; align-items: center; gap: 6px; min-height: 36px; }
+.manifest-sidebar-title { color: var(--text-primary); font-size: 0.9375rem; font-weight: 600; letter-spacing: -0.022em; }
+.manifest-sidebar-count {
+  color: var(--text-tertiary); font-size: 0.8125rem; font-variant-numeric: tabular-nums;
+  transition: opacity 200ms var(--sb-ease);
+}
+.manifest-sidebar-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  color: var(--text-secondary);
+  transition: background-color 160ms var(--sb-ease), color 160ms var(--sb-ease), transform 160ms var(--sb-ease), opacity 200ms var(--sb-ease);
+}
+.manifest-sidebar-icon:hover { background: var(--sb-active); color: var(--text-primary); }
+.manifest-sidebar-icon:active { transform: scale(0.9); }
+.manifest-sidebar-icon:focus-visible,
+.manifest-sidebar-row:focus-visible,
+.manifest-sidebar-aspect:focus-visible,
+.manifest-sidebar-sort select:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.manifest-sidebar-sort {
+  position: relative; display: inline-flex; align-items: center;
+  margin-left: -6px; color: var(--text-tertiary);
+  transition: color 160ms var(--sb-ease);
+}
+.manifest-sidebar-sort:hover { color: var(--text-primary); }
+.manifest-sidebar-sort select {
+  appearance: none; -webkit-appearance: none;
+  height: 24px; padding: 0 18px 0 6px; border: 0; border-radius: 6px;
+  background: transparent; color: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+}
+.manifest-sidebar-sort svg { position: absolute; right: 4px; width: 10px; height: 10px; pointer-events: none; }
+
+.manifest-sidebar-scroll { padding: 4px 8px 16px; overscroll-behavior: contain; scrollbar-width: thin; }
+.manifest-sidebar-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+.manifest-sidebar-item { animation: manifest-sidebar-in 420ms var(--sb-ease) both; animation-delay: calc(min(var(--i, 0), 10) * 24ms); }
+
+.manifest-sidebar-row {
+  display: flex; align-items: center; gap: 4px;
+  min-height: 34px; padding: 0 4px 0 6px; border-radius: 8px;
+  color: var(--text-primary); cursor: pointer; user-select: none;
+  transition: background-color 180ms var(--sb-ease);
+}
+.manifest-sidebar-row:hover { background: var(--sb-hover); }
+.manifest-sidebar-row[data-selected="true"] { background: var(--sb-active); }
+.manifest-sidebar-row:active { background: var(--sb-active); }
+
+.manifest-sidebar-disclosure {
+  flex-shrink: 0; width: 12px; height: 12px; color: var(--text-tertiary);
+  transition: transform 260ms var(--sb-ease);
+}
+.manifest-sidebar-disclosure[data-open="true"] { transform: rotate(90deg); }
+.manifest-sidebar-label {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.8125rem; font-weight: 500; letter-spacing: -0.008em;
+}
+.manifest-sidebar-row[data-selected="true"] .manifest-sidebar-label { font-weight: 600; }
+
+/* Row actions stay out of the way until the row is hovered, focused or open. */
+.manifest-sidebar-actions { display: flex; align-items: center; gap: 2px; }
+.manifest-sidebar-actions > * { opacity: 0; transition: opacity 180ms var(--sb-ease), transform 160ms var(--sb-ease); }
+.manifest-sidebar-row:hover .manifest-sidebar-actions > *,
+.manifest-sidebar-row:focus-within .manifest-sidebar-actions > *,
+.manifest-sidebar-row[data-selected="true"] .manifest-sidebar-actions > *,
+.manifest-sidebar-actions[data-published="true"] > [data-testid="idea-publish-badge"] { opacity: 1; }
+.manifest-sidebar-delete { width: 26px; height: 26px; color: var(--text-tertiary); }
+.manifest-sidebar-delete:hover { color: #e5484d; background: rgba(229, 72, 77, 0.1); }
+@media (hover: none), (pointer: coarse) {
+  .manifest-sidebar-actions > * { opacity: 1; }
+}
+
+.manifest-sidebar-aspects { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 2px 0 6px 16px; }
+.manifest-sidebar-aspects > li { animation: manifest-sidebar-aspect-in 300ms var(--sb-ease) both; animation-delay: calc(var(--i, 0) * 26ms); }
+.manifest-sidebar-aspect {
+  position: relative; display: block; line-height: 30px; width: 100%;
+  min-height: 30px; padding: 0 8px 0 10px; border-radius: 7px; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text-secondary); font-size: 0.8125rem; letter-spacing: -0.006em;
+  transition: background-color 160ms var(--sb-ease), color 160ms var(--sb-ease);
+}
+.manifest-sidebar-aspect:hover { background: var(--sb-hover); color: var(--text-primary); }
+.manifest-sidebar-aspect::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 2px;
+  background: var(--accent); transform: scaleY(0); opacity: 0;
+  transition: transform 260ms var(--sb-ease), opacity 160ms var(--sb-ease);
+}
+.manifest-sidebar-aspect[data-selected="true"] { color: var(--text-primary); font-weight: 500; }
+.manifest-sidebar-aspect[data-selected="true"]::before { transform: scaleY(1); opacity: 1; }
+
+.manifest-sidebar-note { padding: 12px 8px; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.55; }
+.manifest-sidebar-note p + p { margin-top: 4px; }
+.manifest-sidebar-more {
+  width: 100%; margin-top: 8px; padding: 8px; border-radius: 8px;
+  color: var(--text-secondary); font-size: 0.8125rem; font-weight: 500;
+  transition: background-color 160ms var(--sb-ease), color 160ms var(--sb-ease);
+}
+.manifest-sidebar-more:hover { background: var(--sb-hover); color: var(--text-primary); }
+
+.manifest-sidebar-skeleton { display: grid; gap: 10px; padding: 10px 6px; }
+.manifest-sidebar-skeleton i {
+  display: block; height: 12px; border-radius: 6px; background: var(--sb-active);
+  animation: manifest-sidebar-pulse 1.4s ease-in-out infinite;
+}
+.manifest-sidebar-skeleton i:nth-child(2) { width: 72%; animation-delay: 120ms; }
+.manifest-sidebar-skeleton i:nth-child(3) { width: 54%; animation-delay: 240ms; }
+
+@keyframes manifest-sidebar-panel-in { from { opacity: 0; transform: translateX(-12px); } }
+@keyframes manifest-sidebar-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes manifest-sidebar-aspect-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes manifest-sidebar-pulse { 50% { opacity: 0.45; } }

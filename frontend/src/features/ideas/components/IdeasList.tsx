@@ -12,11 +12,11 @@ import { useMessage } from "features/notifications/context/MessageContext";
 import { GET_IDEAS, CREATE_IDEA, DELETE_IDEA } from "features/core/apollo/queries";
 import { sidebarVar, userVar } from "features/core/apollo/localState";
 import { createLogger, logError } from "features/core/logError";
-import { VerifiedBadge } from "features/social/components";
+import { IdeaPublishBadge } from "features/social/components";
 import { withRenderLog } from "hoc/withRenderLog";
 import { safeNavigate } from "utils/safeNavigate";
 import { toSlug } from "utils/toSlug";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "features/common-ui/icons";
+import { ChevronRightIcon, PlusIcon, SidebarLeftIcon } from "features/common-ui/icons";
 
 const logger = createLogger("IdeasList");
 
@@ -38,6 +38,11 @@ const ideaAspects: string[] = [
   "Product Requirements Document",
   "Patent",
 ];
+
+// Short sidebar labels; the full title still drives the route slug and tooltip.
+const aspectLabels: Record<string, string> = {
+  "Product Requirements Document": "Requirements (PRD)",
+};
 
 const INITIAL_IDEAS_TO_RENDER = 80;
 const IDEAS_RENDER_BATCH = 80;
@@ -564,68 +569,57 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
     );
   }
 
-  return (
-    <aside className="manifest-panel manifest-library flex h-full flex-col overflow-hidden" data-testid="ideas-list">
-      <div className="manifest-panel-heading">
-        <div className="manifest-panel-heading-row">
-          <div className="flex min-w-0 items-center gap-2">
-            <h2 className="manifest-panel-title">Ideas</h2>
-            <span className="manifest-panel-count" data-testid="ideas-count-label">
-              {loading && !ideas ? "Loading…" : `${allIdeaIds.length} idea${allIdeaIds.length === 1 ? "" : "s"}.`}
-            </span>
-          </div>
-          {onToggleCollapse && <Button aria-expanded aria-label="Collapse ideas" title="Collapse ideas"
-            className="manifest-panel-toggle h-11 w-11 p-0" onClick={onToggleCollapse} type="button" variant="ghost">
-            <ChevronLeftIcon className="h-5 w-5" />
-          </Button>}
-        </div>
-        <div className="manifest-panel-tools">
-          {allIdeaIds.length > 0 && <label className="min-w-0 flex-1">
-            <span className="sr-only">Sort ideas</span>
-            <select aria-label="Sort ideas" className="manifest-panel-sort" data-testid="ideas-sort-select"
-              onChange={handleIdeasSortChange} value={ideasSort}>
-              <option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="alpha">A–Z</option>
-            </select>
-          </label>}
-          <Button variant="ghost" onClick={handleNewIdeaClick} className="manifest-panel-toggle h-11 w-11 p-0"
-            aria-label="New Idea" title="New idea" data-testid="new-idea-button"><PlusIcon className="h-5 w-5" /><span className="sr-only">New Idea</span></Button>
-        </div>
-      </div>
+  const ideaCount = allIdeaIds.length;
 
-      <div className="flex-1 overflow-y-auto px-2 py-2" onScroll={handleIdeasScroll}>
+  return (
+    <aside className="manifest-panel manifest-library manifest-sidebar flex h-full flex-col overflow-hidden" data-testid="ideas-list">
+      <header className="manifest-sidebar-header">
+        <div className="manifest-sidebar-header-row">
+          <h2 className="manifest-sidebar-title">Ideas</h2>
+          <span className="manifest-sidebar-count" data-testid="ideas-count-label" aria-label={`${ideaCount} idea${ideaCount === 1 ? "" : "s"}`}>
+            {loading && !ideas ? "" : ideaCount}
+          </span>
+          <div className="ml-auto flex items-center">
+            <button type="button" className="manifest-sidebar-icon" onClick={handleNewIdeaClick}
+              aria-label="New Idea" title="New idea" data-testid="new-idea-button">
+              <PlusIcon className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </button>
+            {onToggleCollapse && <button type="button" className="manifest-sidebar-icon" onClick={onToggleCollapse}
+              aria-expanded aria-label="Collapse ideas" title="Collapse ideas">
+              <SidebarLeftIcon className="h-[18px] w-[18px]" strokeWidth={1.6} />
+            </button>}
+          </div>
+        </div>
+        {ideaCount > 1 && <label className="manifest-sidebar-sort">
+          <span className="sr-only">Sort ideas</span>
+          <select aria-label="Sort ideas" data-testid="ideas-sort-select" onChange={handleIdeasSortChange} value={ideasSort}>
+            <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="alpha">A–Z</option>
+          </select>
+          <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor"><path d="m3 4.5 3 3 3-3" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </label>}
+      </header>
+
+      <div className="manifest-sidebar-scroll flex-1 overflow-y-auto" onScroll={handleIdeasScroll}>
         {loading && !ideas ? (
-          <div className="manifest-card mt-3 px-5 py-8 text-center" data-testid="ideas-loading-state">
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
-            <p className="mt-4 text-sm font-semibold text-neutral900 dark:text-white">Loading your ideas...</p>
-            <p className="mt-2 text-sm leading-6 text-gray500 dark:text-gray400">Your workspace will appear here in a moment.</p>
+          <div className="manifest-sidebar-skeleton" data-testid="ideas-loading-state" role="status">
+            <span className="sr-only">Loading your ideas...</span>
+            <i /><i /><i />
           </div>
         ) : null}
 
         {error ? (
-          <div className="manifest-card mt-3 px-5 py-8 text-center" data-testid="ideas-error-state">
-            <p className="text-sm font-semibold text-red-600 dark:text-red-300">We couldn't load your ideas.</p>
-            <p className="mt-2 text-sm leading-6 text-gray500 dark:text-gray400">Refresh the page or try creating a new idea again.</p>
+          <div className="manifest-sidebar-note" data-testid="ideas-error-state">
+            <p className="font-medium text-red-600 dark:text-red-300">We couldn't load your ideas.</p>
+            <p>Refresh the page or try creating a new idea again.</p>
           </div>
         ) : null}
 
-        {!loading && !error && allIdeaIds.length === 0 ? (
-          <div className="manifest-card mt-3 px-5 py-8 text-center" data-testid="ideas-empty-state">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-stone50 text-gray500 dark:bg-neutral800 dark:text-gray400">
-              <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z" />
-              </svg>
-            </div>
-            <p className="mt-4 text-sm font-semibold text-neutral900 dark:text-white">You haven't created any ideas yet.</p>
-            <p className="mt-2 text-sm leading-6 text-gray500 dark:text-gray400">
-              {autoCreateError ? "Automatic setup failed, but you can still start manually." : "Click “New Idea” to start."}
-            </p>
+        {!loading && !error && ideaCount === 0 ? (
+          <div className="manifest-sidebar-note" data-testid="ideas-empty-state">
+            <p className="font-medium text-[var(--text-primary)]">You haven't created any ideas yet.</p>
+            <p>{autoCreateError ? "Automatic setup failed, but you can still start manually." : "Click “New Idea” to start."}</p>
             {autoCreateError ? (
-              <Button
-                variant="primary"
-                onClick={handleNewIdeaClick}
-                className="mx-auto mt-4 justify-center"
-                data-testid="new-idea-button"
-              >
+              <Button variant="primary" onClick={handleNewIdeaClick} className="mt-3 justify-center" data-testid="new-idea-button">
                 <PlusIcon className="h-4 w-4" />
                 New Idea
               </Button>
@@ -633,24 +627,19 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
           </div>
         ) : null}
 
-        <div className="space-y-1">
-          {renderedIdeaIds.map((ideaId: string) => {
+        <ul className="manifest-sidebar-list">
+          {renderedIdeaIds.map((ideaId: string, index) => {
             const ideaObj = ideasById.get(ideaId);
             const displayTitle = getIdeaDisplayTitle(ideaObj);
             const isSelected = currentIdeaId === ideaId;
             const isExpanded = expandedIdeaId === ideaId;
+            const isPublished = ideaObj?.isPublished || false;
 
             return (
-              <div
-                key={ideaId}
-                className={`rounded-md transition-colors ${
-                  isSelected
-                    ? "bg-stone100 dark:bg-neutral800"
-                    : "hover:bg-stone100/70 dark:hover:bg-neutral800/70"
-                }`}
-              >
+              <li key={ideaId} className="manifest-sidebar-item" style={{ "--i": index } as React.CSSProperties}>
                 <div
-                  className="group flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 py-1"
+                  className="manifest-sidebar-row"
+                  data-selected={isSelected}
                   onClick={() => handleIdeaSelect(ideaId)}
                   onKeyDown={(event) => handleIdeaKeyDown(event, ideaId)}
                   ref={(node) => {
@@ -658,90 +647,69 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
                   }}
                   role="button"
                   tabIndex={0}
+                  aria-current={isSelected ? "true" : undefined}
                   aria-expanded={isExpanded}
                   aria-label={`Open idea ${displayTitle}`}
                 >
-                  <p
-                    className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral900 dark:text-white"
-                    // #10: surface the full title on hover so users can
-                    // disambiguate ideas with similar prefixes (e.g.
-                    // "Blockchain for Food Transparency" vs.
-                    // "Blockchain Agriculture Tracker") even when the
-                    // sidebar is narrow.
-                    title={displayTitle}
-                  >
-                    {displayTitle}
-                  </p>
-                  <VerifiedBadge ideaId={ideaId} isPublished={ideaObj?.isPublished || false} size="sm" />
-                  <button
-                    onClick={(event) => handleDeleteIdea(ideaId, event)}
-                    className="rounded-full p-2 text-gray400 opacity-100 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                    aria-label={`Delete idea: ${displayTitle}`}
-                    type="button"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                  <svg className="manifest-sidebar-disclosure" data-open={isExpanded} aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor">
+                    <path d="m4.5 3 3 3-3 3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {/* #10: full title on hover disambiguates similar prefixes in a narrow sidebar. */}
+                  <span className="manifest-sidebar-label" title={displayTitle}>{displayTitle}</span>
+                  <span className="manifest-sidebar-actions" data-published={isPublished}>
+                    <IdeaPublishBadge ideaId={ideaId} isPublished={isPublished} size="sm" />
+                    <button
+                      onClick={(event) => handleDeleteIdea(ideaId, event)}
+                      onKeyDown={(event) => event.stopPropagation()}
+                      className="manifest-sidebar-icon manifest-sidebar-delete"
+                      aria-label={`Delete idea: ${displayTitle}`}
+                      title="Delete idea"
+                      type="button"
                     >
-                      <path d="M3 6h18" />
-                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                    </svg>
-                  </button>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 7h16" />
+                        <path d="M18 7v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7" />
+                        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  </span>
                 </div>
 
                 {isExpanded ? (
-                  <div className="ml-3 border-l border-stone200 pb-2 pl-2 dark:border-neutral700">
-                    <div className="grid gap-0.5">
-                      {ideaAspects.map((title) => {
-                        const ideaAspectURL = title.toLowerCase().replace(/ /g, "-");
-                        const isAspectSelected = ideaAspectURL === selectedAspect;
+                  <ul className="manifest-sidebar-aspects">
+                    {ideaAspects.map((title, aspectIndex) => {
+                      const isAspectSelected = isSelected && toSlug(title) === selectedAspect;
 
-                        return (
+                      return (
+                        <li key={title} style={{ "--i": aspectIndex } as React.CSSProperties}>
                           <button
-                            key={title}
                             type="button"
                             ref={(node) => {
                               aspectItemRefs.current[`${ideaId}:${title}`] = node;
                             }}
-                            className={`flex min-h-10 items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-xs font-medium transition-colors ${
-                              isAspectSelected
-                                ? "bg-white text-neutral900 dark:bg-neutral700 dark:text-white"
-                                : "text-gray500 hover:bg-white/70 hover:text-neutral900 dark:text-gray400 dark:hover:bg-neutral700 dark:hover:text-white"
-                            }`}
+                            className="manifest-sidebar-aspect"
+                            data-selected={isAspectSelected}
+                            title={title}
+                            aria-label={title}
+                            aria-current={isAspectSelected ? "page" : undefined}
                             onClick={() => handleAspectClick(title, ideaId)}
                             onKeyDown={(event) => handleAspectKeyDown(event, ideaId, title)}
                           >
-                            <span>{title}</span>
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m9 5 7 7-7 7" />
-                            </svg>
+                            {aspectLabels[title] ?? title}
                           </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 ) : null}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
         {visibleCount < sortedIdeaIds.length ? (
-          <div className="px-2 pb-2 pt-4">
-            <button
-              type="button"
-              onClick={loadMoreIdeas}
-              className="w-full rounded-2xl border border-stone200 bg-white/80 px-4 py-3 text-sm font-semibold text-neutral900 shadow-soft transition-all hover:border-stone300 hover:bg-white dark:border-neutral700 dark:bg-neutral900/84 dark:text-white dark:hover:border-neutral600 dark:hover:bg-neutral900"
-            >
-              Load more ideas
-            </button>
-          </div>
+          <button type="button" onClick={loadMoreIdeas} className="manifest-sidebar-more">
+            Load more ideas
+          </button>
         ) : null}
       </div>
     </aside>
