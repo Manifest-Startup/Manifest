@@ -28,6 +28,7 @@ OPTIONAL_PURGE_TABLES: frozenset = frozenset(
         # Legacy TOTP store: sign-in moved to Open Media (ADR 0002) and no table exists now.
         "user_totp_mfa",
         "privacy_consents",
+        "vault_files",
     }
 )
 
@@ -44,6 +45,7 @@ USER_DATA_PURGE_PLAN: list[dict[str, str]] = [
     {"table": "user_sessions", "where": "user_id = %s", "mode": "delete"},
     {"table": "privacy_consents", "where": "user_id = %s", "mode": "delete"},
     {"table": "scim_group_members", "where": "user_id = %s", "mode": "delete"},
+    {"table": "vault_files", "where": "user_id = %s", "mode": "delete"},
 ]
 
 

@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "97f248ff6c25a4eca5cc3863d1f89fa418d403ab9e504efad2b817070c5c661a",
+ "catalog_sha256": "4e90289136c42cde03f685c9fad5e519e6ef73cf8be385371d5fcd2fb0a617ff",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -2835,6 +2835,55 @@
    }
   },
   {
+   "name": "put_vault_file",
+   "title": "Put vault file",
+   "description": "Save one vault file to your account (or delete it with delete: true). Pass the sha256 you last synced as baseSha256; if the account changed since, nothing is written and status is \"conflict\" with the account's version, so you can keep both. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "baseSha256": {
+      "type": "string"
+     },
+     "delete": {
+      "type": "boolean",
+      "default": false
+     },
+     "device": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "path"
+    ]
+   },
+   "annotations": {
+    "title": "Put vault file",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "putVaultFile",
+    "document": "mutation PutVaultFile($path: String!, $content: String, $baseSha256: String, $delete: Boolean, $device: String) { putVaultFile(path: $path, content: $content, baseSha256: $baseSha256, delete: $delete, device: $device) { status file { path content sha256 deleted device updatedAt } } }",
+    "variables": [
+     "path",
+     "content",
+     "baseSha256",
+     "delete",
+     "device"
+    ]
+   }
+  },
+  {
    "name": "regenerate_all_bmc_sections",
    "title": "Regenerate all bmc sections",
    "description": "Regenerate every Business Model Canvas section of an idea. Changes the person's Manifest account; say what you will do before calling.",
@@ -4271,6 +4320,35 @@
     "via": "graphql",
     "field": "vaultExport",
     "document": "query VaultExport($sinceUpdatedAt: String) { vaultExport(sinceUpdatedAt: $sinceUpdatedAt) { generatedAt root ideaCount files { path content updatedAt } } }",
+    "variables": [
+     "sinceUpdatedAt"
+    ]
+   }
+  },
+  {
+   "name": "vault_files",
+   "title": "Vault files",
+   "description": "Your own vault files kept in your account (notes and your writing around Manifest's generated blocks), changed after sinceUpdatedAt, with deletions. The vault sync in manifest_vault.py uses this to keep every computer's vault the same.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "sinceUpdatedAt": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Vault files",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "vaultFiles",
+    "document": "query VaultFiles($sinceUpdatedAt: String) { vaultFiles(sinceUpdatedAt: $sinceUpdatedAt) { serverTime files { path content sha256 deleted device updatedAt } } }",
     "variables": [
      "sinceUpdatedAt"
     ]

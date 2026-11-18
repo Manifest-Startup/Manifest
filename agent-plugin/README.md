@@ -41,7 +41,7 @@ Then try **`/manifest:new-idea`**, **`/manifest:note`**, **`/manifest:write-docs
 
 ## Your vault and knowledge graph
 
-With a local agent (Claude Code, Codex, Cursor, Gemini CLI…), Manifest keeps an Obsidian-style vault on your computer: `~/Manifest Vault` (or `$MANIFEST_VAULT`, or inside your own Obsidian vault). Ideas, documents, interviews and skills are Markdown files with frontmatter and `[[wiki-links]]`; notes you dictate land in `Notes/`, linked to their ideas. Open it in Obsidian and switch on Graph view. The plugin's `manifest_vault.py` writes it offline, never deletes anything, and keeps whatever you write around the generated block.
+With a local agent (Claude Code, Codex, Cursor, Gemini CLI…), Manifest keeps an Obsidian-style vault on your computer: `~/Manifest Vault` (or `$MANIFEST_VAULT`, or inside your own Obsidian vault). Ideas, documents, interviews and skills are Markdown files with frontmatter and `[[wiki-links]]`; notes you dictate land in `Notes/`, linked to their ideas. Open it in Obsidian and switch on Graph view. It syncs with your Manifest account like iCloud Drive or OneDrive: run `manifest_vault.py login` and `manifest_vault.py install` once per computer, and your notes and writing follow you, edited offline or not. The plugin's `manifest_vault.py` never deletes anything (deletions from another computer go to `.trash/`, edits in two places keep both copies) and keeps whatever you write around the generated block.
 
 ## Signing in
 
@@ -51,7 +51,7 @@ Scripts can still use an API key (`Authorization: Bearer manifest_sk_…`), whic
 
 ## What's inside
 
-- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **125 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
+- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **127 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
 - **9 skills**: `manifest` (start here), `manifest-ideas`, `manifest-documents`, `manifest-vault`, `manifest-network`, `manifest-investing`, `manifest-team`, `manifest-account` and `manifest-admin`.
 - **10 slash commands**: `new-idea`, `note`, `ideas`, `plan`, `write-docs`, `vault`, `pitch`, `messages`, `portfolio` and `account`.
 
