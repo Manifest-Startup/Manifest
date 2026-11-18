@@ -3,6 +3,9 @@
 -- tell which ideas changed. Additive: one function and one trigger; existing NULLs are backfilled
 -- from created_at. ideas.updated_at is `timestamp without time zone`, so it stores UTC.
 
+-- Backfill first, so the trigger below does not stamp the backfill itself.
+UPDATE public.ideas SET updated_at = timezone('utc', created_at) WHERE updated_at IS NULL;
+
 CREATE OR REPLACE FUNCTION public.touch_ideas_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -21,4 +24,3 @@ CREATE TRIGGER ideas_touch_updated_at
     BEFORE UPDATE ON public.ideas
     FOR EACH ROW EXECUTE FUNCTION public.touch_ideas_updated_at();
 
-UPDATE public.ideas SET updated_at = timezone('utc', created_at) WHERE updated_at IS NULL;
