@@ -258,7 +258,6 @@ def _fetch_metadata_document(url: str) -> dict:
             url,
             timeout=5,
             max_response_bytes=METADATA_MAX_BYTES,
-            allow_redirects=False,
             headers={"accept": "application/json", "user-agent": "Manifest-OAuth/1.0"},
         )
     except Exception:  # SSRFError, connection and timeout errors alike

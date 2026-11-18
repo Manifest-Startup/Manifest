@@ -205,6 +205,43 @@ def test_metadata_document_must_name_itself(monkeypatch):
         agent_oauth._fetch_metadata_document("https://client.example/meta.json")
 
 
+def test_metadata_document_is_fetched_through_the_real_safe_client(monkeypatch):
+    """Calls safe_http.safe_request itself (only the network is faked), so its keyword
+    arguments are checked; a stub here once hid a TypeError that broke every client."""
+    url = "https://claude.ai/oauth/claude-code-client-metadata"
+    body = (
+        b'{"client_id": "https://claude.ai/oauth/claude-code-client-metadata", "client_name": "Claude Code",'
+        b' "redirect_uris": ["http://localhost/callback", "http://127.0.0.1/callback"]}'
+    )
+    seen = {}
+
+    class Response:
+        status_code = 200
+        is_redirect = is_permanent_redirect = False
+
+        def iter_content(self, chunk_size):
+            yield body
+
+        @property
+        def content(self):
+            return self._content
+
+    def fake_request(method, target, **kwargs):
+        seen.update(kwargs, method=method, url=target)
+        return Response()
+
+    monkeypatch.setattr(agent_oauth.safe_http, "assert_safe_url", lambda u, allow_internal=False: u)
+    monkeypatch.setattr(agent_oauth.safe_http.requests, "request", fake_request)
+    monkeypatch.setattr(
+        agent_oauth.safe_http, "pick_safe_resolved_ip", lambda host: "160.79.104.10"
+    )
+    document = agent_oauth._fetch_metadata_document(url)
+    assert document["client_name"] == "Claude Code"
+    assert seen["url"] == url and seen["allow_redirects"] is False
+    client = agent_oauth.Client(url, "Claude Code", tuple(document["redirect_uris"]), "claude.ai")
+    assert agent_oauth.redirect_matches("http://localhost:60251/callback", client.redirect_uris)
+
+
 def test_metadata_document_clients(monkeypatch):
     url = "https://client.example/oauth/metadata.json"
     monkeypatch.setattr(
