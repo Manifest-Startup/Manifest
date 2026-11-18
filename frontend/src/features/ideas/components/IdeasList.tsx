@@ -38,6 +38,7 @@ const ideaAspects: string[] = [
   "Pitch Deck",
   "Product Requirements Document",
   "Patent",
+  "Knowledge Graph",
 ];
 
 // Short sidebar labels; the full title still drives the route slug and tooltip.

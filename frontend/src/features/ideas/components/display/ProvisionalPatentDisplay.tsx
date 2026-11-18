@@ -90,6 +90,7 @@ export const ProvisionalPatentDisplay: React.FC<
           generationState={generationState}
           title="Provisional Patent Application"
           variant="legal"
+          documentType="provisional_patent"
         />
       </div>
     );
@@ -152,6 +153,7 @@ export const ProvisionalPatentDisplay: React.FC<
             fallbackMessage={fallbackMessage}
             title="Draft Text"
             variant="legal"
+            documentType="provisional_patent"
           />
         </details>
       ) : null}

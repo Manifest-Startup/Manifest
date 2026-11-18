@@ -217,6 +217,13 @@ def _collect_subject_data(user_id: str) -> dict[str, Any]:
             errors=errors,
             label="api_keys",
         ),
+        "vault_files": _fetchall_safe(
+            "SELECT path, content, deleted, device, created_at, updated_at "
+            "FROM vault_files WHERE user_id = %s ORDER BY path",
+            (user_id,),
+            errors=errors,
+            label="vault_files",
+        ),
     }
     return {
         "schema_version": "1.0",

@@ -1,7 +1,6 @@
 import type { IconType } from "react-icons";
 import React from "react";
 import { useQuery, useReactiveVar } from "@apollo/client/react";
-import ReactMarkdown from "react-markdown";
 import { DocumentMarkdown } from "./MarkdownDisplay";
 import "./documents.css";
 import { Link } from "react-router-dom";
@@ -13,6 +12,8 @@ import {
   type DocumentGenerationState,
 } from "./DocumentGenerationNotice";
 import { parseBusinessModelCanvasSections } from "./bmcIntegrationHints";
+import { useWikiLinks } from "../../knowledge/WikiLinkContext";
+import { citedFor } from "../../knowledge/wikiLinks";
 
 interface BusinessModelCanvasDisplayProps {
   content: any;
@@ -88,7 +89,10 @@ const KeyPartnerConnections: React.FC<KeyPartnerConnectionsProps> = ({ suggested
 
 export const BusinessModelCanvasDisplay: React.FC<
   BusinessModelCanvasDisplayProps
-> = ({ content, fallbackMessage, generationState }) => {
+> = ({ content: stored, fallbackMessage, generationState }) => {
+  // Prefer the knowledge graph's cited copy (same text plus [[wiki-link]] citations).
+  const { graph } = useWikiLinks();
+  const content = citedFor(graph, "business_model_canvas", stored) ?? stored;
   if (typeof content !== "string" || !content.trim()) {
     if (generationState) {
       return (
@@ -112,7 +116,7 @@ export const BusinessModelCanvasDisplay: React.FC<
   if (parsedSections.length === 0) {
     return (
       <div className="prose prose-lg dark:prose-invert max-w-none">
-        <ReactMarkdown>{content}</ReactMarkdown>
+        <DocumentMarkdown content={content} />
       </div>
     );
   }

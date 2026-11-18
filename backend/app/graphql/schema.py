@@ -47,6 +47,7 @@ from app.graphql.resolvers.shared import _display_name  # noqa: F401
 from app.graphql.resolvers.social import SocialMutation, SocialQuery
 from app.graphql.resolvers.survey import SurveyMutation, SurveyQuery
 from app.graphql.resolvers.vault import VaultQuery
+from app.graphql.resolvers.vault_sync import VaultSyncMutation, VaultSyncQuery
 from app.graphql.resolvers.voice import VoiceMutation, VoiceQuery
 from app.graphql.types.account import AccountUpdateInput  # noqa: F401
 from app.graphql.types.integrations import ConnectIntegrationInput, Integration  # noqa: F401
@@ -86,6 +87,7 @@ class Query(
     AdminQuery,
     VoiceQuery,
     VaultQuery,
+    VaultSyncQuery,
 ):
     pass
 
@@ -107,6 +109,7 @@ class Mutation(
     CostsMutation,
     CanvasMutation,
     VoiceMutation,
+    VaultSyncMutation,
 ):
     pass
 
@@ -170,6 +173,12 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "generation_job": "ideas.read",
         "generationJob": "ideas.read",
         "vaultExport": "ideas.read",
+        "vault_files": "ideas.read",
+        "vaultFiles": "ideas.read",
+        "put_vault_file": "ideas.write",
+        "putVaultFile": "ideas.write",
+        "ideaKnowledgeGraph": "ideas.read",
+        "idea_knowledge_graph": "ideas.read",
         "search_ideas": "ideas.read",
         "searchIdeas": "ideas.read",
         "shared_ideas": "ideas.read",
