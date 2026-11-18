@@ -188,7 +188,7 @@ def decode_session_token(token: str) -> dict[str, Any] | None:
         return None
 
 
-def get_current_user_id(request: Request):
+def _resolve_current_user_id(request: Request):
     """Decode the session JWT from the incoming request and return the user_id
     (`sub` claim). Raises HTTP 401 if the token is missing or invalid.
     """
@@ -225,7 +225,7 @@ def get_current_user_id(request: Request):
         raise HTTPException(status_code=401, detail="Invalid or expired token") from e
 
 
-def get_current_user_id_optional(request: Request):
+def _resolve_current_user_id_optional(request: Request):
     """Same as get_current_user_id but returns None instead of raising
     an exception if the user is not authenticated.
     """
@@ -276,3 +276,57 @@ def get_current_session_id_optional(request: Request) -> str | None:
 def require_user_id(request: Request) -> str:
     """FastAPI dependency: the signed-in user's id, or HTTP 401."""
     return get_current_user_id(request)
+
+
+# --- Per-request memoization -------------------------------------------------
+# One GraphQL request runs the auth gate and then each resolver's own check;
+# without this every call re-validated the session, re-read the user row and
+# rewrote last_seen_at. The first result (user id or auth error) is kept in the
+# ASGI scope, which lives exactly as long as the request.
+_AUTH_CACHE_KEY = "manifest.auth_cache"
+
+
+def _request_cache(request: Request) -> dict | None:
+    scope = getattr(request, "scope", None)
+    if not isinstance(scope, dict):
+        return None  # test doubles: no caching
+    return scope.setdefault(_AUTH_CACHE_KEY, {})
+
+
+def get_current_user_id(request: Request):
+    """Decode the session JWT from the incoming request and return the user_id
+    (`sub` claim). Raises HTTP 401 if the token is missing or invalid.
+    Validated once per request; later calls reuse the result.
+    """
+    cache = _request_cache(request)
+    if cache is not None and "required" in cache:
+        ok, value = cache["required"]
+        if ok:
+            return value
+        raise value
+    try:
+        user_id = _resolve_current_user_id(request)
+    except HTTPException as exc:
+        if cache is not None:
+            cache["required"] = (False, exc)
+        raise
+    if cache is not None:
+        cache["required"] = (True, user_id)
+        cache.setdefault("optional", user_id)
+    return user_id
+
+
+def get_current_user_id_optional(request: Request):
+    """Same as get_current_user_id but returns None instead of raising
+    an exception if the user is not authenticated. Memoized per request.
+    """
+    cache = _request_cache(request)
+    if cache is not None and "optional" in cache:
+        return cache["optional"]
+    if cache is not None and "required" in cache:
+        ok, value = cache["required"]
+        return value if ok else None
+    user_id = _resolve_current_user_id_optional(request)
+    if cache is not None:
+        cache["optional"] = user_id
+    return user_id

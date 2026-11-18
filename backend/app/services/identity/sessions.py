@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -147,15 +148,34 @@ def is_session_active(
         return True
 
 
+# Idle-timeout precision is traded for far fewer writes; keep this well
+# below SESSION_IDLE_TIMEOUT_SECONDS.
+TOUCH_INTERVAL_SECONDS = 60
+_recent_touches: dict[str, tuple[float, tuple]] = {}
+
+
 def touch_session(
     session_id: str | None, request: Request | None, *, keep_user_agent: bool = False
 ) -> None:
-    """Record activity. ``keep_user_agent`` keeps a CLI session's label in place."""
+    """Record activity. ``keep_user_agent`` keeps a CLI session's label in place.
+
+    Throttled per process: the row is rewritten at most once per
+    ``TOUCH_INTERVAL_SECONDS`` unless the IP or user agent changed, so busy
+    pages don't rewrite (and lock) the same session row on every request.
+    """
     if not session_id:
         return
     request_ip, user_agent = _request_meta(request)
     if keep_user_agent:
         user_agent = None
+    now = time.monotonic()
+    fingerprint = (request_ip, user_agent)
+    recent = _recent_touches.get(session_id)
+    if recent and recent[1] == fingerprint and now - recent[0] < TOUCH_INTERVAL_SECONDS:
+        return
+    if len(_recent_touches) > 10_000:
+        _recent_touches.clear()
+    _recent_touches[session_id] = (now, fingerprint)
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:

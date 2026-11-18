@@ -1,8 +1,25 @@
-import React, { useRef, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useRef, useEffect, useMemo, useState } from "react";
 import debounce from "lodash.debounce";
 import throttle from "lodash/throttle";
 import { useParams } from "react-router-dom";
-import TextArea from "features/common-ui/TextArea";
+// The rich-text editor (TipTap/ProseMirror, ~100 KB gzipped) is only needed on
+// the Note view; generated documents are read-only, so load it on demand and
+// warm it in idle time so opening the Note view stays instant.
+const loadTextArea = () => import("features/common-ui/TextArea");
+const TextArea = lazy(loadTextArea);
+// The canvas view carries the integrations catalogue (icons for suggested
+// partner tools), so it loads only when that tab opens.
+const BusinessModelCanvasDisplay = lazy(() =>
+  import("./display/BusinessModelCanvasDisplay").then((module) => ({ default: module.BusinessModelCanvasDisplay }))
+);
+const warmTextArea = () => {
+  const run = () => { void loadTextArea(); };
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    window.requestIdleCallback(run, { timeout: 4000 });
+  } else {
+    setTimeout(run, 1500);
+  }
+};
 
 // Collaboration components
 import { ShareButton, VersionButton } from "features/collaboration";
@@ -30,13 +47,12 @@ import { client } from 'features/core/apollo/client';
 import { useMessage } from "features/notifications/context/MessageContext";
 
 // Display components
-import { 
-  BusinessModelCanvasDisplay, 
-  MarkdownDisplay, 
-  ProvisionalPatentDisplay,
-  CostStructureDisplay,
-  extractCostStructure 
-} from './display';
+// Import views directly, not through the './display' barrel: the barrel also
+// re-exports the canvas view, which would pull the integrations catalogue
+// back into this chunk.
+import { MarkdownDisplay } from './display/MarkdownDisplay';
+import { ProvisionalPatentDisplay } from './display/ProvisionalPatentDisplay';
+import { CostStructureDisplay, extractCostStructure } from './display/CostStructureDisplay';
 import type { DocumentGenerationState } from './display/DocumentGenerationNotice';
 import { subscribeToIdeaPublished } from '../events/ideaPublishEvents';
 
@@ -286,6 +302,10 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
 
   logIdea("currentIdeaId", currentIdeaId);
   logIdea('ideaData', ideaData);
+
+  useEffect(() => {
+    warmTextArea();
+  }, []);
 
   useEffect(() => {
     currentIdeaIdRef.current = currentIdeaId;
@@ -871,11 +891,13 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="manifest-note-content flex-1 overflow-auto">
           {ideaAspect === 'business-model-canvas' ? (
-            <BusinessModelCanvasDisplay 
-              content={ideaData?.idea?.businessModelCanvas} 
-              fallbackMessage="Start typing your idea to generate the Business Model Canvas automatically."
-              generationState={getDocumentGenerationState('business-model-canvas')}
-            />
+            <Suspense fallback={<div className="min-h-[16rem]" aria-busy="true" />}>
+              <BusinessModelCanvasDisplay
+                content={ideaData?.idea?.businessModelCanvas}
+                fallbackMessage="Start typing your idea to generate the Business Model Canvas automatically."
+                generationState={getDocumentGenerationState('business-model-canvas')}
+              />
+            </Suspense>
           ) : ideaAspect === 'cost-structure' ? (
             (() => {
               const bmcData = ideaData?.idea?.businessModelCanvas;
@@ -911,6 +933,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
             />
           ) : (
             <div className="flex flex-col gap-6">
+<Suspense fallback={<div className="min-h-[16rem]" aria-busy="true" />}>
               <TextArea
                 value={content}
                 onChange={handleEditorContentChange}
@@ -920,6 +943,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
                 className="min-h-[16rem]"
                 placeholder="Write your idea…"
               />
+              </Suspense>
             </div>
           )}
         </div>

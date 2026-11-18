@@ -108,3 +108,35 @@ def test_not_started_under_tests_or_when_disabled(monkeypatch):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.setenv("GENERATION_WORKER_IN_PROCESS", "0")
     assert worker.start_in_background() is False
+
+
+def test_idle_loop_backs_off_and_wakes_on_local_enqueue(monkeypatch):
+    stop = threading.Event()
+    waits: list[float] = []
+    polls = {"n": 0}
+
+    def idle(db, worker_id):
+        polls["n"] += 1
+        return False
+
+    def fake_wait(timeout):
+        waits.append(timeout)
+        if len(waits) == 3:
+            return True  # a job was enqueued in this process: reset the backoff
+        if len(waits) == 5:
+            stop.set()
+        return False
+
+    monkeypatch.setattr(worker, "process_once", idle)
+    monkeypatch.setattr(worker.job_service, "wait_for_job", fake_wait)
+    worker.run_loop(None, "w", stop, 2.0, max_idle_interval=6.0)
+    assert waits == [2.0, 4.0, 6.0, 2.0, 4.0]
+
+
+def test_create_job_wakes_waiting_worker():
+    from app.services.ideas import generation_jobs as job_service
+
+    job_service.wait_for_job(0)  # clear any earlier signal
+    job_service.notify_job_available()
+    assert job_service.wait_for_job(0.01) is True
+    assert job_service.wait_for_job(0.01) is False

@@ -16,6 +16,7 @@ and runs against real Postgres in the worker.
 
 from __future__ import annotations
 
+import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -29,6 +30,23 @@ STATUS_FAILED = "failed"
 STATUS_CANCELLED = "cancelled"
 
 ACTIVE_STATUSES = (STATUS_QUEUED, STATUS_RUNNING)
+
+# Wakes an idle in-process worker as soon as this process enqueues a job, so
+# generation starts immediately instead of on the next idle poll.
+_job_available = threading.Event()
+
+
+def notify_job_available() -> None:
+    _job_available.set()
+
+
+def wait_for_job(timeout: float) -> bool:
+    """Block up to ``timeout`` seconds for a local enqueue; True if one arrived."""
+    woke = _job_available.wait(timeout)
+    _job_available.clear()
+    return woke
+
+
 TERMINAL_STATUSES = (STATUS_SUCCEEDED, STATUS_FAILED, STATUS_CANCELLED)
 
 
@@ -83,6 +101,7 @@ def create_job(
         "updated_at": _now_iso(),
     }
     db.table(JOB_TABLE).insert(job).execute()
+    notify_job_available()
     return job
 
 

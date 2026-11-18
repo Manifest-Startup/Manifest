@@ -144,17 +144,24 @@ def _get_pooled_connection(database_url: str):
     return _db_pool.getconn(), True
 
 
+_database_url_logged = False
+
+
 def get_database_url():
     """Get DATABASE_URL for database connections.
 
     Production uses the Supabase Postgres session pooler; without a URL the app
     falls back to the in-memory demo database.
     """
+    global _database_url_logged
     raw_in_env = (os.getenv("DATABASE_URL") or "").strip()
     url = configured_database_url()
 
     if url:
-        logger.info("Using PostgreSQL database from DATABASE_URL")
+        # Called on every connection checkout; log once, not per query.
+        if not _database_url_logged:
+            logger.info("Using PostgreSQL database from DATABASE_URL")
+            _database_url_logged = True
     elif raw_in_env:
         logger.warning(
             "DATABASE_URL is set to a template or invalid value; using in-memory DB / demo. "

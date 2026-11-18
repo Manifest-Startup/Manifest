@@ -153,16 +153,36 @@ def process_once(db: Any, worker_id: str) -> bool:
     return True
 
 
-def run_loop(db: Any, worker_id: str, stop: Any, poll_interval: float) -> None:
-    """Drain the queue until ``stop`` (a threading.Event or similar) is set."""
+def run_loop(
+    db: Any,
+    worker_id: str,
+    stop: Any,
+    poll_interval: float,
+    max_idle_interval: float | None = None,
+) -> None:
+    """Drain the queue until ``stop`` (a threading.Event or similar) is set.
+
+    While idle the poll delay doubles from ``poll_interval`` up to
+    ``max_idle_interval`` (cuts idle database queries), and a job enqueued by
+    this process wakes the loop at once (generation starts without waiting).
+    """
+    if max_idle_interval is None:
+        max_idle_interval = float(os.getenv("WORKER_MAX_IDLE_SECONDS", "15"))
+    max_idle_interval = max(max_idle_interval, poll_interval)
+    idle_delay = poll_interval
     while not stop.is_set():
         try:
             did_work = process_once(db, worker_id)
         except Exception as exc:  # noqa: BLE001 — keep the loop alive on transient errors
             logger.error("[worker] poll error: %s", exc)
             did_work = False
-        if not did_work:
-            stop.wait(poll_interval)
+        if did_work:
+            idle_delay = poll_interval
+            continue
+        if job_service.wait_for_job(idle_delay):
+            idle_delay = poll_interval
+        else:
+            idle_delay = min(idle_delay * 2, max_idle_interval)
 
 
 _background: dict[str, Any] = {}
@@ -195,6 +215,7 @@ def stop_background() -> None:
     stop = _background.get("stop")
     if stop is not None:
         stop.set()
+        job_service.notify_job_available()  # wake an idle loop so it sees stop
 
 
 def main() -> int:

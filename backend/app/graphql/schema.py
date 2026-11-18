@@ -111,6 +111,21 @@ class Mutation(
     pass
 
 
+def _request_principal(request, uid):
+    """resolve_principal once per request and user (each root field asked)."""
+    scope = getattr(request, "scope", None)
+    cache = scope.setdefault("manifest.principal_cache", {}) if isinstance(scope, dict) else None
+    if cache is not None and uid in cache:
+        return cache[uid]
+    try:
+        principal = resolve_principal(uid)
+    except Exception:
+        principal = None
+    if cache is not None:
+        cache[uid] = principal
+    return principal
+
+
 class _DefaultDenyAuthExtension(SchemaExtension):
     """Default-deny authorization for every top-level Query/Mutation field.
 
@@ -422,10 +437,7 @@ class _DefaultDenyAuthExtension(SchemaExtension):
                     raise PermissionError(f"Authentication required for {parent_name}.{field_name}")
                 required = self.FIELD_PERMISSIONS.get(field_name)
                 if required:
-                    try:
-                        principal = resolve_principal(uid)
-                    except Exception:
-                        principal = None
+                    principal = _request_principal(request, uid)
                     if not principal or not principal.has(required):
                         raise PermissionError(
                             f"Permission '{required}' required for {parent_name}.{field_name}"
