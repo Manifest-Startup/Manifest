@@ -1,4 +1,8 @@
+import { ACCOUNT_INSTRUCTIONS, ACCOUNT_TOOLS, AuthRequired, callAccountTool } from "./mcp-account.mjs";
+
 const PROTOCOL_VERSION = "2025-06-18";
+const SUPPORTED_VERSIONS = new Set(["2025-03-26", "2025-06-18", "2025-11-25"]);
+const API_KEY_PREFIX = "manifest_sk_";
 const API_ROOT = "/api/v1";
 const IDEA_FIELDS = {
   id: { type: "string", description: "Manifest identifier for this idea." },
@@ -152,9 +156,29 @@ function response(payload, status = 200, protocolVersion = PROTOCOL_VERSION) {
       "access-control-allow-origin": "*",
       "access-control-allow-headers": "authorization, content-type, mcp-protocol-version, accept",
       "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-expose-headers": "www-authenticate, mcp-protocol-version",
       "mcp-protocol-version": protocolVersion,
     },
   });
+}
+
+/** 401 that points OAuth-capable clients at the protected-resource metadata (RFC 9728). */
+export function authRequired(request, description = "Sign in with Manifest to use your account.") {
+  const origin = new URL(request.url).origin;
+  const res = response({ error: "invalid_token", error_description: description }, 401);
+  res.headers.set(
+    "www-authenticate",
+    `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", error="invalid_token", error_description="${description}"`,
+  );
+  return res;
+}
+
+/** "api-key" (legacy /api/v1 tools), "session" (OAuth or CLI token: every tool) or null. */
+export function credentialKind(request) {
+  const header = request.headers.get("authorization") || "";
+  const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
+  if (!match) return null;
+  return match[1].startsWith(API_KEY_PREFIX) ? "api-key" : "session";
 }
 
 function textResult(value, isError = false) {
@@ -212,7 +236,7 @@ export async function handleManifestMcpRequest(request, proxyApi) {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405, headers: { allow: "GET, POST, OPTIONS" } });
 
   const length = Number(request.headers.get("content-length") ?? 0);
-  if (length > 32_768) return response({ error: "Request body too large." }, 413);
+  if (length > 262_144) return response({ error: "Request body too large." }, 413);
   let message;
   try {
     const reader = request.body?.getReader();
@@ -223,7 +247,7 @@ export async function handleManifestMcpRequest(request, proxyApi) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > 32_768) {
+      if (size > 262_144) {
         await reader.cancel();
         return response({ error: "Request body too large." }, 413);
       }
@@ -244,30 +268,51 @@ export async function handleManifestMcpRequest(request, proxyApi) {
   }
   if (message.method.startsWith("notifications/")) return response(null, 202);
 
+  const kind = credentialKind(request);
+  if (!kind) return authRequired(request);
+  const account = kind === "session";
+  const available = account ? ACCOUNT_TOOLS : tools;
+
   switch (message.method) {
-    case "initialize":
+    case "initialize": {
+      const requested = message.params?.protocolVersion;
+      const version = SUPPORTED_VERSIONS.has(requested) ? requested : PROTOCOL_VERSION;
       return response({
         jsonrpc: "2.0",
         id: message.id,
         result: {
-          protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools: {} },
-          serverInfo: { name: "manifest-api", title: "Manifest API", version: "1.0.0" },
-          instructions: "Use a Manifest API key in the Authorization: Bearer header. Tools operate only on data owned by that key. Ask for confirmation before delete_idea.",
+          protocolVersion: version,
+          capabilities: { tools: { listChanged: false } },
+          serverInfo: account
+            ? { name: "manifest", title: "Manifest", version: "2.0.0", websiteUrl: "https://manifeststartup.com" }
+            : { name: "manifest-api", title: "Manifest API", version: "1.0.0" },
+          instructions: account
+            ? ACCOUNT_INSTRUCTIONS
+            : "Use a Manifest API key in the Authorization: Bearer header. Tools operate only on data owned by that key. Ask for confirmation before delete_idea. Sign in with OAuth instead of a key to get every Manifest tool.",
         },
-      });
+      }, 200, version);
+    }
     case "ping":
       return response({ jsonrpc: "2.0", id: message.id, result: {} });
     case "tools/list":
-      return response({ jsonrpc: "2.0", id: message.id, result: { tools } });
+      return response({ jsonrpc: "2.0", id: message.id, result: { tools: available } });
     case "tools/call": {
       const name = message.params?.name;
       const args = message.params?.arguments ?? {};
-      if (typeof name !== "string" || !tools.some((tool) => tool.name === name)) {
+      if (typeof name !== "string" || !available.some((tool) => tool.name === name)) {
         return jsonRpcError(message.id, -32602, "Unknown tool");
       }
       if (!args || typeof args !== "object" || Array.isArray(args)) {
         return jsonRpcError(message.id, -32602, "Tool arguments must be an object");
+      }
+      if (account) {
+        try {
+          const result = await callAccountTool(request, name, args, proxyApi);
+          return response({ jsonrpc: "2.0", id: message.id, result });
+        } catch (error) {
+          if (error instanceof AuthRequired) return authRequired(request, "Your Manifest sign-in expired or was revoked.");
+          return response({ jsonrpc: "2.0", id: message.id, result: textResult({ error: "Manifest request failed." }, true) });
+        }
       }
       try {
         const upstream = await invokeTool(request, name, args, proxyApi);

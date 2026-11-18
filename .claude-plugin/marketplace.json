@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "manifest",
+  "description": "The Manifest plugin for Claude Code, Codex and other agents.",
+  "owner": {
+    "name": "Manifest",
+    "url": "https://manifeststartup.com"
+  },
+  "plugins": [
+    {
+      "name": "manifest",
+      "source": "./agent-plugin",
+      "description": "From a rough idea to an investable plan: ideas, documents, pitch shorts, investments and your account, for AI agents.",
+      "category": "productivity",
+      "tags": [
+        "startup",
+        "founder",
+        "pitch-deck",
+        "mcp"
+      ]
+    }
+  ]
+}

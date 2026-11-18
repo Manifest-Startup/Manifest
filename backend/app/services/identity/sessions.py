@@ -17,6 +17,7 @@ SESSION_CONCURRENCY_CAP = int(os.getenv("SESSION_CONCURRENCY_CAP", "10"))
 # Manifest CLI sessions (ADR 0003) are browser-approved, longer-lived and labelled.
 # The label is stored in ``user_agent`` (no schema change) and never overwritten.
 CLI_SESSION_LABEL_PREFIX = "Manifest CLI · "
+AGENT_SESSION_LABEL_PREFIX = "AI agent · "  # ADR 0004: OAuth-connected agents (MCP)
 CLI_SESSION_TTL_DAYS = int(os.getenv("CLI_SESSION_TTL_DAYS", "30"))
 CLI_SESSION_IDLE_TIMEOUT_SECONDS = int(
     os.getenv("CLI_SESSION_IDLE_TIMEOUT_SECONDS", str(14 * 24 * 60 * 60))
@@ -24,12 +25,12 @@ CLI_SESSION_IDLE_TIMEOUT_SECONDS = int(
 
 
 def session_kind(user_agent: object) -> str:
-    """``cli`` for a Manifest CLI session, otherwise ``browser``."""
-    return (
-        "cli"
-        if isinstance(user_agent, str) and user_agent.startswith(CLI_SESSION_LABEL_PREFIX)
-        else "browser"
-    )
+    """``cli`` for a Manifest CLI session, ``agent`` for an AI agent, otherwise ``browser``."""
+    if isinstance(user_agent, str) and user_agent.startswith(CLI_SESSION_LABEL_PREFIX):
+        return "cli"
+    if isinstance(user_agent, str) and user_agent.startswith(AGENT_SESSION_LABEL_PREFIX):
+        return "agent"
+    return "browser"
 
 
 def _request_meta(request: Request | None) -> tuple[str | None, str | None]:

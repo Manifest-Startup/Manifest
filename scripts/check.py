@@ -13,6 +13,7 @@ each other and cause flaky Jest timeouts):
   edge     node --test for the Cloudflare Worker
   mcp      pytest mcp_server/tests
   cli      the Manifest CLI catalog matches the GraphQL schema (generate_cli_catalog.py --check)
+  plugin   agent tools are regenerated and the agent plugin covers every tool (ADR 0004)
   tooling  pytest tests (developer CLI + code graph)
 """
 
@@ -135,6 +136,38 @@ def check_cli(files: list[str]) -> tuple[int, str]:
     return code, "\n".join(out.splitlines()[-3:])
 
 
+def check_plugin(files: list[str]) -> tuple[int, str]:
+    """Agent tools are generated from the CLI sources; the plugin must stay complete (ADR 0004)."""
+    watched = (
+        "backend/app/",
+        "mcp_server/src/manifest_cli/",
+        "scripts/generate_agent_tools.py",
+        "agent-plugin/",
+        "deploy/cloudflare/src/",
+        ".claude-plugin/",
+        ".agents/",
+        "gemini-extension.json",
+    )
+    if files and not any(f.startswith(watched) for f in files):
+        return 0, "agent plugin unchanged"
+    code, out = sh([PY, "scripts/generate_agent_tools.py", "--check"])
+    if code:
+        return code, out.strip().splitlines()[-1]
+    code, out = sh(
+        [
+            PY,
+            "-m",
+            "pytest",
+            "-q",
+            "--no-header",
+            "-p",
+            "no:cacheprovider",
+            "tests/tooling/test_agent_plugin.py",
+        ]
+    )
+    return code, out.splitlines()[-1] if out else ""
+
+
 def check_tooling(files: list[str]) -> tuple[int, str]:
     if files and not any(f.startswith(("scripts/", "src/", "tests/")) for f in files):
         return 0, "tooling unchanged"
@@ -149,6 +182,7 @@ CHECKS = {
     "edge": check_edge,
     "mcp": check_mcp,
     "cli": check_cli,
+    "plugin": check_plugin,
     "tooling": check_tooling,
 }
 

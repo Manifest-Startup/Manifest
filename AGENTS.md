@@ -9,7 +9,7 @@ From a rough idea to an investable plan, in one workspace. This is the **parent*
 | [`deploy/cloudflare/AGENTS.md`](deploy/cloudflare/AGENTS.md) | Production edge Worker (static assets + backend proxy) |
 | [`mcp_server/AGENTS.md`](mcp_server/AGENTS.md) | Manifest MCP server for external agents |
 
-Product intent and long-form context: `docs/AI_AGENT_BASE_PROMPT.md`, `docs/PRODUCT_VISION.md`, `docs/CONTRIBUTING_AGENTS.md`, `ARCHITECTURE.md`; the Claude Code skill/plugin/MCP bundle is `docs/CLAUDE_CODE_BUNDLE.md`. Repo skills in `.claude/skills/manifest-*` encode guardrails (guest sessions, AI cost, GraphQL templates, docs sync); use the matching one when you touch that surface.
+Product intent and long-form context: `docs/AI_AGENT_BASE_PROMPT.md`, `docs/PRODUCT_VISION.md`, `docs/CONTRIBUTING_AGENTS.md`, `ARCHITECTURE.md`; the Claude Code skill/plugin/MCP bundle for developing Manifest is `docs/CLAUDE_CODE_BUNDLE.md`; the plugin for people's agents using Manifest is `agent-plugin/` (ADR 0004, generated tools; `check.py` area `plugin`). Repo skills in `.claude/skills/manifest-*` encode guardrails (guest sessions, AI cost, GraphQL templates, docs sync); use the matching one when you touch that surface.
 
 ## Find code before reading it
 
