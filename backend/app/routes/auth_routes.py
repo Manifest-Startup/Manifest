@@ -47,6 +47,9 @@ DEFAULT_NEXT = "/ideas"
 LOGIN_PATH = "/login"
 # The one backend page sign-in may return to: the Manifest CLI approval (ADR 0003).
 CLI_AUTHORIZE_PATH = "/api/cli/authorize"
+# Approval pages people come back to after signing in: the CLI (ADR 0003) and AI agents (ADR 0004).
+APPROVAL_PATHS = frozenset({CLI_AUTHORIZE_PATH, "/api/oauth/authorize"})
+APPROVAL_NEXT_MAX = 4096  # agent requests carry a signed client_id
 _EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,63}$")
 
 
@@ -59,13 +62,15 @@ def safe_next(raw: str | None) -> str:
     value = (raw or "").strip()
     if not value.startswith("/") or value.startswith("//") or "\\" in value:
         return DEFAULT_NEXT
-    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value) or len(value) > 512:
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value) or len(value) > APPROVAL_NEXT_MAX:
         return DEFAULT_NEXT
     parts = urlsplit(value)
     if parts.scheme or parts.netloc:
         return DEFAULT_NEXT
-    if parts.path == CLI_AUTHORIZE_PATH:
+    if parts.path in APPROVAL_PATHS:
         return value
+    if len(value) > 512:
+        return DEFAULT_NEXT
     if parts.path in {LOGIN_PATH, "/auth", "/signup"} or parts.path.startswith("/api/"):
         return DEFAULT_NEXT
     return value
