@@ -180,7 +180,12 @@ class BusinessModelCanvas:
             logger.debug(f"[BMC] Idea description preview: {description[:200]}...")
 
             system_prompt, user_prompt = self._load_prompt_template()
-            formatted_user_prompt = user_prompt.replace("{{idea_description}}", description)
+            from app.services.integrations.connections import partners_prompt_block
+
+            partners = list(getattr(self._model, "connected_partners", None) or [])
+            formatted_user_prompt = user_prompt.replace(
+                "{{idea_description}}", description
+            ).replace("{{connected_partners}}", partners_prompt_block(partners))
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": formatted_user_prompt},

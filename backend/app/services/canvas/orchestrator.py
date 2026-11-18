@@ -24,6 +24,10 @@ from typing import Any
 
 from app.prompts import prompt_path
 from app.services.ai import cost_tracking as cost_tracking_service
+from app.services.integrations.connections import (
+    connected_partner_names,
+    partners_prompt_block,
+)
 from app.utils.logger import logger
 
 TABLE = "business_model_canvas_sections"
@@ -182,6 +186,7 @@ def regenerate_section(
             idea_description=str(idea_description),
             qualification_summary=qualification_summary,
             sibling_sections=sibling_sections,
+            connected_partners=connected_partner_names(user_id),
         )
 
         try:
@@ -258,6 +263,7 @@ def _run_section_agent(
     idea_description: str,
     qualification_summary: str,
     sibling_sections: dict[str, Any],
+    connected_partners: list[str] | None = None,
 ) -> dict[str, Any]:
     if ai_layer is None or not getattr(ai_layer, "is_available", lambda: False)():
         raise BmcSectionError("AI layer is not available; cannot generate BMC section")
@@ -271,6 +277,7 @@ def _run_section_agent(
         .replace("{{idea_description}}", idea_description)
         .replace("{{qualification_summary}}", qualification_summary or "(no qualification run yet)")
         .replace("{{sibling_sections_block}}", siblings_block)
+        .replace("{{connected_partners}}", partners_prompt_block(connected_partners or []))
     )
     messages = [
         {"role": "system", "content": system_prompt},

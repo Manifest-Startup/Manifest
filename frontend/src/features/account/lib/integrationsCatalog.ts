@@ -141,7 +141,6 @@ export const integrationCatalog: IntegrationCatalogEntry[] = [
     icon: SiTrello,
     category: 'Productivity',
     brandColor: '#0052CC',
-    availability: 'coming_soon',
   },
   {
     id: 'jira',
@@ -150,7 +149,6 @@ export const integrationCatalog: IntegrationCatalogEntry[] = [
     icon: SiJira,
     category: 'Productivity',
     brandColor: '#0052CC',
-    availability: 'coming_soon',
   },
   {
     id: 'monday',
@@ -159,7 +157,6 @@ export const integrationCatalog: IntegrationCatalogEntry[] = [
     icon: null,
     category: 'Productivity',
     brandColor: '#FF0080',
-    availability: 'coming_soon',
   },
   {
     id: 'clickup',
@@ -168,7 +165,6 @@ export const integrationCatalog: IntegrationCatalogEntry[] = [
     icon: SiClickup,
     category: 'Productivity',
     brandColor: '#7B68EE',
-    availability: 'coming_soon',
   },
   {
     id: 'meta',
