@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "b183abd7899e9cb04d382bd04a051e69e152c0645d4c21a55f90791d7a616def",
+ "schema_sha256": "aa748358fd8ca2f97aeed2802588bd61963aae57de0176ad960adb3129b81170",
  "operations": [
   {
    "name": "me",
@@ -576,13 +576,13 @@
    ]
   },
   {
-   "name": "myEmailThreads",
-   "command": "my-email-threads",
+   "name": "myInbox",
+   "command": "my-inbox",
    "kind": "query",
-   "description": "Email from mailboxes connected in Open Media, grouped into threads (read-only, not stored).",
+   "description": "The whole Open Media inbox, newest first: chats and email in one list (read live, not stored).",
    "destructive": false,
-   "returns": "[EmailThread!]!",
-   "selection": "{ threadId subject account participants lastMessageAt preview messageCount replyUrl messages { messageId sender senderName recipients subject text sentAt folder senderVerified attachmentCount } }",
+   "returns": "[InboxConversation!]!",
+   "selection": "{ conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply }",
    "args": [
     {
      "name": "limit",
@@ -590,7 +590,27 @@
      "type": "Int!",
      "kind": "scalar",
      "required": false,
-     "default": 200,
+     "default": 100,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "inboxConversation",
+   "command": "inbox-conversation",
+   "kind": "query",
+   "description": "One inbox conversation laid out for reading by Open Media (email as clean text).",
+   "destructive": false,
+   "returns": "InboxThread!",
+   "selection": "{ conversation { conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply } items { kind key at messageId isMine senderName sentAt source subject attachmentCount quotedHistoryHidden groupStart groupEnd } }",
+   "args": [
+    {
+     "name": "conversationId",
+     "flag": "--conversation-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
      "description": ""
     }
    ]
@@ -2030,6 +2050,73 @@
      "type": "String",
      "kind": "scalar",
      "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "replyInInbox",
+   "command": "reply-in-inbox",
+   "kind": "mutation",
+   "description": "Reply in an inbox conversation: Open Media sends a chat message, or a threaded email to the right people from the mailbox that received it (``clientId`` makes retries land once).",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "conversationId",
+     "flag": "--conversation-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "content",
+     "flag": "--content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "replyToMessageId",
+     "flag": "--reply-to-message-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "clientId",
+     "flag": "--client-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "markInboxRead",
+   "command": "mark-inbox-read",
+   "kind": "mutation",
+   "description": "Mark an inbox conversation read everywhere it came from (chat or mailbox).",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "conversationId",
+     "flag": "--conversation-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
      "default": null,
      "description": ""
     }

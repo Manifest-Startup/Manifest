@@ -18,7 +18,7 @@ const RESPONSES: Record<string, unknown> = {
       connectUrl: "/api/auth/open-media/start",
     },
   },
-  GetMyConversations: { myConversations: [] },
+  GetMyInbox: { myInbox: [] },
   GetOpenMediaRealtimeToken: { openMediaRealtimeToken: null },
 };
 
@@ -52,15 +52,15 @@ describe("MessagesPage performance guards", () => {
     userVar({ isLoggedIn: false, authChecked: false, isGuest: false, userData: null });
   });
 
-  it("shares the conversation query with the list instead of issuing duplicate requests", async () => {
+  it("loads the inbox once, with no second list query", async () => {
     const operationNames: string[] = [];
 
     renderWithCountingClient(operationNames);
 
     expect(await screen.findByTestId("messages-empty-state")).toBeInTheDocument();
-    expect(operationNames.filter((name) => name === "GetMyConversations")).toHaveLength(1);
+    expect(operationNames.filter((name) => name === "GetMyInbox")).toHaveLength(1);
     expect(operationNames.filter((name) => name === "GetOpenMediaLink")).toHaveLength(1);
-    // Email is only read from Open Media when the Email tab opens.
-    expect(operationNames).not.toContain("GetMyEmailThreads");
+    // Nothing else lists conversations: Open Media assembles chats and email into one inbox.
+    expect(operationNames.filter((name) => /Conversations|Email/.test(name))).toEqual([]);
   });
 });

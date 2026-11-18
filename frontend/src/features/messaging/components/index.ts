@@ -1,4 +1,3 @@
 export { default as IdeaOwnerPanel } from './IdeaOwnerPanel';
-export { default as ChatPanel } from './ChatPanel';
-export { default as ConversationsList } from './ConversationsList';
+export { default as InboxThread } from './InboxThread';
 export { default as MessagesPage } from './MessagesPage';

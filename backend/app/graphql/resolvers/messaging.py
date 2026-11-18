@@ -7,14 +7,16 @@ import strawberry
 from app.auth.current_user import get_current_user_id
 from app.graphql.open_media_types import (
     Conversation,
-    EmailThread,
+    InboxConversation,
+    InboxThread,
     Message,
     OpenMediaLink,
     OpenMediaRealtimeToken,
     UnreadCount,
     call_open_media,
     map_conversation,
-    map_email_thread,
+    map_inbox_conversation,
+    map_inbox_thread,
     map_link,
     map_message,
 )
@@ -43,15 +45,22 @@ class MessagingQuery:
         return [map_conversation(c) for c in convs[start : start + max(1, min(limit, 100))]]
 
     @strawberry.field
-    async def my_email_threads(self, info: strawberry.Info, limit: int = 200) -> list[EmailThread]:
-        """Email from mailboxes connected in Open Media, grouped into threads (read-only, not stored)."""
+    async def my_inbox(self, info: strawberry.Info, limit: int = 100) -> list[InboxConversation]:
+        """The whole Open Media inbox, newest first: chats and email in one list (read live, not stored)."""
         user_id = get_current_user_id(info.context["request"])
-        from app.services.integrations.open_media import email as om_email
-        from app.services.integrations.open_media import settings as open_media_settings
+        from app.services.integrations.open_media import inbox as om_inbox
 
-        threads = await call_open_media(om_email.list_threads, user_id, limit=limit)
-        reply_url = open_media_settings.web_origin()
-        return [map_email_thread(t, reply_url) for t in threads]
+        rows = await call_open_media(om_inbox.list_inbox, user_id, limit=limit)
+        return [map_inbox_conversation(r) for r in rows]
+
+    @strawberry.field
+    async def inbox_conversation(self, info: strawberry.Info, conversation_id: str) -> InboxThread:
+        """One inbox conversation laid out for reading by Open Media (email as clean text)."""
+        user_id = get_current_user_id(info.context["request"])
+        from app.services.integrations.open_media import inbox as om_inbox
+
+        raw = await call_open_media(om_inbox.conversation, user_id, conversation_id)
+        return map_inbox_thread(raw)
 
     @strawberry.field
     async def conversation_messages(
@@ -200,6 +209,38 @@ class MessagingMutation:
         mapped = map_message(msg, None)
         mapped.is_mine = True
         return mapped
+
+    @strawberry.mutation
+    async def reply_in_inbox(
+        self,
+        info: strawberry.Info,
+        conversation_id: str,
+        content: str,
+        reply_to_message_id: str | None = None,
+        client_id: str | None = None,
+    ) -> bool:
+        """Reply in an inbox conversation: Open Media sends a chat message, or a threaded email
+        to the right people from the mailbox that received it (``clientId`` makes retries land once)."""
+        user_id = _require_full_account(info.context["db"], info.context["request"])
+        from app.services.integrations.open_media import inbox as om_inbox
+
+        await call_open_media(
+            om_inbox.reply,
+            user_id,
+            conversation_id,
+            body=content,
+            reply_to_message_id=reply_to_message_id,
+            client_id=client_id,
+        )
+        return True
+
+    @strawberry.mutation
+    async def mark_inbox_read(self, info: strawberry.Info, conversation_id: str) -> bool:
+        """Mark an inbox conversation read everywhere it came from (chat or mailbox)."""
+        user_id = _require_full_account(info.context["db"], info.context["request"])
+        from app.services.integrations.open_media import inbox as om_inbox
+
+        return bool(await call_open_media(om_inbox.mark_read, user_id, conversation_id))
 
     @strawberry.mutation
     async def mark_conversation_read(self, info: strawberry.Info, conversation_id: str) -> bool:

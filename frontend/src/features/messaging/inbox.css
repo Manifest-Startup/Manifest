@@ -1,0 +1,113 @@
+/*
+ * The inbox in Open Media's design (src/theme.ts and the styles in src/ui/OpenMediaMessages.tsx):
+ * black and white with warm grays, emphasis by contrast and weight, blue only for unread.
+ */
+.om-inbox, .om-thread-pane {
+  --om-text: #111111;
+  --om-text-secondary: #5c5c57;
+  --om-text-tertiary: #7e7e78;
+  --om-chrome: #f4f4f1;
+  --om-surface: #ffffff;
+  --om-border: #e6e6e1;
+  --om-bubble: #ededea;
+  --om-unread: #2563eb;
+  --om-unread-soft: #eff4fe;
+  --om-danger: #b42318;
+  background: var(--om-surface);
+  color: var(--om-text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.manifest-page-messages { height: 100%; }
+.om-inbox { display: flex; height: 100%; min-height: 420px; }
+.dark .om-inbox, .dark .om-thread-pane {
+  --om-text: #f6f6f2;
+  --om-text-secondary: #b4b4ad;
+  --om-text-tertiary: #8a8a83;
+  --om-chrome: #131312;
+  --om-surface: #0a0a0a;
+  --om-border: #272725;
+  --om-bubble: #222220;
+  --om-unread: #6ea2ff;
+  --om-unread-soft: #0f1828;
+  --om-danger: #ff8a7a;
+}
+
+/* Panes: list up to 390px with a hairline; under 760px one pane at a time. */
+.om-list-pane { display: flex; flex-direction: column; width: 100%; max-width: 390px; min-height: 0; border-right: 1px solid var(--om-border); }
+.om-thread-pane { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; height: 100%; }
+@media (max-width: 759px) {
+  .om-list-pane { max-width: none; border-right: 0; }
+  .om-inbox[data-open="true"] .om-list-pane { display: none; }
+  .om-inbox[data-open="false"] .om-thread-pane { display: none; }
+}
+
+.om-heading { display: flex; align-items: center; gap: 12px; padding: 18px 18px 10px; }
+.om-title { font-size: 28px; font-weight: 800; letter-spacing: -0.8px; }
+.om-list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
+
+/* Conversation row */
+.om-row { display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); min-height: 76px; margin: 0 8px; padding: 10px; border-radius: 14px; text-align: left; background: transparent; color: inherit; }
+.om-row:hover { background: var(--om-chrome); }
+.om-row[data-unread="true"] { background: var(--om-unread-soft); }
+.om-row[aria-current="true"] { background: var(--om-bubble); }
+.om-row-main { flex: 1; min-width: 0; }
+.om-row-top { display: flex; align-items: baseline; gap: 8px; }
+.om-row-name { overflow: hidden; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.om-row[data-unread="true"] .om-row-name { font-weight: 700; }
+.om-row-time { margin-left: auto; flex-shrink: 0; font-size: 12px; color: var(--om-text-tertiary); font-variant-numeric: tabular-nums; }
+.om-row[data-unread="true"] .om-row-time { color: var(--om-unread); font-weight: 600; }
+.om-row-bottom { display: flex; align-items: flex-start; gap: 8px; margin-top: 2px; }
+.om-row-preview { display: -webkit-box; flex: 1; min-width: 0; overflow: hidden; font-size: 13px; line-height: 18px; color: var(--om-text-secondary); -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.om-row[data-unread="true"] .om-row-preview { color: var(--om-text); font-weight: 500; }
+.om-row-context { margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--om-text-tertiary); }
+.om-badge { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--om-unread); color: #fff; font-size: 11px; font-weight: 700; }
+.om-source { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 11px; color: var(--om-text-tertiary); }
+
+/* Avatar: 48px circle, image or initials on chrome */
+.om-avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; overflow: hidden; border: 1px solid var(--om-border); border-radius: 999px; background: var(--om-chrome); color: var(--om-text); font-size: 16px; font-weight: 600; }
+.om-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.om-avatar-small { width: 36px; height: 36px; font-size: 13px; }
+
+/* Thread */
+.om-thread-header { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 10px; border-bottom: 1px solid var(--om-border); }
+.om-thread-who { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; gap: 4px; }
+.om-thread-name { max-width: 100%; overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.om-thread-meta { font-size: 11px; color: var(--om-text-tertiary); }
+.om-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 999px; color: var(--om-text); }
+.om-icon-button:hover { background: var(--om-chrome); }
+.om-header-spacer { width: 38px; flex-shrink: 0; }
+.om-header-side { display: flex; width: 38px; flex-shrink: 0; }
+/* In the inbox the list stays beside the thread on wide screens, so Back is only for narrow ones. */
+@media (min-width: 760px) { .om-inbox .om-back { display: none; } }
+.om-thread-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.om-thread-content { width: 100%; max-width: 760px; margin: 0 auto; padding: 16px 18px; }
+.om-time { margin: 22px 0 8px; text-align: center; font-size: 11px; }
+.om-time-day { font-weight: 600; color: var(--om-text-secondary); }
+.om-time-clock { color: var(--om-text-tertiary); }
+.om-message { display: flex; flex-direction: column; align-items: flex-start; max-width: 76%; margin-top: 2px; }
+.om-message[data-start="true"] { margin-top: 10px; }
+.om-message[data-mine="true"] { align-items: flex-end; margin-left: auto; }
+.om-sender { margin: 0 0 3px 12px; font-size: 12px; font-weight: 600; color: var(--om-text-tertiary); }
+.om-bubble { max-width: 100%; padding: 9px 14px; border-radius: 20px; background: var(--om-bubble); color: var(--om-text); font-size: 15px; line-height: 21px; overflow-wrap: anywhere; }
+.om-message[data-mine="true"] .om-bubble { background: var(--om-text); color: var(--om-surface); }
+.om-message[data-end="true"]:not([data-mine="true"]) .om-bubble { border-bottom-left-radius: 6px; }
+.om-message[data-end="true"][data-mine="true"] .om-bubble { border-bottom-right-radius: 6px; }
+.om-bubble-subject { margin-bottom: 3px; font-weight: 700; }
+.om-bubble-text { white-space: pre-wrap; }
+.om-bubble-text[data-collapsed="true"] { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 10; }
+.om-bubble a { font-weight: 600; text-decoration: underline; color: inherit; }
+.om-more { margin-top: 4px; font-size: 13px; font-weight: 600; text-decoration: underline; color: inherit; }
+.om-bubble-note { margin-top: 6px; font-size: 12px; opacity: 0.7; }
+.om-state { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 32px; text-align: center; color: var(--om-text-secondary); font-size: 14px; }
+.om-state strong { color: var(--om-text); font-size: 15px; }
+
+/* Composer: pill on chrome, round send button that appears with text */
+.om-composer { padding: 8px 14px 10px; border-top: 1px solid var(--om-border); background: var(--om-surface); }
+.om-composer-shell { display: flex; align-items: flex-end; gap: 8px; min-height: 44px; padding: 3px 3px 3px 16px; border: 1px solid var(--om-border); border-radius: 23px; background: var(--om-chrome); }
+.om-composer-shell:focus-within { border-color: var(--om-text-tertiary); background: var(--om-surface); }
+.om-composer textarea { flex: 1; min-height: 36px; max-height: 160px; padding: 8px 0; border: 0; outline: none; resize: none; background: transparent; color: var(--om-text); font: inherit; font-size: 15px; line-height: 20px; }
+.om-composer textarea::placeholder { color: var(--om-text-tertiary); }
+.om-send { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 999px; background: var(--om-text); color: var(--om-surface); transition: opacity 0.15s, transform 0.15s; }
+.om-send:disabled { opacity: 0.28; transform: scale(0.86); }
+.om-composer-hint { margin: 6px 4px 0; font-size: 11px; color: var(--om-text-tertiary); }
+.om-composer-error { margin: 6px 4px 0; font-size: 12px; color: var(--om-danger); }

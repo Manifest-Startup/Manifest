@@ -13,7 +13,7 @@ import OpenMediaConnectPrompt from "features/open-media/OpenMediaConnectPrompt";
 import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 
 import { useLiveMessages } from "../hooks/useLiveMessages";
-import ChatPanel from "./ChatPanel";
+import InboxThread from "./InboxThread";
 
 const logger = createLogger("IdeaOwnerPanel");
 
@@ -158,11 +158,9 @@ const IdeaOwnerPanel: React.FC<IdeaOwnerPanelProps> = ({
 
   if (showChat && conversationId && owner) {
     return (
-      <ChatPanel
+      <InboxThread
         conversationId={conversationId}
-        otherUserAvatar={owner.profilePictureUrl}
-        otherUserName={`${owner.firstName || ""} ${owner.lastName || ""}`.trim() || owner.username || "Owner"}
-        ideaTitle={owner.ideaTitle}
+        fallbackTitle={`${owner.firstName || ""} ${owner.lastName || ""}`.trim() || owner.username || "Owner"}
         onBack={() => setShowChat(false)}
       />
     );

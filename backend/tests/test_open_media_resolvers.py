@@ -22,7 +22,10 @@ def run(query, *, user="viewer", db=None):
             patch("app.graphql.resolvers.messaging.get_current_user_id", return_value=user),
             patch("app.graphql.resolvers.pitch_reels.get_current_user_id", return_value=user),
             patch("app.graphql.resolvers.shared.get_current_user_id", return_value=user),
-            patch("app.graphql.schema.resolve_principal", return_value=SimpleNamespace(has=lambda _: True)),
+            patch(
+                "app.graphql.schema.resolve_principal",
+                return_value=SimpleNamespace(has=lambda _: True),
+            ),
             patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=False),
         ):
             return loop.run_until_complete(schema.execute(query, context_value=context))
@@ -77,7 +80,12 @@ def test_my_conversations_maps_open_media_shape(monkeypatch):
         return [
             {
                 "id": "c1",
-                "other": {"id": "om-ada", "handle": "ada", "display_name": "Ada", "avatar_url": None},
+                "other": {
+                    "id": "om-ada",
+                    "handle": "ada",
+                    "display_name": "Ada",
+                    "avatar_url": None,
+                },
                 "context": {"app": "manifest", "idea_id": "i1", "title": "Tidy"},
                 "last_message": {"body": "hello", "created_at": "2026-11-01T00:00:00+00:00"},
                 "unread_count": 2,
@@ -118,10 +126,16 @@ def test_unread_count_never_breaks_the_nav(monkeypatch):
         raise OpenMediaUnavailable("down", status=503)
 
     monkeypatch.setattr(messaging, "unread_count", down)
-    assert run("query { unreadMessageCount { count } }").data == {"unreadMessageCount": {"count": 0}}
+    assert run("query { unreadMessageCount { count } }").data == {
+        "unreadMessageCount": {"count": 0}
+    }
     monkeypatch.setenv("OPEN_MEDIA_ENABLED", "")
-    monkeypatch.setattr(messaging, "unread_count", lambda uid: (_ for _ in ()).throw(AssertionError()))
-    assert run("query { unreadMessageCount { count } }").data == {"unreadMessageCount": {"count": 0}}
+    monkeypatch.setattr(
+        messaging, "unread_count", lambda uid: (_ for _ in ()).throw(AssertionError())
+    )
+    assert run("query { unreadMessageCount { count } }").data == {
+        "unreadMessageCount": {"count": 0}
+    }
 
 
 def test_send_message_marks_result_as_mine(monkeypatch):
@@ -129,10 +143,18 @@ def test_send_message_marks_result_as_mine(monkeypatch):
 
     def fake_send(uid, cid, body, client_id=None):
         sent.update(uid=uid, cid=cid, body=body, client_id=client_id)
-        return {"id": "m1", "conversation_id": cid, "sender_id": "om-me", "body": body, "created_at": None}
+        return {
+            "id": "m1",
+            "conversation_id": cid,
+            "sender_id": "om-me",
+            "body": body,
+            "created_at": None,
+        }
 
     monkeypatch.setattr(messaging, "send_message", fake_send)
-    result = run('mutation { sendMessage(conversationId: "c1", content: "hi", clientId: "k") { messageId content isMine } }')
+    result = run(
+        'mutation { sendMessage(conversationId: "c1", content: "hi", clientId: "k") { messageId content isMine } }'
+    )
     assert not result.errors
     assert result.data["sendMessage"] == {"messageId": "m1", "content": "hi", "isMine": True}
     assert sent == {"uid": "viewer", "cid": "c1", "body": "hi", "client_id": "k"}
@@ -151,12 +173,18 @@ def _ideas_db(owner="founder", published=True):
 
 
 def test_message_founder_uses_the_founders_open_media_handle(monkeypatch):
-    monkeypatch.setattr(identity, "handle_for_user", lambda uid: "ada" if uid == "founder" else None)
+    monkeypatch.setattr(
+        identity, "handle_for_user", lambda uid: "ada" if uid == "founder" else None
+    )
     started = {}
 
     def fake_start(uid, handle, context=None):
         started.update(uid=uid, handle=handle, context=context)
-        return {"id": "c1", "other": {"id": "om-ada", "handle": "ada", "display_name": "Ada"}, "context": context}
+        return {
+            "id": "c1",
+            "other": {"id": "om-ada", "handle": "ada", "display_name": "Ada"},
+            "context": context,
+        }
 
     monkeypatch.setattr(messaging, "start_conversation", fake_start)
     result = run(
@@ -202,9 +230,17 @@ def test_realtime_token_query(monkeypatch):
     monkeypatch.setattr(
         messaging,
         "realtime_token",
-        lambda uid: {"supabase_url": "u", "anon_key": "a", "access_token": "t", "expires_at": 5, "om_user_id": "om"},
+        lambda uid: {
+            "supabase_url": "u",
+            "anon_key": "a",
+            "access_token": "t",
+            "expires_at": 5,
+            "om_user_id": "om",
+        },
     )
-    result = run("query { openMediaRealtimeToken { supabaseUrl anonKey accessToken expiresAt omUserId } }")
+    result = run(
+        "query { openMediaRealtimeToken { supabaseUrl anonKey accessToken expiresAt omUserId } }"
+    )
     assert result.data["openMediaRealtimeToken"] == {
         "supabaseUrl": "u",
         "anonKey": "a",
@@ -222,7 +258,10 @@ def test_guests_cannot_message(monkeypatch):
         with (
             patch("app.graphql.schema.get_current_user_id", return_value="guest"),
             patch("app.graphql.resolvers.shared.get_current_user_id", return_value="guest"),
-            patch("app.graphql.schema.resolve_principal", return_value=SimpleNamespace(has=lambda _: True)),
+            patch(
+                "app.graphql.schema.resolve_principal",
+                return_value=SimpleNamespace(has=lambda _: True),
+            ),
             patch("app.services.identity.guest_workspace.fetch_user_is_guest", return_value=True),
         ):
             result = loop.run_until_complete(
@@ -236,45 +275,150 @@ def test_guests_cannot_message(monkeypatch):
     assert "Create an account" in result.errors[0].message
 
 
-def test_my_email_threads_maps_threads_with_reply_link(monkeypatch):
-    from app.services.integrations.open_media import email as om_email
+def test_my_inbox_maps_chats_and_email_into_one_list(monkeypatch):
+    from app.services.integrations.open_media import inbox
 
-    monkeypatch.delenv("OPEN_MEDIA_API_BASE", raising=False)
     monkeypatch.setattr(
-        om_email,
-        "list_threads",
-        lambda uid, limit=200: [
+        inbox,
+        "list_inbox",
+        lambda uid, limit=100: [
             {
-                "id": "t1",
-                "subject": "Seed round",
-                "account": "me@x.com",
-                "participants": ["Ada L"],
-                "last_at": "2026-11-03T00:00:00+00:00",
-                "preview": "Sounds good",
-                "messages": [
-                    {"message_id": "<m1>", "from": '"Ada L" <ada@x.com>', "to": ["me@x.com"],
-                     "subject": "Seed round", "text": "Sounds good", "sent_at": "2026-11-03T00:00:00Z",
-                     "folder": "INBOX", "attachments": 1}
-                ],
-            }
+                "id": "c1",
+                "kind": "chat",
+                "source": "open_media",
+                "title": "Ada",
+                "initials": "A",
+                "avatar_urls": ["https://a/ada.png"],
+                "preview": "hi",
+                "last_message_at": "2026-11-17T12:00:00Z",
+                "unread_count": 1,
+                "context": {"app": "manifest", "idea_id": "i1", "title": "Tidy"},
+                "can_reply": True,
+            },
+            {
+                "id": "company:doordash.com",
+                "kind": "email",
+                "source": "gmail",
+                "title": "DoorDash",
+                "initials": "D",
+                "avatar_urls": ["http://insecure"],
+                "company": "doordash.com",
+                "preview": "Your order",
+                "last_message_at": "2026-11-17T11:00:00Z",
+                "unread_count": 0,
+                "context": None,
+            },
         ],
     )
     result = run(
-        "query { myEmailThreads { threadId subject participants messageCount replyUrl messages { senderName recipients attachmentCount } } }"
+        "query { myInbox { conversationId kind title avatarUrl company ideaTitle unreadCount canReply } }"
     )
     assert not result.errors
-    assert result.data["myEmailThreads"] == [
+    assert result.data["myInbox"] == [
         {
-            "threadId": "t1",
-            "subject": "Seed round",
-            "participants": ["Ada L"],
-            "messageCount": 1,
-            "replyUrl": "https://openmedia.site",
-            "messages": [{"senderName": "Ada L", "recipients": ["me@x.com"], "attachmentCount": 1}],
-        }
+            "conversationId": "c1",
+            "kind": "chat",
+            "title": "Ada",
+            "avatarUrl": "https://a/ada.png",
+            "company": None,
+            "ideaTitle": "Tidy",
+            "unreadCount": 1,
+            "canReply": True,
+        },
+        {
+            "conversationId": "company:doordash.com",
+            "kind": "email",
+            "title": "DoorDash",
+            "avatarUrl": None,
+            "company": "doordash.com",
+            "ideaTitle": None,
+            "unreadCount": 0,
+            "canReply": True,
+        },
     ]
 
 
-def test_my_email_threads_requires_a_signed_in_user():
-    result = run("query { myEmailThreads { threadId } }", user=None)
+def test_inbox_conversation_maps_open_media_layout(monkeypatch):
+    from app.services.integrations.open_media import inbox
+
+    monkeypatch.setattr(
+        inbox,
+        "conversation",
+        lambda uid, cid: {
+            "conversation": {
+                "id": cid,
+                "kind": "email",
+                "title": "DoorDash",
+                "initials": "D",
+                "last_message_at": "2026-11-17T11:00:00Z",
+            },
+            "items": [
+                {"kind": "time", "key": "time-m1", "at": "2026-11-17T11:00:00Z"},
+                {
+                    "kind": "message",
+                    "key": "m1",
+                    "id": "m1",
+                    "direction": "inbound",
+                    "sender_name": "DoorDash",
+                    "sent_at": "2026-11-17T11:00:00Z",
+                    "subject": "Your order",
+                    "body": [
+                        {"text": "Track it "},
+                        {"text": "here", "url": "https://dd.com/t"},
+                        {"text": "x", "url": "javascript:alert(1)"},
+                    ],
+                    "attachments": 2,
+                    "group_start": True,
+                    "group_end": True,
+                },
+            ],
+        },
+    )
+    result = run(
+        'query { inboxConversation(conversationId: "company:doordash.com") { conversation { title } items { kind isMine subject attachmentCount body { text url } } } }'
+    )
+    assert not result.errors
+    items = result.data["inboxConversation"]["items"]
+    assert items[0]["kind"] == "time"
+    assert (
+        items[1]["subject"] == "Your order"
+        and items[1]["isMine"] is False
+        and items[1]["attachmentCount"] == 2
+    )
+    assert items[1]["body"] == [
+        {"text": "Track it ", "url": None},
+        {"text": "here", "url": "https://dd.com/t"},
+        {"text": "x", "url": None},
+    ]
+
+
+def test_reply_in_inbox_goes_through_open_media(monkeypatch):
+    from app.services.integrations.open_media import inbox
+
+    calls = {}
+    monkeypatch.setattr(
+        inbox, "reply", lambda uid, cid, **kw: calls.update(cid=cid, **kw) or {"kind": "email"}
+    )
+    with patch("app.graphql.resolvers.messaging._require_full_account", return_value="viewer"):
+        result = run(
+            'mutation { replyInInbox(conversationId: "company:doordash.com", content: "Thanks", replyToMessageId: "m1", clientId: "k") }'
+        )
+    assert not result.errors and result.data["replyInInbox"] is True
+    assert calls == {
+        "cid": "company:doordash.com",
+        "body": "Thanks",
+        "reply_to_message_id": "m1",
+        "client_id": "k",
+    }
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "query { myInbox { conversationId } }",
+        'query { inboxConversation(conversationId: "c") { items { kind } } }',
+    ],
+)
+def test_inbox_requires_a_signed_in_user(operation):
+    result = run(operation, user=None)
     assert result.errors and "Authentication required" in result.errors[0].message

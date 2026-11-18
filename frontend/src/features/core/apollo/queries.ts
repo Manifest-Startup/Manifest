@@ -17,8 +17,6 @@ import type {
   FindSimilarIdeasVariables,
   CreatePitchReelCommentData,
   CreatePitchReelCommentVariables,
-  GetConversationMessagesData,
-  GetConversationMessagesVariables,
   GetIdeaCollaboratorsData,
   GetIdeaCoreData,
   GetIdeaData,
@@ -29,10 +27,13 @@ import type {
   StartIntegrationConnectionData,
   StartIntegrationConnectionVars,
   GetMyCollaborationInvitationsData,
-  GetMyConversationsData,
-  GetMyEmailThreadsData,
-  GetMyEmailThreadsVariables,
-  GetMyConversationsVariables,
+  GetMyInboxData,
+  GetMyInboxVariables,
+  GetInboxConversationData,
+  GetInboxConversationVariables,
+  ReplyInInboxData,
+  ReplyInInboxVariables,
+  MarkInboxReadData,
   GetMyPortfolioData,
   GetMySessionsData,
   GetOpenMediaLinkData,
@@ -48,13 +49,10 @@ import type {
   ImportIdeasVariables,
   InviteCollaboratorData,
   InviteCollaboratorVariables,
-  MarkConversationReadData,
   MarkConversationReadVariables,
   ResharePitchReelData,
   ResharePitchReelVariables,
   RevokeOtherAccountSessionsData,
-  SendMessageData,
-  SendMessageVariables,
   StartConversationData,
   StartConversationVariables,
   StartGuestSessionData,
@@ -860,51 +858,70 @@ const CONVERSATION_FIELDS = `
   unreadCount
 `;
 
-export const GET_MY_CONVERSATIONS: TypedDocumentNode<GetMyConversationsData, GetMyConversationsVariables> = gql`
-  query GetMyConversations($limit: Int, $offset: Int, $allApps: Boolean) {
-    myConversations(limit: $limit, offset: $offset, allApps: $allApps) {
-      ${CONVERSATION_FIELDS}
+const INBOX_CONVERSATION_FIELDS = `
+  conversationId
+  kind
+  source
+  title
+  initials
+  avatarColor
+  avatarUrl
+  group
+  company
+  preview
+  lastMessageAt
+  unreadCount
+  ideaId
+  ideaTitle
+  canReply
+`;
+
+export const GET_MY_INBOX: TypedDocumentNode<GetMyInboxData, GetMyInboxVariables> = gql`
+  query GetMyInbox($limit: Int) {
+    myInbox(limit: $limit) {
+      ${INBOX_CONVERSATION_FIELDS}
     }
   }
 `;
 
-export const GET_MY_EMAIL_THREADS: TypedDocumentNode<GetMyEmailThreadsData, GetMyEmailThreadsVariables> = gql`
-  query GetMyEmailThreads($limit: Int) {
-    myEmailThreads(limit: $limit) {
-      threadId
-      subject
-      account
-      participants
-      lastMessageAt
-      preview
-      messageCount
-      replyUrl
-      messages {
+export const GET_INBOX_CONVERSATION: TypedDocumentNode<GetInboxConversationData, GetInboxConversationVariables> = gql`
+  query GetInboxConversation($conversationId: String!) {
+    inboxConversation(conversationId: $conversationId) {
+      conversation {
+        ${INBOX_CONVERSATION_FIELDS}
+      }
+      items {
+        kind
+        key
+        at
         messageId
-        sender
+        isMine
         senderName
-        recipients
-        subject
-        text
         sentAt
-        folder
-        senderVerified
+        source
+        subject
+        body {
+          text
+          url
+        }
         attachmentCount
+        quotedHistoryHidden
+        groupStart
+        groupEnd
       }
     }
   }
 `;
 
-export const GET_CONVERSATION_MESSAGES: TypedDocumentNode<GetConversationMessagesData, GetConversationMessagesVariables> = gql`
-  query GetConversationMessages($conversationId: String!, $limit: Int, $beforeId: String) {
-    conversationMessages(conversationId: $conversationId, limit: $limit, beforeId: $beforeId) {
-      messageId
-      conversationId
-      senderId
-      content
-      createdAt
-      isMine
-    }
+export const REPLY_IN_INBOX: TypedDocumentNode<ReplyInInboxData, ReplyInInboxVariables> = gql`
+  mutation ReplyInInbox($conversationId: String!, $content: String!, $replyToMessageId: String, $clientId: String) {
+    replyInInbox(conversationId: $conversationId, content: $content, replyToMessageId: $replyToMessageId, clientId: $clientId)
+  }
+`;
+
+export const MARK_INBOX_READ: TypedDocumentNode<MarkInboxReadData, { conversationId: string }> = gql`
+  mutation MarkInboxRead($conversationId: String!) {
+    markInboxRead(conversationId: $conversationId)
   }
 `;
 
@@ -939,25 +956,6 @@ export const START_CONVERSATION: TypedDocumentNode<StartConversationData, StartC
     startConversation(otherUserId: $otherUserId, ideaId: $ideaId) {
       ${CONVERSATION_FIELDS}
     }
-  }
-`;
-
-export const SEND_MESSAGE: TypedDocumentNode<SendMessageData, SendMessageVariables> = gql`
-  mutation SendMessage($conversationId: String!, $content: String!, $clientId: String) {
-    sendMessage(conversationId: $conversationId, content: $content, clientId: $clientId) {
-      messageId
-      conversationId
-      senderId
-      content
-      createdAt
-      isMine
-    }
-  }
-`;
-
-export const MARK_CONVERSATION_READ: TypedDocumentNode<MarkConversationReadData, MarkConversationReadVariables> = gql`
-  mutation MarkConversationRead($conversationId: String!) {
-    markConversationRead(conversationId: $conversationId)
   }
 `;
 

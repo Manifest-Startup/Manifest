@@ -1,11 +1,17 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { MockedProvider } from "@apollo/client/testing/react";
 
 import MessagesPage from "../MessagesPage";
 import { userVar } from "features/core/apollo/localState";
-import { GET_MY_CONVERSATIONS, GET_MY_EMAIL_THREADS, GET_OPEN_MEDIA_LINK } from "features/core/apollo/queries";
+import {
+  GET_INBOX_CONVERSATION,
+  GET_MY_INBOX,
+  GET_OPEN_MEDIA_LINK,
+  MARK_INBOX_READ,
+  REPLY_IN_INBOX,
+} from "features/core/apollo/queries";
 
 const linkMock = (overrides: Record<string, unknown> = {}) => ({
   request: { query: GET_OPEN_MEDIA_LINK },
@@ -24,53 +30,85 @@ const linkMock = (overrides: Record<string, unknown> = {}) => ({
   },
 });
 
-const conversationsMock = {
-  request: { query: GET_MY_CONVERSATIONS, variables: { limit: 50, offset: 0, allApps: true } },
-  result: { data: { myConversations: [] } },
-};
+const inboxRow = (overrides: Record<string, unknown>) => ({
+  __typename: "InboxConversation",
+  conversationId: "c1",
+  kind: "chat",
+  source: "open_media",
+  title: "Ada Lovelace",
+  initials: "AL",
+  avatarColor: null,
+  avatarUrl: null,
+  group: false,
+  company: null,
+  preview: "See you then",
+  lastMessageAt: "2026-11-17T12:00:00+00:00",
+  unreadCount: 0,
+  ideaId: null,
+  ideaTitle: null,
+  canReply: true,
+  ...overrides,
+});
 
-const emailMock = {
-  request: { query: GET_MY_EMAIL_THREADS, variables: { limit: 100 } },
+const inbox = [
+  inboxRow({ ideaTitle: "Tidy", ideaId: "i1" }),
+  inboxRow({
+    conversationId: "company:doordash.com",
+    kind: "email",
+    source: "gmail",
+    title: "DoorDash",
+    initials: "D",
+    company: "doordash.com",
+    preview: "Your order is on its way",
+    lastMessageAt: "2026-11-17T11:00:00+00:00",
+    unreadCount: 2,
+  }),
+];
+
+const inboxMock = (rows = inbox) => ({
+  request: { query: GET_MY_INBOX, variables: { limit: 100 } },
+  result: { data: { myInbox: rows } },
+});
+
+const threadMock = {
+  request: { query: GET_INBOX_CONVERSATION, variables: { conversationId: "company:doordash.com" } },
   result: {
     data: {
-      myEmailThreads: [
-        {
-          __typename: "EmailThread",
-          threadId: "t1",
-          subject: "Seed round",
-          account: "me@example.com",
-          participants: ["Ada L"],
-          lastMessageAt: "2026-11-03T00:00:00+00:00",
-          preview: "Sounds good",
-          messageCount: 1,
-          replyUrl: "https://openmedia.site",
-          messages: [
-            {
-              __typename: "EmailMessage",
-              messageId: "<m1>",
-              sender: "Ada L <ada@example.com>",
-              senderName: "Ada L",
-              recipients: ["me@example.com"],
-              subject: "Seed round",
-              text: "Sounds good, talk Friday.",
-              sentAt: "2026-11-03T00:00:00+00:00",
-              folder: "INBOX",
-              senderVerified: false,
-              attachmentCount: 0,
-            },
-          ],
-        },
-      ],
+      inboxConversation: {
+        __typename: "InboxThread",
+        conversation: inbox[1],
+        items: [
+          { __typename: "InboxItem", kind: "time", key: "time-m1", at: "2026-11-17T11:00:00+00:00", messageId: null, isMine: false, senderName: null, sentAt: null, source: null, subject: null, body: [], attachmentCount: 0, quotedHistoryHidden: false, groupStart: true, groupEnd: true },
+          {
+            __typename: "InboxItem", kind: "message", key: "m1", at: null, messageId: "m1", isMine: false, senderName: "DoorDash",
+            sentAt: "2026-11-17T11:00:00+00:00", source: "gmail", subject: "Your order",
+            body: [{ __typename: "InboxTextSegment", text: "Your order is on its way. ", url: null }, { __typename: "InboxTextSegment", text: "Track it", url: "https://doordash.com/t" }],
+            attachmentCount: 0, quotedHistoryHidden: true, groupStart: true, groupEnd: true,
+          },
+        ],
+      },
     },
   },
 };
 
-const renderPage = (mocks: unknown[]) =>
+const replyMock = {
+  request: { query: REPLY_IN_INBOX },
+  variableMatcher: (vars: Record<string, unknown>) => vars.conversationId === "company:doordash.com" && vars.content === "Thanks!",
+  result: { data: { replyInInbox: true } },
+};
+
+const readMock = {
+  request: { query: MARK_INBOX_READ, variables: { conversationId: "company:doordash.com" } },
+  result: { data: { markInboxRead: true } },
+};
+
+const renderPage = (mocks: unknown[], path = "/messages") =>
   render(
     <MockedProvider mocks={mocks as never}>
-      <MemoryRouter initialEntries={["/messages"]}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/messages" element={<MessagesPage />} />
+          <Route path="/messages/:conversationId" element={<MessagesPage />} />
         </Routes>
       </MemoryRouter>
     </MockedProvider>,
@@ -84,19 +122,28 @@ describe("MessagesPage", () => {
     userVar({ isLoggedIn: false, authChecked: false, isGuest: false, userData: null });
   });
 
-  it("renders inbox layout and empty state once Open Media is linked", async () => {
-    renderPage([linkMock(), conversationsMock]);
-    expect(await screen.findByTestId("messages-empty-state")).toBeInTheDocument();
-    expect(screen.getByText("Inbox")).toBeInTheDocument();
+  it("shows chats and email in one list, with no tabs", async () => {
+    renderPage([linkMock(), inboxMock()]);
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByText("DoorDash")).toBeInTheDocument();
+    expect(screen.getByText("Re: Tidy")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 unread")).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.getByTestId("messages-empty-state")).toBeInTheDocument();
   });
 
-  it("shows Open Media email in the Email tab, read-only with a reply link", async () => {
-    renderPage([linkMock(), conversationsMock, emailMock]);
-    fireEvent.click(await screen.findByTestId("inbox-tab-email"));
-    fireEvent.click(await screen.findByTestId("email-thread-t1"));
-    expect(await screen.findByText("Sounds good, talk Friday.")).toBeInTheDocument();
-    expect(screen.getByTestId("email-reply-link")).toHaveAttribute("href", "https://openmedia.site");
-    expect(screen.queryByTestId("chat-message-input")).not.toBeInTheDocument();
+  it("explains an empty inbox", async () => {
+    renderPage([linkMock(), inboxMock([])]);
+    expect(await screen.findByTestId("inbox-empty")).toBeInTheDocument();
+  });
+
+  it("opens an email as Open Media lays it out and replies to it", async () => {
+    renderPage([linkMock(), inboxMock(), threadMock, readMock, replyMock, threadMock, inboxMock()], "/messages/company%3Adoordash.com");
+    expect(await screen.findByText("Your order")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Track it" })).toHaveAttribute("href", "https://doordash.com/t");
+    fireEvent.change(screen.getByTestId("inbox-composer"), { target: { value: "Thanks!" } });
+    fireEvent.click(screen.getByTestId("inbox-send"));
+    await waitFor(() => expect(screen.getByTestId("inbox-composer")).toHaveValue(""));
   });
 
   it("asks to connect Open Media before showing messages", async () => {
