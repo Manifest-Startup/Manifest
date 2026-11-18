@@ -446,7 +446,7 @@ const SimilarIdeas = ({ similarIdeas = '', ideaId = null, compact = false, heade
     [isEmpty, resolvedMarkdown],
   );
   const hasStructuredData = companies.length > 0 || research.length > 0;
-  const structuredGridClass = compact ? 'mt-4 grid grid-cols-1 gap-3' : 'mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]';
+  const structuredGridClass = compact ? 'mt-4 grid grid-cols-1 gap-4' : 'mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]';
   const companyCardLayoutClass = compact ? 'flex flex-col gap-3' : 'flex flex-col gap-4 sm:flex-row sm:items-start';
   const researchCardLayoutClass = compact
     ? 'flex flex-col gap-3'
@@ -548,7 +548,7 @@ const SimilarIdeas = ({ similarIdeas = '', ideaId = null, compact = false, heade
                                 <span
                                   className={`max-w-full rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] ${
                                     compact
-                                      ? 'border-stone-200 bg-stone-50 text-gray500 dark:border-neutral700 dark:bg-neutral800 dark:text-gray400'
+                                      ? 'border-transparent px-0 py-0 text-gray500 dark:text-gray400'
                                       : 'border-stone-200 bg-white text-gray500 dark:border-neutral700 dark:bg-neutral800 dark:text-gray400'
                                   }`}
                                 >
@@ -566,7 +566,7 @@ const SimilarIdeas = ({ similarIdeas = '', ideaId = null, compact = false, heade
                                 <div
                                   className={`rounded-2xl px-4 py-3 ${
                                     compact
-                                      ? 'bg-stone-50 text-neutral700 dark:bg-neutral800 dark:text-gray300'
+                                      ? 'px-0 py-0 text-neutral700 dark:text-gray300'
                                       : 'border border-stone-200 bg-white/90 dark:border-neutral700 dark:bg-neutral800/90'
                                   }`}
                                 >
@@ -578,7 +578,7 @@ const SimilarIdeas = ({ similarIdeas = '', ideaId = null, compact = false, heade
                                 <div
                                   className={`rounded-2xl px-4 py-3 ${
                                     compact
-                                      ? 'bg-stone-100 text-neutral900 dark:bg-neutral800 dark:text-white'
+                                      ? 'px-0 py-0 text-neutral900 dark:text-white'
                                       : 'border border-stone-200 bg-white/90 dark:border-neutral700 dark:bg-neutral800/90'
                                   }`}
                                 >
@@ -600,14 +600,16 @@ const SimilarIdeas = ({ similarIdeas = '', ideaId = null, compact = false, heade
                             {company.url ? (
                               <div className="mt-4">
                                 <a
-                                  className={`inline-flex items-center rounded-full bg-neutral900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral800 dark:bg-white dark:text-neutral900 dark:hover:bg-neutral100 ${
-                                    compact ? 'w-full justify-center' : ''
-                                  }`}
+                                  className={
+                                    compact
+                                      ? 'inline-flex items-center gap-1 text-sm font-semibold text-accent-600 hover:underline dark:text-accent-400'
+                                      : 'inline-flex items-center rounded-full bg-neutral900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral800 dark:bg-white dark:text-neutral900 dark:hover:bg-neutral100'
+                                  }
                                   href={company.url}
                                   rel="noopener noreferrer"
                                   target="_blank"
                                 >
-                                  Visit source
+                                  Visit source{compact ? ' →' : ''}
                                 </a>
                               </div>
                             ) : null}
@@ -700,19 +702,19 @@ const SimilarIdeas = ({ similarIdeas = '', ideaId = null, compact = false, heade
                             </div>
                           ) : null}
                         </div>
-                        <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray500 dark:border-neutral700 dark:bg-neutral800 dark:text-gray400">
+                        <span className="rounded-full bg-stone-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray500 dark:border-neutral700 dark:bg-neutral800 dark:text-gray400">
                           Research
                         </span>
                       </div>
                       <div className={structuredGridClass}>
                         {item.importance ? (
-                          <div className="rounded-2xl bg-stone-50 px-4 py-3 dark:bg-neutral800">
+                          <div className={compact ? "" : "rounded-2xl bg-stone-50 px-4 py-3 dark:bg-neutral800"}>
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray500 dark:text-gray400">Why</p>
                             <p className="mt-2 text-sm leading-6 text-gray700 dark:text-gray300">{item.importance}</p>
                           </div>
                         ) : null}
                         {item.validation ? (
-                          <div className="rounded-2xl bg-stone-50 px-4 py-3 dark:bg-neutral800">
+                          <div className={compact ? "" : "rounded-2xl bg-stone-50 px-4 py-3 dark:bg-neutral800"}>
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray500 dark:text-gray400">Validate</p>
                             <p className="mt-2 text-sm leading-6 text-gray700 dark:text-gray300">{item.validation}</p>
                           </div>
