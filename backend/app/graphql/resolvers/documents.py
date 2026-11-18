@@ -6,15 +6,18 @@ import strawberry
 from app.auth.current_user import get_current_user_id
 from app.graphql.resolvers.shared import _ai_request_lock
 from app.graphql.types.documents import (
+    DocumentGuide,
     EnqueueJobResult,
     GenerationJob,
     Patent,
     PitchDeckOutput,
     ProductRequirementsDocumentOutput,
     ProvisionalPatentOutput,
+    SavedDocument,
     _to_generation_job,
 )
 from app.services.ai.credentials import start_thread_with_current_key
+from app.services.documents import authored
 from app.services.documents.demo_documents import build_demo_documents
 from app.services.ideas import generation_jobs as job_service
 from app.utils.logger import logger
@@ -98,6 +101,17 @@ def _update_idea_generated_field(
 
 @strawberry.type
 class DocumentsQuery:
+    @strawberry.field
+    async def document_guide(self, info: strawberry.Info, document_type: str) -> DocumentGuide:
+        """Manifest's own instructions for writing a document yourself (business_model_canvas,
+        pitch_deck, product_requirements_document, provisional_patent, similar_ideas). Use it when
+        the person has no OpenAI key: write the document following it, then save_idea_document."""
+        get_current_user_id(info.context["request"])
+        try:
+            return DocumentGuide(**authored.guide(document_type))
+        except authored.DocumentError as exc:
+            raise Exception(str(exc)) from exc
+
     @strawberry.field
     async def generation_job(self, info: strawberry.Info, job_id: str) -> GenerationJob | None:
         """Poll the status of an async document-generation job (Phase 3).
@@ -225,6 +239,39 @@ class DocumentsQuery:
 
 @strawberry.type
 class DocumentsMutation:
+    @strawberry.mutation
+    async def save_idea_document(
+        self, info: strawberry.Info, idea_id: str, document_type: str, content: str
+    ) -> SavedDocument:
+        """Save a document you wrote for an idea (Markdown), replacing the current one: the
+        canvas, pitch deck, PRD, provisional patent draft or similar ideas. Owners and editors only.
+        Snapshot the idea with create_idea_version first if a version already exists."""
+        from app.services.ideas.collaboration import CollaborationService
+
+        user_id = str(get_current_user_id(info.context["request"]))
+        db = info.context["db"]
+        role = await CollaborationService(db).get_user_role(idea_id, user_id)
+        if role not in ("owner", "editor"):
+            raise Exception("Idea not found or you don't have permission to edit it")
+        owner = db.table("ideas").select("user_id").eq("idea_id", idea_id).limit(1).execute()
+        owner_id = str((owner.data or [{}])[0].get("user_id") or user_id)
+        try:
+            kind = await asyncio.to_thread(
+                authored.save,
+                idea_id=idea_id,
+                owner_id=owner_id,
+                document_type=document_type,
+                content=content,
+            )
+        except authored.DocumentError as exc:
+            raise Exception(str(exc)) from exc
+        return SavedDocument(
+            idea_id=idea_id,
+            document_type=kind.key,
+            title=kind.title,
+            characters=len(content.strip()),
+        )
+
     @strawberry.mutation
     async def generate_pitch_deck(
         self, info: strawberry.Info, idea_id: str, description: str

@@ -326,3 +326,32 @@ def _upsert_section(
     if not row:
         raise BmcSectionError("failed to persist BMC section row")
     return dict(row)
+
+
+def save_user_section(*, db, idea_id: str, section_name: str, content: str) -> dict[str, Any]:
+    """Store a section the person (or their AI agent) wrote, marked as a user edit."""
+    if section_name not in SECTION_NAMES:
+        raise BmcSectionError(
+            f"unknown section {section_name!r}; expected one of {list(SECTION_NAMES)}"
+        )
+    text = (content or "").strip()
+    if not text:
+        raise BmcSectionError("the section is empty")
+    now = _now_iso()
+    payload = {
+        "idea_id": idea_id,
+        "section_name": section_name,
+        "content": text[:20_000],
+        "content_format": "markdown",
+        "needs_user_review": False,
+        "generated_by_run_id": None,
+        "last_user_edit_at": now,
+        "updated_at": now,
+    }
+    response = db.table(TABLE).upsert(payload, on_conflict="idea_id,section_name").execute()
+    row = response.data
+    if isinstance(row, list):
+        row = row[0] if row else None
+    if not row:
+        raise BmcSectionError("failed to persist BMC section row")
+    return dict(row)

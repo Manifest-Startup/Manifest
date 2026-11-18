@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "bf174558368f117edbdf04395b0141cf98c96ce968f5fe16b97187a56b4037d6",
+ "schema_sha256": "b6c4d7ba7bb1a4da5a20904d016625b06f49518eabaa0df0c7168c0a2eb546db",
  "operations": [
   {
    "name": "me",
@@ -52,6 +52,26 @@
    "returns": "[String!]!",
    "selection": "",
    "args": []
+  },
+  {
+   "name": "documentGuide",
+   "command": "document-guide",
+   "kind": "query",
+   "description": "Manifest's own instructions for writing a document yourself (business_model_canvas, pitch_deck, product_requirements_document, provisional_patent, similar_ideas). Use it when the person has no OpenAI key: write the document following it, then save_idea_document.",
+   "destructive": false,
+   "returns": "DocumentGuide!",
+   "selection": "{ documentType title system instructions saveWith }",
+   "args": [
+    {
+     "name": "documentType",
+     "flag": "--document-type",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
   },
   {
    "name": "generationJob",
@@ -998,6 +1018,26 @@
    ]
   },
   {
+   "name": "vaultExport",
+   "command": "vault-export",
+   "kind": "query",
+   "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt to get only ideas changed since then.",
+   "destructive": false,
+   "returns": "VaultExport!",
+   "selection": "{ generatedAt root ideaCount files { path content updatedAt } }",
+   "args": [
+    {
+     "name": "sinceUpdatedAt",
+     "flag": "--since-updated-at",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
    "name": "createIdea",
    "command": "create-idea",
    "kind": "mutation",
@@ -1648,6 +1688,44 @@
    ]
   },
   {
+   "name": "saveIdeaDocument",
+   "command": "save-idea-document",
+   "kind": "mutation",
+   "description": "Save a document you wrote for an idea (Markdown), replacing the current one: the canvas, pitch deck, PRD, provisional patent draft or similar ideas. Owners and editors only. Snapshot the idea with create_idea_version first if a version already exists.",
+   "destructive": false,
+   "returns": "SavedDocument!",
+   "selection": "{ ideaId documentType title characters }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "documentType",
+     "flag": "--document-type",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "content",
+     "flag": "--content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
    "name": "generatePitchDeck",
    "command": "generate-pitch-deck",
    "kind": "mutation",
@@ -2164,6 +2242,44 @@
      "type": "Boolean",
      "kind": "scalar",
      "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "saveBmcSection",
+   "command": "save-bmc-section",
+   "kind": "mutation",
+   "description": "Save one Business Model Canvas section you wrote (Markdown), marked as a user edit. Sections: customer_segments, value_propositions, channels, customer_relationships, revenue_streams, key_resources, key_activities, key_partners, cost_structure.",
+   "destructive": false,
+   "returns": "BmcSection!",
+   "selection": "{ sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "sectionName",
+     "flag": "--section-name",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "content",
+     "flag": "--content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
      "default": null,
      "description": ""
     }

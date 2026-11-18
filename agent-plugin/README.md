@@ -10,7 +10,9 @@
 
 > **"I have an idea for cold storage that runs on solar. Put it in Manifest."** It checks what already exists, proposes a title and description, and runs the qualification interview with you.
 >
-> **"Make the pitch deck and PRD for it."** Generated on your own OpenAI key, with your spend cap checked first.
+> **"Make the pitch deck and PRD for it."** Your agent writes them itself, following Manifest's own document guides, and saves them to the idea. No OpenAI key needed; if you've added one, Manifest can generate them too.
+>
+> **"Save this thought about pricing."** Saved right away as a note in your local vault, linked to the idea, so Obsidian's graph shows how your ideas, documents, skills and notes connect.
 >
 > **"Who messaged me about my ideas?"** Founder messages through your linked Open Media account, drafted replies sent only after you say yes.
 >
@@ -35,7 +37,11 @@
 | **Any MCP client** | Streamable HTTP at `https://manifeststartup.com/mcp`; OAuth is discovered automatically |
 | **Skills only** | `npx skills add Manifest-Startup/Manifest` |
 
-Then try **`/manifest:new-idea`**, **`/manifest:ideas`**, **`/manifest:plan`**, **`/manifest:pitch`**, **`/manifest:messages`**, **`/manifest:portfolio`** or **`/manifest:account`** in Claude Code, or just ask.
+Then try **`/manifest:new-idea`**, **`/manifest:note`**, **`/manifest:write-docs`**, **`/manifest:vault`**, **`/manifest:ideas`**, **`/manifest:plan`**, **`/manifest:pitch`**, **`/manifest:messages`**, **`/manifest:portfolio`** or **`/manifest:account`** in Claude Code, or just ask.
+
+## Your vault and knowledge graph
+
+With a local agent (Claude Code, Codex, Cursor, Gemini CLI…), Manifest keeps an Obsidian-style vault on your computer: `~/Manifest Vault` (or `$MANIFEST_VAULT`, or inside your own Obsidian vault). Ideas, documents, interviews and skills are Markdown files with frontmatter and `[[wiki-links]]`; notes you dictate land in `Notes/`, linked to their ideas. Open it in Obsidian and switch on Graph view. The plugin's `manifest_vault.py` writes it offline, never deletes anything, and keeps whatever you write around the generated block.
 
 ## Signing in
 
@@ -45,9 +51,9 @@ Scripts can still use an API key (`Authorization: Bearer manifest_sk_…`), whic
 
 ## What's inside
 
-- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **119 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
-- **8 skills**: `manifest` (start here), `manifest-ideas`, `manifest-documents`, `manifest-network`, `manifest-investing`, `manifest-team`, `manifest-account` and `manifest-admin`.
-- **7 slash commands**: `new-idea`, `ideas`, `plan`, `pitch`, `messages`, `portfolio` and `account`.
+- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **123 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
+- **9 skills**: `manifest` (start here), `manifest-ideas`, `manifest-documents`, `manifest-vault`, `manifest-network`, `manifest-investing`, `manifest-team`, `manifest-account` and `manifest-admin`.
+- **10 slash commands**: `new-idea`, `note`, `ideas`, `plan`, `write-docs`, `vault`, `pitch`, `messages`, `portfolio` and `account`.
 
 Pair it with the [Open Media plugin](https://github.com/Manifest-Startup/open-media) for the rest of your Open Media inbox and feed; Manifest's messages and pitch shorts run on the same account.
 

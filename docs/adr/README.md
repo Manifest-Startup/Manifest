@@ -7,5 +7,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0002 — Open Media is Manifest's only sign-in](0002-open-media-is-the-only-sign-in.md)
 - [0003 — The Manifest CLI signs in through the browser and is generated from the schema](0003-manifest-cli-browser-login.md)
 - [0004 — Agents get everything through one plugin, generated from the schema](0004-agents-get-everything-through-one-plugin.md)
+- [0005 — The person's agent writes documents, and keeps a local vault](0005-agents-write-documents-and-keep-a-local-vault.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

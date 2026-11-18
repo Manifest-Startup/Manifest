@@ -46,6 +46,7 @@ from app.graphql.resolvers.search import SearchQuery
 from app.graphql.resolvers.shared import _display_name  # noqa: F401
 from app.graphql.resolvers.social import SocialMutation, SocialQuery
 from app.graphql.resolvers.survey import SurveyMutation, SurveyQuery
+from app.graphql.resolvers.vault import VaultQuery
 from app.graphql.resolvers.voice import VoiceMutation, VoiceQuery
 from app.graphql.types.account import AccountUpdateInput  # noqa: F401
 from app.graphql.types.integrations import ConnectIntegrationInput, Integration  # noqa: F401
@@ -84,6 +85,7 @@ class Query(
     CanvasQuery,
     AdminQuery,
     VoiceQuery,
+    VaultQuery,
 ):
     pass
 
@@ -152,6 +154,7 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "idea": "ideas.read",
         "generation_job": "ideas.read",
         "generationJob": "ideas.read",
+        "vaultExport": "ideas.read",
         "search_ideas": "ideas.read",
         "searchIdeas": "ideas.read",
         "shared_ideas": "ideas.read",
@@ -286,6 +289,7 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "bmcSections": "ideas.read",
         "regenerate_bmc_section": "ideas.write",
         "regenerateBmcSection": "ideas.write",
+        "saveBmcSection": "ideas.write",
         "regenerate_all_bmc_sections": "ideas.write",
         "regenerateAllBmcSections": "ideas.write",
         # --- Partner discovery agent (Key Partners helper) ---
@@ -340,8 +344,10 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         # --- Generated documents (pitch deck / PRD / provisional patent) ---
         "pitch_deck": "documents.read",
         "pitchDeck": "documents.read",
+        "documentGuide": "documents.read",
         "generate_pitch_deck": "documents.write",
         "generatePitchDeck": "documents.write",
+        "saveIdeaDocument": "documents.write",
         "product_requirements_document": "documents.read",
         "productRequirementsDocument": "documents.read",
         "generate_product_requirements_document": "documents.write",
