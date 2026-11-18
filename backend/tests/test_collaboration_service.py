@@ -739,3 +739,11 @@ class TestAutoVersioning:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+def test_full_name_skips_missing_parts():
+    from app.services.ideas.collaboration import _full_name
+
+    assert _full_name({"first_name": None, "last_name": None}) == ""
+    assert _full_name({"first_name": "Ada", "last_name": None}) == "Ada"
+    assert _full_name({"first_name": "Ada", "last_name": "Lovelace"}) == "Ada Lovelace"
