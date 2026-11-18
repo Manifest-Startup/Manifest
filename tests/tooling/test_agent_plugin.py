@@ -153,3 +153,21 @@ def test_every_generated_document_is_valid_against_the_schema():
         if errors:
             failures[tool["name"]] = [e.message for e in errors]
     assert not failures, failures
+
+
+def test_arguments_with_defaults_can_be_left_out():
+    """Leaving out `offset` or `hourlyRate` must use the server default, not fail as missing."""
+    by_name = {op["name"]: op for op in CATALOG["operations"]}
+    for tool in TOOLS["tools"]:
+        call = tool["_call"]
+        if call["via"] != "graphql":
+            continue
+        for arg in by_name[call["field"]]["args"]:
+            if arg.get("default") is not None and not arg["required"]:
+                assert (
+                    f"${arg['name']}: {arg['type'].removesuffix('!')}"
+                    in call["document"].split("{")[0]
+                ), (
+                    tool["name"],
+                    arg["name"],
+                )

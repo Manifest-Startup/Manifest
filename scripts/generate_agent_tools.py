@@ -112,8 +112,16 @@ def strip_secrets(selection: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def variable_type(arg: dict) -> str:
+    """An argument with a default is optional: declare its variable nullable, so leaving it
+    out uses the server's default (GraphQL allows this only where the argument has one)."""
+    if arg.get("default") is not None and not arg["required"]:
+        return arg["type"].removesuffix("!")
+    return arg["type"]
+
+
 def document(op: dict, selection: str) -> str:
-    declared = ", ".join(f"${a['name']}: {a['type']}" for a in op["args"])
+    declared = ", ".join(f"${a['name']}: {variable_type(a)}" for a in op["args"])
     passed = ", ".join(f"{a['name']}: ${a['name']}" for a in op["args"])
     name = op["name"][:1].upper() + op["name"][1:]
     header = f"{op['kind']} {name}" + (f"({declared})" if declared else "")
