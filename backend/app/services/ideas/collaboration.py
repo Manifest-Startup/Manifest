@@ -280,7 +280,7 @@ class CollaborationService:
                         "role": "owner",
                         "status": "accepted",
                         "user_email": owner.get("email"),
-                        "user_name": f"{owner.get('first_name', '')} {owner.get('last_name', '')}".strip()
+                        "user_name": _full_name(owner)
                         or owner.get("username")
                         or owner.get("email"),
                         "user_avatar": owner.get("profile_picture_url"),
@@ -306,7 +306,7 @@ class CollaborationService:
                         {
                             **collab,
                             "user_email": user.get("email"),
-                            "user_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+                            "user_name": _full_name(user)
                             or user.get("username")
                             or user.get("email"),
                             "user_avatar": user.get("profile_picture_url"),
@@ -397,7 +397,7 @@ class CollaborationService:
                         **inv,
                         "idea_title": idea.get("title"),
                         "idea_description": idea.get("description"),
-                        "inviter_name": f"{inviter.get('first_name', '')} {inviter.get('last_name', '')}".strip()
+                        "inviter_name": _full_name(inviter)
                         or inviter.get("username")
                         or inviter.get("email"),
                     }
@@ -520,7 +520,7 @@ class CollaborationService:
                 versions.append(
                     {
                         **ver,
-                        "creator_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+                        "creator_name": _full_name(user)
                         or user.get("username")
                         or user.get("email"),
                         "creator_avatar": user.get("profile_picture_url"),
@@ -800,6 +800,11 @@ class CollaborationService:
         except Exception as e:
             logger.error(f"[CollaborationService] Error getting version diff: {e}")
             raise
+
+
+def _full_name(user: dict) -> str:
+    """First and last name; never "None None" when the profile has no name yet."""
+    return " ".join(part for part in (user.get("first_name"), user.get("last_name")) if part)
 
 
 def create_collaboration_service(db) -> CollaborationService:
