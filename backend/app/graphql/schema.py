@@ -177,6 +177,8 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "vaultFiles": "ideas.read",
         "put_vault_file": "ideas.write",
         "putVaultFile": "ideas.write",
+        "ideaKnowledgeGraph": "ideas.read",
+        "idea_knowledge_graph": "ideas.read",
         "search_ideas": "ideas.read",
         "searchIdeas": "ideas.read",
         "shared_ideas": "ideas.read",

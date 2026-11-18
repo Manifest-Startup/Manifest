@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useRef, useEffect, useMemo, useState } from "react";
 import debounce from "lodash.debounce";
 import throttle from "lodash/throttle";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 // The rich-text editor (TipTap/ProseMirror, ~100 KB gzipped) is only needed on
 // the Note view; generated documents are read-only, so load it on demand and
 // warm it in idle time so opening the Note view stays instant.
@@ -33,6 +33,7 @@ import {
   GET_IDEA_VERSIONS,
   UPDATE_IDEA,
   FIND_SIMILAR_IDEAS,
+  GET_IDEA_KNOWLEDGE_GRAPH,
 } from 'features/core/apollo/queries';
 import {
   sidebarVar,
@@ -59,6 +60,9 @@ import { subscribeToIdeaPublished } from '../events/ideaPublishEvents';
 // Utils
 import { logError, createLogger } from 'features/core/logError';
 import { syncIdeaTitleInCache } from '../utils/syncIdeaTitleCache';
+import { WikiLinksProvider } from '../knowledge/WikiLinkContext';
+import { makeResolver } from '../knowledge/wikiLinks';
+import { CitationBanner, KnowledgeGraphView } from '../knowledge/KnowledgeGraphView';
 
 const logger = createLogger('IdeaComponent');
 const IDEA_TITLE_FALLBACK = 'Brand New Idea';
@@ -82,6 +86,7 @@ const aspectLabelMap: Record<string, string> = {
   "product-requirements-document": "Requirements",
   "patent": "Patent",
   "development": "Note",
+  "knowledge-graph": "Knowledge Graph",
 };
 
 // Utility functions
@@ -291,6 +296,47 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
   );
   const refetchRef = useRef(refetch);
   const ideaSnapshotRef = useRef<IdeaType | null>(null);
+
+  // -------------------- Knowledge graph (ADR 0006) --------------------
+  // Documents cite the idea note with [[wiki-links]]; the graph is built live on the server
+  // from the note, interview answers and documents, so refetch it when a document changes.
+  const [searchParams] = useSearchParams();
+  const needsKnowledgeGraph = Boolean(
+    currentIdeaId &&
+      (shouldLoadDocumentPayload || ideaAspect === 'knowledge-graph' || searchParams.get('cite'))
+  );
+  const {
+    data: knowledgeData,
+    loading: knowledgeLoading,
+    refetch: refetchKnowledge,
+  } = useSafeQuery(GET_IDEA_KNOWLEDGE_GRAPH, {
+    variables: { ideaId: currentIdeaId as string },
+    skip: !needsKnowledgeGraph,
+    fetchPolicy: 'cache-and-network',
+    nextFetchPolicy: 'cache-first',
+  });
+  const knowledgeGraph =
+    knowledgeData?.ideaKnowledgeGraph?.ideaId === currentIdeaId
+      ? knowledgeData?.ideaKnowledgeGraph
+      : null;
+  const wikiLinks = useMemo(
+    () => ({ graph: knowledgeGraph, resolve: makeResolver(knowledgeGraph) }),
+    [knowledgeGraph]
+  );
+  const documentsKey = [
+    ideaData?.idea?.businessModelCanvas,
+    ideaData?.idea?.pitchDeck,
+    ideaData?.idea?.productRequirementsDocument,
+    ideaData?.idea?.provisionalPatent,
+  ]
+    .map((doc) => (typeof doc === 'string' ? doc.length : 0))
+    .join(':');
+  const documentsKeyRef = useRef(documentsKey);
+  useEffect(() => {
+    if (documentsKeyRef.current === documentsKey) return;
+    documentsKeyRef.current = documentsKey;
+    if (needsKnowledgeGraph) void refetchKnowledge?.();
+  }, [documentsKey, needsKnowledgeGraph, refetchKnowledge]);
 
   logIdea("Document data:", {
     hasBMC: !!ideaData?.idea?.businessModelCanvas,
@@ -889,6 +935,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <WikiLinksProvider value={wikiLinks}>
         <div className="manifest-note-content flex-1 overflow-auto">
           {ideaAspect === 'business-model-canvas' ? (
             <Suspense fallback={<div className="min-h-[16rem]" aria-busy="true" />}>
@@ -916,6 +963,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
               generationState={getDocumentGenerationState('pitch-deck')}
               title="Pitch Deck"
               variant="pitch-deck"
+              documentType="pitch_deck"
             />
           ) : ideaAspect === 'product-requirements-document' ? (
             <MarkdownDisplay 
@@ -924,6 +972,13 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
               generationState={getDocumentGenerationState('product-requirements-document')}
               title="Product Requirements Document"
               variant="prd"
+              documentType="product_requirements_document"
+            />
+          ) : ideaAspect === 'knowledge-graph' ? (
+            <KnowledgeGraphView
+              graph={knowledgeGraph}
+              loading={knowledgeLoading}
+              ideaTitle={title || 'This idea'}
             />
           ) : ideaAspect === 'patent' ? (
             <ProvisionalPatentDisplay
@@ -933,6 +988,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
             />
           ) : (
             <div className="flex flex-col gap-6">
+              <CitationBanner graph={knowledgeGraph} />
 <Suspense fallback={<div className="min-h-[16rem]" aria-busy="true" />}>
               <TextArea
                 value={content}
@@ -947,6 +1003,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
             </div>
           )}
         </div>
+        </WikiLinksProvider>
         {/* Status footer is only meaningful on the editable Note (description)
             view. Read-only generated aspects (BMC, Pitch Deck, PRD, Patent,
             etc.) shouldn't display "Typing..." or "Saving..." since the user

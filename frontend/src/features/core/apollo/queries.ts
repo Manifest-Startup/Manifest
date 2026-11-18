@@ -1499,3 +1499,50 @@ export const REMOVE_OPENAI_API_KEY: TypedDocumentNode<RemoveOpenaiApiKeyData, Re
     removeOpenaiApiKey { ${AI_KEY_STATUS_FIELDS} }
   }
 `;
+
+export interface KnowledgeIdeaRef {
+  ideaId: string;
+  title: string;
+  path: string;
+  concepts: string[];
+}
+
+export interface IdeaKnowledgeGraphData {
+  ideaKnowledgeGraph: {
+    ideaId: string;
+    ideaPath: string;
+    passages: { id: string; kind: string; text: string }[];
+    concepts: {
+      label: string;
+      path: string;
+      passageIds: string[];
+      documentTypes: string[];
+      ideas: KnowledgeIdeaRef[];
+    }[];
+    related: KnowledgeIdeaRef[];
+    documents: { documentType: string; markdown: string }[];
+  } | null;
+}
+
+/** One idea's knowledge graph and its documents with [[wiki-link]] citations (ADR 0006). */
+export const GET_IDEA_KNOWLEDGE_GRAPH: TypedDocumentNode<
+  IdeaKnowledgeGraphData,
+  { ideaId: string }
+> = gql`
+  query GetIdeaKnowledgeGraph($ideaId: String!) {
+    ideaKnowledgeGraph(ideaId: $ideaId) {
+      ideaId
+      ideaPath
+      passages { id kind text }
+      concepts {
+        label
+        path
+        passageIds
+        documentTypes
+        ideas { ideaId title path concepts }
+      }
+      related { ideaId title path concepts }
+      documents { documentType markdown }
+    }
+  }
+`;

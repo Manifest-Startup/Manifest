@@ -12,6 +12,12 @@ import {
   parseSlideTitle,
 } from "../../utils/pitchDeckDocument";
 import "./documents.css";
+import {
+  useWikiLinks,
+  useWikiMarkdown,
+  WikiAnchor,
+} from "../../knowledge/WikiLinkContext";
+import { citedFor } from "../../knowledge/wikiLinks";
 
 type MarkdownDisplayVariant = "default" | "pitch-deck" | "prd" | "legal";
 interface MarkdownDisplayProps {
@@ -21,6 +27,8 @@ interface MarkdownDisplayProps {
   className?: string;
   variant?: MarkdownDisplayVariant;
   generationState?: DocumentGenerationState | null;
+  /** Backend document type; when the idea's knowledge graph has a cited copy, show that. */
+  documentType?: string;
 }
 
 // Keep source Markdown intact: headings inside code fences are not document sections.
@@ -43,10 +51,13 @@ const documentHeadings = (content: string) => {
 
 export const DocumentMarkdown: React.FC<{ content: string }> = ({
   content,
-}) => (
+}) => <DocumentMarkdownBody content={useWikiMarkdown(content)} />;
+
+const DocumentMarkdownBody: React.FC<{ content: string }> = ({ content }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
     components={{
+      a: WikiAnchor,
       table: ({ children }) => (
         <div
           className="manifest-document-table"
@@ -63,8 +74,11 @@ export const DocumentMarkdown: React.FC<{ content: string }> = ({
   </ReactMarkdown>
 );
 
-const PitchDeck: React.FC<{ content: string; title?: string }> = ({
+// `content` is what the slides show (citations as links); `source` is the stored deck,
+// which is what the PowerPoint export uses.
+const PitchDeck: React.FC<{ content: string; source: string; title?: string }> = ({
   content,
+  source,
   title,
 }) => {
   const parsed = parsePitchDeckDocument(content, title);
@@ -77,13 +91,13 @@ const PitchDeck: React.FC<{ content: string; title?: string }> = ({
       const { exportPitchDeckPptx } = await import(
         "../../utils/exportPitchDeckPptx"
       );
-      await exportPitchDeckPptx(content, parsed.documentTitle);
+      await exportPitchDeckPptx(source, parsed.documentTitle);
     } catch {
       setExportError("Could not download the deck. Please try again.");
     } finally {
       setIsExporting(false);
     }
-  }, [content, parsed.documentTitle]);
+  }, [source, parsed.documentTitle]);
   return (
     <div className="manifest-deck">
       <header className="manifest-document-header">
@@ -132,8 +146,14 @@ export const MarkdownDisplay: React.FC<MarkdownDisplayProps> = ({
   className = "",
   variant = "default",
   generationState,
+  documentType,
 }) => {
   const prefix = useId();
+  const { graph } = useWikiLinks();
+  const markdown = useWikiMarkdown(
+    (documentType && citedFor(graph, documentType, content)) ||
+      (typeof content === "string" ? content : ""),
+  );
   if (typeof content !== "string" || !content.trim()) {
     return generationState ? (
       <DocumentGenerationNotice
@@ -145,7 +165,7 @@ export const MarkdownDisplay: React.FC<MarkdownDisplayProps> = ({
       <p className="manifest-document-empty">{fallbackMessage}</p>
     );
   }
-  const headings = documentHeadings(content);
+  const headings = documentHeadings(markdown);
   const hasSourceTitle = headings[0]?.level === 1;
   const contents = hasSourceTitle ? headings.slice(1) : headings;
   const heading =
@@ -176,7 +196,7 @@ export const MarkdownDisplay: React.FC<MarkdownDisplayProps> = ({
     return (
       <div className={className}>
         {notice}
-        <PitchDeck content={content} title={title} />
+        <PitchDeck content={markdown} source={content} title={title} />
       </div>
     );
   return (
@@ -218,6 +238,7 @@ export const MarkdownDisplay: React.FC<MarkdownDisplayProps> = ({
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
+            a: WikiAnchor,
             h1: heading(1),
             h2: heading(2),
             table: ({ children }) => (
@@ -232,7 +253,7 @@ export const MarkdownDisplay: React.FC<MarkdownDisplayProps> = ({
             ),
           }}
         >
-          {content}
+          {markdown}
         </ReactMarkdown>
       </article>
     </div>

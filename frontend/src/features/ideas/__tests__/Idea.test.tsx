@@ -20,6 +20,7 @@ const mockUseParams = jest.fn(() => ({ ideaAspect: 'description' }));
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useParams: () => mockUseParams(),
+  useSearchParams: () => [new URLSearchParams(), jest.fn()],
   useNavigate: () => mockNavigate,
 }));
 
