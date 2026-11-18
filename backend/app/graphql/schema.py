@@ -1846,6 +1846,7 @@ def _map_qualification_session(row: dict[str, Any]) -> IdeaQualificationSession:
 class Query:
     @strawberry.field
     async def me(self, info: strawberry.Info) -> User:
+        """Your profile: name, username, email, bio, location, skills and picture."""
         user_id = get_current_user_id(info.context["request"])
 
         # Sync DB call moved off the event loop (Phase 2): this resolver runs
@@ -1892,6 +1893,7 @@ class Query:
         first: int = 100,
         after: str | None = None,
     ) -> list[IdeaSummary]:
+        """List your startup ideas, newest first (paginate with first/after)."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.ideas.list_metadata import (
             IDEA_SUMMARY_DB_COLUMNS as summary_columns,
@@ -1959,6 +1961,7 @@ class Query:
 
     @strawberry.field
     async def idea(self, info: strawberry.Info, idea_id: str) -> Idea:
+        """Read one idea in full: description, stage, generated documents and scores."""
         user_id = get_current_user_id(info.context["request"])
 
         # A note-only request must not fetch every generated document blob.
@@ -1996,6 +1999,7 @@ class Query:
 
     @strawberry.field
     async def account(self, info: strawberry.Info) -> User:
+        """Your account settings (same fields as me), for editing with update_account."""
         user_id = get_current_user_id(info.context["request"])
 
         # Off-loop for the same reason as `me` (fetched eagerly at app boot).
@@ -2019,6 +2023,7 @@ class Query:
 
     @strawberry.field
     async def my_sessions(self, info: strawberry.Info) -> list[SessionInfo]:
+        """Every signed-in session on your account (browsers, CLI, agents), with the current one marked."""
         user_id = get_current_user_id(info.context["request"])
         current_session_id = get_current_session_id_optional(info.context["request"])
         sessions = list_user_sessions(user_id, current_session_id)
@@ -2039,6 +2044,7 @@ class Query:
 
     @strawberry.field
     async def privacy_status(self, info: strawberry.Info) -> PrivacyStatus:
+        """Your privacy choices and any pending data requests."""
         user_id = get_current_user_id(info.context["request"])
         user_row = _load_user_auth_record(user_id) or {}
         return PrivacyStatus(
@@ -2049,17 +2055,20 @@ class Query:
 
     @strawberry.field
     async def survey_insights(self, info: strawberry.Info, window_days: int = 90) -> SurveyInsights:
+        """Aggregated survey results (research and product feedback) over the last windowDays days."""
         get_current_user_id(info.context["request"])
         summary = survey_ops_service.get_summary(info.context["db"], window_days=window_days)
         return _build_survey_insights(summary)
 
     @strawberry.field
     async def ai_key_status(self, info: strawberry.Info) -> AiKeyStatus:
+        """Whether you have your own OpenAI key saved (never the key itself)."""
         user_id = get_current_user_id(info.context["request"])
         return await asyncio.to_thread(_ai_key_status, str(user_id))
 
     @strawberry.field
     async def integrations(self, info: strawberry.Info) -> list[Integration]:
+        """Your connected integrations (GitHub, Google and others); credentials are never returned."""
         user_id = get_current_user_id(info.context["request"])
         response = (
             info.context["db"].table("integrations").select("*").eq("user_id", user_id).execute()
@@ -2105,6 +2114,7 @@ class Query:
 
     @strawberry.field
     async def integration(self, info: strawberry.Info, service_id: str) -> Integration | None:
+        """One connected integration by serviceId; credentials are never returned."""
         user_id = get_current_user_id(info.context["request"])
         response = (
             info.context["db"]
@@ -2156,6 +2166,7 @@ class Query:
         # raises HTTP 401.  We intercept that specific case so the resolver
         # simply returns `null` instead of bubbling an error up the GraphQL
         # stack – this keeps the backend logs clean on startup.
+        """The signed-in person's basic identity (id, email, display name)."""
         try:
             user_id = get_current_user_id(info.context["request"])
         except HTTPException as exc:
@@ -2204,6 +2215,7 @@ class Query:
     async def find_similar_ideas(
         self, info: strawberry.Info, idea_description: str
     ) -> SimilarIdeas:
+        """Find existing ideas similar to a description, to check novelty and competition."""
         from app.managers.manifest_manager import manifest_manager
 
         normalized_description = (idea_description or "").strip()
@@ -2440,6 +2452,7 @@ class Query:
         limit: int = 5,
         include_web: bool = False,
     ) -> UniversalSearchResults:
+        """Search your ideas, documents and people at once (optionally the web)."""
         user_id = get_current_user_id(info.context["request"])
         db = info.context["db"]
         search_query = (query or "").strip()
@@ -2605,10 +2618,12 @@ class Query:
     @strawberry.field
     async def patents(self, info: strawberry.Info) -> list[Patent]:
         # Placeholder: Replace with actual DB logic
+        """List your provisional patent drafts."""
         return []
 
     @strawberry.field
     async def pitch_deck(self, info: strawberry.Info, idea_id: str) -> PitchDeckOutput:
+        """Read the pitch deck generated for an idea."""
         user_id = get_current_user_id(info.context["request"])
         result = (
             info.context["db"]
@@ -2627,6 +2642,7 @@ class Query:
     async def product_requirements_document(
         self, info: strawberry.Info, idea_id: str
     ) -> ProductRequirementsDocumentOutput:
+        """Read the product requirements document (PRD) generated for an idea."""
         user_id = get_current_user_id(info.context["request"])
         result = (
             info.context["db"]
@@ -2648,6 +2664,7 @@ class Query:
         self, info: strawberry.Info, idea_id: str
     ) -> ProvisionalPatentOutput:
         # Try to get patent data from intellectual_properties table
+        """Read the provisional patent draft generated for an idea."""
         user_id = get_current_user_id(info.context["request"])
 
         coversheet_pdf = None
@@ -2976,6 +2993,7 @@ class Query:
     async def idea_qualification_session(
         self, info: strawberry.Info, session_id: str
     ) -> IdeaQualificationSession | None:
+        """Read one idea-qualification interview: questions, answers and verdict."""
         from app.services.ai import idea_qualification as qs
 
         user_id = get_current_user_id(info.context["request"])
@@ -2988,6 +3006,7 @@ class Query:
     async def my_idea_qualification_sessions(
         self, info: strawberry.Info
     ) -> list[IdeaQualificationSession]:
+        """List your idea-qualification interviews."""
         from app.services.ai import idea_qualification as qs
 
         user_id = get_current_user_id(info.context["request"])
@@ -2996,6 +3015,7 @@ class Query:
 
     @strawberry.field
     async def my_cost_dashboard(self, info: strawberry.Info) -> UserCostDashboard:
+        """Your AI spend this month, by feature, against your cap."""
         from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
@@ -3006,6 +3026,7 @@ class Query:
 
     @strawberry.field
     async def my_agent_runs(self, info: strawberry.Info, limit: int = 20) -> list[AgentRunSummary]:
+        """Your recent AI agent runs with status, cost and duration."""
         from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
@@ -3103,6 +3124,7 @@ class Query:
     async def admin_cost_overview(
         self, info: strawberry.Info, window_days: int | None = None
     ) -> AdminCostOverview:
+        """Platform-wide AI cost overview for the last windowDays days."""
         from app.services.ai import admin_costs as admin_cost_service
 
         payload = admin_cost_service.build_admin_cost_overview(
@@ -3118,6 +3140,7 @@ class Query:
         agent_kind: str | None = None,
         status: str | None = None,
     ) -> list[AdminAgentRunRow]:
+        """Recent agent runs across all users, filterable by kind and status."""
         from app.services.ai import admin_costs as admin_cost_service
 
         rows = admin_cost_service.list_recent_runs_cross_user(
@@ -3129,6 +3152,7 @@ class Query:
     async def admin_production_test_stats(
         self, info: strawberry.Info, hours: int = 24
     ) -> AdminProductionTestStats:
+        """Production smoke-test pass rates over the last hours."""
         from app.services.ai import admin_costs as admin_cost_service
 
         payload = admin_cost_service.build_production_test_health(
@@ -3145,6 +3169,7 @@ class Query:
         emotion: str | None = None,
         pass_only: bool | None = None,
     ) -> list[VoiceTestRun]:
+        """Voice-agent test runs, filterable by scenario, emotion and result."""
         from app.services.voice import evaluation as vts
 
         rows = vts.list_recent_runs(
@@ -3160,6 +3185,7 @@ class Query:
     async def admin_voice_test_stats(
         self, info: strawberry.Info, hours: int = 168
     ) -> VoiceTestStats:
+        """Voice-agent test pass rates over the last hours."""
         from app.services.voice import evaluation as vts
 
         payload = vts.get_test_stats(db=info.context["db"], hours=hours)
@@ -3172,6 +3198,7 @@ class Mutation:
     async def create_idea(
         self, info: strawberry.Info, title: str, description: str | None = None
     ) -> Idea:
+        """Create a new startup idea from a title and an optional description."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.ideas.list_metadata import compute_idea_list_metadata
 
@@ -3206,6 +3233,7 @@ class Mutation:
         description: str | None = None,
         required_skills: list[str] | None = None,
     ) -> Idea:
+        """Change an idea's title, description or required skills."""
         user_id = get_current_user_id(info.context["request"])
         from app.services.ideas.collaboration import create_collaboration_service
 
@@ -3510,6 +3538,7 @@ class Mutation:
 
     @strawberry.mutation
     async def remove_openai_api_key(self, info: strawberry.Info) -> AiKeyStatus:
+        """Remove your saved OpenAI key; AI features stop until you add one again."""
         from app.services.ai.user_keys import delete_user_key
 
         user_id = str(get_current_user_id(info.context["request"]))
@@ -3518,6 +3547,7 @@ class Mutation:
 
     @strawberry.mutation
     async def update_account(self, info: strawberry.Info, input: AccountUpdateInput) -> User:
+        """Update your profile: name, username, bio, location, skills or picture URL."""
         user_id = get_current_user_id(info.context["request"])
         update_data = {k: v for k, v in vars(input).items() if v is not None}
         if not update_data:
@@ -3558,6 +3588,7 @@ class Mutation:
     async def connect_integration(
         self, info: strawberry.Info, input: ConnectIntegrationInput
     ) -> Integration:
+        """Connect an integration with provider tokens."""
         user_id = get_current_user_id(info.context["request"])
 
         # Service name mapping (you can expand this)
@@ -3646,6 +3677,7 @@ class Mutation:
 
     @strawberry.mutation
     async def disconnect_integration(self, info: strawberry.Info, service_id: str) -> bool:
+        """Disconnect an integration (GitHub, Google and others) by serviceId."""
         user_id = get_current_user_id(info.context["request"])
 
         (
@@ -3661,6 +3693,7 @@ class Mutation:
 
     @strawberry.mutation
     async def submit_contact_form(self, info: strawberry.Info, input: ContactFormInput) -> bool:
+        """Send a message to the Manifest team."""
         data = {
             "first_name": input.first_name,
             "last_name": input.last_name,
@@ -3925,6 +3958,8 @@ class Mutation:
         # Offload the blocking LLM generation to a worker thread so the 10-30s
         # call doesn't stall the event loop; serialize singleton access with
         # _ai_request_lock (same pattern as find_similar_ideas).
+        """Generate (or regenerate) the pitch deck for an idea. Uses your OpenAI key."""
+
         def _generate() -> str:
             with _ai_request_lock:
                 return _get_pitch_deck(description)
@@ -3955,6 +3990,8 @@ class Mutation:
     async def generate_product_requirements_document(
         self, info: strawberry.Info, idea_id: str, description: str
     ) -> ProductRequirementsDocumentOutput:
+        """Generate (or regenerate) the PRD for an idea. Uses your OpenAI key."""
+
         def _generate() -> str:
             with _ai_request_lock:
                 return _get_product_requirements_document(description)
@@ -3987,6 +4024,8 @@ class Mutation:
     async def generate_provisional_patent(
         self, info: strawberry.Info, idea_id: str, description: str
     ) -> ProvisionalPatentOutput:
+        """Draft a provisional patent for an idea. A draft, not legal advice. Uses your OpenAI key."""
+
         def _generate() -> str:
             with _ai_request_lock:
                 return _get_provisional_patent(description)
@@ -4130,6 +4169,7 @@ class Mutation:
 
     @strawberry.mutation
     async def revoke_account_session(self, info: strawberry.Info, session_id: str) -> bool:
+        """Sign out one session (a browser, the CLI or an agent) by sessionId."""
         user_id = get_current_user_id(info.context["request"])
         current_session_id = get_current_session_id_optional(info.context["request"])
         if current_session_id and session_id == current_session_id:
@@ -4153,6 +4193,7 @@ class Mutation:
 
     @strawberry.mutation
     async def revoke_other_account_sessions(self, info: strawberry.Info) -> int:
+        """Sign out every session except the current one; returns how many."""
         user_id = get_current_user_id(info.context["request"])
         current_session_id = get_current_session_id_optional(info.context["request"])
         revoked = revoke_all_other_sessions(user_id, current_session_id)
@@ -4178,6 +4219,7 @@ class Mutation:
         info: strawberry.Info,
         confirm_email: str,
     ) -> bool:
+        """Request permanent deletion of your account; confirmEmail must be your account email."""
         user_id = _require_full_account(info.context["db"], info.context["request"])
         user_row = _load_user_auth_record(user_id)
         if not user_row:
@@ -4638,6 +4680,7 @@ class Mutation:
     async def start_idea_qualification(
         self, info: strawberry.Info, initial_idea_text: str
     ) -> IdeaQualificationSession:
+        """Start an idea-qualification interview from a rough idea; returns the first questions."""
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.ai import idea_qualification as qs
 
@@ -4664,6 +4707,7 @@ class Mutation:
     async def continue_idea_qualification(
         self, info: strawberry.Info, session_id: str, user_message: str
     ) -> IdeaQualificationSession:
+        """Answer the current questions in an idea-qualification interview."""
         from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.ai import idea_qualification as qs
@@ -4696,6 +4740,7 @@ class Mutation:
         monthly_cap_usd: float | None = None,
         paused: bool | None = None,
     ) -> UserCostLimits:
+        """Set your monthly AI spend cap in USD, or pause AI spend."""
         from app.services.ai import cost_tracking as cost_tracking_service
 
         user_id = get_current_user_id(info.context["request"])
@@ -4716,6 +4761,7 @@ class Mutation:
     async def regenerate_bmc_section(
         self, info: strawberry.Info, idea_id: str, section_name: str
     ) -> BmcSection:
+        """Regenerate one Business Model Canvas section of an idea."""
         from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.canvas import orchestrator as bmc
@@ -4756,6 +4802,7 @@ class Mutation:
     async def regenerate_all_bmc_sections(
         self, info: strawberry.Info, idea_id: str
     ) -> list[BmcSection]:
+        """Regenerate every Business Model Canvas section of an idea."""
         from app.managers.manifest_manager import manifest_manager
         from app.services.ai import cost_tracking as cost_tracking_service
         from app.services.canvas import orchestrator as bmc
