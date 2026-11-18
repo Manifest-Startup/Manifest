@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "b6c4d7ba7bb1a4da5a20904d016625b06f49518eabaa0df0c7168c0a2eb546db",
+ "schema_sha256": "85b7a6c1faee7f84b6b001c1d5611ccb34c75a1c6bfd9fbb4d125f41c7a57bb4",
  "operations": [
   {
    "name": "me",
@@ -1316,6 +1316,35 @@
      "type": "ConnectIntegrationInput!",
      "kind": "input",
      "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "startIntegrationConnection",
+   "command": "start-integration-connection",
+   "kind": "mutation",
+   "description": "Connect a partner (Notion, Stripe, any service) so it appears in Key Partners. Partners with their own sign-in return a connectUrl to approve in a browser.",
+   "destructive": false,
+   "returns": "IntegrationConnection!",
+   "selection": "{ serviceId status message connectUrl }",
+   "args": [
+    {
+     "name": "serviceId",
+     "flag": "--service-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "name",
+     "flag": "--name",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
      "default": null,
      "description": ""
     }

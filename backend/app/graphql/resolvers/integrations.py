@@ -5,7 +5,12 @@ from datetime import datetime
 
 import strawberry
 from app.auth.current_user import get_current_user_id
-from app.graphql.types.integrations import AiKeyStatus, ConnectIntegrationInput, Integration
+from app.graphql.types.integrations import (
+    AiKeyStatus,
+    ConnectIntegrationInput,
+    Integration,
+    IntegrationConnection,
+)
 from app.utils.logger import logger
 
 
@@ -242,6 +247,41 @@ class IntegrationsMutation:
                 filtered_data["expires_at"].replace("Z", "+00:00")
             )
         return Integration(**filtered_data)
+
+    @strawberry.mutation
+    async def start_integration_connection(
+        self, info: strawberry.Info, service_id: str, name: str | None = None
+    ) -> IntegrationConnection:
+        """Connect a partner (Notion, Stripe, any service) so it appears in Key Partners.
+        Partners with their own sign-in return a connectUrl to approve in a browser."""
+        import os
+
+        from app.routes.oauth_routes import OAUTH_PROVIDERS
+        from app.services.integrations.connections import start_connection
+        from app.services.web.agent_content import SITE_ORIGIN
+
+        user_id = get_current_user_id(info.context["request"])
+        normalized = (service_id or "").strip().lower()
+        config = OAUTH_PROVIDERS.get(normalized)
+        oauth_ready = bool(config and os.getenv(config["client_id_env"]))
+        try:
+            result = await asyncio.to_thread(
+                start_connection,
+                info.context["db"],
+                str(user_id),
+                service_id,
+                oauth_ready=oauth_ready,
+                site_origin=os.getenv("PUBLIC_SITE_ORIGIN", SITE_ORIGIN),
+                name=name,
+            )
+        except ValueError as exc:
+            raise Exception(str(exc)) from exc
+        return IntegrationConnection(
+            service_id=result.service_id,
+            status=result.status,
+            message=result.message,
+            connect_url=result.connect_url,
+        )
 
     @strawberry.mutation
     async def disconnect_integration(self, info: strawberry.Info, service_id: str) -> bool:

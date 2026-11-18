@@ -3,6 +3,7 @@
 // view) don't pull the catalogue's icon set into their bundle.
 // integrationServiceIds.test.ts keeps this list in sync with the catalogue.
 export const integrationServiceIds = [
+  'open_media',
   'google',
   'apple',
   'microsoft',

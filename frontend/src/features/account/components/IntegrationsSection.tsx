@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useMessage } from 'features/notifications/context/MessageContext';
 import { trackEvent } from 'features/analytics/projectAnalytics';
 import { GET_INTEGRATIONS, CONNECT_INTEGRATION, DISCONNECT_INTEGRATION } from 'features/core/apollo/queries';
+import OtherPartners from './OtherPartners';
 import { 
   HiSearch,
   HiOutlineCheckCircle,
@@ -149,7 +150,8 @@ const IntegrationsSection: React.FC = () => {
     integrationsData?.integrations?.map((integration: any) => integration.serviceId) || []
   );
 
-  const integrationsWithStatus: Integration[] = integrationCatalog.map(integration => ({
+  // Open Media has its own Account section (it is also how people sign in).
+  const integrationsWithStatus: Integration[] = integrationCatalog.filter(integration => !integration.managedElsewhere).map(integration => ({
     ...integration,
     availability: integration.availability ?? 'available',
     connected: connectedIntegrations.has(integration.id),
@@ -343,8 +345,12 @@ const IntegrationsSection: React.FC = () => {
           Integrations
         </h2>
         <p className="text-sm text-theme-secondary leading-relaxed">
-          Connect the tools you use to build your startup.
+          Connect the tools and companies you work with. Connected partners show under Key Partners on every canvas.
         </p>
+      </div>
+
+      <div ref={(node) => { integrationRefs.current.other = node; }}>
+        <OtherPartners autoFocus={focusIntegrationId === 'other'} />
       </div>
 
       {/* Search Bar */}

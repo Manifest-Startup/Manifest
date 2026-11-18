@@ -1,0 +1,119 @@
+"""Start connecting a partner (integration) for someone, from the app or an agent.
+
+Partners whose provider sign-in (OAuth) is set up must be approved in a browser,
+so they get a link to Account → Integrations. Partners without a provider
+sign-in are recorded straight away (no credentials), which is what the app's
+Connect button does for them. Open Media is linked by signing in with it.
+"""
+
+from __future__ import annotations
+
+import re
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+from urllib.parse import quote
+
+OPEN_MEDIA_SERVICE_ID = "open_media"
+_SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
+# Managed elsewhere: the OpenAI key lives in AI settings, never here.
+_RESERVED = {"openai"}
+
+STATUS_CONNECTED = "connected"
+STATUS_ALREADY_CONNECTED = "already_connected"
+STATUS_NEEDS_BROWSER = "needs_browser"
+
+
+@dataclass(frozen=True)
+class ConnectionResult:
+    service_id: str
+    status: str
+    message: str
+    connect_url: str | None = None
+
+
+def normalize_service_id(raw: str) -> str:
+    service_id = (raw or "").strip().lower().replace(" ", "-")
+    if not _SERVICE_ID_RE.match(service_id):
+        raise ValueError(
+            "serviceId must be 1-40 lowercase letters, digits, '-' or '_' (for example 'notion')."
+        )
+    if service_id in _RESERVED:
+        raise ValueError("Save your OpenAI key in Account → AI settings, not as an integration.")
+    return service_id
+
+
+def display_name(service_id: str, name: str | None = None) -> str:
+    cleaned = (name or "").strip()
+    if cleaned:
+        return cleaned[:80]
+    if service_id == OPEN_MEDIA_SERVICE_ID:
+        return "Open Media"
+    return " ".join(part.capitalize() for part in re.split(r"[-_]", service_id) if part)
+
+
+def _is_connected(db: Any, user_id: str, service_id: str) -> bool:
+    rows = (
+        db.table("integrations")
+        .select("integration_id")
+        .eq("user_id", user_id)
+        .eq("service_id", service_id)
+        .execute()
+    )
+    return bool(rows.data)
+
+
+def start_connection(
+    db: Any,
+    user_id: str,
+    raw_service_id: str,
+    *,
+    oauth_ready: bool,
+    site_origin: str,
+    name: str | None = None,
+) -> ConnectionResult:
+    """Connect ``raw_service_id`` for ``user_id`` or say where to finish it."""
+    service_id = normalize_service_id(raw_service_id)
+    label = display_name(service_id, name)
+    origin = site_origin.rstrip("/")
+
+    if _is_connected(db, user_id, service_id):
+        return ConnectionResult(
+            service_id, STATUS_ALREADY_CONNECTED, f"{label} is already connected."
+        )
+
+    if service_id == OPEN_MEDIA_SERVICE_ID:
+        return ConnectionResult(
+            service_id,
+            STATUS_NEEDS_BROWSER,
+            "Open Media links when you sign in with it. Open the link to continue with Open Media.",
+            f"{origin}/api/auth/open-media/start?next=/account",
+        )
+
+    if oauth_ready:
+        return ConnectionResult(
+            service_id,
+            STATUS_NEEDS_BROWSER,
+            f"{label} needs your approval on its own sign-in page. Open the link and choose Connect.",
+            f"{origin}/account?focusIntegration={quote(service_id)}",
+        )
+
+    db.table("integrations").insert(
+        {
+            "integration_id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "service_id": service_id,
+            "service_name": label,
+            "access_token": None,
+            "refresh_token": None,
+            "expires_at": None,
+            "connected_at": datetime.now(UTC).isoformat(),
+            "metadata": None,
+        }
+    ).execute()
+    return ConnectionResult(
+        service_id,
+        STATUS_CONNECTED,
+        f"{label} is now a connected partner. It shows under Key Partners on your canvases.",
+    )

@@ -1,3 +1,4 @@
+import type { IconType } from "react-icons";
 import React from "react";
 import { useQuery, useReactiveVar } from "@apollo/client/react";
 import ReactMarkdown from "react-markdown";
@@ -19,58 +20,68 @@ interface BusinessModelCanvasDisplayProps {
   generationState?: DocumentGenerationState | null;
 }
 
-interface SuggestedIntegrationChipsProps {
-  serviceIds: string[];
+interface KeyPartnerConnectionsProps {
+  suggestedServiceIds: string[];
 }
 
-const SuggestedIntegrationChips: React.FC<SuggestedIntegrationChipsProps> = ({
-  serviceIds,
-}) => {
+type PartnerChip = { id: string; name: string; Icon: IconType | null; connected: boolean };
+
+/**
+ * Key partners are the people and services the founder actually works with:
+ * every connected integration (Open Media included) and any partner they
+ * added by name, followed by the AI's suggestions they haven't connected yet.
+ */
+const KeyPartnerConnections: React.FC<KeyPartnerConnectionsProps> = ({ suggestedServiceIds }) => {
   const { isLoggedIn } = useReactiveVar(userVar);
-  const { data } = useQuery(GET_INTEGRATIONS, {
-    skip: !isLoggedIn || serviceIds.length === 0,
+  const { data } = useQuery(GET_INTEGRATIONS, { skip: !isLoggedIn });
+
+  const connected: PartnerChip[] = (data?.integrations ?? []).map((integration) => {
+    const entry = getIntegrationCatalogEntry(integration.serviceId);
+    return {
+      id: integration.serviceId,
+      name: entry?.name ?? integration.serviceName,
+      Icon: entry?.icon ?? null,
+      connected: true,
+    };
   });
+  const connectedIds = new Set(connected.map((partner) => partner.id));
+  const suggested: PartnerChip[] = suggestedServiceIds
+    .filter((id) => !connectedIds.has(id))
+    .map((id) => getIntegrationCatalogEntry(id))
+    .filter((entry): entry is NonNullable<typeof entry> => !!entry)
+    .map((entry) => ({ id: entry.id, name: entry.name, Icon: entry.icon, connected: false }));
 
-  const connectedServiceIds = new Set(
-    data?.integrations?.map(
-      (integration: { serviceId: string }) => integration.serviceId,
-    ) || [],
-  );
-
-  const suggestedIntegrations = serviceIds
-    .map((serviceId) => getIntegrationCatalogEntry(serviceId))
-    .filter(
-      (integration): integration is NonNullable<typeof integration> =>
-        !!integration,
-    );
-
-  if (suggestedIntegrations.length === 0) {
+  if (!isLoggedIn && suggested.length === 0) {
     return null;
   }
 
+  const chip = (partner: PartnerChip) => (
+    <Link
+      key={partner.id}
+      to={partner.id === "open_media" ? "/account" : `/account?focusIntegration=${encodeURIComponent(partner.id)}`}
+      className={`manifest-partner-chip${partner.connected ? "" : " manifest-partner-chip--suggested"}`}
+      aria-label={partner.connected ? `${partner.name}: connected` : `Connect ${partner.name}`}
+    >
+      {partner.Icon ? <partner.Icon size={14} aria-hidden="true" /> : <span className="manifest-partner-initial" aria-hidden="true">{partner.name.charAt(0)}</span>}
+      <span>{partner.name}</span>
+      {partner.connected ? null : <span className="manifest-partner-action">Connect</span>}
+    </Link>
+  );
+
   return (
-    <div className="mb-4">
-      <div className="flex flex-wrap gap-2">
-        {suggestedIntegrations.map((integration) => {
-          const isConnected = connectedServiceIds.has(integration.id);
-          return (
-            <Link
-              key={integration.id}
-              to={`/account?focusIntegration=${encodeURIComponent(integration.id)}`}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                isConnected
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-neutral700 dark:bg-neutral900 dark:text-gray-200 dark:hover:bg-neutral800"
-              }`}
-            >
-              <span>{integration.name}</span>
-              <span className="text-[0.65rem] uppercase tracking-[0.14em] opacity-80">
-                {isConnected ? "Connected" : "Connect"}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+    <div className="manifest-partners" aria-label="Your partners">
+      {connected.length > 0 && <div className="manifest-partner-row">{connected.map(chip)}</div>}
+      {suggested.length > 0 && (
+        <>
+          <p className="manifest-partner-label">Suggested</p>
+          <div className="manifest-partner-row">{suggested.map(chip)}</div>
+        </>
+      )}
+      {isLoggedIn && (
+        <Link to="/account?focusIntegration=other" className="manifest-partner-add">
+          + Add a partner
+        </Link>
+      )}
     </div>
   );
 };
@@ -158,19 +169,16 @@ export const BusinessModelCanvasDisplay: React.FC<
             key={title}
           >
             <h4>{title}</h4>
+            {normalize(title) === "key partners" && (
+              <KeyPartnerConnections
+                suggestedServiceIds={sections.flatMap((section) => section.suggestedServiceIds)}
+              />
+            )}
             <div className="manifest-document-body">
               {sections.length ? (
                 sections.map((section, index) => (
                   <React.Fragment key={index}>
                     <DocumentMarkdown content={section.content} />
-                    {section.suggestedServiceIds.length > 0 && (
-                      <details>
-                        <summary>Suggested integrations</summary>
-                        <SuggestedIntegrationChips
-                          serviceIds={section.suggestedServiceIds}
-                        />
-                      </details>
-                    )}
                   </React.Fragment>
                 ))
               ) : (

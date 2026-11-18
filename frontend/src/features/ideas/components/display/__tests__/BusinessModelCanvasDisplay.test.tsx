@@ -22,6 +22,22 @@ const integrationsMock = {
           connectedAt: '2026-04-17T00:00:00Z',
           metadata: null,
         },
+        {
+          integrationId: 'integration-2',
+          userId: 'user-1',
+          serviceName: 'Open Media',
+          serviceId: 'open_media',
+          connectedAt: '2026-04-17T00:00:00Z',
+          metadata: null,
+        },
+        {
+          integrationId: 'integration-3',
+          userId: 'user-1',
+          serviceName: 'Acme Logistics',
+          serviceId: 'acme-logistics',
+          connectedAt: '2026-04-17T00:00:00Z',
+          metadata: null,
+        },
       ],
     },
   },
@@ -62,19 +78,29 @@ Direct outbound and founder communities.`}
       </MockedProvider>,
     );
 
-    expect(screen.getByText('Suggested integrations')).toBeInTheDocument();
     expect(screen.queryByText(/suggestedServiceIds/i)).not.toBeInTheDocument();
 
+    // Every connected partner is a key partner: catalogue services, Open Media
+    // (messaging) and partners added by name.
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: /stripe connected/i })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: /stripe: connected/i })).toHaveAttribute(
         'href',
         '/account?focusIntegration=stripe',
       );
     });
+    expect(screen.getByRole('link', { name: /open media: connected/i })).toHaveAttribute('href', '/account');
+    expect(screen.getByRole('link', { name: /acme logistics: connected/i })).toBeInTheDocument();
 
-    expect(screen.getByRole('link', { name: /docusign connect/i })).toHaveAttribute(
+    // Suggestions only list partners not yet connected.
+    expect(screen.getByText('Suggested')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /connect docusign/i })).toHaveAttribute(
       'href',
       '/account?focusIntegration=docusign',
+    );
+    expect(screen.queryByRole('link', { name: /connect stripe/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /add a partner/i })).toHaveAttribute(
+      'href',
+      '/account?focusIntegration=other',
     );
   });
 });

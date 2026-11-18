@@ -87,7 +87,7 @@ describe("IntegrationsSection", () => {
   it("renders the integrations section with header", async () => {
     renderSection();
     expect(screen.getByText("Integrations")).toBeInTheDocument();
-    expect(screen.getByText(/Connect the tools you use to build your startup/i)).toBeInTheDocument();
+    expect(screen.getByText(/Connected partners show under Key Partners/i)).toBeInTheDocument();
   });
 
   it("renders search input", async () => {

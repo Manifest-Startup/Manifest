@@ -190,6 +190,20 @@ export interface IntegrationRecord {
   metadata: string | null;
 }
 
+export interface StartIntegrationConnectionData {
+  startIntegrationConnection: {
+    serviceId: string;
+    status: 'connected' | 'already_connected' | 'needs_browser';
+    message: string;
+    connectUrl: string | null;
+  };
+}
+
+export interface StartIntegrationConnectionVars {
+  serviceId: string;
+  name?: string | null;
+}
+
 export interface GetIntegrationsData {
   integrations: IntegrationRecord[];
 }
