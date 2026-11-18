@@ -19,7 +19,7 @@ Product intent and long-form context: `docs/AI_AGENT_BASE_PROMPT.md`, `docs/PROD
    - `routes [term]` REST → handler · `graphql [term]` GraphQL field → resolver
    - `orphans` / `unused [path]` dead-code candidates · `cycles` import cycles · `stats` hot spots. Add `--json` for tooling.
 2. **LSP** — go-to-definition / find-references / call hierarchy. `pyrightconfig.json` and `frontend/tsconfig.json` make every import resolve; Python needs `uv venv .venv && uv pip install -r backend/requirements.txt -e mcp_server`.
-3. `rg` for strings and config. Read line ranges, not whole files: `backend/app/graphql/schema.py` alone is ~6k lines.
+3. `rg` for strings and config. Read line ranges, not whole files; GraphQL resolvers are split by domain under `backend/app/graphql/resolvers/` (find one with `graphql <field>`).
 
 ## Engineering rules
 

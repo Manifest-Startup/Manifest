@@ -16,12 +16,12 @@ that adds a new resolver to `backend/app/graphql/`.
 
 ## What to produce, in this order
 
-1. **Type** — add or extend the relevant Strawberry type in `backend/app/graphql/schema.py` (or a `backend/app/graphql/*_types.py` module for a larger domain).
+1. **Type** — add or extend the relevant Strawberry type in `backend/app/graphql/types/<domain>.py`.
    Include only fields the client actually needs.
 2. **Service function** — add a function in the matching domain package, `backend/app/services/<domain>/<module>.py`, that does
    the work. Pure-Python, no Strawberry imports. Async if it touches I/O.
-3. **Resolver** — add the resolver to the `Query` or `Mutation` class in
-   `backend/app/graphql/schema.py`. The resolver must:
+3. **Resolver** — add the resolver to the `<Domain>Query` or `<Domain>Mutation` mixin in
+   `backend/app/graphql/resolvers/<domain>.py` (a new mixin must be listed in `schema.py`). The resolver must:
    - validate input
    - check auth (anonymous, guest, authenticated, owner) — pick the strictest level the
      surface allows

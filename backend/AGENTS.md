@@ -8,7 +8,7 @@ Dependencies only point **down** these layers; `tests/test_architecture.py` fail
 
 | Layer | Packages | Responsibility |
 |---|---|---|
-| API | `app/routes/` (`*_routes.py`), `app/graphql/` (`schema.py`, `*_types.py`), `app/middleware/`, `app/workers/`, `app/main.py` | HTTP and jobs: validate, authorise, call a service. New GraphQL fields are authenticated unless listed in `PUBLIC_FIELDS`. |
+| API | `app/routes/` (`*_routes.py`), `app/graphql/` (`schema.py`, `resolvers/`, `types/`), `app/middleware/`, `app/workers/`, `app/main.py` | HTTP and jobs: validate, authorise, call a service. New GraphQL fields are authenticated unless listed in `PUBLIC_FIELDS`. |
 | Services | `app/services/<domain>/`, `app/managers/`, `app/auth/`, `app/security/` | Business rules, grouped by domain (below). Never import routes, GraphQL or `app.main`. |
 | Data | `app/db/` (`database.get_db_connection`, `rows.rows_to_dicts`) | Postgres/Supabase access. |
 | Utils | `app/utils/` (logger, request context, descriptors), `app/prompts/` (`prompt_path`), `app/assets/` (`ASSETS_DIR`) | No knowledge of the app above them. |
@@ -22,6 +22,7 @@ Module names say what the code is about, without suffixes: `services/documents/f
 
 - Find the resolver or route first: `query.py graphql <field>` / `query.py routes <path>`, then `outline` the service it calls.
 - Add a GraphQL field with the `manifest-graphql-resolver-template` skill; keep the resolver thin and put logic in a service.
+- GraphQL layout: resolvers live in `app/graphql/resolvers/<domain>.py` as `<Domain>Query` / `<Domain>Mutation` mixins, types and mappers in `app/graphql/types/<domain>.py`; `schema.py` only composes the mixins (their order is the schema's field order), holds the default-deny auth extension and `PUBLIC_FIELDS`, and builds `schema`. Patch names where the resolver looks them up (`app.graphql.resolvers.<domain>.get_current_user_id`); `app.graphql.schema.get_current_user_id` only drives the auth extension.
 - Set auth cookies only through `app/security/cookies.set_auth_cookies` / `secure_cookies_enabled`; outbound HTTP to user-supplied URLs only through `app/security/safe_http`.
 - GraphQL schema changes: regenerate the `manifest` CLI catalog (`../.venv/bin/python ../scripts/generate_cli_catalog.py`); `check.py` fails until it matches.
 - Schema changes: add a timestamped SQL file in `../supabase/migrations/`; never apply it unless asked.
