@@ -1,0 +1,4093 @@
+{
+ "generated_by": "scripts/generate_agent_tools.py",
+ "catalog_sha256": "d6bb472b7ebdfeea6868d982073ee111bb22451fdf194d166e37fff3f50b84a5",
+ "excluded": {
+  "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
+  "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
+  "openMediaRealtimeToken": "Returns a live Open Media credential for the web app's realtime socket; agents never hold credentials.",
+  "saveOpenaiApiKey": "Secret keys never go through chat. Add your OpenAI key in Account → AI settings.",
+  "connectIntegration": "Takes raw OAuth tokens. Connect integrations from Account → Integrations in the app, where the provider's sign-in runs.",
+  "runBackgroundTasks": "Superseded by enqueue_background_tasks, which is durable and deduplicated.",
+  "rest:upload-profile-picture": "Needs a file upload (multipart). Change your picture in Account → Profile."
+ },
+ "tools": [
+  {
+   "name": "account",
+   "title": "Account",
+   "description": "Your account settings (same fields as me), for editing with update_account.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Account",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "account",
+    "document": "query Account { account { userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "add_investment_contribution",
+   "title": "Add investment contribution",
+   "description": "Add a contribution to an existing investment. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "investmentId": {
+        "type": "string"
+       },
+       "contributionType": {
+        "type": "string"
+       },
+       "amount": {
+        "type": "number"
+       },
+       "hoursWorked": {
+        "type": "number"
+       },
+       "hourlyRate": {
+        "type": "number"
+       },
+       "description": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "investmentId",
+       "contributionType"
+      ]
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Add investment contribution",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "addInvestmentContribution",
+    "document": "mutation AddInvestmentContribution($input: AddContributionInput!) { addInvestmentContribution(input: $input) }",
+    "variables": [
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "admin_agent_runs",
+   "title": "Admin agent runs",
+   "description": "Recent agent runs across all users, filterable by kind and status. Admins only; others get a permission error.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 50
+     },
+     "agentKind": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Admin agent runs",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminAgentRuns",
+    "document": "query AdminAgentRuns($limit: Int!, $agentKind: String, $status: String) { adminAgentRuns(limit: $limit, agentKind: $agentKind, status: $status) { id userId userEmail agentKind status startedAt completedAt totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage ideaId qualificationSessionId } }",
+    "variables": [
+     "limit",
+     "agentKind",
+     "status"
+    ]
+   }
+  },
+  {
+   "name": "admin_cost_overview",
+   "title": "Admin cost overview",
+   "description": "Platform-wide AI cost overview for the last windowDays days. Admins only; others get a permission error.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "windowDays": {
+      "type": "integer"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Admin cost overview",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminCostOverview",
+    "document": "query AdminCostOverview($windowDays: Int) { adminCostOverview(windowDays: $windowDays) { windowDays windowStart generatedAt totals { totalBillableUsd totalModelCostUsd totalInputTokens totalOutputTokens totalRuns failedRuns activeUsers } burnRatePerDayUsd monthToDateBillableUsd projectedMonthBillableUsd dailySeries { date billableUsd modelCostUsd eventCount } topUsers { userId email billableUsd eventCount } byAgentKind { label billableUsd } byModel { label billableUsd } expensiveRuns { id userId userEmail agentKind status billableUsd inputTokens outputTokens startedAt completedAt } } }",
+    "variables": [
+     "windowDays"
+    ]
+   }
+  },
+  {
+   "name": "admin_production_test_stats",
+   "title": "Admin production test stats",
+   "description": "Production smoke-test pass rates over the last hours. Admins only; others get a permission error.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "hours": {
+      "type": "integer",
+      "default": 24
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Admin production test stats",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminProductionTestStats",
+    "document": "query AdminProductionTestStats($hours: Int!) { adminProductionTestStats(hours: $hours) { windowHours totalRuns passCount failCount flakyCount errorCount skippedCount failureRate issuesOpened issuesDeduped topFailingTests { testName failures } } }",
+    "variables": [
+     "hours"
+    ]
+   }
+  },
+  {
+   "name": "admin_run_voice_test_case",
+   "title": "Admin run voice test case",
+   "description": "Run one end-to-end voice test (simulator → executor → evaluator). Admins only; others get a permission error. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "scenario": {
+      "type": "string"
+     },
+     "emotion": {
+      "type": "string"
+     },
+     "persona": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "scenario",
+     "emotion"
+    ]
+   },
+   "annotations": {
+    "title": "Admin run voice test case",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminRunVoiceTestCase",
+    "document": "mutation AdminRunVoiceTestCase($scenario: String!, $emotion: String!, $persona: String) { adminRunVoiceTestCase(scenario: $scenario, emotion: $emotion, persona: $persona) { id scenario userPersona userEmotion userGoal userInput expectedBehavior assistantResponse executorKind scoreIntentUnderstanding scoreEmotionalAwareness scoreHelpfulness overallScore passStatus detectedFailures rootCauseAnalysis improvedResponseExample simulatorRunId executorRunId evaluatorRunId createdAt } }",
+    "variables": [
+     "scenario",
+     "emotion",
+     "persona"
+    ]
+   }
+  },
+  {
+   "name": "admin_set_user_role",
+   "title": "Admin set user role",
+   "description": "Admin: change a user's RBAC role. Admins only; others get a permission error. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "targetUserId": {
+      "type": "string"
+     },
+     "role": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "targetUserId",
+     "role"
+    ]
+   },
+   "annotations": {
+    "title": "Admin set user role",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminSetUserRole",
+    "document": "mutation AdminSetUserRole($targetUserId: String!, $role: String!) { adminSetUserRole(targetUserId: $targetUserId, role: $role) }",
+    "variables": [
+     "targetUserId",
+     "role"
+    ]
+   }
+  },
+  {
+   "name": "admin_voice_test_runs",
+   "title": "Admin voice test runs",
+   "description": "Voice-agent test runs, filterable by scenario, emotion and result. Admins only; others get a permission error.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 50
+     },
+     "scenario": {
+      "type": "string"
+     },
+     "emotion": {
+      "type": "string"
+     },
+     "passOnly": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Admin voice test runs",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminVoiceTestRuns",
+    "document": "query AdminVoiceTestRuns($limit: Int!, $scenario: String, $emotion: String, $passOnly: Boolean) { adminVoiceTestRuns(limit: $limit, scenario: $scenario, emotion: $emotion, passOnly: $passOnly) { id scenario userPersona userEmotion userGoal userInput expectedBehavior assistantResponse executorKind scoreIntentUnderstanding scoreEmotionalAwareness scoreHelpfulness overallScore passStatus detectedFailures rootCauseAnalysis improvedResponseExample simulatorRunId executorRunId evaluatorRunId createdAt } }",
+    "variables": [
+     "limit",
+     "scenario",
+     "emotion",
+     "passOnly"
+    ]
+   }
+  },
+  {
+   "name": "admin_voice_test_stats",
+   "title": "Admin voice test stats",
+   "description": "Voice-agent test pass rates over the last hours. Admins only; others get a permission error.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "hours": {
+      "type": "integer",
+      "default": 168
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Admin voice test stats",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "adminVoiceTestStats",
+    "document": "query AdminVoiceTestStats($hours: Int!) { adminVoiceTestStats(hours: $hours) { windowHours totalRuns passed failed notEvaluated passRate averageScores { intentUnderstanding emotionalAwareness helpfulness } byScenario { label total passCount failCount } byEmotion { label total passCount failCount } topFailures { failure count } } }",
+    "variables": [
+     "hours"
+    ]
+   }
+  },
+  {
+   "name": "ai_key_status",
+   "title": "Ai key status",
+   "description": "Whether you have your own OpenAI key saved (never the key itself).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Ai key status",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "aiKeyStatus",
+    "document": "query AiKeyStatus { aiKeyStatus { configured source last4 } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "approve_partner_candidate",
+   "title": "Approve partner candidate",
+   "description": "Flip the internal approval flag on a partner candidate. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "candidateId": {
+      "type": "string"
+     },
+     "approved": {
+      "type": "boolean",
+      "default": true
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "candidateId"
+    ]
+   },
+   "annotations": {
+    "title": "Approve partner candidate",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "approvePartnerCandidate",
+    "document": "mutation ApprovePartnerCandidate($candidateId: String!, $approved: Boolean!) { approvePartnerCandidate(candidateId: $candidateId, approved: $approved) { id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt } }",
+    "variables": [
+     "candidateId",
+     "approved"
+    ]
+   }
+  },
+  {
+   "name": "available_skills",
+   "title": "Available skills",
+   "description": "Return the canonical list of skills available on the platform.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Available skills",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "availableSkills",
+    "document": "query AvailableSkills { availableSkills }",
+    "variables": []
+   }
+  },
+  {
+   "name": "bmc_sections",
+   "title": "BMC sections",
+   "description": "Per-section BMC content for an idea owned by the caller.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "BMC sections",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "bmcSections",
+    "document": "query BmcSections($ideaId: String!) { bmcSections(ideaId: $ideaId) { sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "calculate_sweat_equity",
+   "title": "Calculate sweat equity",
+   "description": "Calculate sweat equity value and percentage.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "hours": {
+      "type": "number"
+     },
+     "hourlyRate": {
+      "type": "number",
+      "default": 50
+     },
+     "totalValuation": {
+      "type": "number",
+      "default": 100000
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "hours"
+    ]
+   },
+   "annotations": {
+    "title": "Calculate sweat equity",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "calculateSweatEquity",
+    "document": "query CalculateSweatEquity($hours: Float!, $hourlyRate: Float!, $totalValuation: Float!) { calculateSweatEquity(hours: $hours, hourlyRate: $hourlyRate, totalValuation: $totalValuation) { sweatValue equityPercentage hours hourlyRate } }",
+    "variables": [
+     "hours",
+     "hourlyRate",
+     "totalValuation"
+    ]
+   }
+  },
+  {
+   "name": "check_idea_access",
+   "title": "Check idea access",
+   "description": "Check if current user has access to an idea and get their role.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Check idea access",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "checkIdeaAccess",
+    "document": "query CheckIdeaAccess($ideaId: String!) { checkIdeaAccess(ideaId: $ideaId) { hasAccess role } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "continue_idea_qualification",
+   "title": "Continue idea qualification",
+   "description": "Answer the current questions in an idea-qualification interview. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "sessionId": {
+      "type": "string"
+     },
+     "userMessage": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "sessionId",
+     "userMessage"
+    ]
+   },
+   "annotations": {
+    "title": "Continue idea qualification",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "continueIdeaQualification",
+    "document": "mutation ContinueIdeaQualification($sessionId: String!, $userMessage: String!) { continueIdeaQualification(sessionId: $sessionId, userMessage: $userMessage) { id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt } }",
+    "variables": [
+     "sessionId",
+     "userMessage"
+    ]
+   }
+  },
+  {
+   "name": "conversation_messages",
+   "title": "Conversation messages",
+   "description": "Messages in an Open Media conversation, oldest first.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 100
+     },
+     "beforeId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "conversationId"
+    ]
+   },
+   "annotations": {
+    "title": "Conversation messages",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "conversationMessages",
+    "document": "query ConversationMessages($conversationId: String!, $limit: Int!, $beforeId: String) { conversationMessages(conversationId: $conversationId, limit: $limit, beforeId: $beforeId) { messageId conversationId senderId content createdAt isMine } }",
+    "variables": [
+     "conversationId",
+     "limit",
+     "beforeId"
+    ]
+   }
+  },
+  {
+   "name": "create_idea",
+   "title": "Create idea",
+   "description": "Create a new startup idea from a title and an optional description. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "title"
+    ]
+   },
+   "annotations": {
+    "title": "Create idea",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "createIdea",
+    "document": "mutation CreateIdea($title: String!, $description: String) { createIdea(title: $title, description: $description) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills } }",
+    "variables": [
+     "title",
+     "description"
+    ]
+   }
+  },
+  {
+   "name": "create_idea_version",
+   "title": "Create idea version",
+   "description": "Create a new version snapshot of an idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "changeSummary": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Create idea version",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "createIdeaVersion",
+    "document": "mutation CreateIdeaVersion($ideaId: String!, $changeSummary: String) { createIdeaVersion(ideaId: $ideaId, changeSummary: $changeSummary) { versionId ideaId versionNumber title description createdBy createdAt changeSummary creatorName creatorAvatar versionKind } }",
+    "variables": [
+     "ideaId",
+     "changeSummary"
+    ]
+   }
+  },
+  {
+   "name": "create_investment",
+   "title": "Create investment",
+   "description": "Create a new investment in an idea. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "ideaId": {
+        "type": "string"
+       },
+       "cashAmount": {
+        "type": "number"
+       },
+       "sweatEquityHours": {
+        "type": "number"
+       },
+       "hourlyRate": {
+        "type": "number"
+       },
+       "equityPercentage": {
+        "type": "number"
+       },
+       "investmentType": {
+        "type": "string"
+       },
+       "role": {
+        "type": "string"
+       },
+       "notes": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "ideaId"
+      ]
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Create investment",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "createInvestment",
+    "document": "mutation CreateInvestment($input: CreateInvestmentInput!) { createInvestment(input: $input) { investmentId ideaId investorId cashAmount sweatEquityHours sweatEquityValue equityPercentage investmentType role status notes createdAt investorName investorAvatar } }",
+    "variables": [
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "create_pitch_reel_comment",
+   "title": "Create pitch reel comment",
+   "description": "Comment on a pitch reel's Open Media clip. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "reelId": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "reelId",
+     "body"
+    ]
+   },
+   "annotations": {
+    "title": "Create pitch reel comment",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "createPitchReelComment",
+    "document": "mutation CreatePitchReelComment($reelId: String!, $body: String!) { createPitchReelComment(reelId: $reelId, body: $body) { comment { commentId reelId authorId authorName authorHandle authorAvatar body createdAt isMine } } }",
+    "variables": [
+     "reelId",
+     "body"
+    ]
+   }
+  },
+  {
+   "name": "delete_idea",
+   "title": "Delete idea",
+   "description": "Delete an idea owned by the current user. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Delete idea",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "deleteIdea",
+    "document": "mutation DeleteIdea($ideaId: String!) { deleteIdea(ideaId: $ideaId) }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "disconnect_integration",
+   "title": "Disconnect integration",
+   "description": "Disconnect an integration (GitHub, Google and others) by serviceId. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "serviceId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "serviceId"
+    ]
+   },
+   "annotations": {
+    "title": "Disconnect integration",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "disconnectIntegration",
+    "document": "mutation DisconnectIntegration($serviceId: String!) { disconnectIntegration(serviceId: $serviceId) }",
+    "variables": [
+     "serviceId"
+    ]
+   }
+  },
+  {
+   "name": "dsar_access",
+   "title": "Dsar access",
+   "description": "Everything Manifest holds about you.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Dsar access",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/dsar/access",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "dsar_erase",
+   "title": "Dsar erase",
+   "description": "Permanently erase your account and data (needs a recent sign-in). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "confirm_email": {
+      "type": "string",
+      "description": "Your account email, to confirm"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "confirm_email"
+    ]
+   },
+   "annotations": {
+    "title": "Dsar erase",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/dsar/erase",
+    "body": [
+     "confirm_email"
+    ],
+    "extras": {
+     "acknowledge_irreversible": true
+    }
+   }
+  },
+  {
+   "name": "dsar_erase_certificate",
+   "title": "Dsar erase certificate",
+   "description": "Show the certificate for a completed erasure.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Dsar erase certificate",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/dsar/erase/certificate",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "dsar_export",
+   "title": "Dsar export",
+   "description": "Export your data (portable JSON).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Dsar export",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/dsar/portability",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "dsar_object",
+   "title": "Dsar object",
+   "description": "Object to processing (analytics, communications, sale or sharing). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "analytics_enabled": {
+      "type": "boolean"
+     },
+     "communications_enabled": {
+      "type": "boolean"
+     },
+     "do_not_sell_or_share": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Dsar object",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/dsar/object",
+    "body": [
+     "analytics_enabled",
+     "communications_enabled",
+     "do_not_sell_or_share",
+     "reason"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "dsar_rectify",
+   "title": "Dsar rectify",
+   "description": "Correct your personal data (needs a recent sign-in). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "full_name": {
+      "type": "string"
+     },
+     "first_name": {
+      "type": "string"
+     },
+     "last_name": {
+      "type": "string"
+     },
+     "email": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Dsar rectify",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/dsar/rectify",
+    "body": [
+     "full_name",
+     "first_name",
+     "last_name",
+     "email"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "dsar_retention_exceptions",
+   "title": "Dsar retention exceptions",
+   "description": "Data kept despite an erasure request, and why.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Dsar retention exceptions",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/dsar/retention/exceptions",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "enqueue_background_tasks",
+   "title": "Enqueue background tasks",
+   "description": "Enqueue document generation as a durable job and return immediately (Phase 3). The dedicated worker drains the queue; poll `generationJob` for status. Unlike the legacy fire-and-forget `runBackgroundTasks`, the work survives a process restart and is deduplicated per `idempotencyKey`. Returns the existing job if one is already in flight for that key. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "documentTypes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "idempotencyKey": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "documentTypes"
+    ]
+   },
+   "annotations": {
+    "title": "Enqueue background tasks",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "enqueueBackgroundTasks",
+    "document": "mutation EnqueueBackgroundTasks($ideaId: String!, $documentTypes: [String!]!, $idempotencyKey: String) { enqueueBackgroundTasks(ideaId: $ideaId, documentTypes: $documentTypes, idempotencyKey: $idempotencyKey) { jobId status } }",
+    "variables": [
+     "ideaId",
+     "documentTypes",
+     "idempotencyKey"
+    ]
+   }
+  },
+  {
+   "name": "export_ideas",
+   "title": "Export ideas",
+   "description": "Export all user's ideas in the specified format (json, csv, markdown). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "format": {
+      "type": "string",
+      "default": "json"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Export ideas",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "exportIdeas",
+    "document": "mutation ExportIdeas($format: String!) { exportIdeas(format: $format) { content format filename } }",
+    "variables": [
+     "format"
+    ]
+   }
+  },
+  {
+   "name": "find_similar_ideas",
+   "title": "Find similar ideas",
+   "description": "Find existing ideas similar to a description, to check novelty and competition.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaDescription": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaDescription"
+    ]
+   },
+   "annotations": {
+    "title": "Find similar ideas",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "findSimilarIdeas",
+    "document": "query FindSimilarIdeas($ideaDescription: String!) { findSimilarIdeas(ideaDescription: $ideaDescription) { similarIdeas } }",
+    "variables": [
+     "ideaDescription"
+    ]
+   }
+  },
+  {
+   "name": "follow_user",
+   "title": "Follow user",
+   "description": "Follow a user. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "followedId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "followedId"
+    ]
+   },
+   "annotations": {
+    "title": "Follow user",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "followUser",
+    "document": "mutation FollowUser($followedId: String!) { followUser(followedId: $followedId) { following followedId } }",
+    "variables": [
+     "followedId"
+    ]
+   }
+  },
+  {
+   "name": "generate_pitch_deck",
+   "title": "Generate pitch deck",
+   "description": "Generate (or regenerate) the pitch deck for an idea. Uses your OpenAI key. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "description"
+    ]
+   },
+   "annotations": {
+    "title": "Generate pitch deck",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "generatePitchDeck",
+    "document": "mutation GeneratePitchDeck($ideaId: String!, $description: String!) { generatePitchDeck(ideaId: $ideaId, description: $description) { pitchDeck } }",
+    "variables": [
+     "ideaId",
+     "description"
+    ]
+   }
+  },
+  {
+   "name": "generate_product_requirements_document",
+   "title": "Generate product requirements document",
+   "description": "Generate (or regenerate) the PRD for an idea. Uses your OpenAI key. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "description"
+    ]
+   },
+   "annotations": {
+    "title": "Generate product requirements document",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "generateProductRequirementsDocument",
+    "document": "mutation GenerateProductRequirementsDocument($ideaId: String!, $description: String!) { generateProductRequirementsDocument(ideaId: $ideaId, description: $description) { productRequirementsDocument } }",
+    "variables": [
+     "ideaId",
+     "description"
+    ]
+   }
+  },
+  {
+   "name": "generate_provisional_patent",
+   "title": "Generate provisional patent",
+   "description": "Draft a provisional patent for an idea. A draft, not legal advice. Uses your OpenAI key. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "description"
+    ]
+   },
+   "annotations": {
+    "title": "Generate provisional patent",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "generateProvisionalPatent",
+    "document": "mutation GenerateProvisionalPatent($ideaId: String!, $description: String!) { generateProvisionalPatent(ideaId: $ideaId, description: $description) { provisionalPatent coversheetPdf specificationPdf } }",
+    "variables": [
+     "ideaId",
+     "description"
+    ]
+   }
+  },
+  {
+   "name": "generation_job",
+   "title": "Generation job",
+   "description": "Poll the status of an async document-generation job (Phase 3).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "jobId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "jobId"
+    ]
+   },
+   "annotations": {
+    "title": "Generation job",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "generationJob",
+    "document": "query GenerationJob($jobId: String!) { generationJob(jobId: $jobId) { id status documentTypes ideaId errorMessage createdAt updatedAt } }",
+    "variables": [
+     "jobId"
+    ]
+   }
+  },
+  {
+   "name": "github_bootstrap",
+   "title": "Github bootstrap",
+   "description": "Create a GitHub repository for an idea (needs the GitHub integration). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "idea_id": {
+      "type": "string"
+     },
+     "repo_name": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "idea_id",
+     "repo_name"
+    ]
+   },
+   "annotations": {
+    "title": "Github bootstrap",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/integrations/github/bootstrap",
+    "body": [
+     "idea_id",
+     "repo_name"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "idea",
+   "title": "Idea",
+   "description": "Read one idea in full: description, stage, generated documents and scores.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "idea",
+    "document": "query Idea($ideaId: String!) { idea(ideaId: $ideaId) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "idea_cap_table",
+   "title": "Idea cap table",
+   "description": "Get the cap table for an idea.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea cap table",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaCapTable",
+    "document": "query IdeaCapTable($ideaId: String!) { ideaCapTable(ideaId: $ideaId) { entryId ideaId stakeholderId stakeholderType equityPercentage sharesOwned shareClass vestingStatus vestedPercentage stakeholderName stakeholderAvatar } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "idea_collaborators",
+   "title": "Idea collaborators",
+   "description": "Get all collaborators for an idea including the owner.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea collaborators",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaCollaborators",
+    "document": "query IdeaCollaborators($ideaId: String!) { ideaCollaborators(ideaId: $ideaId) { collaboratorId ideaId userId role status userEmail userName userAvatar invitedAt acceptedAt } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "idea_investments",
+   "title": "Idea investments",
+   "description": "Get all investments for an idea.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea investments",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaInvestments",
+    "document": "query IdeaInvestments($ideaId: String!) { ideaInvestments(ideaId: $ideaId) { investmentId ideaId investorId cashAmount sweatEquityHours sweatEquityValue equityPercentage investmentType role status notes createdAt investorName investorAvatar } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "idea_owner",
+   "title": "Idea owner",
+   "description": "The founder of an idea, and whether the viewer can message them on Open Media.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea owner",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaOwner",
+    "document": "query IdeaOwner($ideaId: String!) { ideaOwner(ideaId: $ideaId) { userId username firstName lastName bio profilePictureUrl ideaId ideaTitle isPublished canMessage openMediaHandle } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "idea_qualification_session",
+   "title": "Idea qualification session",
+   "description": "Read one idea-qualification interview: questions, answers and verdict.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "sessionId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "sessionId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea qualification session",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaQualificationSession",
+    "document": "query IdeaQualificationSession($sessionId: String!) { ideaQualificationSession(sessionId: $sessionId) { id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt } }",
+    "variables": [
+     "sessionId"
+    ]
+   }
+  },
+  {
+   "name": "idea_versions",
+   "title": "Idea versions",
+   "description": "Get version history for an idea.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea versions",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaVersions",
+    "document": "query IdeaVersions($ideaId: String!) { ideaVersions(ideaId: $ideaId) { versionId ideaId versionNumber title description createdBy createdAt changeSummary creatorName creatorAvatar versionKind } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "ideas",
+   "title": "Ideas",
+   "description": "List your startup ideas, newest first (paginate with first/after).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "first": {
+      "type": "integer",
+      "default": 100
+     },
+     "after": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Ideas",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideas",
+    "document": "query Ideas($first: Int!, $after: String) { ideas(first: $first, after: $after) { ideaId userId title description hasDescription createdAt isPublished generatedAssetCount } }",
+    "variables": [
+     "first",
+     "after"
+    ]
+   }
+  },
+  {
+   "name": "import_ideas",
+   "title": "Import ideas",
+   "description": "Import startup ideas from note exports and backups. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "fileContent": {
+      "type": "string"
+     },
+     "fileFormat": {
+      "type": "string"
+     },
+     "filename": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "fileContent",
+     "fileFormat",
+     "filename"
+    ]
+   },
+   "annotations": {
+    "title": "Import ideas",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "importIdeas",
+    "document": "mutation ImportIdeas($fileContent: String!, $fileFormat: String!, $filename: String!) { importIdeas(fileContent: $fileContent, fileFormat: $fileFormat, filename: $filename) { importedCount skippedCount errors } }",
+    "variables": [
+     "fileContent",
+     "fileFormat",
+     "filename"
+    ]
+   }
+  },
+  {
+   "name": "integration",
+   "title": "Integration",
+   "description": "One connected integration by serviceId; credentials are never returned.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "serviceId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "serviceId"
+    ]
+   },
+   "annotations": {
+    "title": "Integration",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "integration",
+    "document": "query Integration($serviceId: String!) { integration(serviceId: $serviceId) { integrationId userId serviceName serviceId expiresAt connectedAt metadata } }",
+    "variables": [
+     "serviceId"
+    ]
+   }
+  },
+  {
+   "name": "integrations",
+   "title": "Integrations",
+   "description": "Your connected integrations (GitHub, Google and others); credentials are never returned.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Integrations",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "integrations",
+    "document": "query Integrations { integrations { integrationId userId serviceName serviceId expiresAt connectedAt metadata } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "invite_collaborator",
+   "title": "Invite collaborator",
+   "description": "Invite a user to collaborate on an idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "ideaId": {
+        "type": "string"
+       },
+       "email": {
+        "type": "string"
+       },
+       "role": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "ideaId",
+       "email"
+      ]
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Invite collaborator",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "inviteCollaborator",
+    "document": "mutation InviteCollaborator($input: InviteCollaboratorInput!) { inviteCollaborator(input: $input) { success message } }",
+    "variables": [
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "keys_clients",
+   "title": "Keys clients",
+   "description": "List your API clients and their keys.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Keys clients",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/keys/clients",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_create",
+   "title": "Keys create",
+   "description": "Create an API key; the secret is shown once (needs a recent sign-in). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "client_id": {
+      "type": "string",
+      "description": "API client id"
+     },
+     "name": {
+      "type": "string",
+      "description": "Key name"
+     },
+     "expires_days": {
+      "type": "integer",
+      "description": "Days until it expires (1-365)"
+     },
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Permission scope (repeat for several)"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "client_id"
+    ]
+   },
+   "annotations": {
+    "title": "Keys create",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/keys/keys",
+    "body": [
+     "client_id",
+     "name",
+     "expires_days",
+     "scopes"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_create_client",
+   "title": "Keys create client",
+   "description": "Create an API client. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "description": "Client name"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "name"
+    ]
+   },
+   "annotations": {
+    "title": "Keys create client",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/keys/clients",
+    "body": [
+     "name"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_delete_client",
+   "title": "Keys delete client",
+   "description": "Delete an API client and every key it has (needs a recent sign-in). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "client_id": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "client_id"
+    ]
+   },
+   "annotations": {
+    "title": "Keys delete client",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "DELETE",
+    "path": "/api/keys/clients/{client_id}",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_revoke",
+   "title": "Keys revoke",
+   "description": "Revoke an API key (needs a recent sign-in). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "key_id": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "key_id"
+    ]
+   },
+   "annotations": {
+    "title": "Keys revoke",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "DELETE",
+    "path": "/api/keys/keys/{key_id}",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_rotate",
+   "title": "Keys rotate",
+   "description": "Rotate an API key; the old one keeps working for the overlap (needs a recent sign-in). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "key_id": {
+      "type": "string",
+      "description": "Key id to rotate"
+     },
+     "overlap_seconds": {
+      "type": "integer",
+      "description": "Seconds the old key keeps working"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "key_id"
+    ]
+   },
+   "annotations": {
+    "title": "Keys rotate",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/keys/keys/rotate",
+    "body": [
+     "key_id",
+     "overlap_seconds"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_tiers",
+   "title": "Keys tiers",
+   "description": "Show API billing tiers and limits.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Keys tiers",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/keys/tiers",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "keys_usage",
+   "title": "Keys usage",
+   "description": "Show your API usage this period.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Keys usage",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/keys/usage",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "mark_conversation_read",
+   "title": "Mark conversation read",
+   "description": "Mark an Open Media conversation as read. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "conversationId"
+    ]
+   },
+   "annotations": {
+    "title": "Mark conversation read",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "markConversationRead",
+    "document": "mutation MarkConversationRead($conversationId: String!) { markConversationRead(conversationId: $conversationId) }",
+    "variables": [
+     "conversationId"
+    ]
+   }
+  },
+  {
+   "name": "me",
+   "title": "Me",
+   "description": "Your profile: name, username, email, bio, location, skills and picture.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Me",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "me",
+    "document": "query Me { me { userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "my_agent_runs",
+   "title": "My agent runs",
+   "description": "Your recent AI agent runs with status, cost and duration.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 20
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My agent runs",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myAgentRuns",
+    "document": "query MyAgentRuns($limit: Int!) { myAgentRuns(limit: $limit) { id agentKind status startedAt completedAt totalModelCostUsd totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage qualificationSessionId ideaId } }",
+    "variables": [
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "my_collaboration_invitations",
+   "title": "My collaboration invitations",
+   "description": "Get pending collaboration invitations for the current user.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My collaboration invitations",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myCollaborationInvitations",
+    "document": "query MyCollaborationInvitations { myCollaborationInvitations { collaboratorId ideaId role status ideaTitle ideaDescription inviterName invitedAt } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "my_conversations",
+   "title": "My conversations",
+   "description": "Open Media conversations; Manifest ones (`context.app = manifest`) unless `allApps`.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 50
+     },
+     "offset": {
+      "type": "integer",
+      "default": 0
+     },
+     "allApps": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My conversations",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myConversations",
+    "document": "query MyConversations($limit: Int!, $offset: Int!, $allApps: Boolean!) { myConversations(limit: $limit, offset: $offset, allApps: $allApps) { conversationId otherUserId otherUserName otherUserHandle otherUserAvatar ideaId ideaTitle lastMessageAt lastMessagePreview unreadCount } }",
+    "variables": [
+     "limit",
+     "offset",
+     "allApps"
+    ]
+   }
+  },
+  {
+   "name": "my_cost_dashboard",
+   "title": "My cost dashboard",
+   "description": "Your AI spend this month, by feature, against your cap.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My cost dashboard",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myCostDashboard",
+    "document": "query MyCostDashboard { myCostDashboard { limits { monthlyVariableCapUsd paused baseSubscriptionUsd currency } spend { monthStart totalBillableUsd totalModelCostUsd totalInputTokens totalOutputTokens eventCount } remainingUsd pctOfCap warnLevel recentRuns { id agentKind status startedAt completedAt totalModelCostUsd totalBillableCostUsd totalInputTokens totalOutputTokens errorMessage qualificationSessionId ideaId } estimatedTotalWithSubscriptionUsd } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "my_cost_preflight",
+   "title": "My cost preflight",
+   "description": "Preflight check: would a new run be allowed right now?",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "agentKind": {
+      "type": "string"
+     },
+     "estCostUsd": {
+      "type": "number"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My cost preflight",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myCostPreflight",
+    "document": "query MyCostPreflight($agentKind: String, $estCostUsd: Float) { myCostPreflight(agentKind: $agentKind, estCostUsd: $estCostUsd) { allowed reason monthlyUsageUsd capUsd remainingUsd estimatedCostUsd paused agentKind } }",
+    "variables": [
+     "agentKind",
+     "estCostUsd"
+    ]
+   }
+  },
+  {
+   "name": "my_idea_qualification_sessions",
+   "title": "My idea qualification sessions",
+   "description": "List your idea-qualification interviews.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My idea qualification sessions",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myIdeaQualificationSessions",
+    "document": "query MyIdeaQualificationSessions { myIdeaQualificationSessions { id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "my_portfolio",
+   "title": "My portfolio",
+   "description": "Get current user's investment portfolio.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My portfolio",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "myPortfolio",
+    "document": "query MyPortfolio { myPortfolio { investmentId ideaId ideaTitle ideaDescription cashAmount sweatEquityValue equityPercentage status createdAt } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "my_sessions",
+   "title": "My sessions",
+   "description": "Every signed-in session on your account (browsers, CLI, agents), with the current one marked.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My sessions",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "mySessions",
+    "document": "query MySessions { mySessions { sessionId current createdAt expiresAt revokedAt lastSeenAt requestIp userAgent kind } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "my_shared_ideas",
+   "title": "My shared ideas",
+   "description": "Get ideas shared with the current user.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "My shared ideas",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "mySharedIdeas",
+    "document": "query MySharedIdeas { mySharedIdeas { ideaId title description userRole createdAt } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "open_media_link",
+   "title": "Open media link",
+   "description": "Whether Open Media is enabled here and linked to the current account.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Open media link",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "openMediaLink",
+    "document": "query OpenMediaLink { openMediaLink { enabled linked needsReconnect handle displayName avatarUrl connectUrl } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "partner_candidates",
+   "title": "Partner candidates",
+   "description": "Ranked partner candidates for an idea owned by the caller.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Partner candidates",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "partnerCandidates",
+    "document": "query PartnerCandidates($ideaId: String!) { partnerCandidates(ideaId: $ideaId) { id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "patents",
+   "title": "Patents",
+   "description": "List your provisional patent drafts.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Patents",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "patents",
+    "document": "query Patents { patents { patentId title description createdAt } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "pitch_deck",
+   "title": "Pitch deck",
+   "description": "Read the pitch deck generated for an idea.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Pitch deck",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "pitchDeck",
+    "document": "query PitchDeck($ideaId: String!) { pitchDeck(ideaId: $ideaId) { pitchDeck } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "pitch_reel_comments",
+   "title": "Pitch reel comments",
+   "description": "Open Media comments on a pitch reel's clip.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "reelId": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 120
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "reelId"
+    ]
+   },
+   "annotations": {
+    "title": "Pitch reel comments",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "pitchReelComments",
+    "document": "query PitchReelComments($reelId: String!, $limit: Int!) { pitchReelComments(reelId: $reelId, limit: $limit) { commentId reelId authorId authorName authorHandle authorAvatar body createdAt isMine } }",
+    "variables": [
+     "reelId",
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "pitch_reels_feed",
+   "title": "Pitch reels feed",
+   "description": "Published pitch reels joined with their Open Media clips (empty when Open Media is off).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "limit": {
+      "type": "integer",
+      "default": 20
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Pitch reels feed",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "pitchReelsFeed",
+    "document": "query PitchReelsFeed($limit: Int!) { pitchReelsFeed(limit: $limit) { reelId slug title subtitle thesis description tags videoUrl posterUrl videoStatus workspacePath accentFrom accentTo createdAt creator { userId handle name role initials avatar followerCount isFollowing } stats { likeCount commentCount shareCount } viewerState { liked reshared } ideaId } }",
+    "variables": [
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "privacy_consent",
+   "title": "Privacy consent",
+   "description": "Show your privacy choices.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Privacy consent",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/privacy/consent",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "privacy_set_consent",
+   "title": "Privacy set consent",
+   "description": "Update your privacy choices. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "analytics_enabled": {
+      "type": "boolean"
+     },
+     "communications_enabled": {
+      "type": "boolean"
+     },
+     "marketing_enabled": {
+      "type": "boolean"
+     },
+     "ai_training_enabled": {
+      "type": "boolean"
+     },
+     "cookies_enabled": {
+      "type": "boolean"
+     },
+     "do_not_sell_or_share": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Privacy set consent",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/privacy/consent",
+    "body": [
+     "analytics_enabled",
+     "communications_enabled",
+     "marketing_enabled",
+     "ai_training_enabled",
+     "cookies_enabled",
+     "do_not_sell_or_share"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "privacy_status",
+   "title": "Privacy status",
+   "description": "Your privacy choices and any pending data requests.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Privacy status",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "privacyStatus",
+    "document": "query PrivacyStatus { privacyStatus { exportAvailable deletionRequestedAt guestRetentionDays } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "privacy_withdraw_consent",
+   "title": "Privacy withdraw consent",
+   "description": "Withdraw consent for some or all purposes. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "purposes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Purpose to withdraw (repeat; none = all)"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Privacy withdraw consent",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "POST",
+    "path": "/api/privacy/consent/withdraw",
+    "body": [
+     "purposes",
+     "reason"
+    ],
+    "extras": {}
+   }
+  },
+  {
+   "name": "product_requirements_document",
+   "title": "Product requirements document",
+   "description": "Read the product requirements document (PRD) generated for an idea.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Product requirements document",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "productRequirementsDocument",
+    "document": "query ProductRequirementsDocument($ideaId: String!) { productRequirementsDocument(ideaId: $ideaId) { productRequirementsDocument } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "profile",
+   "title": "Profile",
+   "description": "The signed-in person's basic identity (id, email, display name).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Profile",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "profile",
+    "document": "query Profile { profile { userId email isGuest } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "provisional_patent",
+   "title": "Provisional patent",
+   "description": "Read the provisional patent draft generated for an idea.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Provisional patent",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "provisionalPatent",
+    "document": "query ProvisionalPatent($ideaId: String!) { provisionalPatent(ideaId: $ideaId) { provisionalPatent coversheetPdf specificationPdf } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "regenerate_all_bmc_sections",
+   "title": "Regenerate all bmc sections",
+   "description": "Regenerate every Business Model Canvas section of an idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Regenerate all bmc sections",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "regenerateAllBmcSections",
+    "document": "mutation RegenerateAllBmcSections($ideaId: String!) { regenerateAllBmcSections(ideaId: $ideaId) { sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "regenerate_bmc_section",
+   "title": "Regenerate bmc section",
+   "description": "Regenerate one Business Model Canvas section of an idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "sectionName": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "sectionName"
+    ]
+   },
+   "annotations": {
+    "title": "Regenerate bmc section",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "regenerateBmcSection",
+    "document": "mutation RegenerateBmcSection($ideaId: String!, $sectionName: String!) { regenerateBmcSection(ideaId: $ideaId, sectionName: $sectionName) { sectionName content contentFormat needsUserReview generatedByRunId lastGeneratedAt lastUserEditAt } }",
+    "variables": [
+     "ideaId",
+     "sectionName"
+    ]
+   }
+  },
+  {
+   "name": "remove_collaborator",
+   "title": "Remove collaborator",
+   "description": "Remove a collaborator from an idea. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "targetUserId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "targetUserId"
+    ]
+   },
+   "annotations": {
+    "title": "Remove collaborator",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "removeCollaborator",
+    "document": "mutation RemoveCollaborator($ideaId: String!, $targetUserId: String!) { removeCollaborator(ideaId: $ideaId, targetUserId: $targetUserId) }",
+    "variables": [
+     "ideaId",
+     "targetUserId"
+    ]
+   }
+  },
+  {
+   "name": "remove_openai_api_key",
+   "title": "Remove openai api key",
+   "description": "Remove your saved OpenAI key; AI features stop until you add one again. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Remove openai api key",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "removeOpenaiApiKey",
+    "document": "mutation RemoveOpenaiApiKey { removeOpenaiApiKey { configured source last4 } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "remove_vote",
+   "title": "Remove vote",
+   "description": "Remove vote from an idea. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Remove vote",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "removeVote",
+    "document": "mutation RemoveVote($ideaId: String!) { removeVote(ideaId: $ideaId) { voted ideaId voteCount } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "request_account_deletion",
+   "title": "Request account deletion",
+   "description": "Request permanent deletion of your account; confirmEmail must be your account email. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "confirmEmail": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "confirmEmail"
+    ]
+   },
+   "annotations": {
+    "title": "Request account deletion",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "requestAccountDeletion",
+    "document": "mutation RequestAccountDeletion($confirmEmail: String!) { requestAccountDeletion(confirmEmail: $confirmEmail) }",
+    "variables": [
+     "confirmEmail"
+    ]
+   }
+  },
+  {
+   "name": "reshare_pitch_reel",
+   "title": "Reshare pitch reel",
+   "description": "Reshare (or undo) a pitch reel's clip on the viewer's Open Media profile. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "reelId": {
+      "type": "string"
+     },
+     "reshared": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "reelId",
+     "reshared"
+    ]
+   },
+   "annotations": {
+    "title": "Reshare pitch reel",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "resharePitchReel",
+    "document": "mutation ResharePitchReel($reelId: String!, $reshared: Boolean!) { resharePitchReel(reelId: $reelId, reshared: $reshared) { reelId reshared shareCount } }",
+    "variables": [
+     "reelId",
+     "reshared"
+    ]
+   }
+  },
+  {
+   "name": "respond_to_invitation",
+   "title": "Respond to invitation",
+   "description": "Accept or decline a collaboration invitation. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "accept": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "accept"
+    ]
+   },
+   "annotations": {
+    "title": "Respond to invitation",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "respondToInvitation",
+    "document": "mutation RespondToInvitation($ideaId: String!, $accept: Boolean!) { respondToInvitation(ideaId: $ideaId, accept: $accept) }",
+    "variables": [
+     "ideaId",
+     "accept"
+    ]
+   }
+  },
+  {
+   "name": "restore_idea_version",
+   "title": "Restore idea version",
+   "description": "Restore an idea to a previous version. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "versionId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "versionId"
+    ]
+   },
+   "annotations": {
+    "title": "Restore idea version",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "restoreIdeaVersion",
+    "document": "mutation RestoreIdeaVersion($ideaId: String!, $versionId: String!) { restoreIdeaVersion(ideaId: $ideaId, versionId: $versionId) }",
+    "variables": [
+     "ideaId",
+     "versionId"
+    ]
+   }
+  },
+  {
+   "name": "revoke_account_session",
+   "title": "Revoke account session",
+   "description": "Sign out one session (a browser, the CLI or an agent) by sessionId. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "sessionId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "sessionId"
+    ]
+   },
+   "annotations": {
+    "title": "Revoke account session",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "revokeAccountSession",
+    "document": "mutation RevokeAccountSession($sessionId: String!) { revokeAccountSession(sessionId: $sessionId) }",
+    "variables": [
+     "sessionId"
+    ]
+   }
+  },
+  {
+   "name": "revoke_other_account_sessions",
+   "title": "Revoke other account sessions",
+   "description": "Sign out every session except the current one; returns how many. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Revoke other account sessions",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "revokeOtherAccountSessions",
+    "document": "mutation RevokeOtherAccountSessions { revokeOtherAccountSessions }",
+    "variables": []
+   }
+  },
+  {
+   "name": "run_partner_discovery",
+   "title": "Run partner discovery",
+   "description": "Run the partner-discovery agent for an owned idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "maxCandidates": {
+      "type": "integer"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Run partner discovery",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "runPartnerDiscovery",
+    "document": "mutation RunPartnerDiscovery($ideaId: String!, $maxCandidates: Int) { runPartnerDiscovery(ideaId: $ideaId, maxCandidates: $maxCandidates) { id ideaId name website category whyRelevant suggestedUse integrationType dataRequired actionsPossible pricingNotes riskNotes implementationDifficulty recommendedNextStep rank relevanceScore confidence approved approvedAt generatedByRunId lastGeneratedAt createdAt updatedAt } }",
+    "variables": [
+     "ideaId",
+     "maxCandidates"
+    ]
+   }
+  },
+  {
+   "name": "send_message",
+   "title": "Send message",
+   "description": "Send a message in an Open Media conversation (`clientId` makes retries land once). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "clientId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "conversationId",
+     "content"
+    ]
+   },
+   "annotations": {
+    "title": "Send message",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "sendMessage",
+    "document": "mutation SendMessage($conversationId: String!, $content: String!, $clientId: String) { sendMessage(conversationId: $conversationId, content: $content, clientId: $clientId) { messageId conversationId senderId content createdAt isMine } }",
+    "variables": [
+     "conversationId",
+     "content",
+     "clientId"
+    ]
+   }
+  },
+  {
+   "name": "set_variable_cost_cap",
+   "title": "Set variable cost cap",
+   "description": "Set your monthly AI spend cap in USD, or pause AI spend. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "monthlyCapUsd": {
+      "type": "number"
+     },
+     "paused": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Set variable cost cap",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "setVariableCostCap",
+    "document": "mutation SetVariableCostCap($monthlyCapUsd: Float, $paused: Boolean) { setVariableCostCap(monthlyCapUsd: $monthlyCapUsd, paused: $paused) { monthlyVariableCapUsd paused baseSubscriptionUsd currency } }",
+    "variables": [
+     "monthlyCapUsd",
+     "paused"
+    ]
+   }
+  },
+  {
+   "name": "start_conversation",
+   "title": "Start conversation",
+   "description": "Open (or reuse) an Open Media conversation with an idea's founder. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "otherUserId": {
+      "type": "string"
+     },
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "otherUserId"
+    ]
+   },
+   "annotations": {
+    "title": "Start conversation",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "startConversation",
+    "document": "mutation StartConversation($otherUserId: String!, $ideaId: String) { startConversation(otherUserId: $otherUserId, ideaId: $ideaId) { conversationId otherUserId otherUserName otherUserHandle otherUserAvatar ideaId ideaTitle lastMessageAt lastMessagePreview unreadCount } }",
+    "variables": [
+     "otherUserId",
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "start_idea_qualification",
+   "title": "Start idea qualification",
+   "description": "Start an idea-qualification interview from a rough idea; returns the first questions. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "initialIdeaText": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "initialIdeaText"
+    ]
+   },
+   "annotations": {
+    "title": "Start idea qualification",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "startIdeaQualification",
+    "document": "mutation StartIdeaQualification($initialIdeaText: String!) { startIdeaQualification(initialIdeaText: $initialIdeaText) { id userId ideaId initialIdeaText status transcript { role content ts } nextQuestion turnCount qualificationScore qualificationExplanation userSeriousness userDomainKnowledge userGoals userBudget userTimeline userExecutionAbility ideaMarketNeed ideaTargetCustomer ideaFeasibility ideaDefensibility ideaRevenuePotential ideaCompetition ideaRisks createdAt updatedAt } }",
+    "variables": [
+     "initialIdeaText"
+    ]
+   }
+  },
+  {
+   "name": "submit_contact_form",
+   "title": "Submit contact form",
+   "description": "Send a message to the Manifest team. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "firstName": {
+        "type": "string"
+       },
+       "lastName": {
+        "type": "string"
+       },
+       "email": {
+        "type": "string"
+       },
+       "message": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "firstName",
+       "lastName",
+       "email",
+       "message"
+      ]
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Submit contact form",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "submitContactForm",
+    "document": "mutation SubmitContactForm($input: ContactFormInput!) { submitContactForm(input: $input) }",
+    "variables": [
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "submit_survey",
+   "title": "Submit survey",
+   "description": "Persist research (public) or product-feedback (authenticated) survey answers to Postgres. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "surveyType": {
+        "type": "string"
+       },
+       "answersJson": {
+        "type": "string"
+       },
+       "contactEmail": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "surveyType",
+       "answersJson"
+      ]
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Submit survey",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "submitSurvey",
+    "document": "mutation SubmitSurvey($input: SubmitSurveyInput!) { submitSurvey(input: $input) }",
+    "variables": [
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "survey_insights",
+   "title": "Survey insights",
+   "description": "Aggregated survey results (research and product feedback) over the last windowDays days.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "windowDays": {
+      "type": "integer",
+      "default": 90
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Survey insights",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "surveyInsights",
+    "document": "query SurveyInsights($windowDays: Int!) { surveyInsights(windowDays: $windowDays) { generatedAt windowDays totalResponses researchResponses productFeedbackResponses researchSignupIntentAvg researchFollowUpRate productPmfVeryDisappointedPct productNpsScore productProgressAvg productDeliverableAvg productSatisfactionAvg productEaseAvg productSatisfactionTopboxPct productAiQualityAvg topResearchRoles { label count percentage } topResearchValueProps { label count percentage } topResearchBarriers { label count percentage } topResearchFirstOutputs { label count percentage } topResearchTrustSignals { label count percentage } topProductBenefits { label count percentage } topProductTasks { label count percentage } topActionThemes { theme count } } }",
+    "variables": [
+     "windowDays"
+    ]
+   }
+  },
+  {
+   "name": "toggle_follow",
+   "title": "Toggle follow",
+   "description": "Toggle follow status for a user. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "followedId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "followedId"
+    ]
+   },
+   "annotations": {
+    "title": "Toggle follow",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "toggleFollow",
+    "document": "mutation ToggleFollow($followedId: String!) { toggleFollow(followedId: $followedId) { following followedId } }",
+    "variables": [
+     "followedId"
+    ]
+   }
+  },
+  {
+   "name": "toggle_pitch_reel_like",
+   "title": "Toggle pitch reel like",
+   "description": "Like (`liked: true`) or unlike a pitch reel's Open Media clip. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "reelId": {
+      "type": "string"
+     },
+     "liked": {
+      "type": "boolean"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "reelId",
+     "liked"
+    ]
+   },
+   "annotations": {
+    "title": "Toggle pitch reel like",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "togglePitchReelLike",
+    "document": "mutation TogglePitchReelLike($reelId: String!, $liked: Boolean!) { togglePitchReelLike(reelId: $reelId, liked: $liked) { reelId liked likeCount } }",
+    "variables": [
+     "reelId",
+     "liked"
+    ]
+   }
+  },
+  {
+   "name": "toggle_publish_idea",
+   "title": "Toggle publish idea",
+   "description": "Toggle the publish status of an idea. Published ideas become available in public discovery. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Toggle publish idea",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "togglePublishIdea",
+    "document": "mutation TogglePublishIdea($ideaId: String!) { togglePublishIdea(ideaId: $ideaId) { ideaId isPublished } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "toggle_upvote",
+   "title": "Toggle upvote",
+   "description": "Toggle upvote on an idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Toggle upvote",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "toggleUpvote",
+    "document": "mutation ToggleUpvote($ideaId: String!) { toggleUpvote(ideaId: $ideaId) { voted ideaId voteCount } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "trust_center",
+   "title": "Trust center",
+   "description": "Manifest's security posture.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Trust center",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/trust-center",
+    "body": [],
+    "extras": {}
+   }
+  },
+  {
+   "name": "unfollow_user",
+   "title": "Unfollow user",
+   "description": "Unfollow a user. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "followedId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "followedId"
+    ]
+   },
+   "annotations": {
+    "title": "Unfollow user",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "unfollowUser",
+    "document": "mutation UnfollowUser($followedId: String!) { unfollowUser(followedId: $followedId) { following followedId } }",
+    "variables": [
+     "followedId"
+    ]
+   }
+  },
+  {
+   "name": "universal_search",
+   "title": "Universal search",
+   "description": "Search your ideas, documents and people at once (optionally the web).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 5
+     },
+     "includeWeb": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "query"
+    ]
+   },
+   "annotations": {
+    "title": "Universal search",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "universalSearch",
+    "document": "query UniversalSearch($query: String!, $limit: Int!, $includeWeb: Boolean!) { universalSearch(query: $query, limit: $limit, includeWeb: $includeWeb) { query myIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } publishedIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } assistantSummary webSummary webSources { title url hostname } } }",
+    "variables": [
+     "query",
+     "limit",
+     "includeWeb"
+    ]
+   }
+  },
+  {
+   "name": "unread_message_count",
+   "title": "Unread message count",
+   "description": "Unread Manifest messages (0 when Open Media is off, unlinked or unreachable).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Unread message count",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "unreadMessageCount",
+    "document": "query UnreadMessageCount { unreadMessageCount { count } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "update_account",
+   "title": "Update account",
+   "description": "Update your profile: name, username, bio, location, skills or picture URL. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "email": {
+        "type": "string"
+       },
+       "username": {
+        "type": "string"
+       },
+       "firstName": {
+        "type": "string"
+       },
+       "lastName": {
+        "type": "string"
+       },
+       "country": {
+        "type": "string"
+       },
+       "bio": {
+        "type": "string"
+       },
+       "address": {
+        "type": "string"
+       },
+       "state": {
+        "type": "string"
+       },
+       "gravatarHash": {
+        "type": "string"
+       },
+       "profilePictureUrl": {
+        "type": "string"
+       },
+       "skills": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "additionalProperties": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Update account",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "updateAccount",
+    "document": "mutation UpdateAccount($input: AccountUpdateInput!) { updateAccount(input: $input) { userId email createdAt username firstName lastName country bio address state gravatarHash profilePictureUrl skills } }",
+    "variables": [
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "update_collaborator_role",
+   "title": "Update collaborator role",
+   "description": "Update a collaborator's role. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "targetUserId": {
+      "type": "string"
+     },
+     "newRole": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "targetUserId",
+     "newRole"
+    ]
+   },
+   "annotations": {
+    "title": "Update collaborator role",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "updateCollaboratorRole",
+    "document": "mutation UpdateCollaboratorRole($ideaId: String!, $targetUserId: String!, $newRole: String!) { updateCollaboratorRole(ideaId: $ideaId, targetUserId: $targetUserId, newRole: $newRole) }",
+    "variables": [
+     "ideaId",
+     "targetUserId",
+     "newRole"
+    ]
+   }
+  },
+  {
+   "name": "update_idea",
+   "title": "Update idea",
+   "description": "Change an idea's title, description or required skills. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "requiredSkills": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Update idea",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "updateIdea",
+    "document": "mutation UpdateIdea($ideaId: String!, $title: String, $description: String, $requiredSkills: [String!]) { updateIdea(ideaId: $ideaId, title: $title, description: $description, requiredSkills: $requiredSkills) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills } }",
+    "variables": [
+     "ideaId",
+     "title",
+     "description",
+     "requiredSkills"
+    ]
+   }
+  },
+  {
+   "name": "update_investment_status",
+   "title": "Update investment status",
+   "description": "Update the status of an investment (pending, confirmed, cancelled). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "investmentId": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "investmentId",
+     "status"
+    ]
+   },
+   "annotations": {
+    "title": "Update investment status",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "updateInvestmentStatus",
+    "document": "mutation UpdateInvestmentStatus($investmentId: String!, $status: String!) { updateInvestmentStatus(investmentId: $investmentId, status: $status) }",
+    "variables": [
+     "investmentId",
+     "status"
+    ]
+   }
+  },
+  {
+   "name": "upvote_idea",
+   "title": "Upvote idea",
+   "description": "Upvote an idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Upvote idea",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "upvoteIdea",
+    "document": "mutation UpvoteIdea($ideaId: String!) { upvoteIdea(ideaId: $ideaId) { voted ideaId voteCount } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "user_followers",
+   "title": "User followers",
+   "description": "Get followers for a user.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "userId"
+    ]
+   },
+   "annotations": {
+    "title": "User followers",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "userFollowers",
+    "document": "query UserFollowers($userId: String!) { userFollowers(userId: $userId) { followId followerId followedId createdAt userName userAvatar } }",
+    "variables": [
+     "userId"
+    ]
+   }
+  },
+  {
+   "name": "user_following",
+   "title": "User following",
+   "description": "Get users that a user is following.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "userId"
+    ]
+   },
+   "annotations": {
+    "title": "User following",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "userFollowing",
+    "document": "query UserFollowing($userId: String!) { userFollowing(userId: $userId) { followId followerId followedId createdAt userName userAvatar } }",
+    "variables": [
+     "userId"
+    ]
+   }
+  },
+  {
+   "name": "user_social_stats",
+   "title": "User social stats",
+   "description": "Get social statistics for a user.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "userId"
+    ]
+   },
+   "annotations": {
+    "title": "User social stats",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "userSocialStats",
+    "document": "query UserSocialStats($userId: String!) { userSocialStats(userId: $userId) { followerCount followingCount isFollowing } }",
+    "variables": [
+     "userId"
+    ]
+   }
+  },
+  {
+   "name": "voice_capabilities",
+   "title": "Voice capabilities",
+   "description": "The voice assistant's command catalog.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Voice capabilities",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "rest",
+    "method": "GET",
+    "path": "/api/voice-agent/capabilities",
+    "body": [],
+    "extras": {}
+   }
+  }
+ ]
+}
