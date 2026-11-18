@@ -232,6 +232,12 @@ def test_signed_out_people_sign_in_first(app):
     )
     assert response.status_code == 303
     assert response.headers["location"].startswith("/login?next=%2Fapi%2Foauth%2Fauthorize")
+    # Signing in with Open Media must come back to the approval page, not /ideas.
+    from app.routes import auth_routes
+
+    next_path = parse_qs(urlsplit(response.headers["location"]).query)["next"][0]
+    assert auth_routes.safe_next(next_path) == next_path
+    assert auth_routes.safe_next("/ideas?" + "x" * 600) == "/ideas"
 
 
 def test_unregistered_redirect_is_shown_not_followed(browser):
