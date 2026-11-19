@@ -26,6 +26,26 @@ function getStoredTheme(): ThemeMode {
   return 'system';
 }
 
+/**
+ * The installed app's title bar (and the mobile browser bar) takes the page background, so
+ * the window reads as one surface in light and dark, like other Mac apps.
+ */
+const TITLE_BAR_FALLBACK = { light: '#ffffff', dark: '#161617' };
+
+function syncTitleBarColor() {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const color =
+    getComputedStyle(root).getPropertyValue('--bg-primary').trim() ||
+    TITLE_BAR_FALLBACK[root.classList.contains('dark') ? 'dark' : 'light'];
+  // One tag without `media`, so the in-app theme wins over the system setting.
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.remove());
+  const meta = document.createElement('meta');
+  meta.name = 'theme-color';
+  meta.content = color;
+  document.head.appendChild(meta);
+}
+
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeMode>(getStoredTheme);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
@@ -41,6 +61,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.remove('dark');
     }
     root.style.colorScheme = resolved;
+    syncTitleBarColor();
   }, []);
 
   const setTheme = useCallback((newTheme: ThemeMode) => {
