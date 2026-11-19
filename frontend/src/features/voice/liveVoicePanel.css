@@ -1,284 +1,342 @@
-/* Live voice panel (LiveVoicePanel.tsx + VoiceRibbon.tsx).
-   Apple-style restraint: a black card in both themes (the way Apple stages Siri), one
-   ribbon of light, one line of words, grey circular controls. */
+/* Live voice (LiveVoicePanel.tsx).
+   Docked: a soft glow around the window edges (like Siri) and a black "island" pill at the
+   bottom, so the app stays visible while Manifest works in it. Page: a large orb and the pill.
+   Performance: everything that moves is `transform` or `opacity` on its own layer, so it is
+   composited on the GPU; audio only writes the hot ring's opacity and the orb's scale. */
 
-.lv-panel {
-  --lv-text: #f5f5f7;
-  --lv-muted: #86868b;
-  --lv-fill: rgba(255, 255, 255, 0.1);
-  --lv-fill-hover: rgba(255, 255, 255, 0.16);
-  --lv-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Inter", "Helvetica Neue", sans-serif;
-  --lv-textface: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter", "Helvetica Neue", sans-serif;
-  pointer-events: auto;
-  position: relative;
+.lv {
+  --lv-c1: #0a84ff;
+  --lv-c2: #5ac8fa;
+  --lv-c3: #e9f4ff;
+  --lv-c4: #9be7ff;
+  --lv-spin: 9s;
+  --lv-cloud: 7s;
+  --lv-ink: #f5f5f7;
+  --lv-ink-2: #8e8e93;
+  --lv-fill: rgba(255, 255, 255, 0.12);
+  --lv-fill-2: rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter", "Helvetica Neue", sans-serif;
+}
+.lv[data-mood="speaking"] { --lv-spin: 6s; --lv-cloud: 4.5s; }
+.lv[data-mood="thinking"],
+.lv[data-mood="connecting"] {
+  --lv-c1: #5ac8fa;
+  --lv-c2: #ffffff;
+  --lv-c3: #0a84ff;
+  --lv-c4: #64d2ff;
+  --lv-spin: 2.6s;
+  --lv-cloud: 2.4s;
+}
+.lv[data-mood="muted"] {
+  --lv-c1: #8e8e93;
+  --lv-c2: #c7c7cc;
+  --lv-c3: #636366;
+  --lv-c4: #aeaeb2;
+  --lv-spin: 20s;
+  --lv-cloud: 14s;
+}
+.lv[data-mood="idle"],
+.lv[data-mood="ended"] { --lv-spin: 16s; --lv-cloud: 10s; }
+.lv[data-mood="error"] {
+  --lv-c1: #ff453a;
+  --lv-c2: #ff9f0a;
+  --lv-c3: #ffd6d2;
+  --lv-c4: #ff6961;
+}
+
+/* ---- docked layout ---- */
+.lv--docked {
   display: flex;
   flex-direction: column;
   align-items: center;
-  --lv-pad-x: 20px;
-  width: min(100%, 360px);
-  padding: 20px var(--lv-pad-x) 18px;
-  overflow: hidden;
-  border-radius: 28px;
-  background: #000;
-  color: var(--lv-text);
-  box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  font-family: var(--lv-textface);
-  text-align: center;
-  outline: none;
-  animation: lv-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.lv-panel.lv-panel:focus,
-.lv-panel.lv-panel:focus-visible {
-  outline: none;
-  border-radius: 28px;
-}
-.lv-panel--page {
-  --lv-pad-x: 32px;
-  width: min(100%, 640px);
-  margin: 0 auto;
-  padding: 36px var(--lv-pad-x) 28px;
-}
-
-/* ---- top line ---- */
-.lv-status {
-  margin: 0;
-  color: var(--lv-muted);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.lv-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--lv-fill);
-  color: var(--lv-muted);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-.lv-close:hover { background: var(--lv-fill-hover); color: var(--lv-text); }
-
-/* ---- the ribbon ---- */
-.lv-ribbon {
-  display: block;
-  width: calc(100% + 2 * var(--lv-pad-x));
-  height: 132px;
-  margin: 2px calc(-1 * var(--lv-pad-x)) 0;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-}
-.lv-panel--page .lv-ribbon { height: 200px; }
-
-/* ---- words ---- */
-.lv-words {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  min-height: 56px;
+  gap: 10px;
   width: 100%;
 }
-.lv-say {
-  margin: 0;
-  font-family: var(--lv-display);
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: -0.022em;
-  line-height: 1.24;
-  animation: lv-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.lv-panel--page .lv-say { font-size: 28px; -webkit-line-clamp: 6; }
-.lv-say--quiet { color: var(--lv-text); }
-.lv-heard {
-  margin: 0;
-  color: var(--lv-muted);
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: -0.012em;
-  line-height: 1.35;
-}
-.lv-heard--live {
-  background: linear-gradient(90deg, #86868b, #f5f5f7, #86868b);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: lv-shimmer 1.6s linear infinite;
-}
 
-/* ---- one action at a time ---- */
-.lv-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 14px 0 0;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--lv-fill);
-  color: var(--lv-muted);
-  font-size: 12.5px;
-  font-weight: 500;
-  animation: lv-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+/* Edge glow: a rotating colour field, masked to a band that fades in from the edges. */
+.lv-edge {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  animation: lv-fade 0.6s ease both;
 }
-.lv-action--done span { color: #30d158; }
-.lv-action--failed { color: #ff6961; }
-.lv-action--confirm {
-  position: relative;
-  background: #000;
-  color: var(--lv-text);
-  isolation: isolate;
-}
-/* Apple Intelligence-style glowing edge for the one thing that needs your yes. */
-.lv-action--confirm::before {
-  content: "";
-  position: absolute;
-  inset: -1.5px;
-  z-index: -1;
-  border-radius: inherit;
-  background: conic-gradient(from var(--lv-turn, 0deg), #64d2ff, #bf5af2, #ff6482, #ff9f0a, #64d2ff);
-  animation: lv-turn 4s linear infinite;
-}
-.lv-action--confirm::after {
-  content: "";
+.lv-edge__ring {
+  --w: 12px;
   position: absolute;
   inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: #000;
+  overflow: hidden;
+  -webkit-mask-image:
+    linear-gradient(to right, #000, transparent var(--w), transparent calc(100% - var(--w)), #000),
+    linear-gradient(to bottom, #000, transparent var(--w), transparent calc(100% - var(--w)), #000);
+  mask-image:
+    linear-gradient(to right, #000, transparent var(--w), transparent calc(100% - var(--w)), #000),
+    linear-gradient(to bottom, #000, transparent var(--w), transparent calc(100% - var(--w)), #000);
+  -webkit-mask-composite: source-over;
+  mask-composite: add;
+  transition: opacity 0.5s ease;
 }
-.lv-action__spin {
-  width: 11px;
-  height: 11px;
-  border: 1.6px solid rgba(255, 255, 255, 0.2);
-  border-top-color: var(--lv-text);
-  border-radius: 50%;
-  animation: lv-spin 0.8s linear infinite;
+.lv-edge__ring::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160vmax;
+  height: 160vmax;
+  margin: -80vmax 0 0 -80vmax;
+  background: conic-gradient(from 0deg, var(--lv-c1), var(--lv-c2), var(--lv-c3), var(--lv-c4), var(--lv-c1), var(--lv-c2), var(--lv-c1));
+  animation: lv-rotate var(--lv-spin) linear infinite;
+  will-change: transform;
 }
+.lv-edge__ring--base { opacity: 0.9; }
+.lv-edge__ring--hot {
+  --w: 44px;
+  opacity: 0.15;
+  will-change: opacity;
+  transition: none;
+}
+.lv[data-mood="idle"] .lv-edge__ring--base,
+.lv[data-mood="ended"] .lv-edge__ring--base { opacity: 0.45; }
+.lv[data-mood="idle"] .lv-edge__ring--hot,
+.lv[data-mood="ended"] .lv-edge__ring--hot,
+.lv[data-mood="muted"] .lv-edge__ring--hot { opacity: 0; }
+.lv[data-mood="thinking"] .lv-edge__ring--hot { opacity: 0.3; }
 
-/* ---- suggestions ---- */
-.lv-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 16px;
-}
-.lv-chip {
-  height: 32px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--lv-fill);
-  color: var(--lv-text);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-.lv-chip:hover { background: var(--lv-fill-hover); }
-
-/* ---- controls ---- */
-.lv-bar {
+/* ---- the island ---- */
+.lv-island {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  width: 100%;
-  margin-top: 22px;
+  gap: 12px;
+  width: min(100%, 560px);
+  min-height: 64px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 32px;
+  background: #000;
+  color: var(--lv-ink);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 60px -18px rgba(0, 0, 0, 0.6);
+  text-align: left;
+  outline: none;
+  animation: lv-island 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
 }
-.lv-round {
+/* Focus lands on the island only so Esc and Tab work; keep the global focus style off it. */
+.lv-island.lv-island:focus,
+.lv-island.lv-island:focus-visible {
+  outline: none;
+  border-radius: 32px;
+}
+
+.lv-text {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+.lv-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lv-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.lv-status--confirm { color: #ffb35c; }
+.lv-status--muted,
+.lv-status--error { color: var(--lv-ink-2); }
+.lv-line {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--lv-ink);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.32;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  animation: lv-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lv-line--heard { color: #c7c7cc; }
+.lv-line--quiet { color: var(--lv-ink); }
+.lv-line--live { opacity: 0.7; }
+.lv-spin {
+  width: 10px;
+  height: 10px;
+  border: 1.6px solid rgba(255, 255, 255, 0.22);
+  border-top-color: var(--lv-ink);
+  border-radius: 50%;
+  animation: lv-rotate 0.8s linear infinite;
+}
+
+.lv-controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+.lv-btn {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
   border: 0;
   border-radius: 50%;
   background: var(--lv-fill);
-  color: var(--lv-text);
+  color: var(--lv-ink);
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease;
 }
-.lv-round:hover { background: var(--lv-fill-hover); }
-.lv-round:active { transform: scale(0.94); }
-.lv-round.is-muted { background: var(--lv-text); color: #000; }
-.lv-round--end { background: #ff3b30; color: #fff; }
-.lv-round--end:hover { background: #ff554b; }
-.lv-talk,
-.lv-cta {
+.lv-btn:hover { background: var(--lv-fill-2); }
+.lv-btn:active { transform: scale(0.92); }
+.lv-btn.is-on { background: var(--lv-ink); color: #000; }
+.lv-btn--end { background: #ff3b30; color: #fff; }
+.lv-btn--end:hover { background: #ff5146; }
+.lv-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 48px;
-  padding: 0 24px;
+  gap: 6px;
+  height: 42px;
+  padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--lv-text);
+  background: var(--lv-ink);
   color: #000;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.15s ease;
 }
-.lv-cta { height: 36px; padding: 0 18px; font-size: 14px; }
-.lv-talk:hover,
-.lv-cta:hover { opacity: 0.9; }
-.lv-talk:active,
-.lv-cta:active { transform: scale(0.97); }
+.lv-pill:hover { opacity: 0.9; }
+.lv-pill:active { transform: scale(0.96); }
 
 .lv-type {
   display: flex;
-  flex: 1;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  height: 48px;
-  padding: 0 6px 0 18px;
-  border-radius: 999px;
-  background: var(--lv-fill);
 }
 .lv-type input {
   flex: 1;
   min-width: 0;
+  height: 26px;
   border: 0;
   background: transparent;
-  color: var(--lv-text);
+  color: var(--lv-ink);
   font: inherit;
   font-size: 15px;
 }
-.lv-type input::placeholder { color: var(--lv-muted); }
+.lv-type input::placeholder { color: var(--lv-ink-2); }
 .lv-type input:focus-visible { outline: none; }
 .lv-send {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--lv-text);
+  background: var(--lv-ink);
   color: #000;
   cursor: pointer;
 }
-.lv-send:disabled { background: var(--lv-fill); color: var(--lv-muted); cursor: default; }
+.lv-send:disabled { background: var(--lv-fill); color: var(--lv-ink-2); cursor: default; }
 
-.lv-panel :is(button, a, input):focus-visible {
+/* ---- suggestions ---- */
+.lv-chips {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.lv-chip {
+  height: 34px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.82);
+  color: var(--lv-ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px -10px rgba(0, 0, 0, 0.45);
+  animation: lv-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: background 0.2s ease;
+}
+.lv-chip:nth-child(2) { animation-delay: 0.05s; }
+.lv-chip:nth-child(3) { animation-delay: 0.1s; }
+.lv-chip:hover { background: #000; }
+
+/* ---- the orb: a sphere with two clouds of light turning inside ---- */
+.lv-orb {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 115%, var(--lv-c3) 0%, var(--lv-c2) 30%, var(--lv-c1) 62%, #002c73 100%);
+  box-shadow: 0 0 22px -4px var(--lv-c1);
+  will-change: transform;
+  transition: box-shadow 0.6s ease;
+}
+.lv-orb--sm { width: 42px; height: 42px; }
+.lv-orb--lg { width: 168px; height: 168px; box-shadow: 0 0 80px -10px var(--lv-c1); }
+.lv-orb__cloud {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  will-change: transform;
+}
+.lv-orb__cloud--a {
+  background:
+    radial-gradient(closest-side at 32% 34%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(closest-side at 70% 72%, var(--lv-c2), transparent 75%);
+  animation: lv-rotate var(--lv-cloud) linear infinite;
+}
+.lv-orb__cloud--b {
+  background:
+    radial-gradient(closest-side at 62% 30%, var(--lv-c4), transparent 70%),
+    radial-gradient(closest-side at 30% 75%, rgba(255, 255, 255, 0.55), transparent 70%);
+  opacity: 0.7;
+  animation: lv-rotate calc(var(--lv-cloud) * 1.6) linear infinite reverse;
+}
+
+/* ---- page layout ---- */
+.lv--page {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 48px 16px;
+}
+.lv-hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 280px;
+  height: 280px;
+}
+.lv-hero__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--lv-c2) 0%, var(--lv-c1) 35%, transparent 70%);
+  filter: blur(30px);
+  opacity: 0.25;
+  will-change: opacity;
+}
+
+.lv :is(button, a, input):focus-visible {
   outline: 2px solid #2997ff;
   outline-offset: 2px;
 }
-
 .lv-sr {
   position: absolute;
   width: 1px;
@@ -291,34 +349,31 @@
   border: 0;
 }
 
+.lv--page .lv-island { padding-left: 20px; }
+@media (max-width: 480px) {
+  .lv[data-phase="listening"] .lv-btn--type,
+  .lv[data-phase="thinking"] .lv-btn--type,
+  .lv[data-phase="speaking"] .lv-btn--type { display: none; }
+  .lv-line { -webkit-line-clamp: 3; }
+}
 @media (max-width: 640px) {
-  .lv-panel--docked {
-    width: 100%;
-    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
-  }
+  .lv-edge__ring--hot { --w: 32px; }
 }
 
-@property --lv-turn {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes lv-turn { to { --lv-turn: 360deg; } }
-@keyframes lv-enter {
-  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+@keyframes lv-rotate { to { transform: rotate(360deg); } }
+@keyframes lv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lv-island {
+  from { opacity: 0; transform: translateY(16px) scale(0.92); }
   to { opacity: 1; transform: none; }
 }
 @keyframes lv-rise {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
-@keyframes lv-spin { to { transform: rotate(360deg); } }
-@keyframes lv-shimmer { to { background-position: -200% 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .lv-panel,
-  .lv-panel *,
-  .lv-panel *::before {
+  .lv *,
+  .lv *::before {
     animation: none !important;
     transition: none !important;
   }

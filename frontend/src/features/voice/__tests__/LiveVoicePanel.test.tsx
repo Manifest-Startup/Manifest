@@ -5,11 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import LiveVoicePanel from '../LiveVoicePanel';
 import { INITIAL_LIVE_VOICE_STATE, LiveVoiceState } from '../liveVoice';
 
-beforeAll(() => {
-  // jsdom has no canvas; the ribbon simply draws nothing.
-  jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
-});
-
 function renderPanel(state: Partial<LiveVoiceState>) {
   const session = {
     state: { ...INITIAL_LIVE_VOICE_STATE, ...state },

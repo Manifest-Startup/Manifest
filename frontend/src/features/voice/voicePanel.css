@@ -257,7 +257,7 @@
   inset: -1.5px;
   z-index: -2;
   border-radius: inherit;
-  background: conic-gradient(from var(--mv-turn, 0deg), #64d2ff, #bf5af2, #ff6482, #ff9f0a, #64d2ff);
+  background: conic-gradient(from var(--mv-turn, 0deg), #0a84ff, #5ac8fa, #ffffff, #9be7ff, #0a84ff);
   filter: blur(0.5px);
   animation: manifest-voice-turn 5s linear infinite;
 }
@@ -274,8 +274,8 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: conic-gradient(from var(--mv-turn, 0deg), #64d2ff, #bf5af2, #ff6482, #ff9f0a, #64d2ff);
-  box-shadow: 0 0 10px rgba(191, 90, 242, 0.55);
+  background: conic-gradient(from var(--mv-turn, 0deg), #0a84ff, #5ac8fa, #ffffff, #9be7ff, #0a84ff);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.6);
   animation: manifest-voice-turn 5s linear infinite;
 }
 @property --mv-turn {
