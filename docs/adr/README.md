@@ -13,5 +13,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0008 — Shared notes are edited live together, like Google Docs](0008-shared-notes-are-edited-live-together.md)
 - [0009 — The knowledge graph is a model of the idea, not a word cloud](0009-the-knowledge-graph-is-a-model-of-the-idea.md)
 - [0010 — Sources are highlighted in the note; the graph stays in the background](0010-sources-are-highlighted-in-the-note.md)
+- [0011 — Ideas can live in a local vault folder; the account is opt-in Cloud sync](0011-ideas-live-in-a-local-vault-folder.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

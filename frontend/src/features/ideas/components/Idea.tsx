@@ -67,6 +67,7 @@ import { WikiLinksProvider } from '../knowledge/WikiLinkContext';
 import { makeResolver } from '../knowledge/wikiLinks';
 import { InterviewQuote, sourceTargets } from '../knowledge/sources';
 import { hasMod } from '../utils/noteFocus';
+import { isVaultMode } from 'features/vault/mode';
 
 const logger = createLogger('IdeaComponent');
 const IDEA_TITLE_FALLBACK = 'Brand New Idea';
@@ -979,8 +980,13 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
           {currentIdeaId && (
             <div className="flex flex-wrap items-center gap-1">
               {liveSession ? <LivePresence snapshot={liveSnapshot} /> : null}
-              <VersionButton ideaId={currentIdeaId} onVersionRestored={() => refetch()} />
-              <ShareButton ideaId={currentIdeaId} />
+              {/* Versions and sharing live in the account; a local vault has neither (ADR 0011). */}
+              {isVaultMode() ? null : (
+                <>
+                  <VersionButton ideaId={currentIdeaId} onVersionRestored={() => refetch()} />
+                  <ShareButton ideaId={currentIdeaId} />
+                </>
+              )}
             </div>
           )}
           </div>

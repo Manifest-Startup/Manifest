@@ -2969,3 +2969,99 @@ a.manifest-related-row:focus-visible .manifest-related-arrow { opacity: 1; trans
   text-align: center;
   letter-spacing: 0.02em;
 }
+
+/* Local vault (ADR 0011): entry, gate and storage settings. */
+.manifest-vault-primary,
+.manifest-vault-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.85rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.manifest-vault-primary {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+.manifest-vault-primary:hover { opacity: 0.88; }
+.manifest-vault-primary:disabled,
+.manifest-vault-secondary:disabled { opacity: 0.55; cursor: progress; }
+.manifest-vault-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-secondary, #d2d2d7);
+}
+.manifest-vault-secondary:hover { background: var(--bg-tertiary); }
+.manifest-vault-link {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.manifest-vault-link:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.manifest-vault-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 10px;
+  font-size: 12px;
+  color: var(--text-tertiary, #86868b);
+}
+.manifest-vault-or::before,
+.manifest-vault-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-primary);
+}
+/* With a folder on offer, the account is the second choice. */
+.manifest-vault-entry ~ a[data-testid="continue-with-open-media"] {
+  background: transparent;
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-secondary, #d2d2d7);
+}
+.manifest-vault-entry ~ a[data-testid="continue-with-open-media"]:hover { background: var(--bg-tertiary); }
+.manifest-vault-gate {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--read-sans);
+}
+.manifest-vault-gate > div { max-width: 30rem; text-align: center; }
+.manifest-vault-gate__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.manifest-vault-gate h1 {
+  margin: 10px 0 12px;
+  font-family: var(--read-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.manifest-vault-gate p { color: var(--text-secondary); font-size: 16px; line-height: 1.55; }
+.manifest-vault-gate__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+}
+.manifest-storage-list {
+  margin: 14px 0 0;
+  padding-left: 1.2em;
+  list-style: disc;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}

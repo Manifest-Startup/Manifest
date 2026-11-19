@@ -1,5 +1,6 @@
 import {
   ApolloClient,
+  ApolloLink,
   CombinedGraphQLErrors,
   InMemoryCache,
   ServerError,
@@ -14,6 +15,8 @@ import { createLogger } from '../logError';
 import { userVar } from './localState';
 import { setContext } from '@apollo/client/link/context';
 import { buildSessionHeaders } from 'features/auth/session';
+import { Observable } from 'rxjs';
+import { isVaultMode } from 'features/vault/mode';
 
 const logger = createLogger('Apollo');
 
@@ -107,8 +110,25 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
+// Local vault mode (ADR 0011): the same operations are answered from Markdown files in a
+// folder on this computer. The vault code loads only when this browser uses a vault.
+const vaultLink = new ApolloLink(
+  (operation) =>
+    new Observable((observer) => {
+      import('features/vault/runtime')
+        .then(({ runOperation }) => runOperation(operation))
+        .then(
+          (result) => {
+            observer.next(result as ApolloLink.Result);
+            observer.complete();
+          },
+          (error) => observer.error(error),
+        );
+    }),
+);
+
 export const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
+  link: ApolloLink.split(() => isVaultMode(), from([errorLink, vaultLink]), from([errorLink, authLink, httpLink])),
   cache: new InMemoryCache({
     typePolicies: {
       Idea: { keyFields: ['ideaId'] },

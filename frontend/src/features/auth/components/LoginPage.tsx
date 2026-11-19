@@ -6,6 +6,7 @@ import { trackEvent } from "features/analytics/projectAnalytics";
 import { clearLogoutRedirectInProgress } from "features/auth/logout";
 import { useStartGuestSession } from "features/auth/hooks/useStartGuestSession";
 import { openMediaSignInUrl, signInErrorMessage } from "features/auth/openMediaSignIn";
+import { chooseVaultFolder, vaultSupported } from "features/vault/mode";
 import { userVar } from "features/core/apollo/localState";
 import ManifestLogo from "features/common-ui/ManifestLogo";
 
@@ -46,6 +47,16 @@ const LoginPage: React.FC = () => {
   const nextParam = new URLSearchParams(location.search).get("next") ?? undefined;
   const next = from?.pathname ? `${from.pathname}${from.search ?? ""}` : nextParam;
 
+  // Browsers that can open folders offer a local vault first (ADR 0011); Safari and
+  // Firefox keep the account, since they can't.
+  const canUseFolder = vaultSupported();
+  const openVault = async () => {
+    if (await chooseVaultFolder()) {
+      trackEvent("vault_opened", { surface: "login" });
+      window.location.assign("/ideas");
+    }
+  };
+
   const onContinue = () => {
     setRedirecting(true);
     trackEvent("auth_started", { method: "open_media" });
@@ -61,10 +72,12 @@ const LoginPage: React.FC = () => {
           </Link>
 
           <h1 id="login-title" className="manifest-page-title mt-10">
-            Sign in to Manifest
+            {canUseFolder ? "Start with Manifest" : "Sign in to Manifest"}
           </h1>
           <p className="mt-3 max-w-sm text-sm leading-6 text-theme-secondary">
-            One account for Manifest and Open Media. Sign in with a passkey, email link or password.
+            {canUseFolder
+              ? "Keep your ideas in a folder on this computer, or sign in to keep them in your account."
+              : "One account for Manifest and Open Media. Sign in with a passkey, email link or password."}
           </p>
 
           {error ? (
@@ -76,12 +89,27 @@ const LoginPage: React.FC = () => {
             </p>
           ) : null}
 
+          {canUseFolder ? (
+            <div className="manifest-vault-entry mt-8 w-full" data-testid="vault-entry">
+              <button type="button" className="manifest-vault-primary w-full" onClick={openVault}>
+                Open a vault folder
+              </button>
+              <p className="mt-3 text-sm leading-6 text-theme-secondary">
+                Keep your ideas as Markdown files in any folder, like iCloud Drive. Works offline,
+                no account needed.
+              </p>
+              <p className="manifest-vault-or" aria-hidden="true">
+                or sign in for Cloud sync, sharing and collaboration
+              </p>
+            </div>
+          ) : null}
+
           <a
             href={openMediaSignInUrl(next)}
             onClick={onContinue}
             aria-busy={redirecting}
             data-testid="continue-with-open-media"
-            className="mt-8 inline-flex w-full items-center justify-center gap-3 rounded-full bg-neutral900 px-6 py-3.5 text-[0.95rem] font-semibold text-white transition hover:bg-neutral800 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral900 focus-visible:ring-offset-2 dark:bg-white dark:text-neutral900 dark:hover:bg-stone100 dark:focus-visible:ring-white dark:focus-visible:ring-offset-neutral900"
+            className={`${canUseFolder ? "mt-2" : "mt-8"} inline-flex w-full items-center justify-center gap-3 rounded-full bg-neutral900 px-6 py-3.5 text-[0.95rem] font-semibold text-white transition hover:bg-neutral800 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral900 focus-visible:ring-offset-2 dark:bg-white dark:text-neutral900 dark:hover:bg-stone100 dark:focus-visible:ring-white dark:focus-visible:ring-offset-neutral900`}
           >
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-neutral900">
               <OpenMediaMark className="h-4 w-4" />

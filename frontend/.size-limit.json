@@ -10,9 +10,9 @@
     "limit": "200 KB"
   },
   {
-    "name": "Total shipped JS (all chunks, gzip)",
+    "name": "Total shipped JS (all chunks, gzip; +60 KB for the lazy local-vault chunk, ADR 0011)",
     "path": ["build/assets/**/*.js"],
     "gzip": true,
-    "limit": "1100 KB"
+    "limit": "1160 KB"
   }
 ]

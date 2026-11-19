@@ -1,3 +1,4 @@
+import { isVaultMode } from "features/vault/mode";
 import { onListFocusRequest, requestNoteFocus } from "../utils/noteFocus";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -681,7 +682,7 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
                   {/* #10: full title on hover disambiguates similar prefixes in a narrow sidebar. */}
                   <span className="manifest-sidebar-label" title={displayTitle}>{displayTitle}</span>
                   <span className="manifest-sidebar-actions" data-published={isPublished}>
-                    <IdeaPublishBadge ideaId={ideaId} isPublished={isPublished} size="sm" />
+                    {isVaultMode() ? null : <IdeaPublishBadge ideaId={ideaId} isPublished={isPublished} size="sm" />}
                     <button
                       onClick={(event) => handleDeleteIdea(ideaId, event)}
                       onKeyDown={(event) => event.stopPropagation()}

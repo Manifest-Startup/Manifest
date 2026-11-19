@@ -1,3 +1,4 @@
+import { isVaultMode } from "features/vault/mode";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useReactiveVar } from "@apollo/client/react";
@@ -53,7 +54,8 @@ const NavigationBar: React.FC = () => {
       // #25: canonical URL aligned with the user-visible label ("Pitch Reels").
       // Legacy /shorts redirects to this path so old bookmarks keep working.
       // Hidden when this server runs without Open Media (pitch shorts live there).
-      ...(openMedia.enabled
+      // Pitch Reels live in the account: not shown for a local vault (ADR 0011).
+      ...(openMedia.enabled && !isVaultMode()
         ? [{ label: "Pitch Reels", path: "/pitch-reels", matchStartsWith: true }]
         : []),
     ],
