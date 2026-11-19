@@ -83,7 +83,8 @@ export function makeResolver(graph: KnowledgeGraph | null | undefined): WikiReso
       return `/ideas/${ideaId}/description${cite}`;
     }
     if (target.startsWith("Manifest/Concepts/")) {
-      return `/ideas/${graph.ideaId}/knowledge-graph?concept=${encodeURIComponent(lastSegment(target))}`;
+      // A concept opens the note with every place the founder wrote it highlighted.
+      return `/ideas/${graph.ideaId}/description?mark=${encodeURIComponent(lastSegment(target))}`;
     }
     if (target.startsWith("Manifest/Documents/")) {
       const [, , folder, file] = target.split("/");

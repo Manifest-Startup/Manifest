@@ -12,7 +12,6 @@ const graph: KnowledgeGraph = {
   passages: [{ id: "p1", kind: "note", text: "Coastal streets flood block by block." }],
   concepts: [],
   related: [],
-  relations: [],
   documents: [
     {
       documentType: "product_requirements_document",
@@ -44,7 +43,7 @@ describe("cited documents in the app", () => {
     expect(cite).toHaveTextContent("p1");
     expect(screen.getByRole("link", { name: "sensors" })).toHaveAttribute(
       "href",
-      "/ideas/i1/knowledge-graph?concept=Sensor",
+      "/ideas/i1/description?mark=Sensor",
     );
   });
 

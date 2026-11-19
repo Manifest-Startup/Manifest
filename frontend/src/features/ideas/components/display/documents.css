@@ -333,111 +333,177 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Reading theme (matches the workspace Markdown theme): Apple.com rhythm with
-   Nike.com contrast. SF Pro, tight-tracked headlines, a heavy rule above each
-   section, uppercase spec-sheet table headers, Geist Mono code.
+   Reading theme (ADR 0010): the workspace Markdown preview (.vscode/markdown.css)
+   in the app. Tokens (--read-*) live in index.css so the idea note matches.
    --------------------------------------------------------------------------- */
+.manifest-document > .manifest-document-body {
+  max-width: 720px;
+}
 .manifest-document-body {
-  font-size: 16px;
-  line-height: 1.65;
-  letter-spacing: -0.011em;
+  color: var(--read-text);
+  font-family: var(--read-sans);
+  font-size: 17px;
+  line-height: 1.62;
+  letter-spacing: -0.012em;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   font-feature-settings: "kern", "liga", "calt";
 }
-.manifest-document-body h1 {
-  font-size: 32px;
-  line-height: 1.1;
-  font-weight: 700;
-  letter-spacing: -0.032em;
-  margin: 8px 0 18px;
+.manifest-document-body ::selection { background: var(--read-select); }
+.manifest-document-body h1,
+.manifest-document-body h2,
+.manifest-document-body h3,
+.manifest-document-body h4 {
+  font-family: var(--read-display);
+  color: var(--read-text);
   text-wrap: balance;
+}
+.manifest-document-body h1 {
+  font-size: 44px;
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin: 8px 0 24px;
+}
+/* Only the document's opening title gets the lede; generated documents often use "#" for
+   every section, and those read as sections. */
+.manifest-document-body > h1:first-child:only-of-type + p {
+  font-size: 21px;
+  line-height: 1.45;
+  letter-spacing: -0.018em;
+  color: var(--read-text-2);
+  margin-bottom: 32px;
 }
 .manifest-document-body h2 {
-  font-size: 23px;
-  line-height: 1.2;
+  font-size: 30px;
+  line-height: 1.15;
   font-weight: 700;
-  letter-spacing: -0.022em;
-  margin: 44px 0 14px;
-  padding-top: 16px;
-  border-top: 2px solid var(--text-primary);
-  text-wrap: balance;
+  letter-spacing: -0.025em;
+  margin: 64px 0 18px;
+  padding-top: 20px;
+  border-top: 2px solid var(--read-rule-strong);
 }
-.dark .manifest-document-body h2 { border-color: var(--text-primary); }
+.manifest-document-body h1 + h2 { margin-top: 32px; }
+.manifest-document-body h1 ~ h1 {
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin: 64px 0 18px;
+  padding-top: 20px;
+  border-top: 2px solid var(--read-rule-strong);
+}
+.manifest-document-body > h1:first-child:not(:only-of-type) {
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin: 8px 0 18px;
+}
+.dark .manifest-document-body h2 { border-color: var(--read-rule-strong); }
 .manifest-document-body h3 {
-  font-size: 18px;
-  line-height: 1.3;
+  font-size: 22px;
+  line-height: 1.25;
   font-weight: 600;
-  letter-spacing: -0.016em;
-  margin: 28px 0 8px;
+  letter-spacing: -0.018em;
+  margin: 40px 0 12px;
 }
 .manifest-document-body h4 {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.35;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 22px 0 6px;
+  letter-spacing: -0.012em;
+  margin: 32px 0 8px;
 }
 .manifest-document-body h5,
 .manifest-document-body h6 {
-  font-size: 11.5px;
+  font-family: var(--read-sans);
+  font-size: 12px;
+  line-height: 1.4;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--text-secondary);
-  margin: 22px 0 6px;
+  color: var(--read-text-2);
+  margin: 32px 0 8px;
 }
 .manifest-document-body p,
 .manifest-document-body ul,
-.manifest-document-body ol { margin: 0 0 16px; }
-.manifest-document-body li { margin: 5px 0; }
-.manifest-document-body ul li::marker { color: var(--text-tertiary); }
-.manifest-document-body ol li::marker { color: var(--text-secondary); font-weight: 600; }
+.manifest-document-body ol { margin: 0 0 20px; }
+.manifest-document-body ul,
+.manifest-document-body ol { padding-left: 1.4em; }
+.manifest-document-body li { margin: 6px 0; padding-left: 0.15em; }
+.manifest-document-body ul li::marker { color: var(--read-text-3); }
+.manifest-document-body ol li::marker { color: var(--read-text-2); font-weight: 600; font-variant-numeric: tabular-nums; }
 .manifest-document-body strong { font-weight: 600; }
+.manifest-document-body mark {
+  background: var(--read-mark);
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 3px;
+}
 .manifest-document-body a,
 .manifest-document-contents a {
-  color: var(--accent);
+  color: var(--read-link);
   text-decoration: none;
 }
 .manifest-document-body a:hover,
 .manifest-document-contents a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
 .manifest-document-body blockquote {
-  margin: 22px 0;
-  border-left: 3px solid var(--text-primary);
-  padding: 2px 0 2px 18px;
-  color: var(--text-primary);
-  font-size: 17.5px;
+  margin: 28px 0;
+  border-left: 3px solid var(--read-rule-strong);
+  padding: 2px 0 2px 22px;
+  color: var(--read-text);
+  font-size: 19px;
   line-height: 1.5;
   letter-spacing: -0.016em;
 }
 .manifest-document-body code {
-  font-family: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 0.86em;
-  padding: 0.12em 0.4em;
+  font-family: var(--read-mono);
+  font-size: 0.84em;
+  padding: 0.14em 0.42em;
   border-radius: 6px;
-  background: var(--bg-tertiary);
+  background: var(--read-surface);
+  border: 1px solid var(--read-surface-2);
 }
 .manifest-document-body pre {
+  margin: 24px 0;
   border-radius: 14px;
-  padding: 18px 22px;
-  font-size: 13px;
+  padding: 20px 24px;
+  font-size: 13.5px;
   line-height: 1.65;
-  background: var(--bg-tertiary);
+  background: var(--read-surface);
 }
-.manifest-document-body pre code { padding: 0; background: transparent; font-size: inherit; }
+.manifest-document-body pre code { padding: 0; border: 0; background: transparent; font-size: inherit; }
 .manifest-document-body hr {
   border: 0;
   height: 1px;
-  background: var(--border-primary);
-  margin: 40px 0;
+  background: var(--read-rule);
+  margin: 56px 0;
+}
+.manifest-document-table table {
+  font-size: 15px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+/* Slides and canvas blocks keep their compact sizes inside the reading theme. */
+.manifest-slide .manifest-document-body { font-size: 16px; line-height: 1.55; }
+.manifest-canvas-block .manifest-document-body { font-size: 13px; line-height: 1.6; }
+.manifest-slide .manifest-document-body h2,
+.manifest-canvas-block .manifest-document-body h2 { font-size: 20px; margin: 20px 0 10px; padding-top: 10px; }
+@media (max-width: 600px) {
+  .manifest-document-body h1 { font-size: 34px; }
+  .manifest-document-body h2 { font-size: 25px; margin-top: 48px; }
+  .manifest-document-body > h1:first-child:only-of-type + p { font-size: 19px; }
+  .manifest-document-body h1 ~ h1,
+  .manifest-document-body > h1:first-child:not(:only-of-type) { font-size: 25px; }
 }
 .manifest-document-table th,
 .dark .manifest-document-table th {
   background: transparent;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
-  border-bottom: 2px solid var(--text-primary);
+  border-bottom: 2px solid var(--read-rule-strong);
 }
 .manifest-document-table td { font-variant-numeric: tabular-nums; }
 .manifest-document-header h3 { font-size: 22px; font-weight: 700; letter-spacing: -0.022em; }
@@ -486,16 +552,24 @@
 .manifest-partner-add { align-self: flex-start; font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; }
 .manifest-partner-add:hover { text-decoration: underline; }
 
-/* Knowledge graph links (ADR 0006): concepts and citations back to the idea note. */
+/* Links back to the idea note (ADR 0006, ADR 0010): quiet in the text, a highlight on hover
+   that previews how the source will look in the note. */
+.manifest-document-body a.manifest-wiki-link,
 .manifest-wiki-link {
   color: inherit;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
-  text-underline-offset: 3px;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--read-text-3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
 }
+.manifest-document-body a.manifest-wiki-link:hover,
 .manifest-wiki-link:hover {
-  text-decoration-color: currentColor;
+  text-decoration: none;
+  background: var(--read-mark);
 }
+.manifest-document-body a.manifest-cite,
 .manifest-cite {
   display: inline-block;
   margin-left: 4px;
@@ -509,8 +583,10 @@
   background: color-mix(in srgb, currentColor 8%, transparent);
   text-decoration: none;
 }
+.manifest-document-body a.manifest-cite:hover,
 .manifest-cite:hover,
 .manifest-cite:focus-visible {
+  text-decoration: none;
   color: var(--manifest-text, #1d1d1f);
   background: color-mix(in srgb, currentColor 16%, transparent);
 }

@@ -1518,28 +1518,17 @@ export interface IdeaKnowledgeGraphData {
       passageIds: string[];
       documentTypes: string[];
       ideas: KnowledgeIdeaRef[];
-      /** who, problem, solution, technology, business, context or skill (ADR 0009). */
-      role: string;
-      roleLabel: string;
+      /** Other names for the concept, highlighted in the note too. */
       aliases: string[];
-      parent: string | null;
-      weight: number;
-      /** How the concept was derived, in plain words. */
-      why: string;
     }[];
     related: KnowledgeIdeaRef[];
-    relations: {
-      source: string;
-      target: string;
-      label: string;
-      passageIds: string[];
-      weight: number;
-    }[];
     documents: { documentType: string; markdown: string }[];
   } | null;
 }
 
-/** One idea's knowledge graph and its documents with [[wiki-link]] citations (ADR 0006). */
+/** What the app needs from an idea's knowledge graph: passages, concept names and cited
+ * documents, to link documents back to the note (ADR 0006, ADR 0010). Agents and the CLI
+ * read the full graph (roles, relations, reasons). */
 export const GET_IDEA_KNOWLEDGE_GRAPH: TypedDocumentNode<
   IdeaKnowledgeGraphData,
   { ideaId: string }
@@ -1555,15 +1544,9 @@ export const GET_IDEA_KNOWLEDGE_GRAPH: TypedDocumentNode<
         passageIds
         documentTypes
         ideas { ideaId title path concepts }
-        role
-        roleLabel
         aliases
-        parent
-        weight
-        why
       }
-      related { ideaId title path concepts reason }
-      relations { source target label passageIds weight }
+      related { ideaId title path concepts }
       documents { documentType markdown }
     }
   }

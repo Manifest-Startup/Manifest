@@ -355,19 +355,197 @@ summary:focus-visible,
   box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.18);
 }
 
+/* ---------------------------------------------------------------------------
+   Reading theme (ADR 0010): the same type as the workspace Markdown preview
+   (.vscode/markdown.css): SF Pro at 17px / 1.62, Apple greys, tight-tracked
+   headlines, Nike-weight section rules and a soft yellow highlight. Used by the
+   idea note and every document.
+   --------------------------------------------------------------------------- */
+:root {
+  --read-text: #1d1d1f;
+  --read-text-2: #6e6e73;
+  --read-text-3: #86868b;
+  --read-rule: #d2d2d7;
+  --read-rule-strong: #1d1d1f;
+  --read-surface: #f5f5f7;
+  --read-surface-2: #e8e8ed;
+  --read-link: #0066cc;
+  --read-mark: #fff3b0;
+  --read-mark-edge: #f5d742;
+  --read-select: rgba(0, 113, 227, 0.18);
+  --read-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --read-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --read-mono: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
+}
+.dark {
+  --read-text: #f5f5f7;
+  --read-text-2: #a1a1a6;
+  --read-text-3: #86868b;
+  --read-rule: #3a3a3c;
+  --read-rule-strong: #f5f5f7;
+  --read-surface: #1d1d1f;
+  --read-surface-2: #2c2c2e;
+  --read-link: #2997ff;
+  --read-mark: #5c4a00;
+  --read-mark-edge: #a88a12;
+  --read-select: rgba(41, 151, 255, 0.32);
+}
+
 .manifest-rich-editor .ProseMirror {
   min-height: 16rem;
-  max-width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
   outline: none;
-  color: var(--text-primary);
-  font-size: 1.02rem;
-  line-height: 1.9;
+  color: var(--read-text);
+  font-family: var(--read-sans);
+  font-size: 17px;
+  line-height: 1.62;
+  letter-spacing: -0.012em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "liga", "calt";
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.manifest-rich-editor .ProseMirror ::selection {
+  background: var(--read-select);
+}
+.manifest-rich-editor .ProseMirror p,
+.manifest-rich-editor .ProseMirror ul,
+.manifest-rich-editor .ProseMirror ol,
+.manifest-rich-editor .ProseMirror blockquote,
+.manifest-rich-editor .ProseMirror pre {
+  margin: 0 0 20px;
+}
+.manifest-rich-editor .ProseMirror h1,
+.manifest-rich-editor .ProseMirror h2,
+.manifest-rich-editor .ProseMirror h3,
+.manifest-rich-editor .ProseMirror h4 {
+  font-family: var(--read-display);
+  color: var(--read-text);
+  text-wrap: balance;
+}
+.manifest-rich-editor .ProseMirror h1 {
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.032em;
+  margin: 0 0 20px;
+}
+.manifest-rich-editor .ProseMirror h2 {
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 44px 0 14px;
+  padding-top: 16px;
+  border-top: 2px solid var(--read-rule-strong);
+}
+.manifest-rich-editor .ProseMirror h3 {
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  margin: 32px 0 10px;
+}
+.manifest-rich-editor .ProseMirror h4 {
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  margin: 26px 0 8px;
+}
+.manifest-rich-editor .ProseMirror strong { font-weight: 600; }
+.manifest-rich-editor .ProseMirror a { color: var(--read-link); text-decoration: none; }
+.manifest-rich-editor .ProseMirror a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+.manifest-rich-editor .ProseMirror ul,
+.manifest-rich-editor .ProseMirror ol { padding-left: 1.4em; }
+.manifest-rich-editor .ProseMirror ul { list-style: disc; }
+.manifest-rich-editor .ProseMirror ol { list-style: decimal; }
+.manifest-rich-editor .ProseMirror li { margin: 6px 0; padding-left: 0.15em; }
+.manifest-rich-editor .ProseMirror li p { margin: 0; }
+.manifest-rich-editor .ProseMirror ul li::marker { color: var(--read-text-3); }
+.manifest-rich-editor .ProseMirror ol li::marker { color: var(--read-text-2); font-weight: 600; }
+.manifest-rich-editor .ProseMirror blockquote {
+  padding: 2px 0 2px 20px;
+  border-left: 3px solid var(--read-rule-strong);
+  font-size: 19px;
+  line-height: 1.5;
+  letter-spacing: -0.016em;
+}
+.manifest-rich-editor .ProseMirror code {
+  font-family: var(--read-mono);
+  font-size: 0.84em;
+  padding: 0.14em 0.42em;
+  border-radius: 6px;
+  background: var(--read-surface);
+  border: 1px solid var(--read-surface-2);
+}
+.manifest-rich-editor .ProseMirror pre {
+  font-family: var(--read-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+  padding: 20px 24px;
+  border-radius: 14px;
+  background: var(--read-surface);
+  overflow-x: auto;
+}
+.manifest-rich-editor .ProseMirror pre code { padding: 0; border: 0; background: transparent; font-size: inherit; }
+.manifest-rich-editor .ProseMirror hr {
+  border: 0;
+  height: 1px;
+  background: var(--read-rule);
+  margin: 40px 0;
+}
 
-.manifest-rich-editor .ProseMirror p {
-  margin: 0 0 0.9rem;
+/* The source of a document's claim, highlighted in the note (ADR 0010). */
+.manifest-source-mark {
+  background: var(--read-mark);
+  color: inherit;
+  padding: 0.08em 0.12em;
+  margin: 0 -0.12em;
+  border-radius: 4px;
+  box-shadow: inset 0 -2px 0 var(--read-mark-edge);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: manifest-source-in 0.9s ease-out both;
+}
+@keyframes manifest-source-in {
+  from { background: transparent; box-shadow: inset 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manifest-source-mark { animation: none; }
+}
+.manifest-source-quote {
+  max-width: 720px;
+  margin: 0 auto;
+  font-family: var(--read-sans);
+}
+.manifest-source-quote blockquote {
+  margin: 0;
+  padding: 2px 0 2px 20px;
+  border-left: 3px solid var(--read-rule-strong);
+  font-size: 19px;
+  line-height: 1.5;
+  letter-spacing: -0.016em;
+  color: var(--read-text);
+}
+.manifest-source-quote figcaption {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  padding-left: 23px;
+  font-size: 13px;
+  color: var(--read-text-2);
+}
+.manifest-source-quote button {
+  color: var(--read-link);
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .manifest-rich-editor .ProseMirror h1 { font-size: 30px; }
+  .manifest-rich-editor .ProseMirror h2 { font-size: 23px; margin-top: 36px; }
 }
 
 .manifest-rich-editor .ProseMirror > * {

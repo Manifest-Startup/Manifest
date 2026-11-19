@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useRef, useEffect, useMemo, useState } from "react";
 import debounce from "lodash.debounce";
 import throttle from "lodash/throttle";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useParams, useSearchParams } from "react-router-dom";
 // The rich-text editor (TipTap/ProseMirror, ~100 KB gzipped) is only needed on
 // the Note view; generated documents are read-only, so load it on demand and
 // warm it in idle time so opening the Note view stays instant.
@@ -65,7 +65,7 @@ import { logError, createLogger } from 'features/core/logError';
 import { syncIdeaTitleInCache } from '../utils/syncIdeaTitleCache';
 import { WikiLinksProvider } from '../knowledge/WikiLinkContext';
 import { makeResolver } from '../knowledge/wikiLinks';
-import { CitationBanner, KnowledgeGraphView } from '../knowledge/KnowledgeGraphView';
+import { InterviewQuote, sourceTargets } from '../knowledge/sources';
 
 const logger = createLogger('IdeaComponent');
 const IDEA_TITLE_FALLBACK = 'Brand New Idea';
@@ -89,7 +89,6 @@ const aspectLabelMap: Record<string, string> = {
   "product-requirements-document": "Requirements",
   "patent": "Patent",
   "development": "Note",
-  "knowledge-graph": "Knowledge Graph",
 };
 
 // Utility functions
@@ -321,17 +320,18 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
   const refetchRef = useRef(refetch);
   const ideaSnapshotRef = useRef<IdeaType | null>(null);
 
-  // -------------------- Knowledge graph (ADR 0006) --------------------
+  // -------------------- Knowledge graph (ADR 0006, ADR 0010) --------------------
   // Documents cite the idea note with [[wiki-links]]; the graph is built live on the server
   // from the note, interview answers and documents, so refetch it when a document changes.
-  const [searchParams] = useSearchParams();
+  // It stays in the background: people see their sources highlighted in the note itself,
+  // and agents, the CLI and the vault read the full graph.
+  const [searchParams, setSearchParams] = useSearchParams();
   const needsKnowledgeGraph = Boolean(
     currentIdeaId &&
-      (shouldLoadDocumentPayload || ideaAspect === 'knowledge-graph' || searchParams.get('cite'))
+      (shouldLoadDocumentPayload || searchParams.get('cite') || searchParams.get('mark'))
   );
   const {
     data: knowledgeData,
-    loading: knowledgeLoading,
     refetch: refetchKnowledge,
   } = useSafeQuery(GET_IDEA_KNOWLEDGE_GRAPH, {
     variables: { ideaId: currentIdeaId as string },
@@ -900,6 +900,13 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
   const handleEditorContentChange = (newContent: string) => {
     setContent(newContent);
     contentRef.current = newContent;
+    // Writing means the reader is done looking at the source: drop the highlight.
+    if (searchParams.has('cite') || searchParams.has('mark')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('cite');
+      next.delete('mark');
+      setSearchParams(next, { replace: true });
+    }
 
     const hasChanged = newContent !== lastSavedRef.current.content;
     if (hasChanged) {
@@ -1035,11 +1042,8 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
               documentType="product_requirements_document"
             />
           ) : ideaAspect === 'knowledge-graph' ? (
-            <KnowledgeGraphView
-              graph={knowledgeGraph}
-              loading={knowledgeLoading}
-              ideaTitle={title || 'This idea'}
-            />
+            // The graph view moved out of the app (ADR 0010); keep old links working.
+            <Navigate to={`../description${window.location.search}`} relative="path" replace />
           ) : ideaAspect === 'patent' ? (
             <ProvisionalPatentDisplay
               ideaId={currentIdeaId}
@@ -1048,7 +1052,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
             />
           ) : (
             <div className="flex flex-col gap-6">
-              <CitationBanner graph={knowledgeGraph} />
+              <InterviewQuote graph={knowledgeGraph} />
 <Suspense fallback={<div className="min-h-[16rem]" aria-busy="true" />}>
               <TextArea
                 value={content}
@@ -1058,6 +1062,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
                 focusKey={`${currentIdeaId || 'no-idea'}-${ideaAspect}`}
                 className="min-h-[16rem]"
                 placeholder="Write your idea…"
+                highlights={sourceTargets(knowledgeGraph, searchParams)}
                 live={liveSession}
                 loadSavedNote={loadSavedNote}
               />
