@@ -20,6 +20,12 @@ import {
   sourceHighlightKey,
   type HighlightTarget,
 } from "features/ideas/knowledge/sourceHighlight";
+import {
+  onNoteFocusRequest,
+  readNoteCursor,
+  requestListFocus,
+  saveNoteCursor,
+} from "features/ideas/utils/noteFocus";
 
 interface TextAreaProps {
   value: string;
@@ -41,6 +47,11 @@ interface TextAreaProps {
   loadSavedNote?: () => Promise<string>;
   /** Text to highlight in place, e.g. the sentence a document cites (ADR 0010). */
   highlights?: HighlightTarget[];
+  /**
+   * Remember the cursor, selection and scroll position under this key (one per note) and
+   * put them back when the note opens again. Esc moves focus back to the ideas list.
+   */
+  noteKey?: string;
 }
 
 const TextArea: React.FC<TextAreaProps> = ({
@@ -56,7 +67,13 @@ const TextArea: React.FC<TextAreaProps> = ({
   live = null,
   loadSavedNote,
   highlights,
+  noteKey,
 }) => {
+  const noteKeyRef = useRef(noteKey);
+  noteKeyRef.current = noteKey;
+  // The note whose saved position has been put back; saving waits for it so opening a
+  // note never overwrites where you left off.
+  const restoredRef = useRef<string | null>(null);
   const highlightsRef = useRef<HighlightTarget[]>(highlights ?? []);
   highlightsRef.current = highlights ?? [];
   const highlightKey = JSON.stringify(highlights ?? []);
@@ -117,6 +134,14 @@ const TextArea: React.FC<TextAreaProps> = ({
         onChange(editor.getHTML());
       },
       editorProps: {
+        handleKeyDown: (_view, event) => {
+          if (event.key === "Escape" && noteKeyRef.current) {
+            event.preventDefault();
+            requestListFocus();
+            return true;
+          }
+          return false;
+        },
         attributes: {
           class:
             "manifest-reading focus:outline-none",
@@ -173,19 +198,100 @@ const TextArea: React.FC<TextAreaProps> = ({
     editor.view.dispatch(editor.state.tr.setMeta(sourceHighlightKey, REFRESH_HIGHLIGHTS));
   }, [editor, highlightKey]);
 
+  // -- Where you left off (cursor, selection, scroll) ----------------------------------
+  const scroller = () => {
+    let node = editor?.view.dom.parentElement ?? null;
+    while (node && node !== document.body) {
+      const { overflowY } = window.getComputedStyle(node);
+      if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const restorePosition = () => {
+    const key = noteKeyRef.current;
+    if (!editor || editor.isDestroyed || !key || restoredRef.current === key) return;
+    if (editor.state.doc.textContent.length === 0) return; // wait for the note to load
+    restoredRef.current = key;
+    const saved = readNoteCursor(key);
+    if (!saved) return;
+    const max = editor.state.doc.content.size;
+    const clamp = (n: number) => Math.max(0, Math.min(n, max));
+    try {
+      editor.commands.setTextSelection({ from: clamp(saved.anchor), to: clamp(saved.head) });
+    } catch {
+      // A position that no longer exists in an edited note: keep the default.
+    }
+    const box = scroller();
+    if (box) box.scrollTop = saved.scrollTop;
+  };
+
+  const focusNote = () => {
+    if (!editor || editor.isDestroyed || !editable || disabled) return;
+    restorePosition();
+    const key = noteKeyRef.current;
+    const hasSaved = Boolean(key && readNoteCursor(key));
+    // Keep the restored cursor; a note without one starts at the end, ready to continue.
+    editor.commands.focus(hasSaved ? undefined : "end", { scrollIntoView: !hasSaved });
+  };
+
   useEffect(() => {
-    // Focusing would jump to the top: when showing a source, let the reader stay on it.
+    restoredRef.current = null; // a different note: restore its own position
+  }, [noteKey]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !noteKey) return;
+    const save = () => {
+      const key = noteKeyRef.current;
+      if (!key || restoredRef.current !== key || editor.isDestroyed) return;
+      const { anchor, head } = editor.state.selection;
+      saveNoteCursor(key, { anchor, head, scrollTop: scroller()?.scrollTop ?? 0 });
+    };
+    const attempt = () => restorePosition();
+    editor.on("selectionUpdate", save);
+    editor.on("blur", save);
+    editor.on("update", attempt);
+    attempt();
+    const box = scroller();
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(save);
+    };
+    box?.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", save);
+    const stopFocus = onNoteFocusRequest(focusNote);
+    return () => {
+      save();
+      editor.off("selectionUpdate", save);
+      editor.off("blur", save);
+      editor.off("update", attempt);
+      box?.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", save);
+      cancelAnimationFrame(frame);
+      stopFocus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers read refs
+  }, [editor, noteKey, value]);
+
+  useEffect(() => {
+    // Focusing would jump away: when showing a source, let the reader stay on it.
     if (highlightsRef.current.length) return;
     if (!editor || editor.isDestroyed || !autoFocus || !editable || disabled) {
       return;
     }
 
-    const focusEditor = () => {
-      if (!editor.isDestroyed) editor.commands.focus('start');
-    };
-
-    const timeoutId = window.setTimeout(focusEditor, 40);
+    const timeoutId = window.setTimeout(() => {
+      // Don't pull focus out of the ideas list or another control the person is using.
+      const active = document.activeElement;
+      const elsewhere = active && active !== document.body && !editor.view.dom.contains(active);
+      if (!elsewhere) focusNote();
+    }, 40);
     return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- focusNote reads refs
   }, [autoFocus, disabled, editable, editor, focusKey]);
 
   return (

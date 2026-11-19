@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import IdeasPage from '../IdeasPage';
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ idea_id: 'idea-1' }) }));
+const mockCreateAndOpen = jest.fn(async () => "new-idea");
+jest.mock('../../hooks/useCreateIdea', () => ({ useCreateIdea: () => ({ createAndOpen: mockCreateAndOpen }) }));
 jest.mock('@apollo/client/react', () => ({ useReactiveVar: (variable: () => unknown) => variable() }));
 jest.mock('../IdeasList', () => ({ __esModule: true, default: ({ onToggleCollapse }: any) => <div>Library content<button onClick={onToggleCollapse}>Collapse ideas</button></div> }));
 jest.mock('features/messaging/components', () => ({ IdeaOwnerPanel: ({ onToggleCollapse }: any) => <div>Related content<button onClick={onToggleCollapse}>Collapse similar ideas</button></div> }));
@@ -62,5 +64,18 @@ describe('Workspace panels', () => {
     await screen.findByLabelText('Draft');
     expect(screen.getByText('Library content')).not.toBeVisible();
     expect(screen.getByText('Related content')).toBeVisible();
+  });
+
+  it('opens the shortcuts sheet with ⌘/ and makes a new idea with ⌥⌘N', () => {
+    render(<IdeasPage />);
+    fireEvent.keyDown(window, { key: '/', ctrlKey: true, metaKey: true });
+    fireEvent.keyDown(window, { key: '?' });
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    expect(screen.getByText('Open the note, where you left off')).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull();
+    fireEvent.keyDown(window, { key: 'n', code: 'KeyN', altKey: true, ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'n', code: 'KeyN', altKey: true, metaKey: true });
+    expect(mockCreateAndOpen).toHaveBeenCalledWith('keyboard_shortcut');
   });
 });

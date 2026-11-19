@@ -2287,6 +2287,14 @@ summary:focus-visible,
   letter-spacing: -0.035em;
   line-height: 1.3;
 }
+/* On the note, the title shares the note's reading column (ADR 0010): the same centered
+   720px measure as the text below, so their first letters line up. */
+.manifest-note-title--column {
+  display: block;
+  max-width: 720px;
+  margin-inline: auto;
+  font-family: var(--read-display);
+}
 .manifest-note-title:focus-visible {
   outline: none;
   box-shadow: 0 2px 0 var(--accent);
@@ -2302,7 +2310,6 @@ summary:focus-visible,
   background: transparent;
   box-shadow: none;
 }
-.manifest-note .ProseMirror { font-size: 1rem; line-height: 1.7; }
 .manifest-note-status { background: var(--bg-primary); }
 
 @media (min-width: 1024px) {
@@ -2912,4 +2919,53 @@ a.manifest-related-row:focus-visible .manifest-related-arrow { opacity: 1; trans
 .dark .manifest-live-presence__person,
 .dark .manifest-live-presence__more {
   background: #171717;
+}
+
+/* Keyboard shortcuts sheet (⌘/ or ?). */
+.manifest-shortcuts { max-width: 44rem; }
+.manifest-shortcuts-close {
+  border-radius: 1rem;
+  padding: 0.5rem;
+  color: var(--text-secondary);
+}
+.manifest-shortcuts-close:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.manifest-shortcuts-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 8px 32px;
+  font-family: var(--read-sans);
+}
+.manifest-shortcuts-body h3 {
+  margin: 8px 0 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--read-text-2);
+}
+.manifest-shortcuts-body dl { margin: 0 0 12px; }
+.manifest-shortcuts-body dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--read-rule);
+  font-size: 14px;
+  color: var(--read-text);
+}
+.manifest-shortcuts-body dd { display: flex; gap: 4px; margin: 0; flex-shrink: 0; }
+.manifest-shortcuts-body kbd {
+  min-width: 1.6em;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--read-rule);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--read-text);
+  font-family: var(--read-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.02em;
 }
