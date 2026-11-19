@@ -3065,3 +3065,36 @@ a.manifest-related-row:focus-visible .manifest-related-arrow { opacity: 1; trans
   line-height: 1.6;
   color: var(--text-secondary);
 }
+
+/* Vault ↔ account sync (ADR 0012). */
+.manifest-sync-panel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.manifest-sync-panel h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.manifest-sync-panel p { margin: 0 0 14px; }
+.manifest-sync-panel strong { color: var(--text-primary); font-weight: 600; }
+.manifest-sync-state { display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+.manifest-sync-state span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #16a34a;
+  flex-shrink: 0;
+}
+.manifest-sync-state span[data-state="syncing"] { background: #2563eb; }
+.manifest-sync-state span[data-state="offline"],
+.manifest-sync-state span[data-state="off"],
+.manifest-sync-state span[data-state="signed-out"] { background: #a3a3a3; }
+.manifest-sync-state span[data-state="error"] { background: #dc2626; }
+.manifest-sync-report { font-size: 13px; }
+.manifest-sync-error { color: #dc2626; font-size: 13px; }

@@ -19,6 +19,9 @@ class Idea:
     similar_ideas: str | None = None
     is_published: bool = False
     required_skills: list[str] = strawberry.field(default_factory=list)
+    updated_at: datetime | None = strawberry.field(
+        default=None, description="When the idea (note or documents) last changed."
+    )
 
 
 @strawberry.type
@@ -33,6 +36,7 @@ class IdeaSummary:
     created_at: datetime
     is_published: bool = False
     generated_asset_count: int = 0
+    updated_at: datetime | None = None
 
 
 @strawberry.type

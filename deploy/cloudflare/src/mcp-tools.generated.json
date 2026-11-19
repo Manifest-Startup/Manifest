@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "fe5fc7b121d232b59169d6a5f53060b66b53a97e2fde4ce8398e1fdc7eeafb76",
+ "catalog_sha256": "9e6ab27f8104efa696824834027161b16a4b33fd6cdde25a11d992b9bd35b0af",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -642,7 +642,7 @@
    "_call": {
     "via": "graphql",
     "field": "createIdea",
-    "document": "mutation CreateIdea($title: String!, $description: String) { createIdea(title: $title, description: $description) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills } }",
+    "document": "mutation CreateIdea($title: String!, $description: String) { createIdea(title: $title, description: $description) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills updatedAt } }",
     "variables": [
      "title",
      "description"
@@ -1457,7 +1457,7 @@
    "_call": {
     "via": "graphql",
     "field": "idea",
-    "document": "query Idea($ideaId: String!) { idea(ideaId: $ideaId) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills } }",
+    "document": "query Idea($ideaId: String!) { idea(ideaId: $ideaId) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills updatedAt } }",
     "variables": [
      "ideaId"
     ]
@@ -1746,7 +1746,7 @@
    "_call": {
     "via": "graphql",
     "field": "ideas",
-    "document": "query Ideas($first: Int, $after: String) { ideas(first: $first, after: $after) { ideaId userId title description hasDescription createdAt isPublished generatedAssetCount } }",
+    "document": "query Ideas($first: Int, $after: String) { ideas(first: $first, after: $after) { ideaId userId title description hasDescription createdAt isPublished generatedAssetCount updatedAt } }",
     "variables": [
      "first",
      "after"
@@ -4291,7 +4291,7 @@
    "_call": {
     "via": "graphql",
     "field": "updateIdea",
-    "document": "mutation UpdateIdea($ideaId: String!, $title: String, $description: String, $requiredSkills: [String!]) { updateIdea(ideaId: $ideaId, title: $title, description: $description, requiredSkills: $requiredSkills) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills } }",
+    "document": "mutation UpdateIdea($ideaId: String!, $title: String, $description: String, $requiredSkills: [String!]) { updateIdea(ideaId: $ideaId, title: $title, description: $description, requiredSkills: $requiredSkills) { ideaId userId title description createdAt pitchDeck productRequirementsDocument provisionalPatent businessModelCanvas similarIdeas isPublished requiredSkills updatedAt } }",
     "variables": [
      "ideaId",
      "title",

@@ -1551,3 +1551,46 @@ export const GET_IDEA_KNOWLEDGE_GRAPH: TypedDocumentNode<
     }
   }
 `;
+
+// ==================== VAULT CLOUD SYNC (ADR 0012) ====================
+
+/** One page of the account's ideas with when each last changed, for vault sync. */
+export const VAULT_SYNC_IDEAS = gql`
+  query VaultSyncIdeas($first: Int!, $after: String) {
+    ideas(first: $first, after: $after) {
+      ideaId
+      title
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/** Everything vault sync copies for one idea. */
+export const VAULT_SYNC_IDEA = gql`
+  query VaultSyncIdea($ideaId: String!) {
+    idea(ideaId: $ideaId) {
+      ideaId
+      title
+      description
+      requiredSkills
+      createdAt
+      updatedAt
+      pitchDeck
+      productRequirementsDocument
+      provisionalPatent
+      businessModelCanvas
+      similarIdeas
+    }
+  }
+`;
+
+/** Save a document's Markdown on an idea (vault sync pushes documents with it). */
+export const SAVE_IDEA_DOCUMENT = gql`
+  mutation SaveIdeaDocument($ideaId: String!, $documentType: String!, $content: String!) {
+    saveIdeaDocument(ideaId: $ideaId, documentType: $documentType, content: $content) {
+      ideaId
+      documentType
+    }
+  }
+`;

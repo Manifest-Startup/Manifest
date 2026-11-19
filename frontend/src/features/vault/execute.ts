@@ -49,6 +49,8 @@ export function rootResolvers(store: VaultStore): { query: Record<string, Resolv
       ideas: async () => (await store.list()).map((idea) => typed("IdeaSummary", idea)),
       idea: async ({ ideaId }) => typed("Idea", await store.get(String(ideaId), true)),
       ideaKnowledgeGraph: () => null,
+      ideaVersions: async ({ ideaId }) =>
+        (await store.versions(String(ideaId))).map((v) => typed("IdeaVersion", v)),
       unreadMessageCount: () => 0,
     },
     mutation: {
@@ -63,6 +65,12 @@ export function rootResolvers(store: VaultStore): { query: Record<string, Resolv
             requiredSkills: requiredSkills as string[] | null,
           }),
         ),
+      createIdeaVersion: async ({ ideaId, changeSummary }) =>
+        typed("IdeaVersion", await store.saveVersion(String(ideaId), changeSummary as string | null)),
+      restoreIdeaVersion: async ({ ideaId, versionId }) => {
+        await store.restoreVersion(String(ideaId), String(versionId));
+        return true;
+      },
       deleteIdea: async ({ ideaId }) => {
         await store.remove(String(ideaId));
         return true;

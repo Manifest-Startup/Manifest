@@ -31,6 +31,8 @@ def run_idea(query, viewer="synthetic-user", access=False):
         "is_published": False,
         "pitch_deck": "Synthetic deck",
         "similar_ideas": "Related ideas",
+        "required_skills": ["Sales"],
+        "updated_at": "2026-11-19T10:00:00+00:00",
     }
     with (
         patch("app.graphql.schema.get_current_user_id", return_value=viewer),
@@ -102,3 +104,17 @@ def test_unauthenticated_idea_read_does_not_access_database():
         )
     assert result.errors
     db.table.assert_not_called()
+
+
+def test_idea_returns_skills_and_when_it_last_changed():
+    """Vault sync (ADR 0012) compares timestamps; skills must round-trip."""
+    result, builder = run_idea(
+        """query { idea(ideaId: "synthetic-idea") { requiredSkills updatedAt } }"""
+    )
+    assert not result.errors
+    assert result.data["idea"] == {
+        "requiredSkills": ["Sales"],
+        "updatedAt": "2026-11-19T10:00:00+00:00",
+    }
+    columns = builder.select.call_args.args[0].split(", ")
+    assert "required_skills" in columns and "updated_at" in columns
