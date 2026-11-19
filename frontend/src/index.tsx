@@ -8,6 +8,7 @@ import "./index.css"; // Importing CSS for this file
 import { ApolloProvider } from '@apollo/client/react'; // Added ApolloProvider import
 import { client } from './features/core/apollo/client'; // Added Apollo Client instance import
 import { PrivacyConsentProvider } from "features/privacy/PrivacyConsentContext";
+import { VaultGate } from "features/vault/VaultGate";
 import { CREATE_IDEA, GET_IDEA, GET_IDEAS, UPDATE_IDEA } from "features/core/apollo/queries";
 
 declare global {
@@ -61,7 +62,10 @@ const router = createBrowserRouter([
 const AppWithProviders = () => {
   return (
     <PrivacyConsentProvider>
-      <RouterProvider router={router} />
+      {/* Local vault mode (ADR 0011) waits for folder access; cloud mode passes through. */}
+      <VaultGate client={client}>
+        <RouterProvider router={router} />
+      </VaultGate>
     </PrivacyConsentProvider>
   );
 };

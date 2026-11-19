@@ -1,3 +1,4 @@
+import { isVaultMode } from "features/vault/mode";
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useReactiveVar } from "@apollo/client/react";
@@ -25,6 +26,7 @@ import { usePrivacyConsent } from "features/privacy/PrivacyConsentContext";
 import ManifestLogo from "features/common-ui/ManifestLogo";
 
 const LoginPage = lazy(() => import("features/auth/components/LoginPage"));
+const VaultSettingsPage = lazy(() => import("features/vault/StorageSection"));
 const GuestSessionBanner = lazy(() => import("features/auth/components/GuestSessionBanner"));
 const loadIdeasPage = () => import("features/ideas/components/IdeasPage");
 const IdeasPage = lazy(loadIdeasPage);
@@ -173,7 +175,10 @@ const App = () => {
                     <Route path="/ideas/qualify" element={<PrivateRoute><IdeaQualificationPage /></PrivateRoute>} />
                     <Route path="/ideas/:idea_id" element={<PrivateRoute><IdeaDetailRedirect /></PrivateRoute>} />
                     <Route path="/ideas/:idea_id/:ideaAspect" element={<PrivateRoute><IdeasPage /></PrivateRoute>} />
-                    <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
+                    <Route
+                      path="/account"
+                      element={isVaultMode() ? <VaultSettingsPage /> : <PrivateRoute><AccountPage /></PrivateRoute>}
+                    />
                     <Route path="/account/billing" element={<PrivateRoute><BillingDashboardPage /></PrivateRoute>} />
                     <Route path="/admin/cost" element={<PrivateRoute><AdminCostDashboardPage /></PrivateRoute>} />
                     <Route path="/login" element={isLoggedIn && !isGuest ? <Navigate to="/ideas" replace /> : <LoginPage />} />
@@ -209,7 +214,7 @@ const App = () => {
           {hideTopChrome ? null : <AppFooter />}
           {!hideTopChrome && isLoggedIn ? (
             <Suspense fallback={null}>
-              <FloatingVoiceButton />
+              {isVaultMode() ? null : <FloatingVoiceButton />}
             </Suspense>
           ) : null}
           {isLoggedIn ? (

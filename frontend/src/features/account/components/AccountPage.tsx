@@ -16,6 +16,7 @@ import SurveyInsightsPanel from "features/feedback/SurveyInsightsPanel";
 
 import ApiAccessSection from "./ApiAccessSection";
 import AiKeySection from "./AiKeySection";
+import { StorageSection } from "features/vault/StorageSection";
 import IntegrationsSection from "./IntegrationsSection";
 import OpenMediaSection from "./OpenMediaSection";
 import PrivacyControlsPanel from "./PrivacyControlsPanel";
@@ -602,6 +603,7 @@ const AccountPage: React.FC = () => {
             </div>
 
             <div className="space-y-6">
+              <StorageSection />
               <div id="ai-key">
                 <SectionCard
                   eyebrow="AI"
