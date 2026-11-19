@@ -127,9 +127,11 @@ const sections: GuideSection[] = [
     steps: [
       "Open the share controls from the active idea when you are ready to invite collaborators.",
       "Review invitations and collaborator roles carefully so the right people have the right level of access.",
+      "Once someone accepts, the note is live: everyone types into it at the same time and sees each other's cursors and photos at the top of the note. Viewers and commenters watch live but can't change the text.",
       "Publish an idea only when you want it exposed to broader product surfaces such as messaging eligibility for non-owners and pitch-reel distribution.",
     ],
     details: [
+      "Edits made through an AI agent with the Manifest plugin, the manifest CLI or another device appear in the live note too, with the author's photo and a label such as \"via AI agent\".",
       "Publishing changes product behavior. Non-owners can only start a conversation about an idea when that idea is published.",
       "Publishing can also sync the idea into the pitch-reels system, which is why it is treated as a meaningful milestone rather than a cosmetic toggle.",
     ],

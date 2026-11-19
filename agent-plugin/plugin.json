@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "manifest",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Manifest for AI agents: turn a rough startup idea into an investable plan. Create and qualify ideas; generate Business Model Canvas, pitch deck, PRD and provisional patent drafts; browse pitch shorts and message founders; track investments and cap tables; manage collaborators, privacy and your account. Everything you can do in Manifest, with every destructive change confirmed first.",
   "author": {
     "name": "Manifest",

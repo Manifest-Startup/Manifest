@@ -12,7 +12,9 @@ from app.graphql.types.collaboration import (
     IdeaVersion,
     InviteCollaboratorInput,
     InviteResult,
+    LiveNoteParticipant,
     SharedIdea,
+    live_note_participant_from_dict,
 )
 from app.services.ideas.versioning_policy import VERSION_KIND_MANUAL
 
@@ -66,6 +68,21 @@ class CollaborationQuery:
                 )
             )
         return result
+
+    @strawberry.field
+    async def idea_live_presence(
+        self, info: strawberry.Info, idea_id: str
+    ) -> list["LiveNoteParticipant"]:
+        """Who is in the idea's note right now: people editing live in Manifest, plus
+        anyone who just changed it through an AI agent, the CLI or another device."""
+        user_id = get_current_user_id(info.context["request"])
+        from app.services.ideas.collaboration import create_collaboration_service
+        from app.services.ideas.live_notes import live_notes
+
+        service = create_collaboration_service(info.context["db"])
+        if not await service.check_access(idea_id, user_id, "view"):
+            raise Exception("You don't have access to this idea")
+        return [live_note_participant_from_dict(row) for row in live_notes.presence(idea_id)]
 
     @strawberry.field
     async def my_shared_ideas(self, info: strawberry.Info) -> list["SharedIdea"]:
@@ -285,4 +302,20 @@ class CollaborationMutation:
         service = create_collaboration_service(info.context["db"])
 
         await service.restore_version(idea_id, version_id, user_id)
+        try:
+            row = (
+                info.context["db"]
+                .table("ideas")
+                .select("description")
+                .eq("idea_id", idea_id)
+                .single()
+                .execute()
+            ).data or {}
+        except Exception:  # noqa: BLE001 — the restore already succeeded
+            row = {}
+        from app.graphql.resolvers.ideas import _announce_to_live_note
+
+        await _announce_to_live_note(
+            info.context["request"], idea_id, user_id, row.get("description")
+        )
         return True

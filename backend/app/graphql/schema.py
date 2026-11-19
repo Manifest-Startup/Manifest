@@ -340,6 +340,7 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         # --- Collaboration / invites ---
         "idea_collaborators": "ideas.read",
         "ideaCollaborators": "ideas.read",
+        "ideaLivePresence": "ideas.read",
         "my_collaboration_invitations": "ideas.read",
         "myCollaborationInvitations": "ideas.read",
         "invite_collaborator": "ideas.write",

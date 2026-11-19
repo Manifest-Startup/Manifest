@@ -2608,3 +2608,130 @@ a.manifest-related-row:focus-visible .manifest-related-arrow { opacity: 1; trans
 .manifest-related-skeleton-row b:first-child { width: 45%; }
 .manifest-related-skeleton-row b:last-child { width: 85%; animation-delay: 120ms; }
 
+
+/* Live notes (ADR 0008): other people's cursors and the presence stack. */
+.manifest-live-caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+.manifest-live-caret__label {
+  position: absolute;
+  top: -1.55em;
+  left: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 2px;
+  border-radius: 6px 6px 6px 0;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  width: max-content;
+  white-space: nowrap;
+  user-select: none;
+}
+.manifest-live-caret__avatar {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+/* On the first line there is no room above: show the name below the caret. */
+.ProseMirror > :first-child .manifest-live-caret__label {
+  top: 1.35em;
+  border-radius: 0 6px 6px 6px;
+}
+.manifest-live-caret--external .manifest-live-caret__label {
+  animation: manifest-live-pulse 1.2s ease-out 2;
+}
+@keyframes manifest-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.25); }
+  100% { box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); }
+}
+.ProseMirror-yjs-selection {
+  border-radius: 2px;
+}
+.manifest-live-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+}
+.manifest-live-presence__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #16a34a;
+}
+.manifest-live-presence__dot.is-offline {
+  background: #a3a3a3;
+}
+.manifest-live-presence__note {
+  font-size: 11px;
+  color: #737373;
+}
+.manifest-live-presence__stack {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.manifest-live-presence__person,
+.manifest-live-presence__more {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border: 2px solid;
+  border-radius: 9999px;
+  background: #fff;
+}
+.manifest-live-presence__person:first-child {
+  margin-left: 0;
+}
+.manifest-live-presence__person img,
+.manifest-live-presence__person > span {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  object-fit: cover;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.manifest-live-presence__badge {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: #171717;
+  color: #fff;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 12px;
+}
+.manifest-live-presence__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: #d4d4d4;
+  color: #525252;
+  font-size: 10px;
+  font-weight: 700;
+}
+.dark .manifest-live-presence__person,
+.dark .manifest-live-presence__more {
+  background: #171717;
+}

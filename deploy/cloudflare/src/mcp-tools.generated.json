@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "ecabb6cf28480aaca0334d7a6ca098d98970d386b4339c00c0dbfe5aea118bbe",
+ "catalog_sha256": "974956466a0a00f889550a264eafdb4826b0a2e4bdf9330e8ee568c2618281ec",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -1586,6 +1586,38 @@
     "via": "graphql",
     "field": "ideaKnowledgeGraph",
     "document": "query IdeaKnowledgeGraph($ideaId: String!) { ideaKnowledgeGraph(ideaId: $ideaId) { ideaId ideaPath passages { id kind text } concepts { label path passageIds documentTypes } related { ideaId title path concepts } documents { documentType markdown } } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "idea_live_presence",
+   "title": "Idea live presence",
+   "description": "Who is in the idea's note right now: people editing live in Manifest, plus anyone who just changed it through an AI agent, the CLI or another device.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Idea live presence",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "ideaLivePresence",
+    "document": "query IdeaLivePresence($ideaId: String!) { ideaLivePresence(ideaId: $ideaId) { userId name avatarUrl color via viaLabel canEdit role lastActiveAt } }",
     "variables": [
      "ideaId"
     ]

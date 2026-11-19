@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         '/api': { target: 'http://localhost:8000', xfwd: true },
         '/graphql': { target: 'http://localhost:8000', xfwd: true },
         '/generated': { target: 'http://localhost:8000', xfwd: true },
-        '/socket.io': { target: 'http://localhost:8000', xfwd: true },
+        '/socket.io': { target: 'http://localhost:8000', xfwd: true, ws: true },
         '^/auth/(login|logout|callback|me|status)$': { target: 'http://localhost:8000', xfwd: true },
         '^/auth/[^/]+/(start|callback|status)$': { target: 'http://localhost:8000', xfwd: true },
       },
