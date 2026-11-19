@@ -1,4 +1,4 @@
-/* Knowledge graph view and citation banner (ADR 0006). */
+/* Knowledge graph view and citation banner (ADR 0006, ADR 0009). */
 .manifest-knowledge {
   color: var(--text-primary, #1d1d1f);
   display: flex;
@@ -11,59 +11,179 @@
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-.manifest-graph-map {
+/* Idea map (ADR 0009): lanes for each part of the idea, the founder's connections between. */
+.manifest-knowledge {
+  --role-who: #2563eb;
+  --role-problem: #dc2626;
+  --role-solution: #16a34a;
+  --role-technology: #7c3aed;
+  --role-business: #b45309;
+  --role-context: #6e6e73;
+  --role-skill: #0e7490;
+}
+.dark .manifest-knowledge {
+  --role-who: #60a5fa;
+  --role-problem: #f87171;
+  --role-solution: #4ade80;
+  --role-technology: #a78bfa;
+  --role-business: #fbbf24;
+  --role-context: #a1a1aa;
+  --role-skill: #22d3ee;
+}
+.manifest-idea-map {
   width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
   display: block;
+  overflow: visible;
 }
-.manifest-graph-map .edge {
-  stroke: currentColor;
-  stroke-opacity: 0.18;
-  stroke-width: 1;
+.manifest-idea-map .lane-bg {
+  fill: color-mix(in srgb, currentColor 3.5%, transparent);
 }
-.manifest-graph-map .edge--cross {
-  stroke-dasharray: 3 3;
-  stroke-opacity: 0.28;
-}
-.manifest-graph-map g[data-active] .edge {
-  stroke-opacity: 0.7;
-}
-.manifest-graph-map .node {
-  fill: var(--bg-primary, #fff);
-  stroke: currentColor;
-  stroke-width: 1.5;
-}
-.manifest-graph-map .node--center {
+.manifest-idea-map .lane-title {
   fill: currentColor;
-}
-.manifest-graph-map .node--idea {
-  fill: currentColor;
-  fill-opacity: 0.35;
-}
-.manifest-graph-map .node--concept[data-active],
-.manifest-graph-map a:hover .node--concept,
-.manifest-graph-map a:focus-visible .node--concept {
-  fill: currentColor;
-}
-.manifest-graph-map .label {
-  fill: currentColor;
+  fill-opacity: 0.6;
   font-size: 11px;
-  paint-order: stroke;
-  stroke: var(--bg-primary, #fff);
-  stroke-width: 3px;
-  stroke-linejoin: round;
-}
-.manifest-graph-map a:hover .label,
-.manifest-graph-map a:focus-visible .label {
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-.manifest-graph-map .label--idea {
-  fill-opacity: 0.65;
+.manifest-idea-map .link path:first-child {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: 0.28;
+  stroke-width: 1.4;
 }
-.manifest-graph-map .label--center {
+.manifest-idea-map .link[data-active] path:first-child {
+  stroke-opacity: 0.85;
+  stroke-width: 2;
+}
+.manifest-idea-map .link[data-dim] path:first-child {
+  stroke-opacity: 0.08;
+}
+.manifest-idea-map .arrow {
+  fill: currentColor;
+  fill-opacity: 0.45;
+}
+.manifest-idea-map .node rect {
+  fill: var(--bg-primary, #fff);
+  stroke: var(--role, currentColor);
+  stroke-width: 1.4;
+}
+.manifest-idea-map .node text {
+  fill: currentColor;
   font-size: 12px;
+}
+.manifest-idea-map .node .count {
+  fill-opacity: 0.45;
+  font-size: 10px;
+}
+.manifest-idea-map .node-link:hover rect,
+.manifest-idea-map .node-link:focus-visible rect,
+.manifest-idea-map .node[data-active] rect {
+  fill: color-mix(in srgb, var(--role, currentColor) 14%, var(--bg-primary, #fff));
+  stroke-width: 2;
+}
+.manifest-idea-map .node--who,
+.manifest-pill--who { --role: var(--role-who); }
+.manifest-idea-map .node--problem,
+.manifest-pill--problem { --role: var(--role-problem); }
+.manifest-idea-map .node--solution,
+.manifest-pill--solution { --role: var(--role-solution); }
+.manifest-idea-map .node--technology,
+.manifest-pill--technology { --role: var(--role-technology); }
+.manifest-idea-map .node--business,
+.manifest-pill--business { --role: var(--role-business); }
+.manifest-pill--context { --role: var(--role-context); }
+.manifest-pill--skill { --role: var(--role-skill); }
+.manifest-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--role, currentColor);
+  background: color-mix(in srgb, var(--role, currentColor) 9%, transparent);
+}
+.manifest-knowledge-relations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.manifest-knowledge-relations li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.manifest-relation-verb {
+  color: var(--text-secondary, #6e6e73);
+  font-style: italic;
+}
+.manifest-relation-verb::after {
+  content: " →";
+  font-style: normal;
+}
+.manifest-relation-cites {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 2px;
+}
+.manifest-knowledge-themes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.manifest-knowledge-label {
+  margin-right: 4px;
+  color: var(--text-secondary, #6e6e73);
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  align-self: center;
+}
+.manifest-knowledge-focus-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.manifest-knowledge-focus-head h4 {
+  margin: 0;
+  font-size: 16px;
+}
+.manifest-knowledge-why {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.manifest-knowledge-quotes mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  color: inherit;
+  background: color-mix(in srgb, #facc15 40%, transparent);
+}
+.manifest-knowledge-sources summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.manifest-knowledge-sources > ul,
+.manifest-knowledge-sources > ol {
+  margin-top: 10px;
+}
+.manifest-knowledge-method {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary, #6e6e73);
 }
 .manifest-knowledge-chips {
   display: flex;
@@ -153,4 +273,35 @@
   line-height: 1;
   color: inherit;
   background: transparent;
+}
+.manifest-idea-lanes {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+.manifest-idea-lane h5 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.manifest-idea-lane h5 span {
+  margin-left: 4px;
+  color: var(--text-secondary, #6e6e73);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.manifest-pill[data-active] {
+  background: color-mix(in srgb, var(--role, currentColor) 22%, transparent);
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .manifest-idea-map {
+    display: none;
+  }
+  .manifest-idea-lanes {
+    display: flex;
+  }
 }

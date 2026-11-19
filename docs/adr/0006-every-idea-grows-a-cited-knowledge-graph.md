@@ -1,6 +1,6 @@
 # 0006. Every idea grows a cited knowledge graph
 
-- Status: Accepted (2026-11-17). Builds on [0005](0005-agents-write-documents-and-keep-a-local-vault.md).
+- Status: Accepted (2026-11-17). Concept extraction, roles, relations and citation scoring revised by [0009](0009-the-knowledge-graph-is-a-model-of-the-idea.md). Builds on [0005](0005-agents-write-documents-and-keep-a-local-vault.md).
 - Code: `backend/app/services/ideas/knowledge_graph.py`, `vault.idea_knowledge_graph`, GraphQL `ideaKnowledgeGraph`, `frontend/src/features/ideas/knowledge/`
 
 ## Context

@@ -33,15 +33,42 @@ class KnowledgeIdeaRef:
     title: str
     path: str
     concepts: list[str] = strawberry.field(default_factory=list)
+    reason: str | None = strawberry.field(
+        default=None, description="Why the ideas are related, in plain words."
+    )
 
 
 @strawberry.type
 class KnowledgeConcept:
+    """A concept from the founder's own words (ADR 0009)."""
+
     label: str
     path: str
     passage_ids: list[str]
     document_types: list[str]
     ideas: list[KnowledgeIdeaRef]
+    role: str = strawberry.field(
+        default="context",
+        description="who, problem, solution, technology, business, context or skill",
+    )
+    role_label: str = "Context"
+    aliases: list[str] = strawberry.field(default_factory=list)
+    parent: str | None = strawberry.field(
+        default=None, description="The broader concept this one sits under."
+    )
+    weight: float = 0.0
+    why: str = strawberry.field(default="", description="How the concept was derived.")
+
+
+@strawberry.type
+class KnowledgeRelation:
+    """Two concepts the founder connects in the same sentence, labelled by their roles."""
+
+    source: str
+    target: str
+    label: str
+    passage_ids: list[str]
+    weight: int
 
 
 @strawberry.type
@@ -59,4 +86,5 @@ class IdeaKnowledgeGraph:
     passages: list[KnowledgePassage]
     concepts: list[KnowledgeConcept]
     related: list[KnowledgeIdeaRef]
+    relations: list[KnowledgeRelation] = strawberry.field(default_factory=list)
     documents: list[CitedDocument]

@@ -12,6 +12,7 @@ const graph: KnowledgeGraph = {
   passages: [{ id: "p1", kind: "note", text: "Coastal streets flood block by block." }],
   concepts: [],
   related: [],
+  relations: [],
   documents: [
     {
       documentType: "product_requirements_document",
