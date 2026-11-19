@@ -1,5 +1,6 @@
 import {
   buildOriginRequest,
+  originFor,
   isBackendPath,
   legacyFileUrl,
   requireOrigin,
@@ -10,7 +11,7 @@ import { handleManifestDocsMcpRequest } from "./mcp-docs.mjs";
 import { recordOraRequest } from "./ora-reporting.mjs";
 
 async function proxyToOrigin(request, env) {
-  const origin = requireOrigin(env.BACKEND_ORIGIN);
+  const origin = requireOrigin(originFor(new URL(request.url).pathname, env));
   const response = await fetch(buildOriginRequest(request, origin, env.EDGE_SHARED_SECRET));
   if (response.status === 101) return response; // WebSocket upgrade (Socket.IO)
   return rewriteLocation(response, origin, new URL(request.url));

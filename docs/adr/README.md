@@ -15,5 +15,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0010 — Sources are highlighted in the note; the graph stays in the background](0010-sources-are-highlighted-in-the-note.md)
 - [0011 — Ideas can live in a local vault folder; the account is opt-in Cloud sync](0011-ideas-live-in-a-local-vault-folder.md)
 - [0012 — A vault syncs with the account; every idea keeps a version history in the folder](0012-a-vault-syncs-with-the-account.md)
+- [0013 — Voice runs on Pipecat, with every Manifest tool](0013-voice-runs-on-pipecat.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

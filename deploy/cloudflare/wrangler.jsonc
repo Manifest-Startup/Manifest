@@ -82,6 +82,8 @@
   // as the backend's EDGE_SHARED_SECRET so the origin only accepts edge traffic.
   "vars": {
     "BACKEND_ORIGIN": "https://manifest-backend-dz6t.onrender.com",
+    // Optional: "VOICE_ORIGIN" sends /api/voice-agent/live* to a separate voice service
+    // (same image; docs/VOICE_AGENT_API.md). Unset = the backend above.
     "ORA_DOMAIN_ID": "cd0f6671-8a80-40df-83a7-3cd2d0d5a6e2",
     // Supabase public storage base, e.g. https://<ref>.supabase.co/storage/v1/object/public
     // Empty = legacy /generated/pdfs/* URLs are served by the backend.

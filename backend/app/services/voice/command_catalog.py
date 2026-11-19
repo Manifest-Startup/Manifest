@@ -105,8 +105,10 @@ VOICE_COMMAND_CAPABILITIES: list[dict[str, Any]] = [
 
 
 VOICE_COMMAND_CAPABILITY_SUMMARY = (
-    "Manifest Voice can navigate the app (including messages), create and manage ideas, generate pitch decks and "
-    "other core documents, control the workspace layout, search Manifest, run pitch-reel actions, open account "
-    "integrations (including GitHub), bootstrap a private GitHub repository from the current idea when connected, "
-    "and help guest tryouts request an email link to claim a full account."
+    "Manifest Voice is a live conversation (the Voice button in the app, or `manifest voice` in a terminal) "
+    "that can do everything Manifest's agent plugin and CLI can: ideas and qualification interviews, the "
+    "Business Model Canvas, pitch deck, PRD and patent drafts, founder messages and inbox, collaborators, "
+    "investments and cap tables, the vault, account, privacy, API keys and integrations. It shows what it is "
+    "talking about in the app (it can navigate the app for you), connects GitHub, and asks for a spoken yes before anything destructive. It runs on your own "
+    "OpenAI key. The commands below also work without the live conversation."
 )

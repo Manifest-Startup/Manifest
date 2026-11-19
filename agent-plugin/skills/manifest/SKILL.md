@@ -28,6 +28,10 @@ If tools answer that sign-in expired, ask the person to reconnect Manifest in th
 
 Start broad questions with `universal_search` (ideas, documents and people at once) or `ideas`, and `me` when you need to know who the person is.
 
+## Voice
+
+People can also talk to Manifest: the Voice button in the app, or `manifest voice` in a terminal (`--text` to type). It is a live agent with these same tools and the same confirm rule, running on the person's own OpenAI key. Suggest it when someone wants to work hands-free; `voice_capabilities` describes it.
+
 ## Rules that always apply
 
 1. **Confirm before acting.** Tools with `confirm` in their input are destructive or hard to undo (delete, publish, invest, revoke, erase…). The first call without `confirm` returns what would happen; show that to the person, get a clear yes, then call again with `confirm: true`. For other writes, say what you are about to do in one line first.

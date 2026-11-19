@@ -68,15 +68,6 @@ interface PostVoiceAgentJsonOptions {
   signal?: AbortSignal;
 }
 
-export interface RealtimeSessionInfo {
-  enabled: boolean;
-  client_secret?: string | null;
-  expires_at?: number | null;
-  model?: string | null;
-  voice?: string | null;
-  base_url?: string | null;
-}
-
 const TOKEN_KEYS = ['access_token', 'sb-access-token'] as const;
 
 export function getVoiceAgentToken(): string | null {
@@ -216,47 +207,4 @@ export async function postVoiceAgentJson<TResponse>(
   }
 
   return response.json() as Promise<TResponse>;
-}
-
-/** Cheap capability probe — never mints a token. Reports disabled on any failure. */
-export async function fetchRealtimeStatus(options: PostVoiceAgentJsonOptions = {}): Promise<boolean> {
-  if (process.env.NODE_ENV === 'test') {
-    return false;
-  }
-  try {
-    const response = await fetch('/api/voice-agent/realtime/status', {
-      method: 'GET',
-      headers: buildVoiceAgentHeaders(),
-      credentials: 'include',
-      signal: options.signal,
-    });
-    if (!response.ok) {
-      return false;
-    }
-    const body = (await response.json()) as { enabled?: boolean };
-    return Boolean(body?.enabled);
-  } catch {
-    return false;
-  }
-}
-
-/** Mint a short-lived ephemeral Realtime session secret for the WebRTC handshake. */
-export async function fetchRealtimeSession(
-  payload: Record<string, unknown> = {},
-  options: PostVoiceAgentJsonOptions = {},
-): Promise<RealtimeSessionInfo> {
-  if (process.env.NODE_ENV === 'test') {
-    return { enabled: false };
-  }
-  const response = await fetch('/api/voice-agent/realtime/session', {
-    method: 'POST',
-    headers: buildVoiceAgentHeaders(),
-    body: JSON.stringify(payload),
-    credentials: 'include',
-    signal: options.signal,
-  });
-  if (!response.ok) {
-    throw new Error(`Realtime session request failed: ${response.status}`);
-  }
-  return response.json() as Promise<RealtimeSessionInfo>;
 }

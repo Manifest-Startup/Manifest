@@ -26,6 +26,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# `manifest voice`: talk to Manifest from the terminal (--text needs only websockets).
+voice = [
+    "websockets>=13.0",
+    "sounddevice>=0.5.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",

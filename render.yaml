@@ -59,6 +59,12 @@ services:
         generateValue: true
       - key: OPENAI_API_KEY
         sync: false
+      # Live voice (Pipecat, docs/VOICE_AGENT_API.md). Runs in this service by default.
+      # To isolate it, deploy this same image again as `manifest-voice` with
+      # VOICE_API_ORIGIN=<this service's URL> plus the same secrets, and set the
+      # Worker's VOICE_ORIGIN var to that service.
+      - key: VOICE_LLM_MODEL
+        value: gpt-4.1
       - key: GOOGLE_API_KEY
         sync: false
       # OAuth provider credentials are optional until their integrations are
