@@ -1,3 +1,4 @@
+import { onListFocusRequest, requestNoteFocus } from "../utils/noteFocus";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useReactiveVar } from "@apollo/client/react";
@@ -395,6 +396,14 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
     aspectItemRefs.current[key]?.focus();
   };
 
+  /** Open another idea and keep keyboard focus in the list (selection follows focus, as in
+   * Apple Notes), so ↑/↓ walk through notes. */
+  const openFromList = (ideaId: string) => {
+    if (ideaId !== currentIdeaId) handleIdeaSelect(ideaId);
+    // Rows render lazily: wait a frame for the row to exist before focusing it.
+    window.requestAnimationFrame(() => focusIdeaItem(ideaId));
+  };
+
   const moveIdeaFocus = (ideaId: string, direction: -1 | 1) => {
     const currentIndex = sortedIdeaIds.indexOf(ideaId);
     if (currentIndex === -1) {
@@ -403,9 +412,21 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
 
     const nextIdeaId = sortedIdeaIds[currentIndex + direction];
     if (nextIdeaId) {
-      focusIdeaItem(nextIdeaId);
+      if (sortedIdeaIds.indexOf(nextIdeaId) >= visibleCount) loadMoreIdeas();
+      openFromList(nextIdeaId);
     }
   };
+
+  // Esc in the note (or J/K anywhere) comes back to the open idea in the list.
+  useEffect(
+    () =>
+      onListFocusRequest(() => {
+        const target = currentIdeaId ?? sortedIdeaIds[0];
+        if (target) focusIdeaItem(target);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- focusIdeaItem reads refs
+    [currentIdeaId, sortedIdeaIds],
+  );
 
   const handleIdeaKeyDown = (event: React.KeyboardEvent<HTMLElement>, ideaId: string) => {
     if (event.key === "ArrowDown") {
@@ -447,9 +468,21 @@ const IdeasList: React.FC<IdeasListProps> = ({ collapsed = false, onToggleCollap
       return;
     }
 
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const target = event.key === "Home" ? sortedIdeaIds[0] : sortedIdeaIds[sortedIdeaIds.length - 1];
+      if (target) {
+        if (event.key === "End") loadMoreIdeas();
+        openFromList(target);
+      }
+      return;
+    }
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      handleIdeaSelect(ideaId);
+      // Return opens the note and puts the cursor where you left off.
+      if (ideaId !== currentIdeaId) handleIdeaSelect(ideaId);
+      window.setTimeout(requestNoteFocus, ideaId === currentIdeaId ? 0 : 120);
     }
   };
 

@@ -1,3 +1,6 @@
+import { isTypingTarget, requestNoteFocus } from "../utils/noteFocus";
+import { WorkspaceShortcuts } from "./ShortcutsDialog";
+import { useCreateIdea } from "../hooks/useCreateIdea";
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useReactiveVar } from "@apollo/client/react";
@@ -29,15 +32,6 @@ const defaultWorkspaceLayout = (): WorkspaceLayoutState => ({
   focusMode: false,
 });
 
-const isTypingTarget = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return Boolean(
-    target.closest('input, textarea, select, [contenteditable="true"], .ProseMirror')
-  );
-};
 
 const IdeasPage: React.FC = () => {
   logger.log("rendered");
@@ -133,10 +127,27 @@ const IdeasPage: React.FC = () => {
     setLayout((previous) => ({ ...previous, ...updates }));
   };
 
+  const { createAndOpen } = useCreateIdea();
+  const newIdeaFromKeyboard = React.useCallback(async () => {
+    const id = await createAndOpen("keyboard_shortcut");
+    if (id) window.setTimeout(requestNoteFocus, 200);
+  }, [createAndOpen]);
+  const toggleLibrary = React.useCallback(
+    () =>
+      setLayout((previous) => ({
+        ...previous,
+        libraryCollapsed: !previous.libraryCollapsed,
+        focusMode: false,
+      })),
+    [],
+  );
+  const shortcuts = <WorkspaceShortcuts onNewIdea={newIdeaFromKeyboard} onToggleLibrary={toggleLibrary} />;
+
   if (!idea_id) {
     return (
       <div className="manifest-page manifest-page-workspace">
         <h1 className="sr-only">Your ideas</h1>
+        {shortcuts}
         <div className="manifest-workspace-shell">
           <div className="manifest-workspace-grid manifest-ideas-index" data-library-open="true" data-context-open="false">
             <div className="manifest-workspace-library">
@@ -151,6 +162,7 @@ const IdeasPage: React.FC = () => {
 
   return (
     <div className="manifest-page manifest-page-workspace">
+      {shortcuts}
       <div className="manifest-workspace-shell">
         <div className="manifest-workspace-grid" data-focus-mode={layout.focusMode}
           data-library-open={!layout.focusMode && !layout.libraryCollapsed}

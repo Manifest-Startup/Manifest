@@ -369,7 +369,13 @@ describe('IdeasList Component - Delete Functionality', () => {
     firstIdea.focus();
     fireEvent.keyDown(firstIdea, { key: 'ArrowDown' });
 
-    expect(secondIdea).toHaveFocus();
+    // Selection follows focus (Apple Notes): the next idea opens and the list keeps focus.
+    expect(mockNavigate).toHaveBeenCalledWith('/ideas/idea-2/description');
+    await waitFor(() => expect(screen.getByLabelText('Open idea Test Idea 2')).toHaveFocus());
+
+    fireEvent.keyDown(screen.getByLabelText('Open idea Test Idea 2'), { key: 'Home' });
+    expect(mockNavigate).toHaveBeenCalledWith('/ideas/idea-1/description');
+    void secondIdea;
   });
 
   it('renders collapsed library rail when requested', async () => {

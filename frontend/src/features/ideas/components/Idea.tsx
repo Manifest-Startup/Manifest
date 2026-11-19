@@ -66,6 +66,7 @@ import { syncIdeaTitleInCache } from '../utils/syncIdeaTitleCache';
 import { WikiLinksProvider } from '../knowledge/WikiLinkContext';
 import { makeResolver } from '../knowledge/wikiLinks';
 import { InterviewQuote, sourceTargets } from '../knowledge/sources';
+import { hasMod } from '../utils/noteFocus';
 
 const logger = createLogger('IdeaComponent');
 const IDEA_TITLE_FALLBACK = 'Brand New Idea';
@@ -743,6 +744,19 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
     }, 2000)
   ).current;
 
+  // ⌘S / Ctrl+S: save now instead of waiting for the autosave pause (and never open the
+  // browser's "Save page" dialog).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!hasMod(event) || event.shiftKey || event.altKey || event.key.toLowerCase() !== 's') return;
+      event.preventDefault();
+      debouncedSave.flush();
+      throttledTitleSave.flush();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [debouncedSave, throttledTitleSave]);
+
   // -------------------- Effect: Cleanup debounced saveIdeas on unmount --------------------
   useEffect(() => {
     logIdea('useEffect: cleanup debounced saveIdeas on unmount');
@@ -978,7 +992,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
             <input
               aria-describedby="idea-title-helper"
               aria-label="Idea title"
-              className="manifest-note-title"
+              className={`manifest-note-title${ideaAspect === 'description' ? ' manifest-note-title--column' : ''}`}
               id="idea-title-input"
               onBlur={handleTitleBlur}
               onChange={handleTitleInputChange}
@@ -1060,6 +1074,13 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
                 editable={!isFetching}
                 autoFocus={ideaAspect === 'description'}
                 focusKey={`${currentIdeaId || 'no-idea'}-${ideaAspect}`}
+                // Only once this idea's own text is in the editor, so a position is never
+                // restored into (or saved from) the previous note while switching.
+                noteKey={
+                  currentIdeaId && lastSavedRef.current.ideaId === currentIdeaId
+                    ? `note:${currentIdeaId}`
+                    : undefined
+                }
                 className="min-h-[16rem]"
                 placeholder="Write your idea…"
                 highlights={sourceTargets(knowledgeGraph, searchParams)}
