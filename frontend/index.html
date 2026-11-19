@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
+    <!-- First paint matches the system theme; ThemeContext then follows the in-app theme. -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161617" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Manifest helps founders turn startup ideas into structured business plans, pitch decks, product requirements and patent drafts." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Manifest — AI startup workspace" />
