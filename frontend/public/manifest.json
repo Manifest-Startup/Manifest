@@ -1,6 +1,8 @@
 {
+  "id": "/",
   "short_name": "Manifest",
-  "name": "Manifest \u2014 turn your idea into a plan",
+  "name": "Manifest",
+  "description": "Turn your idea into a plan.",
   "icons": [
     {
       "src": "favicon.svg",
