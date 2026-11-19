@@ -75,9 +75,10 @@ def _idea_detail_columns(info: strawberry.Info) -> str:
     Strawberry expands named and inline fragments in selected_fields. SQL
     identifiers come exclusively from this allowlist, never from query text.
     """
-    columns = ["idea_id", "user_id", "title", "created_at", "is_published"]
+    columns = ["idea_id", "user_id", "title", "created_at", "updated_at", "is_published"]
     optional = {
         "description": "description",
+        "requiredSkills": "required_skills",
         "pitchDeck": "pitch_deck",
         "productRequirementsDocument": "product_requirements_document",
         "provisionalPatent": "provisional_patent",
@@ -165,6 +166,11 @@ class IdeasQuery:
                         created_at=created_at,
                         is_published=bool(idea_data.get("is_published", False)),
                         generated_asset_count=gac,
+                        updated_at=(
+                            _coerce_datetime(idea_data["updated_at"])
+                            if idea_data.get("updated_at")
+                            else None
+                        ),
                     )
                 )
             return mapped_ideas
@@ -205,13 +211,17 @@ class IdeasQuery:
             "user_id": idea_data.get("user_id"),
             "title": idea_data.get("title", ""),
             "description": idea_data.get("description"),
-            "created_at": idea_data.get("created_at"),
+            "created_at": _coerce_datetime(idea_data.get("created_at")),
             "pitch_deck": idea_data.get("pitch_deck"),
             "product_requirements_document": idea_data.get("product_requirements_document"),
             "provisional_patent": idea_data.get("provisional_patent"),
             "business_model_canvas": idea_data.get("business_model_canvas"),
             "is_published": idea_data.get("is_published", False),
             "similar_ideas": idea_data.get("similar_ideas"),
+            "required_skills": idea_data.get("required_skills") or [],
+            "updated_at": (
+                _coerce_datetime(idea_data["updated_at"]) if idea_data.get("updated_at") else None
+            ),
         }
         return Idea(**mapped_data)
 

@@ -6,6 +6,7 @@
  * up in Manifest. Deleting an idea moves its files to `Manifest/.trash`, never erases them.
  */
 import type { VaultFs } from "./fs";
+import { AUTO_SNAPSHOT_MS, VaultHistory, type Snapshot } from "./history";
 import { htmlToMarkdown, markdownToHtml } from "./convert";
 import {
   DOCUMENTS_DIR,
@@ -47,11 +48,27 @@ const now = () => new Date().toISOString();
 
 export class VaultStore {
   private entries = new Map<string, Entry>();
-  private signature = "";
+  /** The folder as last read; null forces a re-read (an empty folder reads as ""). */
+  private signature: string | null = null;
   /** The editor's own HTML for the Markdown it last saved, so a save never reflows the note. */
   private htmlFor = new Map<string, { markdown: string; html: string }>();
 
-  constructor(readonly fs: VaultFs) {}
+  readonly history: VaultHistory;
+  private listeners = new Set<() => void>();
+
+  constructor(readonly fs: VaultFs) {
+    this.history = new VaultHistory(fs);
+  }
+
+  /** Called after Manifest itself changes the folder (the sync engine listens). */
+  onLocalChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private changed() {
+    this.listeners.forEach((listener) => listener());
+  }
 
   get name() {
     return this.fs.name;
@@ -168,8 +185,9 @@ export class VaultStore {
     const path = `${IDEAS_DIR}/${name}.md`;
     await this.fs.write(path, serializeIdeaFile(file));
     if (descriptionHtml) this.htmlFor.set(id, { markdown, html: descriptionHtml });
-    this.signature = ""; // re-read on next look
+    this.signature = null; // re-read on next look
     await this.refresh();
+    this.changed();
     return (await this.get(id))!;
   }
 
@@ -179,6 +197,11 @@ export class VaultStore {
   ): Promise<IdeaRecord> {
     await this.refresh();
     const entry = this.entry(id);
+    // History while writing: keep how the note looked, at most every few minutes.
+    if (Date.now() - (await this.history.latestAt(id)) > AUTO_SNAPSHOT_MS) {
+      const before = await this.fs.read(entry.path);
+      if (before !== null) await this.history.save(id, before, "auto");
+    }
     const file = { ...entry.file };
     if (changes.description != null) {
       file.body = htmlToMarkdown(changes.description);
@@ -197,9 +220,102 @@ export class VaultStore {
       await this.moveDocuments(entry.name, `${DOCUMENTS_DIR}/${name}`);
       await this.fs.remove(entry.path);
     }
-    this.signature = "";
+    this.signature = null;
     await this.refresh();
+    this.changed();
     return (await this.get(id, true))!;
+  }
+
+  // -- version history (ADR 0012) -----------------------------------------------------
+
+  async versions(id: string): Promise<Snapshot[]> {
+    return this.history.list(id);
+  }
+
+  async saveVersion(id: string, note?: string | null): Promise<Snapshot> {
+    await this.refresh();
+    const text = await this.fs.read(this.entry(id).path);
+    const path = await this.history.save(id, text ?? "", "manual", note?.trim() || undefined);
+    return (await this.history.list(id)).find((v) => v.versionId === path)!;
+  }
+
+  /** Bring an older version back (the current one is kept in history first). */
+  async restoreVersion(id: string, versionId: string): Promise<void> {
+    await this.refresh();
+    const entry = this.entry(id);
+    const old = await this.history.read(versionId);
+    if (old === null) throw new Error("That version isn't in the vault's history anymore.");
+    const current = await this.fs.read(entry.path);
+    if (current !== null) await this.history.save(id, current, "restore");
+    const file = parseIdeaFile(old, entry.file.title);
+    await this.writeIdea(id, { title: file.title, body: file.body, skills: file.skills });
+  }
+
+  // -- for the sync engine (ADR 0012) -------------------------------------------------
+
+  /** Every idea with the time it last changed (Manifest's own stamp or the file's). */
+  async snapshot(): Promise<
+    {
+      id: string;
+      title: string;
+      body: string;
+      html: string;
+      skills: string[];
+      created: string | null;
+      changedAt: number;
+      documents: Record<string, string | null>;
+    }[]
+  > {
+    await this.refresh();
+    const out = [];
+    for (const entry of this.entries.values()) {
+      const id = entry.file.id!;
+      out.push({
+        id,
+        title: entry.file.title,
+        body: entry.file.body,
+        html: this.descriptionHtml(id, entry.file.body),
+        skills: entry.file.skills,
+        created: entry.file.created,
+        changedAt: Math.max(Date.parse(entry.file.updated ?? "") || 0, entry.modified || 0),
+        documents: await this.documents(id),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Write an idea's content as given (from the account during sync), keeping its id and
+   * file. The version it replaces goes to history first when `keep` is set.
+   */
+  async writeIdea(
+    id: string,
+    content: { title: string; body?: string; html?: string; skills: string[]; documents?: Record<string, string | null | undefined> },
+    keep?: "sync" | "conflict",
+  ): Promise<void> {
+    await this.refresh();
+    const entry = this.entry(id);
+    if (keep) {
+      const before = await this.fs.read(entry.path);
+      if (before !== null) await this.history.save(id, before, keep);
+    }
+    const body = content.body ?? htmlToMarkdown(content.html ?? "");
+    if (content.html) this.htmlFor.set(id, { markdown: body, html: content.html });
+    const file: IdeaFile = { ...entry.file, title: content.title.trim() || entry.file.title, body, skills: content.skills, updated: now() };
+    const name = file.title === entry.file.title ? entry.name : this.uniqueName(file.title, id);
+    const path = `${IDEAS_DIR}/${name}.md`;
+    await this.fs.write(path, serializeIdeaFile(file));
+    if (path !== entry.path) {
+      await this.moveDocuments(entry.name, `${DOCUMENTS_DIR}/${name}`);
+      await this.fs.remove(entry.path);
+    }
+    for (const [field, markdown] of Object.entries(content.documents ?? {})) {
+      if (markdown && DOCUMENT_FILES[field]) {
+        await this.fs.write(`${DOCUMENTS_DIR}/${name}/${DOCUMENT_FILES[field]}.md`, markdown);
+      }
+    }
+    this.signature = null;
+    await this.refresh();
   }
 
   async writeDocument(id: string, field: string, markdown: string): Promise<void> {
@@ -252,7 +368,7 @@ export class VaultStore {
         await this.fs.write(`${DOCUMENTS_DIR}/${name}/${DOCUMENT_FILES[field]}.md`, markdown);
       }
     }
-    this.signature = "";
+    this.signature = null;
     return true;
   }
 
@@ -265,7 +381,8 @@ export class VaultStore {
     if (text !== null) await this.fs.write(`${TRASH_DIR}/${entry.name} ${stamp}.md`, text);
     await this.moveDocuments(entry.name, `${TRASH_DIR}/${entry.name} ${stamp}`);
     await this.fs.remove(entry.path);
-    this.signature = "";
+    this.signature = null;
     await this.refresh();
+    this.changed();
   }
 }

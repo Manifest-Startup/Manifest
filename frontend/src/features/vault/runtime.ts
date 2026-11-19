@@ -59,10 +59,19 @@ export function watchVault(client: ApolloClient): () => void {
     }
   };
   const timer = window.setInterval(tick, WATCH_MS);
+  // Cloud sync with the Manifest account, when the person turned it on (ADR 0012).
+  let stopSync: () => void = () => undefined;
+  void vaultStore()
+    .then(async (vault) => {
+      const { startCloudSync } = await import("./cloudSync");
+      stopSync = startCloudSync(vault, client);
+    })
+    .catch(() => undefined);
   document.addEventListener("visibilitychange", tick);
   return () => {
     watching = false;
     window.clearInterval(timer);
+    stopSync();
     document.removeEventListener("visibilitychange", tick);
   };
 }

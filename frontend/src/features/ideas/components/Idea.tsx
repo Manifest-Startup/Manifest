@@ -980,13 +980,9 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
           {currentIdeaId && (
             <div className="flex flex-wrap items-center gap-1">
               {liveSession ? <LivePresence snapshot={liveSnapshot} /> : null}
-              {/* Versions and sharing live in the account; a local vault has neither (ADR 0011). */}
-              {isVaultMode() ? null : (
-                <>
-                  <VersionButton ideaId={currentIdeaId} onVersionRestored={() => refetch()} />
-                  <ShareButton ideaId={currentIdeaId} />
-                </>
-              )}
+              {/* A vault keeps its own history (ADR 0012); sharing lives in the account. */}
+              <VersionButton ideaId={currentIdeaId} onVersionRestored={() => refetch()} />
+              {isVaultMode() ? null : <ShareButton ideaId={currentIdeaId} />}
             </div>
           )}
           </div>

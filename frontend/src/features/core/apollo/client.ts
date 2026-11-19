@@ -127,6 +127,18 @@ const vaultLink = new ApolloLink(
     }),
 );
 
+/**
+ * A client that always talks to the Manifest account, even while this browser keeps its
+ * ideas in a vault: the vault's Cloud sync uses it (ADR 0012). No cache: sync reads fresh.
+ */
+export function createCloudClient(): ApolloClient {
+  return new ApolloClient({
+    link: from([authLink, httpLink]),
+    cache: new InMemoryCache(),
+    defaultOptions: { query: { fetchPolicy: 'network-only' }, watchQuery: { fetchPolicy: 'network-only' } },
+  });
+}
+
 export const client = new ApolloClient({
   link: ApolloLink.split(() => isVaultMode(), from([errorLink, vaultLink]), from([errorLink, authLink, httpLink])),
   cache: new InMemoryCache({

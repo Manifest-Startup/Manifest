@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 IDEA_SUMMARY_DB_COLUMNS = (
-    "idea_id, user_id, title, created_at, is_published, " "generated_asset_count, has_description"
+    "idea_id, user_id, title, created_at, updated_at, is_published, "
+    "generated_asset_count, has_description"
 )
 
 IDEA_LIST_METADATA_SOURCE_COLUMNS = (
