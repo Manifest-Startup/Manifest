@@ -306,18 +306,8 @@ export function classifyConnectionError(message: string | undefined | null): Liv
 
 /** Suggestions for the current page (short, spoken-style prompts). */
 export function suggestionsFor(context: LiveVoiceContext): string[] {
-  if (context.ideaId) {
-    return [
-      'What should I work on next for this idea?',
-      'Generate the pitch deck for this idea',
-      'Who could I partner with?',
-    ];
-  }
-  if (context.path.startsWith('/messages')) {
-    return ["What's new in my inbox?", 'Reply to the latest message', 'Start a new idea'];
-  }
-  if (context.path.startsWith('/account')) {
-    return ['Which apps are signed in?', 'How much AI have I used this month?', 'Show my privacy choices'];
-  }
-  return ['Start a new idea', 'What are my ideas?', "What's in my inbox?"];
+  if (context.ideaId) return ["What's next?", 'Pitch deck', 'Partners'];
+  if (context.path.startsWith('/messages')) return ["What's new?", 'Reply to the latest', 'New idea'];
+  if (context.path.startsWith('/account')) return ['Signed-in apps', 'My AI spend', 'Privacy'];
+  return ['New idea', 'My ideas', 'Inbox'];
 }

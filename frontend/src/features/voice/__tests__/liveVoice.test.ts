@@ -126,8 +126,8 @@ describe('paths and urls', () => {
   });
 
   test('suggests things for the current page', () => {
-    expect(suggestionsFor({ path: '/ideas/a/description', ideaId: 'a' })[1]).toMatch(/pitch deck/);
-    expect(suggestionsFor({ path: '/ideas' })).toContain('Start a new idea');
+    expect(suggestionsFor({ path: '/ideas/a/description', ideaId: 'a' })[1]).toMatch(/pitch deck/i);
+    expect(suggestionsFor({ path: '/ideas' })).toContain('New idea');
   });
 });
 
