@@ -174,7 +174,8 @@ def _ws_app() -> TestClient:
 def _close_code(client: TestClient, **kwargs) -> int:
     with pytest.raises(WebSocketDisconnect) as closed:
         with client.websocket_connect("/api/voice-agent/live", **kwargs) as ws:
-            ws.receive_bytes()
+            while True:
+                ws.receive_bytes()
     return closed.value.code
 
 
@@ -202,3 +203,18 @@ def test_status_reports_missing_key(monkeypatch):
     monkeypatch.setattr(voice_live_routes, "_key_for", lambda user_id: None)
     status = voice_live_routes.live_status("u1")
     assert status.available is False and status.reason == "no_api_key"
+
+
+def test_rejections_also_explain_themselves_in_an_rtvi_error(monkeypatch):
+    pytest.importorskip("pipecat")
+    import pipecat.frames.protobufs.frames_pb2 as frames
+
+    monkeypatch.setattr(voice_live_routes, "get_current_user_id_optional", lambda ws: "u1")
+    monkeypatch.setattr(voice_live_routes, "_key_for", lambda user_id: None)
+    with _ws_app().websocket_connect(
+        "/api/voice-agent/live", headers={"authorization": "Bearer t"}
+    ) as ws:
+        first = frames.Frame.FromString(ws.receive_bytes())
+    message = json.loads(first.message.data)
+    assert message["type"] == "error" and message["data"]["fatal"] is True
+    assert "(Code: 4402)" in message["data"]["message"]
