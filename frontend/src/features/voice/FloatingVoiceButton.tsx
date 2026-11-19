@@ -179,21 +179,7 @@ const FloatingVoiceButton: React.FC = () => {
           }}
           type="button"
         >
-          <svg
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <rect x="9" y="3" width="6" height="12" rx="3" strokeWidth="1.6" />
-            <path
-              d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-3 0h6"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
+          <span aria-hidden="true" className="manifest-voice-launcher__orb" />
           <span>Voice</span>
         </button>
       ) : null}
