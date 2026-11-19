@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "a74698ad1bdba68aef5bd7a8ad5e12fb4c06e704c79aae80f83b1d6fa23cb1c0",
+ "schema_sha256": "c7d7ca63ad853cbf852ccd18eb907dc6d4d28afe7d1810480fb95e0923a0fad1",
  "operations": [
   {
    "name": "me",
@@ -1101,10 +1101,10 @@
    "name": "ideaKnowledgeGraph",
    "command": "idea-knowledge-graph",
    "kind": "query",
-   "description": "One of your ideas as a knowledge graph: the note's sentences and your interview answers as citable passages, the concepts they share with your other ideas, and every document with [[wiki-link]] citations back to the original idea note. Built live, so it grows as you answer interview questions and documents are generated. Owner only.",
+   "description": "One of your ideas as a knowledge graph: the note's sentences and your interview answers as citable passages; concepts taken only from your own words, each with its role in the idea (who it's for, problem, solution, how it works, business) and a plain explanation of how it was derived; relations between concepts with the sentences that support them; related ideas with the reason; and every document with [[wiki-link]] citations back to the original idea note. Built live, so it grows as you answer interview questions and documents are generated. Owner only.",
    "destructive": false,
    "returns": "IdeaKnowledgeGraph",
-   "selection": "{ ideaId ideaPath passages { id kind text } concepts { label path passageIds documentTypes } related { ideaId title path concepts } documents { documentType markdown } }",
+   "selection": "{ ideaId ideaPath passages { id kind text } concepts { label path passageIds documentTypes role roleLabel aliases parent weight why } related { ideaId title path concepts reason } relations { source target label passageIds weight } documents { documentType markdown } }",
    "args": [
     {
      "name": "ideaId",

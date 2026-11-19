@@ -11,5 +11,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0006 — Every idea grows a cited knowledge graph](0006-every-idea-grows-a-cited-knowledge-graph.md)
 - [0007 — The vault syncs with your account, like iCloud Drive or OneDrive](0007-the-vault-syncs-with-your-account.md)
 - [0008 — Shared notes are edited live together, like Google Docs](0008-shared-notes-are-edited-live-together.md)
+- [0009 — The knowledge graph is a model of the idea, not a word cloud](0009-the-knowledge-graph-is-a-model-of-the-idea.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

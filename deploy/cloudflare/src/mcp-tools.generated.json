@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "974956466a0a00f889550a264eafdb4826b0a2e4bdf9330e8ee568c2618281ec",
+ "catalog_sha256": "fe5fc7b121d232b59169d6a5f53060b66b53a97e2fde4ce8398e1fdc7eeafb76",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -1562,7 +1562,7 @@
   {
    "name": "idea_knowledge_graph",
    "title": "Idea knowledge graph",
-   "description": "One of your ideas as a knowledge graph: the note's sentences and your interview answers as citable passages, the concepts they share with your other ideas, and every document with [[wiki-link]] citations back to the original idea note. Built live, so it grows as you answer interview questions and documents are generated. Owner only.",
+   "description": "One of your ideas as a knowledge graph: the note's sentences and your interview answers as citable passages; concepts taken only from your own words, each with its role in the idea (who it's for, problem, solution, how it works, business) and a plain explanation of how it was derived; relations between concepts with the sentences that support them; related ideas with the reason; and every document with [[wiki-link]] citations back to the original idea note. Built live, so it grows as you answer interview questions and documents are generated. Owner only.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -1585,7 +1585,7 @@
    "_call": {
     "via": "graphql",
     "field": "ideaKnowledgeGraph",
-    "document": "query IdeaKnowledgeGraph($ideaId: String!) { ideaKnowledgeGraph(ideaId: $ideaId) { ideaId ideaPath passages { id kind text } concepts { label path passageIds documentTypes } related { ideaId title path concepts } documents { documentType markdown } } }",
+    "document": "query IdeaKnowledgeGraph($ideaId: String!) { ideaKnowledgeGraph(ideaId: $ideaId) { ideaId ideaPath passages { id kind text } concepts { label path passageIds documentTypes role roleLabel aliases parent weight why } related { ideaId title path concepts reason } relations { source target label passageIds weight } documents { documentType markdown } } }",
     "variables": [
      "ideaId"
     ]

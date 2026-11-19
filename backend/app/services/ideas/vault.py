@@ -269,6 +269,9 @@ def _concept_file(
     label = hub["label"]
     ideas_here = {iid for iid, _ in hub["ideas"]}
     body = [f"# {label.title() if label.islower() else label}", ""]
+    first = hub["ideas"][0][1] if hub["ideas"] else {}
+    if first.get("role_label"):
+        body += [f"**{first['role_label']}** · {first.get('why', '')}".rstrip(" ·"), ""]
     body += ["Concept in your ideas. Every link below mentions it.", "", "## Ideas"]
     for iid, concept in hub["ideas"]:
         target = idea_path[iid].removesuffix(".md")
@@ -310,11 +313,26 @@ def _idea_body(
         body += [f"- {p['text']} ^{p['id']}" for p in answers]
     body += ["", "## Documents", *(doc_links or ["_None yet. Ask your agent to write them._"])]
     if graph["concepts"]:
+        # The idea model (ADR 0009): concepts grouped by the role they play.
         body += ["", "## Concepts"]
+        for role in knowledge_graph.ROLES:
+            group = [c for c in graph["concepts"] if c.get("role", "context") == role]
+            if not group:
+                continue
+            body += ["", f"**{knowledge_graph.ROLE_LABELS[role]}**"]
+            body += [
+                f"- {_link(c['path'] + '.md', c['label'])}"
+                + (f" (in {c['parent']})" if c.get("parent") else "")
+                + (f" · {len(c['ideas'])} other ideas" if c["ideas"] else "")
+                for c in group
+            ]
+    if graph.get("relations"):
+        body += ["", "## How it connects"]
+        target = idea_path[idea["idea_id"]].removesuffix(".md")
         body += [
-            f"- {_link(c['path'] + '.md', c['label'])}"
-            + (f" ({len(c['ideas'])} other ideas)" if c["ideas"] else "")
-            for c in graph["concepts"]
+            f"- {r['source']} → {r['label']} → {r['target']} "
+            + " ".join(f"[[{target}#^{pid}|^{pid}]]" for pid in r["passages"][:3])
+            for r in graph["relations"]
         ]
     if skills:
         body += [

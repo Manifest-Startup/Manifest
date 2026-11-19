@@ -10,6 +10,7 @@ from app.graphql.types.vault import (
     KnowledgeConcept,
     KnowledgeIdeaRef,
     KnowledgePassage,
+    KnowledgeRelation,
     VaultExport,
     VaultFile,
 )
@@ -44,9 +45,12 @@ class VaultQuery:
         self, info: strawberry.Info, idea_id: str
     ) -> IdeaKnowledgeGraph | None:
         """One of your ideas as a knowledge graph: the note's sentences and your interview
-        answers as citable passages, the concepts they share with your other ideas, and every
-        document with [[wiki-link]] citations back to the original idea note. Built live, so it
-        grows as you answer interview questions and documents are generated. Owner only."""
+        answers as citable passages; concepts taken only from your own words, each with its
+        role in the idea (who it's for, problem, solution, how it works, business) and a
+        plain explanation of how it was derived; relations between concepts with the
+        sentences that support them; related ideas with the reason; and every document with
+        [[wiki-link]] citations back to the original idea note. Built live, so it grows as
+        you answer interview questions and documents are generated. Owner only."""
         user_id = get_current_user_id(info.context["request"])
         graph = await asyncio.to_thread(
             vault_service.idea_knowledge_graph, info.context["db"], str(user_id), idea_id
@@ -55,9 +59,15 @@ class VaultQuery:
             return None
         titles, targets = graph["titles"], graph["targets"]
 
-        def ref(iid: str, concepts: list[str] | None = None) -> KnowledgeIdeaRef:
+        def ref(
+            iid: str, concepts: list[str] | None = None, reason: str | None = None
+        ) -> KnowledgeIdeaRef:
             return KnowledgeIdeaRef(
-                idea_id=iid, title=titles[iid], path=targets[iid], concepts=concepts or []
+                idea_id=iid,
+                title=titles[iid],
+                path=targets[iid],
+                concepts=concepts or [],
+                reason=reason,
             )
 
         return IdeaKnowledgeGraph(
@@ -71,10 +81,26 @@ class VaultQuery:
                     passage_ids=c["passages"],
                     document_types=c["documents"],
                     ideas=[ref(i) for i in c["ideas"]],
+                    role=c["role"],
+                    role_label=c["role_label"],
+                    aliases=c["aliases"],
+                    parent=c["parent"],
+                    weight=c["weight"],
+                    why=c["why"],
                 )
                 for c in graph["concepts"]
             ],
-            related=[ref(r["idea_id"], r["concepts"]) for r in graph["related"]],
+            related=[ref(r["idea_id"], r["concepts"], r["reason"]) for r in graph["related"]],
+            relations=[
+                KnowledgeRelation(
+                    source=r["source"],
+                    target=r["target"],
+                    label=r["label"],
+                    passage_ids=r["passages"],
+                    weight=r["weight"],
+                )
+                for r in graph["relations"]
+            ],
             documents=[
                 CitedDocument(document_type=k, markdown=v) for k, v in graph["documents"].items()
             ],

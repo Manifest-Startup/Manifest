@@ -1503,6 +1503,8 @@ export interface KnowledgeIdeaRef {
   title: string;
   path: string;
   concepts: string[];
+  /** Why the ideas are related (related ideas only). */
+  reason?: string | null;
 }
 
 export interface IdeaKnowledgeGraphData {
@@ -1516,8 +1518,23 @@ export interface IdeaKnowledgeGraphData {
       passageIds: string[];
       documentTypes: string[];
       ideas: KnowledgeIdeaRef[];
+      /** who, problem, solution, technology, business, context or skill (ADR 0009). */
+      role: string;
+      roleLabel: string;
+      aliases: string[];
+      parent: string | null;
+      weight: number;
+      /** How the concept was derived, in plain words. */
+      why: string;
     }[];
     related: KnowledgeIdeaRef[];
+    relations: {
+      source: string;
+      target: string;
+      label: string;
+      passageIds: string[];
+      weight: number;
+    }[];
     documents: { documentType: string; markdown: string }[];
   } | null;
 }
@@ -1538,8 +1555,15 @@ export const GET_IDEA_KNOWLEDGE_GRAPH: TypedDocumentNode<
         passageIds
         documentTypes
         ideas { ideaId title path concepts }
+        role
+        roleLabel
+        aliases
+        parent
+        weight
+        why
       }
-      related { ideaId title path concepts }
+      related { ideaId title path concepts reason }
+      relations { source target label passageIds weight }
       documents { documentType markdown }
     }
   }
