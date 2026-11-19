@@ -230,7 +230,8 @@ describe("FloatingVoiceButton Component", () => {
 
     await screen.findByRole("button", { name: /close voice mode/i });
 
-    fireEvent.click(screen.getByRole("button", { name: /session details/i }));
+    // The engine probe and session start are async; wait for the live session controls.
+    fireEvent.click(await screen.findByRole("button", { name: /session details/i }));
     const workspaceButton = screen.getByRole("button", {
       name: /continue in workspace without voice next time/i,
     });

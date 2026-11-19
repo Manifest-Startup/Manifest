@@ -11,10 +11,6 @@ from app.services.voice.command_catalog import (
     VOICE_COMMAND_CAPABILITIES,
     VOICE_COMMAND_CAPABILITY_SUMMARY,
 )
-from app.services.voice.realtime import (
-    RealtimeVoiceError,
-    realtime_voice_service,
-)
 from app.services.voice.speech_to_text import stt_service
 from app.services.voice.text_to_speech import tts_service
 from app.utils.logger import logger
@@ -371,84 +367,6 @@ def text_to_speech(body: TTSRequest, user_id: str = Depends(require_user_id)):
     except Exception as e:
         logger.error(f"[VoiceAgentRoutes] TTS error: {e}")
         return TTSResponse(audio_base64=None, success=False, fallback_to_browser=True)
-
-
-class RealtimeStatusResponse(BaseModel):
-    enabled: bool
-
-
-class RealtimeSessionRequest(BaseModel):
-    idea_id: str | None = None
-    onboarding_mode: bool = False
-    landing_onboarding: bool = False
-
-
-class RealtimeSessionResponse(BaseModel):
-    enabled: bool
-    client_secret: str | None = None
-    expires_at: int | None = None
-    model: str | None = None
-    voice: str | None = None
-    base_url: str | None = None
-
-
-def _principal_is_guest(user_id: str) -> bool:
-    """Best-effort guest check; treat resolution failure as non-guest (authed user)."""
-    try:
-        from app.security.permissions import resolve_principal
-
-        return bool(resolve_principal(user_id).is_guest)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning("[VoiceAgentRoutes] principal resolution failed: %s", exc)
-        return False
-
-
-@router.get("/realtime/status", response_model=RealtimeStatusResponse)
-def realtime_status(user_id: str = Depends(require_user_id)):
-    """Cheap capability probe (no token mint) so the client can pick a mode."""
-    enabled = realtime_voice_service.is_available()
-    if enabled and _principal_is_guest(user_id) and not realtime_voice_service.allow_guests():
-        enabled = False
-    return RealtimeStatusResponse(enabled=enabled)
-
-
-@router.post("/realtime/session", response_model=RealtimeSessionResponse)
-def realtime_session(
-    body: RealtimeSessionRequest | None = None,
-    user_id: str = Depends(require_user_id),
-):
-    """Mint a short-lived ephemeral Realtime (speech-to-speech) session secret."""
-    body = body or RealtimeSessionRequest()
-    logger.info("[VoiceAgentRoutes] Realtime session request for user: %s", user_id)
-
-    if not realtime_voice_service.is_available():
-        return RealtimeSessionResponse(enabled=False)
-
-    context: dict[str, Any] = {}
-    try:
-        context = voice_agent_service._load_context(
-            user_id=user_id, db=create_database_client(), idea_id=body.idea_id
-        )
-        context["onboarding_mode"] = bool(body.onboarding_mode)
-        context["landing_onboarding"] = bool(body.landing_onboarding) and bool(body.onboarding_mode)
-    except Exception as exc:  # grounding is best-effort; never block the session on it
-        logger.warning("[VoiceAgentRoutes] Realtime context load failed: %s", exc)
-
-    try:
-        result = realtime_voice_service.create_session(
-            context=context, is_guest=_principal_is_guest(user_id)
-        )
-    except RealtimeVoiceError as exc:
-        logger.error("[VoiceAgentRoutes] Realtime session mint failed: %s", exc)
-        raise HTTPException(
-            status_code=502, detail="Could not start realtime voice session"
-        ) from exc
-
-    return (
-        RealtimeSessionResponse(**result)
-        if result.get("enabled")
-        else RealtimeSessionResponse(enabled=False)
-    )
 
 
 @router.post("/transcribe", response_model=TranscribeResponse)

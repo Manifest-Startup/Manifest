@@ -1,49 +1,38 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 
 import VoiceAgentView from "./VoiceAgentView";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
-import { useRealtimeVoiceSession } from "./useRealtimeVoiceSession";
-import { fetchRealtimeStatus } from "./voiceAgentApi";
+import { fetchLiveVoiceStatus } from "./liveVoice";
+
+const LiveVoiceDock = lazy(() => import("./LiveVoiceDock"));
 
 const StandardVoiceAgent: React.FC = () => {
   const session = useVoiceIdeaSession();
   return <VoiceAgentView session={session} />;
 };
 
-const RealtimeVoiceAgent: React.FC = () => {
-  const session = useRealtimeVoiceSession();
-  return <VoiceAgentView session={session} />;
-};
-
 /**
- * Chooses the speech-to-speech Realtime pipeline when the backend reports it is
- * enabled (VOICE_REALTIME_ENABLED), and otherwise falls back to the proven
- * streaming TTS pipeline. The probe never mints a token, so it is cheap and
- * safe; until it resolves we render the standard path to avoid any flash.
+ * Full-page voice. Uses Manifest's live (Pipecat) agent when the server offers it for
+ * this person, and otherwise the browser STT/TTS idea interview. Until the cheap status
+ * probe answers, the standard view renders so there is no flash.
  */
 const VoiceAgent: React.FC = () => {
-  const [realtimeEnabled, setRealtimeEnabled] = useState<boolean | null>(null);
+  const [liveAvailable, setLiveAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    let active = true;
-    fetchRealtimeStatus()
-      .then(enabled => {
-        if (active) {
-          setRealtimeEnabled(enabled);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setRealtimeEnabled(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
+    const controller = new AbortController();
+    fetchLiveVoiceStatus(controller.signal).then(status => {
+      if (!controller.signal.aborted) setLiveAvailable(status.available);
+    });
+    return () => controller.abort();
   }, []);
 
-  if (realtimeEnabled === true) {
-    return <RealtimeVoiceAgent />;
+  if (liveAvailable === true) {
+    return (
+      <Suspense fallback={null}>
+        <LiveVoiceDock autoStart={false} layout="page" />
+      </Suspense>
+    );
   }
   return <StandardVoiceAgent />;
 };

@@ -36,6 +36,8 @@ jiter==0.15.0
 multidict>=6.7.1
 nodeenv==1.9.1
 openai==2.44.0
+# Live voice agent (app/services/voice/live): Pipecat pipeline over WebSocket.
+pipecat-ai[openai,websocket]==1.16.0
 google-genai>=2.9.0
 packaging==26.3
 platformdirs==4.9.6

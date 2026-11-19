@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  originFor,
   buildOriginRequest,
   isBackendPath,
   legacyFileUrl,
@@ -80,4 +81,13 @@ test("rewrites origin redirects to the public host only", () => {
   assert.equal(r1.headers.get("location"), "https://manifeststartup.com/app?a=1");
   const r2 = rewriteLocation(new Response(null, { status: 302, headers: { location: "https://accounts.google.com/o" } }), origin, pub);
   assert.equal(r2.headers.get("location"), "https://accounts.google.com/o");
+});
+
+test("live voice can be routed to its own origin; everything else stays on the backend", () => {
+  const env = { BACKEND_ORIGIN: "https://api.example.com", VOICE_ORIGIN: "https://voice.example.com" };
+  assert.equal(isBackendPath("/api/voice-agent/live"), true);
+  assert.equal(originFor("/api/voice-agent/live", env), "https://voice.example.com");
+  assert.equal(originFor("/api/voice-agent/live/status", env), "https://voice.example.com");
+  assert.equal(originFor("/api/voice-agent/tts", env), "https://api.example.com");
+  assert.equal(originFor("/api/voice-agent/live", { BACKEND_ORIGIN: "https://api.example.com" }), "https://api.example.com");
 });

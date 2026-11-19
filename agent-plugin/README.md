@@ -22,6 +22,8 @@
 >
 > **"Which apps are signed in to my account?"** Sessions, connected agents, privacy choices and data requests.
 
+Prefer talking? The **Voice** button in the app and `manifest voice` in a terminal run a live voice agent with these same tools and the same confirm-before-destructive rule ([how it works](../docs/VOICE_AGENT_API.md)).
+
 ## Install
 
 | Where | How |

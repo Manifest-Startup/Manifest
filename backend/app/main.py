@@ -310,12 +310,14 @@ from app.routes.sso_routes import router as sso_router
 from app.routes.survey_ops_routes import router as survey_ops_router
 from app.routes.trust_center_routes import router as trust_center_router
 from app.routes.voice_agent_routes import router as voice_agent_router
+from app.routes.voice_live_routes import router as voice_live_router
 from app.routes.website_testing_routes import router as website_testing_router
 
 validate_oauth_config()
 app.include_router(auth_router)
 app.include_router(oauth_router)
 app.include_router(voice_agent_router)
+app.include_router(voice_live_router)
 app.include_router(integration_router)
 app.include_router(api_v1_router)
 app.include_router(agent_discovery_router)

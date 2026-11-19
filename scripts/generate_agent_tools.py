@@ -26,6 +26,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "mcp_server" / "src" / "manifest_cli" / "catalog.json"
 OUT = ROOT / "deploy" / "cloudflare" / "src" / "mcp-tools.generated.json"
+# The live voice agent runs the same tools (backend/app/services/voice/live/tools.py).
+VOICE_OUT = ROOT / "backend" / "app" / "services" / "voice" / "live" / "tools.generated.json"
 TABLE = ROOT / "agent-plugin" / "TOOLS.md"
 
 sys.path.insert(0, str(ROOT / "mcp_server" / "src"))
@@ -312,7 +314,8 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="fail if the committed files drift")
     ns = parser.parse_args()
     data = build()
-    outputs = {OUT: json.dumps(data, indent=1, ensure_ascii=False) + "\n", TABLE: table(data)}
+    tools_json = json.dumps(data, indent=1, ensure_ascii=False) + "\n"
+    outputs = {OUT: tools_json, VOICE_OUT: tools_json, TABLE: table(data)}
     if ns.check:
         stale = [
             str(p.relative_to(ROOT))

@@ -26,6 +26,7 @@ BUILTINS: dict[str, str] = {
     "login": "Sign in: approve this computer in your browser.",
     "logout": "Revoke this computer's CLI session and forget it.",
     "whoami": "Show who you are signed in as, and where.",
+    "voice": "Talk to Manifest out loud: it can do everything the CLI can.",
     "commands": "List every command (filter with --search).",
     "graphql": "Run any GraphQL document (escape hatch).",
     "api": "Call any REST endpoint: manifest api GET /api/keys/usage.",
@@ -534,6 +535,37 @@ def cmd_whoami(ctx: Context, argv: list[str]) -> int:
     return 0
 
 
+def cmd_voice(ctx: Context, argv: list[str]) -> int:
+    from manifest_cli import voice
+
+    parser = _sub(
+        "voice",
+        BUILTINS["voice"],
+        epilog="Speech, the model and Manifest's tools run on the server with your own OpenAI key.\n"
+        "The mic is muted while Manifest speaks; use --barge-in with headphones to interrupt it.",
+    )
+    parser.add_argument("--text", action="store_true", help="type instead of speaking")
+    parser.add_argument(
+        "--barge-in", action="store_true", help="keep the mic on while Manifest speaks"
+    )
+    ns = parser.parse_args(argv)
+    token = config.token(ns.token)
+    if not token:
+        raise CliError("Not signed in. Run `manifest login`.")
+    if not ns.text:
+        problem = voice.missing_audio_support()
+        if problem:
+            raise CliError(problem)
+    return voice.run(
+        config.base_url(ns.base_url),
+        token,
+        out=ctx.out,
+        stdin=ctx.stdin,
+        text_mode=ns.text,
+        barge_in=ns.barge_in,
+    )
+
+
 def cmd_completion(ctx: Context, argv: list[str]) -> int:
     from manifest_cli.completion import script
 
@@ -567,6 +599,7 @@ def dispatch(ctx: Context, argv: list[str]) -> int:
         "login": cmd_login,
         "logout": cmd_logout,
         "whoami": cmd_whoami,
+        "voice": cmd_voice,
         "commands": cmd_commands,
         "graphql": cmd_graphql,
         "api": cmd_api,

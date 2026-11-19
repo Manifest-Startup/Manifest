@@ -36,6 +36,14 @@ export function isBackendPath(pathname) {
     pathname.startsWith("/graphql/");
 }
 
+// Live voice can run as its own service (same image, see render.yaml); unset = the backend.
+export const VOICE_PATH_PREFIX = "/api/voice-agent/live";
+
+export function originFor(pathname, env) {
+  if (env.VOICE_ORIGIN && pathname.startsWith(VOICE_PATH_PREFIX)) return env.VOICE_ORIGIN;
+  return env.BACKEND_ORIGIN;
+}
+
 export function requireOrigin(raw) {
   let url;
   try {

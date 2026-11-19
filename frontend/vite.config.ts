@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       allowedHosts: true,
       proxy: {
-        '/api': { target: 'http://localhost:8000', xfwd: true },
+        '/api': { target: 'http://localhost:8000', xfwd: true, ws: true },
         '/graphql': { target: 'http://localhost:8000', xfwd: true },
         '/generated': { target: 'http://localhost:8000', xfwd: true },
         '/socket.io': { target: 'http://localhost:8000', xfwd: true, ws: true },

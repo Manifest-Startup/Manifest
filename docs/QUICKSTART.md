@@ -28,10 +28,10 @@ AI_MODEL=gpt-4o-mini
 VOICE_AGENT_MODEL=gpt-4o-mini
 VOICE_AGENT_TTS_MODEL=tts-1
 VOICE_AGENT_TTS_VOICE=nova
-# Optional: near-instant speech-to-speech over WebRTC (off by default; costs more than tts-1)
-VOICE_REALTIME_ENABLED=false
-VOICE_REALTIME_MODEL=gpt-4o-realtime-preview
-VOICE_REALTIME_VOICE=shimmer
+# Live voice (Pipecat): models for the streaming STT → LLM → TTS pipeline (each person's own key)
+VOICE_LLM_MODEL=gpt-4.1
+VOICE_STT_MODEL=gpt-4o-transcribe
+VOICE_TTS_VOICE=coral
 
 # Optional analytics
 POSTHOG_API_KEY=

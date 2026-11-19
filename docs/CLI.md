@@ -27,6 +27,17 @@ The session is stored in `~/.config/manifest/cli.json` (mode 0600) with the base
 
 Routes that need a recent sign-in (create, rotate or revoke API keys; DSAR rectify or erase) answer `401` with `X-Step-Up-Required`, and the CLI says so. Because approving the CLI always needs a fresh sign-in, which the new CLI session inherits, re-running `manifest login` restores step-up access: run it, then retry within 5 minutes. `manifest logout` clears `cli.json` only when the revoked token came from it; with `--token` or `MANIFEST_API_TOKEN` the saved login stays.
 
+## Voice
+
+```bash
+pip install -e 'mcp_server[voice]'   # adds websockets + sounddevice
+manifest voice                       # talk; the mic mutes while Manifest speaks
+manifest voice --barge-in            # with headphones: interrupt it any time
+manifest voice --text                # type instead (needs only websockets)
+```
+
+`manifest voice` joins the same live voice agent as the web app (`WS /api/voice-agent/live`, see [VOICE_AGENT_API.md](VOICE_AGENT_API.md)). Speech recognition, the model, Manifest's tools and speech run on the server with your own OpenAI key, so it can do everything these commands can; it asks for a spoken yes before anything destructive. The CLI only moves audio (16 kHz up, 24 kHz down) and prints the conversation and each action it takes.
+
 ## GraphQL commands
 
 Each query and mutation is a kebab-case command; arguments are flags.

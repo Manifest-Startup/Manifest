@@ -27,8 +27,6 @@ def test_blocking_voice_endpoints_run_in_threadpool():
         ("/api/voice-agent/qualify", "POST"),
         ("/api/voice-agent/tts", "POST"),
         ("/api/voice-agent/transcribe", "POST"),
-        ("/api/voice-agent/realtime/session", "POST"),
-        ("/api/voice-agent/realtime/status", "GET"),
     ]
     offenders = [
         f"{method} {path}"
