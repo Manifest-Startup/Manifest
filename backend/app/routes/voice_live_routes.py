@@ -10,6 +10,8 @@ agents send ``Authorization: Bearer <session token>``. See docs/VOICE_AGENT_API.
 
 from __future__ import annotations
 
+import contextlib
+import json
 import os
 from typing import Any
 from urllib.parse import urlsplit
@@ -132,10 +134,31 @@ def _client_ip(websocket: WebSocket) -> str | None:
 
 
 async def _reject(websocket: WebSocket, code: int, reason: str) -> None:
-    """Accept, then close with an application code: a close before accept reaches browsers
-    as an HTTP 403 (code 1006), losing the reason. Nothing is sent before the close."""
+    """Accept, explain, then close with an application code.
+
+    A close before accept reaches browsers as an HTTP 403 (code 1006), and some proxies drop
+    close codes, so the reason also goes out first as an RTVI ``error`` message that Pipecat
+    clients read ("… (Code: 4402)").
+    """
     await websocket.accept()
+    with contextlib.suppress(Exception):
+        await websocket.send_bytes(rtvi_error_frame(code, reason))
     await websocket.close(code=code, reason=reason)
+
+
+def rtvi_error_frame(code: int, reason: str) -> bytes:
+    """A protobuf ``Frame{message}`` carrying an RTVI fatal error (empty without Pipecat)."""
+    try:
+        import pipecat.frames.protobufs.frames_pb2 as frames
+    except Exception:
+        return b""
+    text = f"{reason} (Code: {code})"
+    payload = {
+        "label": "rtvi-ai",
+        "type": "error",
+        "data": {"error": text, "message": text, "fatal": True, "code": code},
+    }
+    return frames.Frame(message=frames.MessageFrame(data=json.dumps(payload))).SerializeToString()
 
 
 @router.websocket("/live")
