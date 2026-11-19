@@ -35,7 +35,7 @@ describe("wiki links", () => {
   it("turns citations, concepts, ideas and documents into app routes", () => {
     expect(resolve?.("Manifest/Ideas/TideLine", "^p1")).toBe("/ideas/i1/description?cite=p1");
     expect(resolve?.("Manifest/Ideas/Sensor Rent")).toBe("/ideas/i2/description");
-    expect(resolve?.("Manifest/Concepts/Sensor")).toBe("/ideas/i1/knowledge-graph?concept=Sensor");
+    expect(resolve?.("Manifest/Concepts/Sensor")).toBe("/ideas/i1/description?mark=Sensor");
     expect(resolve?.("Manifest/Documents/TideLine/Pitch Deck")).toBe("/ideas/i1/pitch-deck");
     expect(resolve?.("Manifest/Skills/Sales")).toBeNull();
   });

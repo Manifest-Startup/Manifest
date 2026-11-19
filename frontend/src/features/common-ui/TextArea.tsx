@@ -14,6 +14,12 @@ import {
   changedEnd,
   markExternalCaret,
 } from "features/collaboration/live/externalEdits";
+import {
+  REFRESH_HIGHLIGHTS,
+  SourceHighlight,
+  sourceHighlightKey,
+  type HighlightTarget,
+} from "features/ideas/knowledge/sourceHighlight";
 
 interface TextAreaProps {
   value: string;
@@ -33,6 +39,8 @@ interface TextAreaProps {
   live?: LiveNoteSession | null;
   /** Live: the saved note, fetched fresh, used to fill an empty room (defaults to `value`). */
   loadSavedNote?: () => Promise<string>;
+  /** Text to highlight in place, e.g. the sentence a document cites (ADR 0010). */
+  highlights?: HighlightTarget[];
 }
 
 const TextArea: React.FC<TextAreaProps> = ({
@@ -47,7 +55,11 @@ const TextArea: React.FC<TextAreaProps> = ({
   rows = 10,
   live = null,
   loadSavedNote,
+  highlights,
 }) => {
+  const highlightsRef = useRef<HighlightTarget[]>(highlights ?? []);
+  highlightsRef.current = highlights ?? [];
+  const highlightKey = JSON.stringify(highlights ?? []);
   const valueRef = useRef(value);
   valueRef.current = value;
   const pendingExternalRef = useRef<{ edit: LiveExternalEdit; until: number } | null>(null);
@@ -66,6 +78,7 @@ const TextArea: React.FC<TextAreaProps> = ({
         Placeholder.configure({
           placeholder: placeholder || "Write something...",
         }),
+        SourceHighlight.configure({ getTargets: () => highlightsRef.current }),
         ...(live
           ? [
               Collaboration.configure({ fragment: live.fragment }),
@@ -106,7 +119,7 @@ const TextArea: React.FC<TextAreaProps> = ({
       editorProps: {
         attributes: {
           class:
-            "font-sans prose prose-sm max-w-none text-neutral900 dark:prose-invert dark:text-white focus:outline-none",
+            "manifest-reading focus:outline-none",
         },
       },
     },
@@ -156,6 +169,13 @@ const TextArea: React.FC<TextAreaProps> = ({
   }, [value, canEdit, editor, live]);
 
   useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dispatch(editor.state.tr.setMeta(sourceHighlightKey, REFRESH_HIGHLIGHTS));
+  }, [editor, highlightKey]);
+
+  useEffect(() => {
+    // Focusing would jump to the top: when showing a source, let the reader stay on it.
+    if (highlightsRef.current.length) return;
     if (!editor || editor.isDestroyed || !autoFocus || !editable || disabled) {
       return;
     }
