@@ -231,60 +231,64 @@
   color: var(--text-secondary);
 }
 .manifest-voice-launcher {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
   min-width: 44px;
-  min-height: 46px;
-  padding: 0 18px 0 8px;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 9%, transparent);
+  min-height: 44px;
+  padding: 0 18px 0 14px;
+  border: 0;
   border-radius: 999px;
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
-    0 12px 32px -12px rgba(10, 132, 255, 0.45),
-    0 4px 14px -6px var(--shadow-color);
-  backdrop-filter: saturate(190%) blur(20px);
-  -webkit-backdrop-filter: saturate(190%) blur(20px);
+  color: #f5f5f7;
+  background: #000;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.manifest-voice-launcher:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
-    0 18px 40px -12px rgba(10, 132, 255, 0.55),
-    0 4px 14px -6px var(--shadow-color);
+/* Iridescent edge, like Apple's Apple Intelligence pill. */
+.manifest-voice-launcher::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  z-index: -2;
+  border-radius: inherit;
+  background: conic-gradient(from var(--mv-turn, 0deg), #64d2ff, #bf5af2, #ff6482, #ff9f0a, #64d2ff);
+  filter: blur(0.5px);
+  animation: manifest-voice-turn 5s linear infinite;
 }
-.manifest-voice-launcher__orb {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, #0a84ff, #64d2ff, #bf5af2, #5e5ce6, #0a84ff);
-  box-shadow: inset 0 -4px 8px -2px rgba(94, 92, 230, 0.7), 0 4px 12px -4px rgba(10, 132, 255, 0.7);
-  animation: manifest-voice-orb-spin 9s linear infinite;
-}
-.manifest-voice-launcher__orb::after {
+.manifest-voice-launcher::after {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: #000;
+}
+.manifest-voice-launcher:hover { transform: translateY(-1px); }
+.manifest-voice-launcher__orb {
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: radial-gradient(60% 45% at 32% 24%, rgba(255, 255, 255, 0.8), transparent 70%);
-  animation: manifest-voice-orb-spin 9s linear infinite reverse;
+  background: conic-gradient(from var(--mv-turn, 0deg), #64d2ff, #bf5af2, #ff6482, #ff9f0a, #64d2ff);
+  box-shadow: 0 0 10px rgba(191, 90, 242, 0.55);
+  animation: manifest-voice-turn 5s linear infinite;
 }
-@keyframes manifest-voice-orb-spin {
-  to { transform: rotate(360deg); }
+@property --mv-turn {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
+@keyframes manifest-voice-turn { to { --mv-turn: 360deg; } }
 @media (prefers-reduced-motion: reduce) {
-  .manifest-voice-launcher__orb,
-  .manifest-voice-launcher__orb::after { animation: none; }
+  .manifest-voice-launcher::before,
+  .manifest-voice-launcher__orb { animation: none; }
 }
+
 @media (max-width: 480px) {
   .manifest-voice-panel {
     max-height: min(480px, 65dvh);
