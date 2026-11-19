@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "aa748358fd8ca2f97aeed2802588bd61963aae57de0176ad960adb3129b81170",
+ "schema_sha256": "a74698ad1bdba68aef5bd7a8ad5e12fb4c06e704c79aae80f83b1d6fa23cb1c0",
  "operations": [
   {
    "name": "me",
@@ -711,6 +711,26 @@
    "destructive": false,
    "returns": "[Collaborator!]!",
    "selection": "{ collaboratorId ideaId userId role status userEmail userName userAvatar invitedAt acceptedAt }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "ideaLivePresence",
+   "command": "idea-live-presence",
+   "kind": "query",
+   "description": "Who is in the idea's note right now: people editing live in Manifest, plus anyone who just changed it through an AI agent, the CLI or another device.",
+   "destructive": false,
+   "returns": "[LiveNoteParticipant!]!",
+   "selection": "{ userId name avatarUrl color via viaLabel canEdit role lastActiveAt }",
    "args": [
     {
      "name": "ideaId",

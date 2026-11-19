@@ -185,7 +185,6 @@ class IdeasQuery:
                 .table("ideas")
                 .select(columns)
                 .eq("idea_id", idea_id)
-                .eq("user_id", user_id)
                 .single()
                 .execute()
             )
@@ -194,6 +193,13 @@ class IdeasQuery:
         if not response.data:
             raise Exception("Idea not found")
         idea_data = response.data
+        if str(idea_data.get("user_id")) != str(user_id):
+            # People the idea is shared with can open it too (ADR 0008).
+            from app.services.ideas.collaboration import create_collaboration_service
+
+            collab = create_collaboration_service(info.context["db"])
+            if not await collab.check_access(idea_id, user_id, "view"):
+                raise Exception("Idea not found")
         mapped_data = {
             "idea_id": idea_data.get("idea_id"),
             "user_id": idea_data.get("user_id"),
@@ -345,6 +351,10 @@ class IdeasMutation:
                 await collab_service.maybe_record_auto_version_after_user_edit(idea_id, user_id)
             except Exception as e:
                 logger.warning(f"Auto-version creation failed for idea {idea_id}: {e}")
+
+        await _announce_to_live_note(
+            info.context["request"], idea_id, user_id, description if description_changed else None
+        )
 
         idea_fields = {field.name for field in Idea.__dataclass_fields__.values()}
         return Idea(**{k: v for k, v in response.data[0].items() if k in idea_fields})
@@ -734,3 +744,26 @@ class IdeasMutation:
         except Exception as e:
             logger.error(f"Error importing ideas: {e}")
             raise Exception(f"Import failed: {str(e)}") from e
+
+
+LIVE_NOTE_HEADER = "x-manifest-live-note"
+
+
+async def _announce_to_live_note(request, idea_id: str, user_id: str, html: str | None) -> None:
+    """Bring a note edit made outside a live session into it (ADR 0008).
+
+    Browsers in a live session save with ``X-Manifest-Live-Note: 1``; their edit
+    is already in the shared document. Anything else (agent plugin, CLI, iOS,
+    a tab that is not live) is announced with where it came from.
+    """
+    if not html or request.headers.get(LIVE_NOTE_HEADER) == "1":
+        return
+    try:
+        from app.auth.current_user import get_current_token_payload_optional
+        from app.services.ideas.live_notes import live_notes
+
+        kind = (get_current_token_payload_optional(request) or {}).get("kind")
+        via = kind if kind in ("agent", "cli") else "app"
+        await live_notes.announce_external_edit(idea_id, user_id, html, via)
+    except Exception as e:  # a live session must never fail the save
+        logger.warning(f"Live note announce failed for idea {idea_id}: {e}")

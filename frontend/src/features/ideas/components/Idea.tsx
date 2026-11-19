@@ -34,7 +34,10 @@ import {
   UPDATE_IDEA,
   FIND_SIMILAR_IDEAS,
   GET_IDEA_KNOWLEDGE_GRAPH,
+  GET_IDEA_COLLABORATORS,
 } from 'features/core/apollo/queries';
+import { useLiveNote } from 'features/collaboration/live/useLiveNote';
+import { LivePresence } from 'features/collaboration/live/LivePresence';
 import {
   sidebarVar,
   editorStatusVar,
@@ -215,6 +218,27 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
 
   // -------------------- Save Idea Mutation Hook --------------------
   const [patchIdea] = useMutation(UPDATE_IDEA);
+
+  // -------------------- Live notes (ADR 0008) --------------------
+  // When the idea is shared, everyone in the Note edits one live document and sees
+  // each other's cursors and photos. Solo notes keep the plain editor (no socket).
+  const { data: collaboratorsData } = useSafeQuery(GET_IDEA_COLLABORATORS, {
+    variables: { ideaId: currentIdeaId as string },
+    skip: !currentIdeaId,
+    fetchPolicy: 'cache-and-network',
+    nextFetchPolicy: 'cache-first',
+  });
+  // Remember the answer per idea so a failed refetch never drops people out of a live note.
+  const sharedRef = useRef<Record<string, boolean>>({});
+  if (currentIdeaId && collaboratorsData?.ideaCollaborators) {
+    sharedRef.current[currentIdeaId] =
+      collaboratorsData.ideaCollaborators.filter(
+        (c: { ideaId: string; status: string }) => c.ideaId === currentIdeaId && c.status === 'accepted'
+      ).length > 1;
+  }
+  const isSharedIdea = Boolean(currentIdeaId && sharedRef.current[currentIdeaId]);
+  const [loadedIdeaId, setLoadedIdeaId] = useState<string | null>(null);
+  const liveRef = useRef(false);
 
   // -------------------- Refs --------------------
   // lastSavedRef holds the last saved content and ideaId
@@ -497,7 +521,10 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
           variables: {
             ideaId,
             description: content,
-          }
+          },
+          // Live sessions already share this edit; the header stops the server
+          // from announcing it to the room a second time.
+          context: liveRef.current ? { headers: { 'X-Manifest-Live-Note': '1' } } : undefined,
         });
         logIdea("Patch response from backend:", response);
 
@@ -882,6 +909,38 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
     }
   };
 
+  useEffect(() => {
+    if (!isFetching && currentIdeaId && ideaData?.idea?.ideaId === currentIdeaId) {
+      setLoadedIdeaId(currentIdeaId);
+    }
+  }, [isFetching, currentIdeaId, ideaData?.idea?.ideaId]);
+  // Once this idea's note has loaded, stay live through later refetches and errors.
+  const liveEnabled = isSharedIdea && ideaAspect === 'description' && loadedIdeaId === currentIdeaId;
+  const { session: liveSession, snapshot: liveSnapshot } = useLiveNote(
+    currentIdeaId,
+    liveEnabled,
+    (html) => {
+      // The room restarts from the saved note; an agent/CLI edit carries the newest copy.
+      if (html) {
+        setContent(html);
+        contentRef.current = html;
+        lastSavedRef.current = { content: html, ideaId: currentIdeaId };
+      }
+    }
+  );
+  liveRef.current = Boolean(liveSession);
+  // An empty room is filled from the saved note, fetched fresh so a stale cached
+  // copy can never overwrite what collaborators saved.
+  const loadSavedNote = async () => {
+    const result = await client.query({
+      query: GET_IDEA_CORE,
+      variables: { ideaId: currentIdeaId as string },
+      fetchPolicy: 'network-only',
+    });
+    const fresh = (result.data as { idea?: { description?: string | null } } | undefined)?.idea;
+    return fresh?.description || contentRef.current || '';
+  };
+
   // -------------------- Render UI --------------------
   const currentAspectLabel = aspectLabelMap[ideaAspect] || "Note";
   const showHeaderLabel = currentAspectLabel !== "Note";
@@ -898,6 +957,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
           <div className="flex flex-wrap items-center gap-1">
           {currentIdeaId && (
             <div className="flex flex-wrap items-center gap-1">
+              {liveSession ? <LivePresence snapshot={liveSnapshot} /> : null}
               <VersionButton ideaId={currentIdeaId} onVersionRestored={() => refetch()} />
               <ShareButton ideaId={currentIdeaId} />
             </div>
@@ -998,6 +1058,8 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
                 focusKey={`${currentIdeaId || 'no-idea'}-${ideaAspect}`}
                 className="min-h-[16rem]"
                 placeholder="Write your idea…"
+                live={liveSession}
+                loadSavedNote={loadSavedNote}
               />
               </Suspense>
             </div>

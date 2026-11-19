@@ -16,7 +16,7 @@ def run_query(query, context):
         loop.close()
 
 
-def run_idea(query):
+def run_idea(query, viewer="synthetic-user", access=False):
     db = MagicMock()
     builder = db.table.return_value
     builder.select.return_value = builder
@@ -33,17 +33,22 @@ def run_idea(query):
         "similar_ideas": "Related ideas",
     }
     with (
-        patch("app.graphql.schema.get_current_user_id", return_value="synthetic-user"),
-        patch("app.graphql.resolvers.ideas.get_current_user_id", return_value="synthetic-user"),
+        patch("app.graphql.schema.get_current_user_id", return_value=viewer),
+        patch("app.graphql.resolvers.ideas.get_current_user_id", return_value=viewer),
+        patch(
+            "app.services.ideas.collaboration.CollaborationService.check_access",
+            return_value=access,
+        ) as check_access,
         patch(
             "app.graphql.schema.resolve_principal", return_value=SimpleNamespace(has=lambda _: True)
         ),
     ):
         result = run_query(query, {"db": db, "request": MagicMock()})
+    builder.check_access = check_access
     return result, builder
 
 
-def test_note_read_excludes_document_blobs_and_keeps_owner_filter():
+def test_note_read_excludes_document_blobs_and_checks_access():
     result, builder = run_idea("""query { idea(ideaId: "synthetic-idea") {
         ideaId title description
     } }""")
@@ -58,9 +63,20 @@ def test_note_read_excludes_document_blobs_and_keeps_owner_filter():
         "product_requirements_document",
         "similar_ideas",
     }
-    builder.eq.assert_any_call("user_id", "synthetic-user")
     builder.eq.assert_any_call("idea_id", "synthetic-idea")
     builder.execute.assert_called_once()
+    builder.check_access.assert_not_called()  # the owner needs no extra lookup
+
+
+def test_shared_idea_opens_for_collaborators_only():
+    query = """query { idea(ideaId: "synthetic-idea") { ideaId description } }"""
+    shared, _ = run_idea(query, viewer="collaborator", access=True)
+    assert not shared.errors
+    assert shared.data["idea"]["description"] == "Saved words"
+
+    stranger, builder = run_idea(query, viewer="stranger", access=False)
+    assert stranger.errors and "Idea not found" in stranger.errors[0].message
+    builder.check_access.assert_called_once()
 
 
 def test_fragments_and_aliases_select_only_requested_documents():

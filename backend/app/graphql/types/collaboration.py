@@ -20,6 +20,36 @@ class Collaborator:
 
 
 @strawberry.type
+class LiveNoteParticipant:
+    """Someone in an idea's note right now (ADR 0008)."""
+
+    user_id: str
+    name: str
+    avatar_url: str | None
+    color: str
+    via: str = strawberry.field(description="app, agent or cli")
+    via_label: str
+    can_edit: bool
+    role: str | None = None
+    last_active_at: datetime | None = None
+
+
+def live_note_participant_from_dict(row: dict) -> LiveNoteParticipant:
+    last = row.get("lastActiveAt")
+    return LiveNoteParticipant(
+        user_id=row["userId"],
+        name=row.get("name") or "Someone",
+        avatar_url=row.get("avatarUrl"),
+        color=row.get("color") or "#2563eb",
+        via=row.get("via") or "app",
+        via_label=row.get("viaLabel") or "Manifest",
+        can_edit=bool(row.get("canEdit")),
+        role=row.get("role"),
+        last_active_at=datetime.fromtimestamp(last).astimezone() if last else None,
+    )
+
+
+@strawberry.type
 class IdeaVersion:
     version_id: str
     idea_id: str

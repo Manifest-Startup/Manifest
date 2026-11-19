@@ -28,6 +28,7 @@ from app.graphql.schema import schema
 from app.middleware import RequestIDMiddleware
 from app.middleware.metrics import setup_metrics
 from app.routes.customer_routes import track_visitors_middleware
+from app.routes.live_notes_socket import register_live_note_events
 from app.security.config import frontend_origins_from_env
 from app.security.security_headers import SecurityHeadersMiddleware
 from app.services.ai.credentials import AIRequestContextMiddleware
@@ -36,6 +37,7 @@ from app.services.compliance.privacy_consent import (
     analytics_enabled_for_request,
 )
 from app.services.ideas.document_generation import generate_background_tasks
+from app.services.ideas.live_notes import live_notes
 from app.services.integrations.analytics import capture_event
 from app.services.web.spa_fallback import register_spa_fallback
 from app.utils.logger import logger
@@ -513,12 +515,16 @@ async def _socketio_require_user(sid: str) -> str | None:
 @sio.event
 async def disconnect(sid):
     logger.info(f"Socket.IO: Client disconnected: {sid}")
+    await live_notes.disconnect(sid)
     try:
         session = await sio.get_session(sid)
     except Exception:
         session = {}
     if session.get("analytics_allowed"):
         capture_event(sid, "socket_disconnected", {"sid": sid})
+
+
+register_live_note_events(sio, _socketio_require_user)
 
 
 @sio.event
