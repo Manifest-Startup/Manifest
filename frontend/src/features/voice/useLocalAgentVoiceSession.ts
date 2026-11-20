@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { createLogger } from '../core/logError';
 import { INITIAL_LIVE_VOICE_STATE, liveVoiceReducer } from './liveVoice';
 import {
-  BRIDGE_COMMAND,
+  BRIDGE_INSTALL_COMMAND,
   browserSpeechAvailable,
   createSpeaker,
   probeBridge,
@@ -92,7 +92,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
           log.warn('bridge turn failed', error);
           dispatch({
             type: 'error',
-            error: { kind: 'unavailable', message: `Lost the connection to your agent. Is \`${BRIDGE_COMMAND}\` still running?` },
+            error: { kind: 'unavailable', message: `Lost the connection to your agent. Is the Manifest bridge still running (\`${BRIDGE_INSTALL_COMMAND}\`)?` },
           });
         }
       } finally {
@@ -135,7 +135,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     if (!bridge) {
       dispatch({
         type: 'error',
-        error: { kind: 'unavailable', message: `Start your agent on this computer: ${BRIDGE_COMMAND}` },
+        error: { kind: 'unavailable', message: `Connect Claude Code on this Mac once: ${BRIDGE_INSTALL_COMMAND}` },
       });
       return;
     }

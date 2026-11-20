@@ -9,6 +9,8 @@ import type { LiveVoiceContext } from './liveVoice';
 
 export const BRIDGE_URL = 'http://127.0.0.1:47821';
 export const BRIDGE_COMMAND = 'manifest bridge --agent claude';
+/** Once: keeps the bridge running at login, so voice always reaches Claude Code. */
+export const BRIDGE_INSTALL_COMMAND = 'manifest bridge --install';
 
 export interface BridgeInfo {
   agent: string;
@@ -16,8 +18,12 @@ export interface BridgeInfo {
 
 export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { kind: 'done'; text: string };
 
-/** The running bridge, or null. Quick: never holds up opening voice for long. */
-export async function probeBridge(timeoutMs = 700): Promise<BridgeInfo | null> {
+/**
+ * The running bridge, or null. A bridge that isn't running fails at once (connection
+ * refused), so the generous timeout only matters while Chrome asks the person whether
+ * Manifest may reach this computer; it must not give up before they answer.
+ */
+export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null> {
   if (typeof fetch === 'undefined') return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

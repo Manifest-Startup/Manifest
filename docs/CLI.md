@@ -44,6 +44,7 @@ manifest voice --text                # type instead (needs only websockets)
 manifest bridge                            # Claude Code answers voice in the Manifest app
 manifest bridge --agent codex              # or Codex, or any command (as for `voice --agent`)
 manifest bridge --agent claude --continue  # pick up your newest Claude Code session here
+manifest bridge --install                  # macOS: start it at login and keep it running (--uninstall undoes)
 ```
 
 Keep it running and use voice in the web app or the installed app. With no OpenAI key on the account (or in a vault without signing in), the app's voice button uses the browser's own speech recognition and voice, and each turn goes to your agent through this small server on `http://127.0.0.1:47821`. It answers only Manifest's own pages (`--origin` adds a self-hosted one), so other websites cannot drive your agent; Chrome may ask once to let Manifest reach the local network. No sign-in or key is needed. The note's dictation orb needs neither the bridge nor a key: without a key it uses the browser's recognition (Chrome sends the audio to Google's speech service; Safari uses Apple's).

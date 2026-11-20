@@ -641,13 +641,27 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         metavar="URL",
         help="also allow this app origin (e.g. a self-hosted Manifest)",
     )
+    parser.add_argument(
+        "--install",
+        action="store_true",
+        help="start the bridge at login and keep it running (macOS), with these options",
+    )
+    parser.add_argument("--uninstall", action="store_true", help="stop starting it at login")
     ns = parser.parse_args(argv)
+    if ns.uninstall:
+        return bridge.uninstall(out=ctx.out)
     agent = make_agent(
         ns.agent, extra_args=ns.agent_arg, resume=ns.resume, continue_last=ns.continue_last
     )
     problem = missing_agent(agent)
     if problem:
         raise CliError(problem)
+    if ns.install:
+        args = ["--agent", ns.agent, "--port", str(ns.port)]
+        args += ["--continue"] if ns.continue_last else []
+        args += ["--resume", ns.resume] if ns.resume else []
+        args += [f"--agent-arg={a}" for a in ns.agent_arg] + [f"--origin={o}" for o in ns.origin]
+        return bridge.install(args, out=ctx.out)
     return bridge.run(agent, port=ns.port, extra_origins=ns.origin, out=ctx.out)
 
 

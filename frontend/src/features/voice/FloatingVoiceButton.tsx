@@ -7,7 +7,7 @@ import { isVaultMode } from "features/vault/mode";
 import "./voicePanel.css";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
 import { liveVoiceStatus, LiveVoiceError, warmLiveVoice } from "./liveVoice";
-import { BRIDGE_COMMAND, browserSpeechAvailable, probeBridge } from "./localAgent";
+import { BRIDGE_INSTALL_COMMAND, browserSpeechAvailable, probeBridge } from "./localAgent";
 import {
   getStoredVoiceMode,
   setStoredVoiceMode,
@@ -36,12 +36,12 @@ type VoiceEngine =
 
 const NO_KEY: LiveVoiceError = {
   kind: "no_api_key",
-  message: `Add your OpenAI key in Account → AI settings, or use Claude Code or Codex on this computer with no key: run ${BRIDGE_COMMAND}`,
+  message: `Add your OpenAI key in Account → AI settings, or use Claude Code or Codex on this computer with no key: run ${BRIDGE_INSTALL_COMMAND}`,
 };
 
 const VAULT_SIGN_IN: LiveVoiceError = {
   kind: "sign_in",
-  message: `Sign in to use Manifest's voice, or use Claude Code or Codex on this computer: run ${BRIDGE_COMMAND}`,
+  message: `Sign in to use Manifest's voice, or use Claude Code or Codex on this computer: run ${BRIDGE_INSTALL_COMMAND}`,
 };
 
 /**
