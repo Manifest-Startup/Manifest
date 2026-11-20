@@ -3,9 +3,10 @@ import { useReactiveVar } from "@apollo/client/react";
 import { useLocation } from "react-router-dom";
 
 import { userVar, voiceOpenRequestVar } from "../core/apollo/localState";
+import { isVaultMode } from "features/vault/mode";
 import "./voicePanel.css";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
-import { fetchLiveVoiceStatus, LiveVoiceError } from "./liveVoice";
+import { liveVoiceStatus, LiveVoiceError, warmLiveVoice } from "./liveVoice";
 import {
   getStoredVoiceMode,
   setStoredVoiceMode,
@@ -14,6 +15,12 @@ import {
 
 const VoiceModeSurface = lazy(() => import("./VoiceModeSurface"));
 const LiveVoiceDock = lazy(() => import("./LiveVoiceDock"));
+
+/** An idea's note has its own voice orb beside the text, so the corner pill steps aside. */
+export function hasNoteOrb(pathname: string): boolean {
+  const match = pathname.match(/^\/ideas\/([A-Za-z0-9_-]+)(\/description)?\/?$/);
+  return Boolean(match && match[1] !== "qualify");
+}
 
 function isVoiceWorkspacePath(pathname: string): boolean {
   return pathname === "/ideas" || pathname.startsWith("/ideas/");
@@ -27,17 +34,32 @@ const NO_KEY: LiveVoiceError = {
   message: "Voice runs on your own OpenAI key. Add it once in Account → AI settings, then just talk.",
 };
 
+const VAULT_SIGN_IN: LiveVoiceError = {
+  kind: "sign_in",
+  message: "Voice runs through your Manifest account. Sign in, and your ideas stay in your folder.",
+};
+
 /**
  * Pick the engine: live voice whenever the server offers it (or only lacks the person's
  * key, which we ask them to add); guests and servers without live voice keep the legacy
- * interview so landing onboarding still works.
+ * interview so landing onboarding still works. A vault (local folder, e.g. the installed
+ * Chrome app) always uses live voice through the account, and says so when not signed in.
  */
-async function chooseEngine(isGuest: boolean): Promise<VoiceEngine> {
-  if (isGuest) return { kind: "legacy" };
-  const status = await fetchLiveVoiceStatus();
+export async function chooseEngine(isGuest: boolean, vault = isVaultMode()): Promise<VoiceEngine> {
+  if (isGuest && !vault) return { kind: "legacy" };
+  const status = await liveVoiceStatus();
   if (status.available) return { kind: "live", blocked: null };
   if (status.reason === "no_api_key") {
     return { kind: "live", blocked: status.message ? { ...NO_KEY, message: status.message } : NO_KEY };
+  }
+  if (vault) {
+    return {
+      kind: "live",
+      blocked:
+        status.reason === "sign_in"
+          ? VAULT_SIGN_IN
+          : { kind: "unavailable", message: status.message || "Voice isn't reachable right now." },
+    };
   }
   return { kind: "legacy" };
 }
@@ -168,7 +190,7 @@ const FloatingVoiceButton: React.FC = () => {
 
   return (
     <>
-      {!isOpen ? (
+      {!isOpen && !hasNoteOrb(location.pathname) ? (
         <button
           ref={launcherRef}
           aria-label="Start voice conversation"
@@ -177,6 +199,8 @@ const FloatingVoiceButton: React.FC = () => {
           onClick={() => {
             void open();
           }}
+          onFocus={warmLiveVoice}
+          onPointerEnter={warmLiveVoice}
           type="button"
         >
           <span aria-hidden="true" className="manifest-voice-launcher__orb" />

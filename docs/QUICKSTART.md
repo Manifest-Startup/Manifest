@@ -29,8 +29,8 @@ VOICE_AGENT_MODEL=gpt-4o-mini
 VOICE_AGENT_TTS_MODEL=tts-1
 VOICE_AGENT_TTS_VOICE=nova
 # Live voice (Pipecat): models for the streaming STT → LLM → TTS pipeline (each person's own key)
-VOICE_LLM_MODEL=gpt-4.1
-VOICE_STT_MODEL=gpt-4o-transcribe
+VOICE_LLM_MODEL=gpt-4.1-mini
+VOICE_STT_MODEL=gpt-transcribe
 VOICE_TTS_VOICE=coral
 
 # Optional analytics

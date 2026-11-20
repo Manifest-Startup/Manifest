@@ -18,6 +18,8 @@ import type { VaultStore } from "./store";
 import { VaultSync, type CloudApi, type CloudIdea, type SyncReport } from "./sync";
 
 const FLAG = "manifest.vaultSync.v1";
+/** Fired when something changed the account directly (e.g. the voice agent): sync soon. */
+export const SYNC_NOW_EVENT = "manifest:vault-sync-now";
 const EVERY_MS = 60_000;
 const AFTER_EDIT_MS = 4_000;
 
@@ -199,6 +201,7 @@ export function startCloudSync(store: VaultStore, app: ApolloClient): () => void
   const timer = window.setInterval(tick, EVERY_MS);
   window.addEventListener("online", tick);
   window.addEventListener("manifest:vault-sync-setting", tick);
+  window.addEventListener(SYNC_NOW_EVENT, tick);
   tick();
   return () => {
     stopEdits();
@@ -206,5 +209,6 @@ export function startCloudSync(store: VaultStore, app: ApolloClient): () => void
     window.clearTimeout(editTimer);
     window.removeEventListener("online", tick);
     window.removeEventListener("manifest:vault-sync-setting", tick);
+    window.removeEventListener(SYNC_NOW_EVENT, tick);
   };
 }

@@ -7,6 +7,8 @@ import { Navigate, useParams, useSearchParams } from "react-router-dom";
 // warm it in idle time so opening the Note view stays instant.
 const loadTextArea = () => import("features/common-ui/TextArea");
 const TextArea = lazy(loadTextArea);
+// The note's voice orb (dictation + the voice agent); its Pipecat client loads on first tap.
+const NoteDictationOrb = lazy(() => import("features/voice/NoteDictationOrb"));
 // The canvas view carries the integrations catalogue (icons for suggested
 // partner tools), so it loads only when that tab opens.
 const BusinessModelCanvasDisplay = lazy(() =>
@@ -1017,7 +1019,12 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
 
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        {ideaAspect === 'description' && currentIdeaId ? (
+          <Suspense fallback={null}>
+            <NoteDictationOrb ideaId={currentIdeaId} />
+          </Suspense>
+        ) : null}
         <WikiLinksProvider value={wikiLinks}>
         <div className="manifest-note-content flex-1 overflow-auto">
           {ideaAspect === 'business-model-canvas' ? (
@@ -1088,6 +1095,7 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
                 highlights={sourceTargets(knowledgeGraph, searchParams)}
                 live={liveSession}
                 loadSavedNote={loadSavedNote}
+                dictationTarget
               />
               </Suspense>
             </div>

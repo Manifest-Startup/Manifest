@@ -1,7 +1,12 @@
 """The live Manifest voice agent: a Pipecat pipeline over one WebSocket.
 
-    browser / CLI mic ─▶ WebSocket (protobuf) ─▶ Silero VAD + smart turn ─▶ OpenAI streaming STT
-        ─▶ LLM with Manifest's tools ─▶ OpenAI TTS ─▶ WebSocket ─▶ speaker
+    browser / CLI mic ─▶ WebSocket (protobuf) ─▶ OpenAI Realtime transcription (server VAD)
+        ─▶ LLM with Manifest's tools ─▶ OpenAI TTS (streamed) ─▶ WebSocket ─▶ speaker
+
+Speed: the backend runs on a tiny shared CPU, so nothing here does local inference. OpenAI's
+realtime transcription hears the person while they speak and decides when they have
+finished (server VAD), so the transcript is ready the moment they stop; no local VAD or
+turn model runs. The greeting is spoken directly, without a model round trip.
 
 Everything runs with the person's own OpenAI key (bring your own key). Tools are the same
 generated catalog the agent plugin and CLI use (see ``tools.py``), executed as the person.
@@ -16,12 +21,19 @@ Messages the server sends with ``type`` (RTVI server-message):
     manifest.end       {}                 the agent ended the conversation
 Messages the client may send (RTVI client-message):
     manifest.context   {path, idea_id?, idea_title?}   what the person is looking at
+
+Two more modes share the same route, transport and key (``?mode=``):
+    relay    the person's own agent (Claude Code, Codex, any command) is the brain; see
+             ``relay.py``. Manifest only listens and speaks.
+    dictate  speech to text only, streamed word by word, for writing into a note; see
+             ``dictation.py``.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,8 +48,10 @@ from app.services.voice.live.tools import (
 )
 from app.utils.logger import logger
 
-DEFAULT_LLM_MODEL = "gpt-4.1"
-DEFAULT_STT_MODEL = "gpt-4o-transcribe"
+DEFAULT_LLM_MODEL = "gpt-4.1-mini"
+DEFAULT_STT_MODEL = "gpt-transcribe"
+# How long a pause ends the person's turn. Shorter answers sooner; too short cuts people off.
+DEFAULT_TURN_SILENCE_MS = 500
 DEFAULT_TTS_MODEL = "gpt-4o-mini-tts"
 DEFAULT_TTS_VOICE = "coral"
 SESSION_LIMIT_SECONDS = 30 * 60
@@ -87,6 +101,9 @@ class VoiceSettings:
     # Any OpenAI-compatible API (self-hosted, a gateway, a test double); None = OpenAI.
     base_url: str | None = None
     llm_base_url: str | None = None
+    # Realtime transcription WebSocket; None derives it from base_url (or uses OpenAI's).
+    stt_url: str | None = None
+    turn_silence_ms: int = DEFAULT_TURN_SILENCE_MS
 
     @classmethod
     def from_env(cls) -> VoiceSettings:
@@ -100,7 +117,26 @@ class VoiceSettings:
             tts_voice=env("VOICE_TTS_VOICE", DEFAULT_TTS_VOICE),
             base_url=env("VOICE_OPENAI_BASE_URL", "") or None,
             llm_base_url=env("VOICE_LLM_BASE_URL", "") or None,
+            stt_url=env("VOICE_STT_URL", "") or None,
+            turn_silence_ms=_int_env("VOICE_TURN_SILENCE_MS", DEFAULT_TURN_SILENCE_MS),
         )
+
+    def realtime_stt_url(self) -> str:
+        if self.stt_url:
+            return self.stt_url
+        if self.base_url:
+            base = self.base_url.rstrip("/")
+            base = "wss://" + base[8:] if base.startswith("https://") else base
+            base = "ws://" + base[7:] if base.startswith("http://") else base
+            return f"{base}/realtime"
+        return "wss://api.openai.com/v1/realtime"
+
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return max(200, min(int((os.getenv(name) or "").strip() or default), 3000))
+    except ValueError:
+        return default
 
 
 @dataclass
@@ -123,6 +159,13 @@ class VoiceSessionContext:
         elif self.path:
             parts.append(f"They are on the app page {self.path}.")
         return " ".join(parts)
+
+
+def greeting(session: VoiceSessionContext) -> str:
+    name = f", {session.first_name}" if session.first_name else ""
+    if session.idea_title:
+        return f"Hi{name}. Want to work on {session.idea_title}?"
+    return f"Hi{name}. What are we working on?"
 
 
 def build_system_prompt(session: VoiceSessionContext) -> str:
@@ -221,6 +264,107 @@ class VoiceToolHandlers:
             await self.worker.queue_frames([EndFrame()])
 
 
+def build_transport(websocket: Any, *, audio_out: bool = True) -> Any:
+    """Pipecat's FastAPI WebSocket transport with protobuf RTVI frames."""
+    from pipecat.serializers.protobuf import ProtobufFrameSerializer
+    from pipecat.transports.websocket.fastapi import (
+        FastAPIWebsocketParams,
+        FastAPIWebsocketTransport,
+    )
+
+    return FastAPIWebsocketTransport(
+        websocket=websocket,
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True,
+            audio_out_enabled=audio_out,
+            add_wav_header=False,
+            serializer=ProtobufFrameSerializer(),
+            session_timeout=SESSION_LIMIT_SECONDS,
+            # The route already checked the Origin for cookie sessions; the CLI sends none.
+            allowed_origins=[],
+        ),
+    )
+
+
+def build_stt(openai_key: str, settings: VoiceSettings) -> Any:
+    """Streaming transcription where OpenAI also detects the end of each turn.
+
+    The service broadcasts speech start/stop, so Pipecat's turn handling and interruptions
+    work without a local VAD, and the transcript streams while the person speaks.
+    """
+    from pipecat.services.openai.stt import OpenAIRealtimeSTTService
+
+    return OpenAIRealtimeSTTService(
+        api_key=openai_key,
+        base_url=settings.realtime_stt_url(),
+        turn_detection={
+            "type": "server_vad",
+            "silence_duration_ms": settings.turn_silence_ms,
+            "prefix_padding_ms": 300,
+        },
+        settings=OpenAIRealtimeSTTService.Settings(
+            model=settings.stt_model, noise_reduction="near_field"
+        ),
+    )
+
+
+_warm_lock = threading.Lock()
+_warmed = False
+
+
+def warm_up() -> None:
+    """Import Pipecat in the background so the first conversation starts at once.
+
+    Importing it takes seconds on the backend's small CPU; the app calls the status probe
+    as voice opens, which starts this, so the import is done by the time the socket opens.
+    """
+    global _warmed
+    with _warm_lock:
+        if _warmed:
+            return
+        _warmed = True
+
+    def load() -> None:
+        try:
+            import pipecat.pipeline.worker  # noqa: F401
+            import pipecat.processors.aggregators.llm_response_universal  # noqa: F401
+            import pipecat.serializers.protobuf  # noqa: F401
+            import pipecat.services.openai.llm  # noqa: F401
+            import pipecat.services.openai.stt  # noqa: F401
+            import pipecat.services.openai.tts  # noqa: F401
+            import pipecat.transports.websocket.fastapi  # noqa: F401
+        except Exception as exc:  # warming is best effort; a session imports again
+            logger.warning("[voice.live] warm-up failed: %s", type(exc).__name__)
+
+    threading.Thread(target=load, name="voice-warm-up", daemon=True).start()
+
+
+def build_tts(openai_key: str, settings: VoiceSettings) -> Any:
+    from pipecat.services.openai.tts import OpenAITTSService
+
+    return OpenAITTSService(
+        api_key=openai_key,
+        base_url=settings.base_url,
+        settings=OpenAITTSService.Settings(
+            model=settings.tts_model,
+            voice=settings.tts_voice,
+            instructions="Warm, calm and clear, like a sharp startup advisor. Natural pace.",
+        ),
+    )
+
+
+async def run_worker(worker: Any) -> None:
+    from pipecat.workers.runner import WorkerRunner
+
+    runner = WorkerRunner(handle_sigint=False)
+    try:
+        await runner.add_workers(worker)
+        await runner.run()
+    except Exception:
+        logger.exception("[voice.live] session failed")
+        raise
+
+
 async def run_voice_session(
     websocket: Any,
     *,
@@ -233,8 +377,7 @@ async def run_voice_session(
     # Pipecat is imported here so the API process only pays for it when voice is used.
     from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
     from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
-    from pipecat.audio.vad.silero import SileroVADAnalyzer
-    from pipecat.frames.frames import LLMRunFrame
+    from pipecat.frames.frames import TTSSpeakFrame
     from pipecat.pipeline.pipeline import Pipeline
     from pipecat.pipeline.worker import PipelineParams, PipelineWorker
     from pipecat.processors.aggregators.llm_context import LLMContext
@@ -242,35 +385,12 @@ async def run_voice_session(
         LLMContextAggregatorPair,
         LLMUserAggregatorParams,
     )
-    from pipecat.serializers.protobuf import ProtobufFrameSerializer
     from pipecat.services.openai.llm import OpenAILLMService
-    from pipecat.services.openai.stt import OpenAISTTService
-    from pipecat.services.openai.tts import OpenAITTSService
-    from pipecat.transports.websocket.fastapi import (
-        FastAPIWebsocketParams,
-        FastAPIWebsocketTransport,
-    )
-    from pipecat.workers.runner import WorkerRunner
 
     settings = settings or VoiceSettings.from_env()
 
-    transport = FastAPIWebsocketTransport(
-        websocket=websocket,
-        params=FastAPIWebsocketParams(
-            audio_in_enabled=True,
-            audio_out_enabled=True,
-            add_wav_header=False,
-            serializer=ProtobufFrameSerializer(),
-            session_timeout=SESSION_LIMIT_SECONDS,
-            # The route already checked the Origin for cookie sessions; the CLI sends none.
-            allowed_origins=[],
-        ),
-    )
-    stt = OpenAISTTService(
-        api_key=openai_key,
-        base_url=settings.base_url,
-        settings=OpenAISTTService.Settings(model=settings.stt_model),
-    )
+    transport = build_transport(websocket)
+    stt = build_stt(openai_key, settings)
     llm = OpenAILLMService(
         api_key=openai_key,
         base_url=settings.llm_base_url or settings.base_url,
@@ -278,15 +398,7 @@ async def run_voice_session(
             model=settings.llm_model, system_instruction=build_system_prompt(session)
         ),
     )
-    tts = OpenAITTSService(
-        api_key=openai_key,
-        base_url=settings.base_url,
-        settings=OpenAITTSService.Settings(
-            model=settings.tts_model,
-            voice=settings.tts_voice,
-            instructions="Warm, calm and clear, like a sharp startup advisor. Natural pace.",
-        ),
-    )
+    tts = build_tts(openai_key, settings)
 
     handlers = VoiceToolHandlers(executor=executor, session=session)
     schemas = [
@@ -302,7 +414,7 @@ async def run_voice_session(
 
     context = LLMContext(tools=ToolsSchema(standard_tools=schemas))
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
-        context, user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer())
+        context, user_params=LLMUserAggregatorParams()
     )
     pipeline = Pipeline(
         [
@@ -336,25 +448,16 @@ async def run_voice_session(
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(_transport: Any, _client: Any) -> None:
-        context.add_message(
-            {
-                "role": "developer",
-                "content": "Greet the person by first name if you know it, in one short sentence, "
-                "and ask what they want to work on. If they are looking at an idea, mention it.",
-            }
-        )
-        await worker.queue_frames([LLMRunFrame()])
+        # Spoken straight away: a model round trip here was the slowest part of starting.
+        hello = greeting(session)
+        context.add_message({"role": "assistant", "content": hello})
+        await worker.queue_frames([TTSSpeakFrame(hello)])
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(_transport: Any, _client: Any) -> None:
         await worker.cancel()
 
-    runner = WorkerRunner(handle_sigint=False)
     try:
-        await runner.add_workers(worker)
-        await runner.run()
-    except Exception:
-        logger.exception("[voice.live] session failed")
-        raise
+        await run_worker(worker)
     finally:
         await executor.aclose()

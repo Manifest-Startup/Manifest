@@ -2,6 +2,9 @@
 
 ``GET  /api/voice-agent/live/status``  can this person talk to Manifest right now?
 ``WS   /api/voice-agent/live``         the conversation (RTVI over protobuf frames)
+    ``?mode=agent``    (default) Manifest's own agent with every Manifest tool
+    ``?mode=relay``    the person's own agent (Claude Code, Codex, …) answers on the client
+    ``?mode=dictate``  speech to text only, streamed, for writing into a note
 
 Browsers authenticate with the session cookie and must come from a Manifest origin
 (cross-site WebSocket hijacking would otherwise ride the cookie). The CLI and other
@@ -31,6 +34,14 @@ CLOSE_UNAUTHENTICATED = 4401
 CLOSE_FORBIDDEN_ORIGIN = 4403
 CLOSE_NO_KEY = 4402
 CLOSE_UNAVAILABLE = 4503
+
+VOICE_MODES = ("agent", "relay", "dictate")
+
+
+def voice_mode(value: str | None) -> str | None:
+    """The requested mode, or None when it is not one we serve."""
+    mode = (value or "agent").strip().lower()
+    return mode if mode in VOICE_MODES else None
 
 
 class LiveVoiceStatus(BaseModel):
@@ -69,8 +80,16 @@ def live_status(user_id: str) -> LiveVoiceStatus:
 
 @router.get("/live/status", response_model=LiveVoiceStatus)
 def live_voice_status(user_id: str = Depends(require_user_id)) -> LiveVoiceStatus:
-    """Whether live voice can start for this person (never mints or returns a credential)."""
-    return live_status(user_id)
+    """Whether live voice can start for this person (never mints or returns a credential).
+
+    The app asks as voice opens, so this is also when Pipecat starts loading.
+    """
+    status = live_status(user_id)
+    if status.available:
+        from app.services.voice.live.bot import warm_up
+
+        warm_up()
+    return status
 
 
 def _session_token(websocket: WebSocket) -> tuple[str | None, bool]:
@@ -185,10 +204,34 @@ async def live_voice(websocket: WebSocket) -> None:
         await _reject(websocket, CLOSE_NO_KEY, "Add your OpenAI key in Account → AI settings")
         return
 
+    params: dict[str, Any] = dict(websocket.query_params)
+    mode = voice_mode(params.get("mode"))
+    if mode is None:
+        await _reject(websocket, CLOSE_UNAVAILABLE, "Unknown voice mode")
+        return
+    if mode != "agent":
+        await websocket.accept()
+        logger.info(
+            "[voice.live] session started", extra={"enduser.id": str(user_id), "voice.mode": mode}
+        )
+        try:
+            if mode == "relay":
+                from app.services.voice.live.relay import run_relay_session
+
+                await run_relay_session(websocket, openai_key=openai_key)
+            else:
+                from app.services.voice.live.dictation import run_dictation_session
+
+                await run_dictation_session(websocket, openai_key=openai_key)
+        finally:
+            logger.info(
+                "[voice.live] session ended", extra={"enduser.id": str(user_id), "voice.mode": mode}
+            )
+        return
+
     from app.services.voice.live.bot import VoiceSessionContext, run_voice_session
     from app.services.voice.live.tools import ToolExecutor
 
-    params: dict[str, Any] = dict(websocket.query_params)
     session = VoiceSessionContext(
         first_name=await run_in_threadpool(_first_name, str(user_id)),
         path=(params.get("path") or "")[:200] or None,

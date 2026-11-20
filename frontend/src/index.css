@@ -391,6 +391,9 @@ summary:focus-visible,
   --read-select: rgba(41, 151, 255, 0.32);
 }
 
+/* Words still being heard while dictating (noteDictation.ts); final text is normal. */
+.manifest-dictation-interim { color: var(--text-secondary); }
+
 .manifest-rich-editor .ProseMirror {
   min-height: 16rem;
   max-width: 720px;

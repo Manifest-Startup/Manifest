@@ -10,6 +10,10 @@ Optional extra: ``pip install 'manifest-mcp[voice]'`` (websockets + sounddevice)
 
 Laptop speakers feed back into the microphone, so by default the mic is muted while
 Manifest is speaking. With headphones, ``--barge-in`` lets you interrupt it.
+
+``--agent claude|codex|"<command>"`` keeps the voice but swaps the brain: the server only
+listens and speaks (relay mode) and your own agent answers each turn on this computer,
+with its own tools and history (see ``agents.py``).
 """
 
 from __future__ import annotations
@@ -20,13 +24,18 @@ import json
 import sys
 import uuid
 from dataclasses import dataclass
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from manifest_cli.agents import LocalAgent
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 IN_RATE = 16000
 OUT_RATE = 24000
 CHUNK_MS = 20
 RTVI_VERSION = "2.3.0"
+# Say something if the agent has been quiet this long, so silence never feels broken.
+WORKING_AFTER_SECONDS = 2.5
 
 # ---- minimal protobuf for pipecat's frames.proto -------------------------------------
 # Frame { oneof frame { TextFrame text = 1; AudioRawFrame audio = 2;
@@ -110,17 +119,12 @@ def rtvi(kind: str, data: Any = None) -> dict[str, Any]:
     return {"label": "rtvi-ai", "type": kind, "id": uuid.uuid4().hex[:8], "data": data}
 
 
-def live_url(base_url: str) -> str:
+def live_url(base_url: str, mode: str = "agent") -> str:
     parts = urlsplit(base_url.rstrip("/"))
     scheme = "wss" if parts.scheme == "https" else "ws"
+    query = {"path": "/cli", **({"mode": mode} if mode != "agent" else {})}
     return urlunsplit(
-        (
-            scheme,
-            parts.netloc,
-            parts.path + "/api/voice-agent/live",
-            urlencode({"path": "/cli"}),
-            "",
-        )
+        (scheme, parts.netloc, parts.path + "/api/voice-agent/live", urlencode(query), "")
     )
 
 
@@ -141,9 +145,7 @@ class Printer:
         return f"\033[{code}m{text}\033[0m" if self.color else text
 
     def line(self, who: str, text: str) -> None:
-        label = {"you": self._paint("2", "you"), "manifest": self._paint("1", "manifest")}.get(
-            who, who
-        )
+        label = self._paint("2", "you") if who == "you" else self._paint("1", who)
         self.out.write(f"{label}  {text}\n")
         self.out.flush()
 
@@ -155,8 +157,19 @@ class Printer:
 class VoiceClient:
     """One conversation. Audio I/O is injected so tests can run without a sound card."""
 
-    def __init__(self, url: str, token: str, printer: Printer, *, barge_in: bool = False) -> None:
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        printer: Printer,
+        *,
+        barge_in: bool = False,
+        agent: LocalAgent | None = None,
+    ) -> None:
         self.url, self.token, self.printer, self.barge_in = url, token, printer, barge_in
+        self.agent = agent
+        self.speaker = agent.name.lower() if agent else "manifest"
+        self.turns: asyncio.Queue[str] = asyncio.Queue()
         self.bot_speaking = False
         self.text_mode = False
         self.ended = asyncio.Event()
@@ -165,8 +178,11 @@ class VoiceClient:
     def handle(self, message: dict[str, Any]) -> None:
         kind, data = message.get("type"), message.get("data") or {}
         if kind == "bot-ready":
+            via = f" to {self.agent.name}" if self.agent else ""
             self.printer.note(
-                "connected" if self.text_mode else "connected; just talk (Ctrl-C to stop)"
+                f"connected{via}"
+                if self.text_mode
+                else f"connected{via}; just talk (Ctrl-C to stop)"
             )
         elif kind == "user-transcription" and data.get("final"):
             self.printer.line("you", str(data.get("text", "")).strip())
@@ -174,7 +190,7 @@ class VoiceClient:
             text = str(data.get("text", "")).strip()
             if text and (not self._bot_line or self._bot_line[-1] != text):
                 self._bot_line.append(text)
-                self.printer.line("manifest", text)
+                self.printer.line(self.speaker, text)
         elif kind == "bot-started-speaking":
             self.bot_speaking = True
         elif kind == "bot-stopped-speaking":
@@ -197,6 +213,54 @@ class VoiceClient:
             self.printer.note(f"open in the app: {data.get('path')}")
         elif kind == "manifest.end":
             self.ended.set()
+        elif kind == "manifest.turn" and self.agent is not None:
+            text = str(data.get("text") or "").strip()
+            if text:
+                self.turns.put_nowait(text)
+
+    async def _say(self, ws: Any, text: str) -> None:
+        await ws.send(
+            encode_message(rtvi("client-message", {"t": "manifest.say", "d": {"text": text}}))
+        )
+
+    async def _nudge(self, ws: Any, spoke: asyncio.Event) -> None:
+        await asyncio.sleep(WORKING_AFTER_SECONDS)
+        if not spoke.is_set():
+            await self._say(ws, "Working on it.")
+
+    async def _relay(self, ws: Any) -> None:
+        """Answer each turn with the person's own agent, speaking as it goes."""
+        assert self.agent is not None
+        agent = self.agent
+        warm = getattr(agent, "start", None)
+        if warm is not None:  # start a long-lived agent now, while the person talks
+            asyncio.ensure_future(warm())
+        await self._say(ws, f"{agent.name} is listening.")
+        while True:
+            texts = [await self.turns.get()]
+            while not self.turns.empty():  # spoke again while the agent was busy: one turn
+                texts.append(self.turns.get_nowait())
+            spoke = asyncio.Event()
+
+            nudger = asyncio.create_task(self._nudge(ws, spoke))
+            try:
+                async for kind, value in agent.turn(" ".join(texts)):
+                    if kind == "say":
+                        spoke.set()
+                        await self._say(ws, value)
+                    elif kind == "tool":
+                        self.printer.note(f"{agent.name}: {value}")
+                    elif kind == "error":
+                        self.printer.note(f"{agent.name}: {value}")
+                        spoke.set()
+                        await self._say(
+                            ws, f"{agent.name} ran into a problem. Details are in the terminal."
+                        )
+            except FileNotFoundError:
+                self.printer.note(f"could not start {agent.name}")
+                await self._say(ws, f"I couldn't start {agent.name}.")
+            finally:
+                nudger.cancel()
 
     async def run(self, *, text_mode: bool, stdin: TextIO) -> int:
         import websockets
@@ -224,9 +288,13 @@ class VoiceClient:
                     )
                 )
                 tasks.append(asyncio.create_task(self.ended.wait()))
+                if self.agent is not None:
+                    tasks.append(asyncio.create_task(self._relay(ws)))
                 done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
                 for task in pending:
                     task.cancel()
+                if self.agent is not None:
+                    self.agent.stop()
                 for task in done:
                     if task.exception():
                         raise task.exception()  # type: ignore[misc]
@@ -313,10 +381,18 @@ def missing_audio_support() -> str | None:
 
 
 def run(
-    base_url: str, token: str, *, out: TextIO, stdin: TextIO, text_mode: bool, barge_in: bool
+    base_url: str,
+    token: str,
+    *,
+    out: TextIO,
+    stdin: TextIO,
+    text_mode: bool,
+    barge_in: bool,
+    agent: LocalAgent | None = None,
 ) -> int:
     color = out.isatty() if hasattr(out, "isatty") else False
-    client = VoiceClient(live_url(base_url), token, Printer(out, color), barge_in=barge_in)
+    url = live_url(base_url, "relay" if agent else "agent")
+    client = VoiceClient(url, token, Printer(out, color), barge_in=barge_in, agent=agent)
     with contextlib.suppress(KeyboardInterrupt):
         return asyncio.run(client.run(text_mode=text_mode, stdin=stdin))
     out.write("\n")

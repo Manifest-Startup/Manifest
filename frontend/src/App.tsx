@@ -214,7 +214,7 @@ const App = () => {
           {hideTopChrome ? null : <AppFooter />}
           {!hideTopChrome && isLoggedIn ? (
             <Suspense fallback={null}>
-              {isVaultMode() ? null : <FloatingVoiceButton />}
+              <FloatingVoiceButton />
             </Suspense>
           ) : null}
           {isLoggedIn ? (

@@ -248,12 +248,17 @@ export interface LiveVoiceContext {
   ideaTitle?: string | null;
 }
 
+/** `agent` = Manifest's voice agent; `dictate` = speech to text only, for writing a note. */
+export type LiveVoiceMode = 'agent' | 'dictate';
+
 export function buildLiveVoiceUrl(
   location: { protocol: string; host: string },
   context: LiveVoiceContext,
+  mode: LiveVoiceMode = 'agent',
 ): string {
   const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const params = new URLSearchParams({ path: context.path });
+  if (mode !== 'agent') params.set('mode', mode);
   if (context.ideaId) params.set('idea_id', context.ideaId);
   if (context.ideaTitle) params.set('idea_title', context.ideaTitle);
   return `${scheme}//${location.host}/api/voice-agent/live?${params.toString()}`;
@@ -263,6 +268,51 @@ export interface LiveVoiceStatus {
   available: boolean;
   reason: 'no_api_key' | 'unavailable' | 'sign_in' | 'offline' | null;
   message: string | null;
+}
+
+/** The Pipecat client and its WebSocket transport, loaded once on first use. */
+export type PipecatModules = [
+  typeof import('@pipecat-ai/client-js'),
+  typeof import('@pipecat-ai/websocket-transport'),
+];
+let pipecatModules: Promise<PipecatModules> | null = null;
+export function loadPipecat(): Promise<PipecatModules> {
+  pipecatModules ??= Promise.all([
+    import('@pipecat-ai/client-js'),
+    import('@pipecat-ai/websocket-transport'),
+  ]).catch(error => {
+    pipecatModules = null;
+    throw error;
+  });
+  return pipecatModules;
+}
+
+const STATUS_FRESH_MS = 60_000;
+let cachedStatus: { at: number; status: Promise<LiveVoiceStatus> } | null = null;
+
+/**
+ * The status, reused for a minute so opening voice costs no extra round trip. Asking
+ * also makes the server start loading Pipecat, so call it as soon as voice is likely.
+ */
+export function liveVoiceStatus(): Promise<LiveVoiceStatus> {
+  if (cachedStatus && Date.now() - cachedStatus.at < STATUS_FRESH_MS) return cachedStatus.status;
+  const status = fetchLiveVoiceStatus().then(result => {
+    if (!result.available && cachedStatus?.status === status) cachedStatus = null; // retry next time
+    return result;
+  });
+  cachedStatus = { at: Date.now(), status };
+  return status;
+}
+
+/** Ask the server again next time (after signing in or adding a key). */
+export function forgetLiveVoiceStatus(): void {
+  cachedStatus = null;
+}
+
+/** Warm everything a conversation needs (on hover/focus of a voice control). */
+export function warmLiveVoice(): void {
+  void loadPipecat().catch(() => undefined);
+  void liveVoiceStatus();
 }
 
 /** Can live voice start? Never throws; network trouble reads as "offline". */

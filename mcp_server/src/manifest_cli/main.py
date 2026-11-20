@@ -542,11 +542,33 @@ def cmd_voice(ctx: Context, argv: list[str]) -> int:
         "voice",
         BUILTINS["voice"],
         epilog="Speech, the model and Manifest's tools run on the server with your own OpenAI key.\n"
-        "The mic is muted while Manifest speaks; use --barge-in with headphones to interrupt it.",
+        "The mic is muted while Manifest speaks; use --barge-in with headphones to interrupt it.\n"
+        "With --agent, your own agent (Claude Code, Codex, ...) answers on this computer and\n"
+        "Manifest only listens and speaks: manifest voice --agent claude --continue",
     )
     parser.add_argument("--text", action="store_true", help="type instead of speaking")
     parser.add_argument(
         "--barge-in", action="store_true", help="keep the mic on while Manifest speaks"
+    )
+    parser.add_argument(
+        "--agent",
+        metavar="AGENT",
+        help="your own agent answers instead: claude (Claude Code), codex, or a command "
+        "that reads the turn on stdin and prints the reply",
+    )
+    parser.add_argument(
+        "--continue",
+        dest="continue_last",
+        action="store_true",
+        help="with --agent: continue its newest session in this folder (incl. VS Code)",
+    )
+    parser.add_argument("--resume", metavar="SESSION", help="with --agent: resume this session")
+    parser.add_argument(
+        "--agent-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="extra argument for the agent, repeatable (e.g. --agent-arg=--permission-mode=acceptEdits)",
     )
     ns = parser.parse_args(argv)
     token = config.token(ns.token)
@@ -556,6 +578,18 @@ def cmd_voice(ctx: Context, argv: list[str]) -> int:
         problem = voice.missing_audio_support()
         if problem:
             raise CliError(problem)
+    agent = None
+    if ns.agent:
+        from manifest_cli.agents import make_agent, missing_agent
+
+        agent = make_agent(
+            ns.agent, extra_args=ns.agent_arg, resume=ns.resume, continue_last=ns.continue_last
+        )
+        problem = missing_agent(agent)
+        if problem:
+            raise CliError(problem)
+    elif ns.continue_last or ns.resume or ns.agent_arg:
+        raise CliError("--continue, --resume and --agent-arg go with --agent.")
     return voice.run(
         config.base_url(ns.base_url),
         token,
@@ -563,6 +597,7 @@ def cmd_voice(ctx: Context, argv: list[str]) -> int:
         stdin=ctx.stdin,
         text_mode=ns.text,
         barge_in=ns.barge_in,
+        agent=agent,
     )
 
 

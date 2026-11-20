@@ -222,12 +222,14 @@ Two backend-wide behaviours keep voice turns from slowing the rest of the platfo
 
 ## Live voice (Pipecat) — the primary voice
 
-Since 2026-11-19 Manifest's voice is a server-side [Pipecat](https://github.com/pipecat-ai/pipecat) pipeline (ADR 0013). It replaced the OpenAI Realtime (WebRTC speech-to-speech) path.
+Since 2026-11-19 Manifest's voice is a server-side [Pipecat](https://github.com/pipecat-ai/pipecat) pipeline (ADR 0013). It replaced the OpenAI Realtime (WebRTC speech-to-speech) path. ADR 0014 made it fast and added dictation and relay modes.
 
 ```
-mic ─▶ WebSocket (RTVI over protobuf) ─▶ Silero VAD + smart-turn ─▶ OpenAI streaming STT
-    ─▶ LLM with Manifest's tools ─▶ OpenAI TTS ─▶ WebSocket ─▶ speaker
+mic ─▶ WebSocket (RTVI over protobuf) ─▶ OpenAI Realtime transcription (server VAD, streaming)
+    ─▶ LLM with Manifest's tools ─▶ OpenAI TTS (streamed) ─▶ WebSocket ─▶ speaker
 ```
+
+- **Speed:** the backend's CPU is tiny (Render free, 0.1 vCPU), so no local inference runs: OpenAI's realtime transcription hears the person while they speak and ends the turn itself (`server_vad`), so the transcript is ready when they stop. The greeting is spoken without a model call; `GET /live/status` starts loading Pipecat in the background; the web app preloads its Pipecat chunk and caches the status for a minute when a voice control is hovered or focused.
 
 - **Code:** `backend/app/routes/voice_live_routes.py` (route + auth), `backend/app/services/voice/live/bot.py` (pipeline, prompt, server messages), `backend/app/services/voice/live/tools.py` (tools).
 - **Everything Manifest can do:** the agent uses the same generated catalog as `/mcp`, the agent plugin and the CLI (`tools.generated.json`, written by `scripts/generate_agent_tools.py`), and runs tools over the public GraphQL/REST API with the person's own session token, so backend permission checks apply unchanged. The model sees ~15 everyday tools plus `find_tools` (search all ~130) and `use_tool` (run any), `show_in_app` (navigate the web app) and `end_conversation`. Destructive tools return a preview first; the agent reads it back and needs a spoken yes before calling again with `confirm: true`.
@@ -245,7 +247,16 @@ Cheap probe; never returns a credential.
 
 ### `WS /api/voice-agent/live`
 
-One conversation. Query parameters (optional, grounding only): `path`, `idea_id`, `idea_title`.
+One conversation. Query parameters (optional, grounding only): `path`, `idea_id`, `idea_title`, and `mode`:
+
+| `mode` | What runs on the server | Used by |
+|---|---|---|
+| `agent` (default) | transcription → Manifest's agent with every tool → speech | web app voice, `manifest voice` |
+| `relay` | transcription and speech only; the client's own agent answers each turn | `manifest voice --agent claude\|codex\|"<cmd>"` |
+| `dictate` | transcription only, streamed word by word; no model, no speech | the note's voice orb |
+
+- **Relay:** the server sends `manifest.turn` `{id, text}` (server-message) when the person finishes a turn; the client answers with `manifest.say` `{text}` client-messages (one per sentence, spoken in order) and may send `manifest.hush` to stop speech. The server never runs a model or tools in relay mode.
+- **Dictate:** RTVI `user-transcription` events: `final: false` carries the next piece (a delta to append), `final: true` the whole sentence once the person pauses. Sessions end after 2 idle minutes.
 
 - **Auth:** browsers use the session cookie and must connect from a Manifest origin (same host, `FRONTEND_ORIGINS`, `APP_BASE_URL`; localhost outside production) to stop cross-site WebSocket hijacking. The CLI and agents send `Authorization: Bearer <session token>` (no Origin needed).
 - **Close codes:** `4401` sign in · `4402` no OpenAI key · `4403` origin not allowed · `4503` voice not installed.
@@ -258,8 +269,10 @@ One conversation. Query parameters (optional, grounding only): `path`, `idea_id`
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `VOICE_LLM_MODEL` | `gpt-4.1` | Conversation + tool-calling model |
-| `VOICE_STT_MODEL` | `gpt-4o-transcribe` | Speech to text |
+| `VOICE_LLM_MODEL` | `gpt-4.1-mini` | Conversation + tool-calling model (fast first token) |
+| `VOICE_STT_MODEL` | `gpt-transcribe` | Streaming speech to text with server turn detection (all modes) |
+| `VOICE_TURN_SILENCE_MS` | `500` | Pause that ends a turn (200–3000); shorter answers sooner |
+| `VOICE_STT_URL` | from `VOICE_OPENAI_BASE_URL` (`ws…/realtime`) | Realtime transcription WebSocket |
 | `VOICE_TTS_MODEL` / `VOICE_TTS_VOICE` | `gpt-4o-mini-tts` / `coral` | Text to speech |
 | `VOICE_OPENAI_BASE_URL` | OpenAI | Any OpenAI-compatible API for all three (self-hosted, a gateway) |
 | `VOICE_LLM_BASE_URL` | `VOICE_OPENAI_BASE_URL` | A different OpenAI-compatible endpoint for the LLM only |
