@@ -120,3 +120,29 @@ def test_local_voice_helpers():
         '(In the Manifest app, the person is looking at the idea "Solar", id a1.)'
     )
     assert local_voice.context_line(None) == ""
+
+
+def test_install_retries_until_the_old_bridge_has_stopped(tmp_path, monkeypatch):
+    """`bootstrap` fails with error 5 while the old bridge is still exiting."""
+    import subprocess
+
+    calls: list[str] = []
+    bootstrap_results = iter([5, 5, 0])
+
+    def fake_run(cmd, **_kwargs):
+        calls.append(cmd[1])
+        code = {"bootout": 0, "print": 1}.get(cmd[1])
+        if code is None:
+            code = next(bootstrap_results)
+        stderr = "Bootstrap failed: 5: Input/output error" if code else ""
+        return subprocess.CompletedProcess(cmd, code, "", stderr)
+
+    monkeypatch.setattr(bridge.sys, "platform", "darwin")
+    monkeypatch.setattr(bridge.subprocess, "run", fake_run)
+    monkeypatch.setattr(bridge.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(bridge, "launch_agent_path", lambda: tmp_path / "agent.plist")
+    monkeypatch.setattr(bridge.Path, "home", staticmethod(lambda: tmp_path))
+    out = io.StringIO()
+    assert bridge.install(["--agent", "claude"], out=out) == 0
+    assert calls.count("bootstrap") == 3
+    assert "starts when you log in" in out.getvalue()

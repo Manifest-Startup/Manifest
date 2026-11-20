@@ -26,6 +26,7 @@ import os
 import plistlib
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
@@ -238,6 +239,30 @@ def launch_agent_plist(args: list[str], *, path_env: str, log: Path) -> dict[str
     }
 
 
+def _bootstrap_when_unloaded(
+    domain: str, plist: Path, *, timeout: float = 20.0
+) -> subprocess.CompletedProcess[str]:
+    """Load the agent once launchd has let go of the old one.
+
+    `bootout` returns before the old bridge has exited (Pipecat takes a few
+    seconds to stop), and `bootstrap` fails with "5: Input/output error" until
+    it has, so wait for the old service to vanish and retry briefly.
+    """
+    deadline = time.monotonic() + timeout
+    target = f"{domain}/{LAUNCH_LABEL}"
+    while time.monotonic() < deadline:
+        if subprocess.run(["launchctl", "print", target], capture_output=True).returncode:
+            break
+        time.sleep(0.5)
+    while True:
+        started = subprocess.run(
+            ["launchctl", "bootstrap", domain, str(plist)], capture_output=True, text=True
+        )
+        if started.returncode == 0 or time.monotonic() >= deadline:
+            return started
+        time.sleep(1.0)
+
+
 def install(args: list[str], *, out: TextIO) -> int:
     """Run the bridge at login (macOS LaunchAgent), replacing an earlier install."""
     if sys.platform != "darwin":
@@ -255,9 +280,7 @@ def install(args: list[str], *, out: TextIO) -> int:
         plistlib.dump(
             launch_agent_plist(args, path_env=os.environ.get("PATH", ""), log=log), handle
         )
-    started = subprocess.run(
-        ["launchctl", "bootstrap", domain, str(plist)], capture_output=True, text=True
-    )
+    started = _bootstrap_when_unloaded(domain, plist)
     if started.returncode != 0:
         out.write(f"Could not start it: {started.stderr.strip() or started.returncode}\n")
         return 1
