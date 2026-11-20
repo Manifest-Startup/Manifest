@@ -22,6 +22,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
+import plistlib
+import subprocess
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
@@ -179,6 +184,70 @@ async def serve(
             await server.serve_forever()
         finally:
             agent.stop()
+
+
+LAUNCH_LABEL = "com.manifeststartup.bridge"
+
+
+def launch_agent_path() -> Path:
+    return Path.home() / "Library" / "LaunchAgents" / f"{LAUNCH_LABEL}.plist"
+
+
+def launch_agent_plist(args: list[str], *, path_env: str, log: Path) -> dict[str, Any]:
+    """A login item that keeps `manifest bridge` running (restarted if it stops)."""
+    return {
+        "Label": LAUNCH_LABEL,
+        "ProgramArguments": [sys.executable, "-m", "manifest_cli", "bridge", *args],
+        "RunAtLoad": True,
+        "KeepAlive": True,
+        "WorkingDirectory": str(Path.home()),
+        "EnvironmentVariables": {"PATH": path_env},
+        "StandardOutPath": str(log),
+        "StandardErrorPath": str(log),
+        "ProcessType": "Interactive",
+    }
+
+
+def install(args: list[str], *, out: TextIO) -> int:
+    """Run the bridge at login (macOS LaunchAgent), replacing an earlier install."""
+    if sys.platform != "darwin":
+        out.write(
+            "--install sets up a macOS login item. Elsewhere, run `manifest bridge` at startup.\n"
+        )
+        return 1
+    log = Path.home() / "Library" / "Logs" / "Manifest" / "bridge.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    plist = launch_agent_path()
+    plist.parent.mkdir(parents=True, exist_ok=True)
+    domain = f"gui/{os.getuid()}"
+    subprocess.run(["launchctl", "bootout", f"{domain}/{LAUNCH_LABEL}"], capture_output=True)
+    with plist.open("wb") as handle:
+        plistlib.dump(
+            launch_agent_plist(args, path_env=os.environ.get("PATH", ""), log=log), handle
+        )
+    started = subprocess.run(
+        ["launchctl", "bootstrap", domain, str(plist)], capture_output=True, text=True
+    )
+    if started.returncode != 0:
+        out.write(f"Could not start it: {started.stderr.strip() or started.returncode}\n")
+        return 1
+    out.write(
+        "The Manifest bridge now starts when you log in and stays running.\n"
+        f"Voice in Manifest talks to your agent with no key. Log: {log}\n"
+        "Undo with: manifest bridge --uninstall\n"
+    )
+    return 0
+
+
+def uninstall(*, out: TextIO) -> int:
+    subprocess.run(
+        ["launchctl", "bootout", f"gui/{os.getuid()}/{LAUNCH_LABEL}"], capture_output=True
+    )
+    plist = launch_agent_path()
+    if plist.exists():
+        plist.unlink()
+    out.write("The Manifest bridge no longer starts at login.\n")
+    return 0
 
 
 def run(agent: LocalAgent, *, port: int, extra_origins: list[str], out: TextIO) -> int:

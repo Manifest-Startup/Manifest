@@ -82,3 +82,22 @@ def test_context_line():
         == "(In the Manifest app, the person is on /ideas.)"
     )
     assert bridge.describe_context(None) == ""
+
+
+def test_install_writes_a_login_item_that_keeps_the_bridge_running(tmp_path):
+    plist = bridge.launch_agent_plist(
+        ["--agent", "claude", "--port", "47821"],
+        path_env="/usr/bin:/opt/homebrew/bin",
+        log=tmp_path / "b.log",
+    )
+    assert plist["ProgramArguments"][1:] == [
+        "-m",
+        "manifest_cli",
+        "bridge",
+        "--agent",
+        "claude",
+        "--port",
+        "47821",
+    ]
+    assert plist["RunAtLoad"] and plist["KeepAlive"]
+    assert plist["EnvironmentVariables"]["PATH"].endswith("homebrew/bin")

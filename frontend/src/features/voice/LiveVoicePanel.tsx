@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import type { LiveActivity, LiveVoiceError, LiveVoicePhase, LiveVoiceState } from './liveVoice';
 import { suggestionsFor } from './liveVoice';
+import { BRIDGE_INSTALL_COMMAND } from './localAgent';
 import type { PipecatVoiceSessionApi } from './usePipecatVoiceSession';
 import './liveVoicePanel.css';
 
@@ -162,7 +163,17 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
 
   let words: React.ReactNode;
   if (error) {
-    words = <span className="lv-line">{error.kind === 'no_api_key' ? 'Add your OpenAI key to talk.' : error.message}</span>;
+    words = (
+      <span className="lv-line">
+        {error.kind === 'no_api_key' ? (
+          <>
+            Talk to Claude Code on this Mac: run <code>{BRIDGE_INSTALL_COMMAND}</code> once. Or add an OpenAI key.
+          </>
+        ) : (
+          error.message
+        )}
+      </span>
+    );
   } else if (typing) {
     words = (
       <form className="lv-type" onSubmit={event => void submitDraft(event)}>
