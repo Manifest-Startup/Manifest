@@ -7,6 +7,7 @@ import { isVaultMode } from "features/vault/mode";
 import "./voicePanel.css";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
 import { liveVoiceStatus, LiveVoiceError, warmLiveVoice } from "./liveVoice";
+import { BRIDGE_COMMAND, browserSpeechAvailable, probeBridge } from "./localAgent";
 import {
   getStoredVoiceMode,
   setStoredVoiceMode,
@@ -15,6 +16,7 @@ import {
 
 const VoiceModeSurface = lazy(() => import("./VoiceModeSurface"));
 const LiveVoiceDock = lazy(() => import("./LiveVoiceDock"));
+const LocalAgentVoiceDock = lazy(() => import("./LocalAgentVoiceDock"));
 
 /** An idea's note has its own voice orb beside the text, so the corner pill steps aside. */
 export function hasNoteOrb(pathname: string): boolean {
@@ -27,16 +29,19 @@ function isVoiceWorkspacePath(pathname: string): boolean {
 }
 
 /** "live" = Manifest's Pipecat agent; "legacy" = the browser STT/TTS idea interview. */
-type VoiceEngine = { kind: "live"; blocked: LiveVoiceError | null } | { kind: "legacy" };
+type VoiceEngine =
+  | { kind: "live"; blocked: LiveVoiceError | null }
+  | { kind: "local" } // the person's own agent via `manifest bridge`; no OpenAI key
+  | { kind: "legacy" };
 
 const NO_KEY: LiveVoiceError = {
   kind: "no_api_key",
-  message: "Voice runs on your own OpenAI key. Add it once in Account → AI settings, then just talk.",
+  message: `Add your OpenAI key in Account → AI settings, or use Claude Code or Codex on this computer with no key: run ${BRIDGE_COMMAND}`,
 };
 
 const VAULT_SIGN_IN: LiveVoiceError = {
   kind: "sign_in",
-  message: "Voice runs through your Manifest account. Sign in, and your ideas stay in your folder.",
+  message: `Sign in to use Manifest's voice, or use Claude Code or Codex on this computer: run ${BRIDGE_COMMAND}`,
 };
 
 /**
@@ -49,8 +54,11 @@ export async function chooseEngine(isGuest: boolean, vault = isVaultMode()): Pro
   if (isGuest && !vault) return { kind: "legacy" };
   const status = await liveVoiceStatus();
   if (status.available) return { kind: "live", blocked: null };
+  // No key (or no account): Claude Code / Codex on this computer can answer instead. Only
+  // asked now, so people who have a key never see Chrome's local-network question.
+  if (browserSpeechAvailable() && (await probeBridge())) return { kind: "local" };
   if (status.reason === "no_api_key") {
-    return { kind: "live", blocked: status.message ? { ...NO_KEY, message: status.message } : NO_KEY };
+    return { kind: "live", blocked: NO_KEY };
   }
   if (vault) {
     return {
@@ -216,6 +224,10 @@ const FloatingVoiceButton: React.FC = () => {
           {engine.kind === "live" ? (
             <Suspense fallback={null}>
               <LiveVoiceDock autoStart={!engine.blocked} blocked={engine.blocked} onClose={close} />
+            </Suspense>
+          ) : engine.kind === "local" ? (
+            <Suspense fallback={null}>
+              <LocalAgentVoiceDock onClose={close} />
             </Suspense>
           ) : (
             <LegacyVoiceOverlay onClose={close} onSwitchToWorkspace={switchToWorkspaceMode} />

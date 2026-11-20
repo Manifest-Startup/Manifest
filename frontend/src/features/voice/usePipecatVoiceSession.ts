@@ -35,7 +35,7 @@ export interface PipecatVoiceSessionApi {
 
 const REFRESH_DEBOUNCE_MS = 600;
 
-function contextFromPath(pathname: string): LiveVoiceContext {
+export function contextFromPath(pathname: string): LiveVoiceContext {
   const ideaId = pathname.match(/^\/ideas\/([A-Za-z0-9_-]+)(?:\/|$)/)?.[1];
   return { path: pathname, ideaId: ideaId && ideaId !== 'qualify' ? ideaId : null };
 }

@@ -235,6 +235,13 @@ mic ─▶ WebSocket (RTVI over protobuf) ─▶ OpenAI Realtime transcription (
 - **Everything Manifest can do:** the agent uses the same generated catalog as `/mcp`, the agent plugin and the CLI (`tools.generated.json`, written by `scripts/generate_agent_tools.py`), and runs tools over the public GraphQL/REST API with the person's own session token, so backend permission checks apply unchanged. The model sees ~15 everyday tools plus `find_tools` (search all ~130) and `use_tool` (run any), `show_in_app` (navigate the web app) and `end_conversation`. Destructive tools return a preview first; the agent reads it back and needs a spoken yes before calling again with `confirm: true`.
 - **Keys:** STT, LLM and TTS use the person's own OpenAI key (Account → AI settings). Nothing runs on a platform key.
 
+### No OpenAI key: the browser and your own agent
+
+When live voice isn't available (no key on the account, or a vault without signing in), the web app doesn't stop at "add a key":
+
+- **Voice button:** if `manifest bridge` runs on this computer (`http://127.0.0.1:47821`, probed only in this case), the browser listens (`SpeechRecognition`) and speaks (`speechSynthesis`), and each turn goes to the person's Claude Code or Codex (`frontend/src/features/voice/localAgent.ts`, `useLocalAgentVoiceSession.ts`). The mic pauses while the agent speaks and opens again once the answer is spoken; follow-ups queue. Otherwise the panel names both options.
+- **Note dictation:** falls back to the browser's speech recognition.
+
 ### `GET /api/voice-agent/live/status`
 
 Cheap probe; never returns a credential.

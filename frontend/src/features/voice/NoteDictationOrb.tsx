@@ -10,6 +10,7 @@ import {
   type DictationWriter,
 } from 'features/ideas/utils/noteDictation';
 import { buildLiveVoiceUrl, classifyConnectionError, liveVoiceStatus, loadPipecat, warmLiveVoice } from './liveVoice';
+import { startRecognition } from './localAgent';
 import './noteDictationOrb.css';
 
 const log = createLogger('NoteDictationOrb');
@@ -31,6 +32,7 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
   const [problem, setProblem] = useState<Problem | null>(null);
   const [hasNote, setHasNote] = useState(false);
   const clientRef = useRef<PipecatClient | null>(null);
+  const browserRef = useRef<ReturnType<typeof startRecognition>>(null);
   const writerRef = useRef<DictationWriter | null>(null);
   const heardRef = useRef('');
   const orbRef = useRef<HTMLButtonElement>(null);
@@ -40,6 +42,8 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
   const stop = useCallback(async () => {
     const client = clientRef.current;
     clientRef.current = null;
+    browserRef.current?.stop();
+    browserRef.current = null;
     writerRef.current?.end();
     writerRef.current = null;
     heardRef.current = '';
@@ -64,7 +68,7 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
   );
 
   const start = useCallback(async () => {
-    if (clientRef.current) return;
+    if (clientRef.current || browserRef.current) return;
     setProblem(null);
     // The note may still be opening; give it a moment before giving up.
     let writer = startDictation();
@@ -80,6 +84,21 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
     setPhase('connecting');
     const status = await liveVoiceStatus();
     if (!status.available) {
+      // No key or no account: the browser's own speech recognition writes instead.
+      const browser = startRecognition({
+        onText: (text, final) => {
+          const current = writerRef.current;
+          if (!current) return;
+          if (final) current.commit(text);
+          else current.interim(text);
+        },
+        onError: message => fail({ message }),
+      });
+      if (browser) {
+        browserRef.current = browser;
+        setPhase('listening');
+        return;
+      }
       fail(
         status.reason === 'no_api_key'
           ? { message: 'Dictation runs on your own OpenAI key.', link: { to: '/account#ai-key', label: 'Add key' } }

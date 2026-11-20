@@ -16,6 +16,9 @@ Voice felt slow. Every turn ran Silero VAD continuously and Pipecat's local smar
 - **`mode=relay`:** the server listens and speaks; the client's own agent answers (`manifest voice --agent claude|codex|<cmd>`). Claude Code runs as one long-lived `--input-format stream-json` process per conversation, started at connect, read-only by default. The server never runs a model or tools in relay mode, so the agent can do no more than it could in a terminal.
 - **Vault mode keeps voice:** it runs through the account session; without one, the panel and orb say to sign in. Agent changes reach the folder through vault ↔ account sync (`manifest:vault-sync-now`).
 
+- **No key needed with your own agent (follow-up, same day):** without a key (or account), the app's voice uses the browser's speech recognition and voice and sends turns to `manifest bridge` on 127.0.0.1 (origin-checked; Chrome's local-network preflight answered). Dictation falls back to browser recognition. Measured: Claude Code answers through the bridge in about 2.6 s.
+- **Final transcripts end the turn at once (follow-up):** Pipecat passed OpenAI's `completed` transcript on unmarked, so its turn logic waited 0.5 s more on every turn. `build_stt` marks it final; measured locally, turn end → model request fell from 0.53–0.59 s to 0.01–0.05 s.
+
 ## Consequences
 
 - Removed from the voice path: Silero VAD, smart-turn and batch transcription. Echo handling relies on the browser's echo cancellation (the CLI still mutes the mic while speaking).
