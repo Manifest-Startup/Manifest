@@ -19,6 +19,8 @@ Voice felt slow. Every turn ran Silero VAD continuously and Pipecat's local smar
 - **No key needed with your own agent (follow-up, same day):** without a key (or account), the app's voice uses the browser's speech recognition and voice and sends turns to `manifest bridge` on 127.0.0.1 (origin-checked; Chrome's local-network preflight answered). Dictation falls back to browser recognition. Measured: Claude Code answers through the bridge in about 2.6 s.
 - **Final transcripts end the turn at once (follow-up):** Pipecat passed OpenAI's `completed` transcript on unmarked, so its turn logic waited 0.5 s more on every turn. `build_stt` marks it final; measured locally, turn end → model request fell from 0.53–0.59 s to 0.01–0.05 s.
 
+- **Like-for-like check (same day):** the old (`c3f0128`) and new pipelines, end to end (sound in → first sound out), against the same fake OpenAI with identical delays (model 0.4 s, speech 0.2 s; batch transcription 0.4 s after speech vs streaming 0.15 s after OpenAI's turn end), 5 runs each on an M1: last word → answer heard 1.38–1.79 s old vs 1.39–1.89 s new, i.e. **no change on a fast machine**; connect → greeting heard 5.2–8.0 s old vs 3.3–7.3 s new. The gain from removing local inference should show on the 0.1-vCPU production instance, which could not be reproduced locally (runs on throttled efficiency cores did not finish); a production timing with a real key is still open. The new pipeline waits for OpenAI's 500 ms silence (`VOICE_TURN_SILENCE_MS`), which is now the biggest fixed cost per turn.
+
 ## Consequences
 
 - Removed from the voice path: Silero VAD, smart-turn and batch transcription. Echo handling relies on the browser's echo cancellation (the CLI still mutes the mic while speaking).

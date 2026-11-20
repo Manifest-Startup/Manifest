@@ -27,6 +27,7 @@ import {
   saveNoteCursor,
 } from "features/ideas/utils/noteFocus";
 import { DictationHighlight, registerDictationTarget } from "features/ideas/utils/noteDictation";
+import { ContradictionHighlight, contradictionKey } from "features/ideas/knowledge/contradictions";
 
 interface TextAreaProps {
   value: string;
@@ -81,6 +82,8 @@ const TextArea: React.FC<TextAreaProps> = ({
   const highlightsRef = useRef<HighlightTarget[]>(highlights ?? []);
   highlightsRef.current = highlights ?? [];
   const highlightKey = JSON.stringify(highlights ?? []);
+  const liveRef = useRef(live);
+  liveRef.current = live;
   const valueRef = useRef(value);
   valueRef.current = value;
   const pendingExternalRef = useRef<{ edit: LiveExternalEdit; until: number } | null>(null);
@@ -101,6 +104,8 @@ const TextArea: React.FC<TextAreaProps> = ({
         }),
         SourceHighlight.configure({ getTargets: () => highlightsRef.current }),
         DictationHighlight,
+        // Where people writing together disagree (shared notes only).
+        ContradictionHighlight.configure({ enabled: () => Boolean(liveRef.current) }),
         ...(live
           ? [
               Collaboration.configure({ fragment: live.fragment }),
@@ -202,6 +207,11 @@ const TextArea: React.FC<TextAreaProps> = ({
     if (!editor || editor.isDestroyed) return;
     editor.view.dispatch(editor.state.tr.setMeta(sourceHighlightKey, REFRESH_HIGHLIGHTS));
   }, [editor, highlightKey]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dispatch(editor.state.tr.setMeta(contradictionKey, true));
+  }, [editor, live]);
 
   // -- Where you left off (cursor, selection, scroll) ----------------------------------
   const scroller = () => {
