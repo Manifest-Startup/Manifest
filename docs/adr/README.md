@@ -17,5 +17,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0012 — A vault syncs with the account; every idea keeps a version history in the folder](0012-a-vault-syncs-with-the-account.md)
 - [0013 — Voice runs on Pipecat, with every Manifest tool](0013-voice-runs-on-pipecat.md)
 - [0014 — Voice is fast, dictates into the note, and can be any agent's voice](0014-voice-is-fast-dictates-and-relays.md)
+- [0015 — Shared notes highlight statements that contradict each other](0015-shared-notes-highlight-contradictions.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

@@ -391,6 +391,41 @@ summary:focus-visible,
   --read-select: rgba(41, 151, 255, 0.32);
 }
 
+/* Statements that disagree in a shared note (contradictions.ts): a soft lilac wash with a
+   dotted underline, calm enough to read through, clear enough to notice. Hover for why. */
+.manifest-contradiction {
+  background: linear-gradient(transparent 52%, rgba(175, 82, 222, 0.24) 52%);
+  border-bottom: 1.5px dotted rgba(175, 82, 222, 0.75);
+  border-radius: 2px;
+  cursor: help;
+  transition: background-color 0.2s ease;
+}
+.manifest-contradiction:hover { background-color: rgba(175, 82, 222, 0.12); }
+.manifest-contradiction { position: relative; }
+.manifest-contradiction:hover::after {
+  content: attr(data-disagrees);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(360px, 80vw);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #2b1f33;
+  color: #f6ecfb;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+  box-shadow: 0 12px 28px -14px rgba(60, 20, 80, 0.55);
+  pointer-events: none;
+}
+.dark .manifest-contradiction {
+  background: linear-gradient(transparent 58%, rgba(191, 90, 242, 0.24) 58%);
+  border-bottom-color: rgba(191, 90, 242, 0.85);
+}
+
 /* Words still being heard while dictating (noteDictation.ts); final text is normal. */
 .manifest-dictation-interim { color: var(--text-secondary); }
 
