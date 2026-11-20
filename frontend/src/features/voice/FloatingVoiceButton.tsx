@@ -30,7 +30,7 @@ function isVoiceWorkspacePath(pathname: string): boolean {
 
 /** "live" = Manifest's Pipecat agent; "legacy" = the browser STT/TTS idea interview. */
 type VoiceEngine =
-  | { kind: "live"; blocked: LiveVoiceError | null }
+  | { kind: "live"; blocked: LiveVoiceError | null; wsUrl?: string }
   | { kind: "local" } // the person's own agent via `manifest bridge`; no OpenAI key
   | { kind: "legacy" };
 
@@ -56,7 +56,10 @@ export async function chooseEngine(isGuest: boolean, vault = isVaultMode()): Pro
   if (status.available) return { kind: "live", blocked: null };
   // No key (or no account): Claude Code / Codex on this computer can answer instead. Only
   // asked now, so people who have a key never see Chrome's local-network question.
-  if (browserSpeechAvailable() && (await probeBridge())) return { kind: "local" };
+  const bridge = await probeBridge();
+  // Natural voice on this Mac: Pipecat with local Whisper + Kokoro, the agent as the brain.
+  if (bridge?.voice) return { kind: "live", blocked: null, wsUrl: bridge.voice };
+  if (bridge && browserSpeechAvailable()) return { kind: "local" };
   if (status.reason === "no_api_key") {
     return { kind: "live", blocked: NO_KEY };
   }
@@ -223,7 +226,7 @@ const FloatingVoiceButton: React.FC = () => {
         >
           {engine.kind === "live" ? (
             <Suspense fallback={null}>
-              <LiveVoiceDock autoStart={!engine.blocked} blocked={engine.blocked} onClose={close} />
+              <LiveVoiceDock autoStart={!engine.blocked} blocked={engine.blocked} onClose={close} wsUrl={engine.wsUrl} />
             </Suspense>
           ) : engine.kind === "local" ? (
             <Suspense fallback={null}>

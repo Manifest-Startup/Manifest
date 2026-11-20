@@ -80,7 +80,12 @@ def test_catalog_covers_queries_and_mutations_with_unique_commands():
 
 def test_destructive_mutations_are_flagged():
     flagged = {op["command"] for op in catalog.operations() if op["destructive"]}
-    assert {"delete-idea", "revoke-account-session", "create-investment", "remove-collaborator"} <= flagged
+    assert {
+        "delete-idea",
+        "revoke-account-session",
+        "create-investment",
+        "remove-collaborator",
+    } <= flagged
     assert "create-idea" not in flagged
     assert not any(op["destructive"] for op in catalog.operations() if op["kind"] == "query")
 
@@ -110,9 +115,7 @@ def test_required_flags_are_enforced():
 
 def test_typed_scalars_are_converted_and_validated():
     op = next(
-        o
-        for o in catalog.operations()
-        if any(a["type"].startswith("Int") for a in o["args"])
+        o for o in catalog.operations() if any(a["type"].startswith("Int") for a in o["args"])
     )
     arg = next(a for a in op["args"] if a["type"].startswith("Int"))
     assert catalog.convert("5", arg["type"], what=arg["flag"]) == 5
@@ -155,7 +158,9 @@ def test_commands_lists_and_searches():
     assert f"{total} commands" in out
     code, out, _ = run("commands", "--search", "collaborator", "--json")
     rows = json.loads(out)
-    assert rows and all("collaborator" in r["command"] or "collaborator" in r["description"].lower() for r in rows)
+    assert rows and all(
+        "collaborator" in r["command"] or "collaborator" in r["description"].lower() for r in rows
+    )
 
 
 def test_unknown_command_suggests():
@@ -196,14 +201,18 @@ def test_graphql_errors_exit_nonzero():
         return httpx.Response(200, json={"data": None, "errors": [{"message": "Missing token"}]})
 
     out, err = io.StringIO(), io.StringIO()
-    code = cli.main(["ideas"], out=out, err=err, stdin=FakeStdin(), transport=httpx.MockTransport(handler))
+    code = cli.main(
+        ["ideas"], out=out, err=err, stdin=FakeStdin(), transport=httpx.MockTransport(handler)
+    )
     assert code == 1 and "Missing token" in err.getvalue() and "manifest login" in err.getvalue()
 
 
 @pytest.mark.parametrize("answer, expected_requests", [("y\n", 1), ("n\n", 0)])
 def test_destructive_commands_prompt_on_a_tty(answer, expected_requests):
     backend = Backend({"deleteIdea": True})
-    code, _, err = run("delete-idea", "--idea-id", "i1", backend=backend, stdin=FakeStdin(answer, tty=True))
+    code, _, err = run(
+        "delete-idea", "--idea-id", "i1", backend=backend, stdin=FakeStdin(answer, tty=True)
+    )
     assert len(backend.requests) == expected_requests
     assert "Continue?" in err
     assert code == (0 if expected_requests else 1)
@@ -219,7 +228,9 @@ def test_destructive_commands_need_yes_when_not_interactive():
 
 def test_graphql_escape_hatch():
     backend = Backend({"me": {"userId": "u1"}})
-    code, out, _ = run("graphql", "query { me { userId } }", "--variables", '{"a": 1}', "--json", backend=backend)
+    code, out, _ = run(
+        "graphql", "query { me { userId } }", "--variables", '{"a": 1}', "--json", backend=backend
+    )
     assert code == 0 and json.loads(out) == {"me": {"userId": "u1"}}
     assert backend.graphql_body() == {"query": "query { me { userId } }", "variables": {"a": 1}}
 
@@ -235,11 +246,25 @@ def test_api_escape_hatch_and_delete_confirmation():
 
 def test_rest_commands_build_paths_and_bodies():
     backend = Backend()
-    code, _, err = run("keys", "create", "--client-id", "c1", "--scopes", "ideas:read", "--expires-days", "30", backend=backend)
+    code, _, err = run(
+        "keys",
+        "create",
+        "--client-id",
+        "c1",
+        "--scopes",
+        "ideas:read",
+        "--expires-days",
+        "30",
+        backend=backend,
+    )
     assert code == 0, err
     request = backend.requests[-1]
     assert request.method == "POST" and request.url.path == "/api/keys/keys"
-    assert json.loads(request.content) == {"client_id": "c1", "scopes": ["ideas:read"], "expires_days": 30}
+    assert json.loads(request.content) == {
+        "client_id": "c1",
+        "scopes": ["ideas:read"],
+        "expires_days": 30,
+    }
 
     code, _, _ = run("keys", "revoke", "k/1", "--yes", backend=backend)
     assert code == 0 and backend.requests[-1].method == "DELETE"
@@ -283,7 +308,11 @@ def test_pkce_pair_is_s256():
 
     pkce = auth.new_pkce()
     assert 43 <= len(pkce.verifier) <= 128
-    expected = base64.urlsafe_b64encode(hashlib.sha256(pkce.verifier.encode()).digest()).rstrip(b"=").decode()
+    expected = (
+        base64.urlsafe_b64encode(hashlib.sha256(pkce.verifier.encode()).digest())
+        .rstrip(b"=")
+        .decode()
+    )
     assert pkce.challenge == expected
 
 
@@ -301,21 +330,29 @@ def _callback_opener(**params):
 
 def test_loopback_callback_returns_the_code():
     pkce = auth.new_pkce()
-    code, redirect = auth.wait_for_callback(pkce, _callback_opener(code="abc"), base_url="https://m.test", timeout=5)
+    code, redirect = auth.wait_for_callback(
+        pkce, _callback_opener(code="abc"), base_url="https://m.test", timeout=5
+    )
     assert code == "abc" and redirect.startswith("http://127.0.0.1:")
 
 
 def test_loopback_callback_rejects_a_different_state():
     with pytest.raises(auth.LoginError, match="state"):
         auth.wait_for_callback(
-            auth.new_pkce(), _callback_opener(code="abc", state="forged-state"), base_url="https://m.test", timeout=5
+            auth.new_pkce(),
+            _callback_opener(code="abc", state="forged-state"),
+            base_url="https://m.test",
+            timeout=5,
         )
 
 
 def test_loopback_callback_reports_cancel():
     with pytest.raises(auth.LoginError, match="cancelled"):
         auth.wait_for_callback(
-            auth.new_pkce(), _callback_opener(error="access_denied"), base_url="https://m.test", timeout=5
+            auth.new_pkce(),
+            _callback_opener(error="access_denied"),
+            base_url="https://m.test",
+            timeout=5,
         )
 
 
@@ -356,7 +393,10 @@ def test_logout_revokes_and_forgets():
     code, _, err = run("logout", backend=backend)
     assert code == 0 and "revoked" in err
     request = backend.requests[0]
-    assert request.url.path == "/api/auth/logout" and request.headers["authorization"] == "Bearer cli-token"
+    assert (
+        request.url.path == "/api/auth/logout"
+        and request.headers["authorization"] == "Bearer cli-token"
+    )
     assert config.load() == {"base_url": "https://m.test"}
 
 
@@ -383,7 +423,9 @@ def test_completion_flags():
 @pytest.mark.parametrize("status", [401, 403])
 def test_step_up_answers_explain_how_to_reconfirm(status):
     def handler(request):
-        return httpx.Response(status, json={"detail": "Recent sign-in required"}, headers={"X-Step-Up-Required": "1"})
+        return httpx.Response(
+            status, json={"detail": "Recent sign-in required"}, headers={"X-Step-Up-Required": "1"}
+        )
 
     err = io.StringIO()
     code = cli.main(
@@ -400,7 +442,9 @@ def test_step_up_answers_explain_how_to_reconfirm(status):
 
 @pytest.mark.parametrize("override", ["env", "flag"])
 def test_logout_with_an_override_token_keeps_the_saved_login(override, monkeypatch):
-    config.save({"base_url": "https://m.test", "token": "saved-token", "label": "Manifest CLI · box"})
+    config.save(
+        {"base_url": "https://m.test", "token": "saved-token", "label": "Manifest CLI · box"}
+    )
     argv = ["logout"]
     if override == "env":
         monkeypatch.setenv("MANIFEST_API_TOKEN", "other-token")

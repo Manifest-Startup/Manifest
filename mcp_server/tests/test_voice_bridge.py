@@ -101,3 +101,22 @@ def test_install_writes_a_login_item_that_keeps_the_bridge_running(tmp_path):
     ]
     assert plist["RunAtLoad"] and plist["KeepAlive"]
     assert plist["EnvironmentVariables"]["PATH"].endswith("homebrew/bin")
+
+
+def test_local_voice_helpers():
+    from manifest_cli import local_voice
+
+    assert (
+        local_voice.last_user_text(
+            [
+                {"role": "user", "content": "hi"},
+                {"role": "assistant", "content": "x"},
+                {"role": "user", "content": [{"type": "text", "text": "open it"}]},
+            ]
+        )
+        == "open it"
+    )
+    assert local_voice.context_line({"idea_id": "a1", "idea_title": "Solar"}) == (
+        '(In the Manifest app, the person is looking at the idea "Solar", id a1.)'
+    )
+    assert local_voice.context_line(None) == ""

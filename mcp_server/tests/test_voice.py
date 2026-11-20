@@ -12,7 +12,9 @@ def test_live_url_uses_websockets_and_keeps_paths():
     assert voice.live_url("https://manifeststartup.com") == (
         "wss://manifeststartup.com/api/voice-agent/live?path=%2Fcli"
     )
-    assert voice.live_url("http://localhost:8000/").startswith("ws://localhost:8000/api/voice-agent/live")
+    assert voice.live_url("http://localhost:8000/").startswith(
+        "ws://localhost:8000/api/voice-agent/live"
+    )
 
 
 def test_audio_and_messages_round_trip():
@@ -27,10 +29,14 @@ def test_encoding_matches_pipecats_own_protobuf():
     frame = frames_pb2.Frame.FromString(voice.encode_audio(b"\x00\x01" * 160))
     assert frame.audio.sample_rate == 16000 and frame.audio.num_channels == 1
     assert frame.audio.audio == b"\x00\x01" * 160
-    theirs = frames_pb2.Frame(message=frames_pb2.MessageFrame(data=json.dumps({"a": 1}))).SerializeToString()
+    theirs = frames_pb2.Frame(
+        message=frames_pb2.MessageFrame(data=json.dumps({"a": 1}))
+    ).SerializeToString()
     assert voice.decode(theirs) == ("message", {"a": 1})
     audio = frames_pb2.Frame(
-        audio=frames_pb2.AudioRawFrame(id=7, name="x", audio=b"pcm", sample_rate=24000, num_channels=1)
+        audio=frames_pb2.AudioRawFrame(
+            id=7, name="x", audio=b"pcm", sample_rate=24000, num_channels=1
+        )
     ).SerializeToString()
     assert voice.decode(audio) == ("audio", b"pcm")
 
@@ -43,11 +49,24 @@ def _client() -> tuple[voice.VoiceClient, io.StringIO]:
 def test_conversation_prints_like_a_transcript():
     client, out = _client()
     client.handle({"type": "user-transcription", "data": {"text": "list my ideas", "final": True}})
-    client.handle({"type": "bot-output", "data": {"text": "You have two.", "aggregated_by": "sentence"}})
-    client.handle({"type": "bot-output", "data": {"text": "You have two.", "aggregated_by": "sentence"}})
-    client.handle({"type": "server-message", "data": {"type": "manifest.tool", "phase": "finished",
-                                                       "label": "Delete idea", "ok": True,
-                                                       "summary": "Waiting for your yes"}})
+    client.handle(
+        {"type": "bot-output", "data": {"text": "You have two.", "aggregated_by": "sentence"}}
+    )
+    client.handle(
+        {"type": "bot-output", "data": {"text": "You have two.", "aggregated_by": "sentence"}}
+    )
+    client.handle(
+        {
+            "type": "server-message",
+            "data": {
+                "type": "manifest.tool",
+                "phase": "finished",
+                "label": "Delete idea",
+                "ok": True,
+                "summary": "Waiting for your yes",
+            },
+        }
+    )
     client.handle({"type": "server-message", "data": {"type": "manifest.end"}})
     text = out.getvalue()
     assert "you  list my ideas" in text

@@ -9,11 +9,13 @@ interface LiveVoiceDockProps {
   blocked?: LiveVoiceError | null;
   layout?: LiveVoicePanelLayout;
   onClose?: () => void;
+  /** Connect here instead of Manifest's server, e.g. the local bridge's Pipecat voice. */
+  wsUrl?: string;
 }
 
 /** Live voice session + panel. Lazy-loaded, so Pipecat never ships in the boot chunks. */
-const LiveVoiceDock: React.FC<LiveVoiceDockProps> = ({ autoStart = true, blocked = null, layout = 'docked', onClose }) => {
-  const session = usePipecatVoiceSession();
+const LiveVoiceDock: React.FC<LiveVoiceDockProps> = ({ autoStart = true, blocked = null, layout = 'docked', onClose, wsUrl }) => {
+  const session = usePipecatVoiceSession(wsUrl);
   const { start, end } = session;
   const started = useRef(false);
 

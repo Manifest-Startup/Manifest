@@ -45,7 +45,7 @@ export function contextFromPath(pathname: string): LiveVoiceContext {
  * TTS) over one WebSocket. The agent can drive the app: it navigates, and when it changes
  * data the active Apollo queries refetch so the screen stays in sync.
  */
-export function usePipecatVoiceSession(): PipecatVoiceSessionApi {
+export function usePipecatVoiceSession(wsUrl?: string): PipecatVoiceSessionApi {
   const location = useLocation();
   const navigate = useNavigate();
   const apollo = useApolloClient();
@@ -107,7 +107,21 @@ export function usePipecatVoiceSession(): PipecatVoiceSessionApi {
         enableMic: true,
         enableCam: false,
         callbacks: {
-          onBotReady: () => dispatch({ type: 'ready' }),
+          onBotReady: () => {
+            dispatch({ type: 'ready' });
+            // A local voice has no URL to read the page from: tell it what the person sees.
+            if (wsUrl) {
+              try {
+                client.sendClientMessage('manifest.context', {
+                  path: contextRef.current.path,
+                  idea_id: contextRef.current.ideaId ?? null,
+                  idea_title: contextRef.current.ideaTitle ?? null,
+                });
+              } catch (error) {
+                log.warn('context failed', error);
+              }
+            }
+          },
           onDisconnected: () => {
             if (clientRef.current === client) clientRef.current = null;
             levelsRef.current = { mic: 0, bot: 0 };
@@ -157,7 +171,7 @@ export function usePipecatVoiceSession(): PipecatVoiceSessionApi {
         },
       });
       clientRef.current = client;
-      await client.connect({ wsUrl: buildLiveVoiceUrl(window.location, contextRef.current) });
+      await client.connect({ wsUrl: wsUrl ?? buildLiveVoiceUrl(window.location, contextRef.current) });
     } catch (error) {
       log.warn('connect failed', error);
       await disconnect();
@@ -166,7 +180,7 @@ export function usePipecatVoiceSession(): PipecatVoiceSessionApi {
         error: classifyConnectionError(error instanceof Error ? `${error.name} ${error.message}` : String(error)),
       });
     }
-  }, [disconnect, end, scheduleRefresh]);
+  }, [disconnect, end, scheduleRefresh, wsUrl]);
 
   const toggleMute = useCallback(() => {
     const client = clientRef.current;
