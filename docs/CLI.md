@@ -38,6 +38,16 @@ manifest voice --text                # type instead (needs only websockets)
 
 `manifest voice` joins the same live voice agent as the web app (`WS /api/voice-agent/live`, see [VOICE_AGENT_API.md](VOICE_AGENT_API.md)). Speech recognition, the model, Manifest's tools and speech run on the server with your own OpenAI key, so it can do everything these commands can; it asks for a spoken yes before anything destructive. The CLI only moves audio (16 kHz up, 24 kHz down) and prints the conversation and each action it takes.
 
+### Voice in the app with no OpenAI key: `manifest bridge`
+
+```bash
+manifest bridge                            # Claude Code answers voice in the Manifest app
+manifest bridge --agent codex              # or Codex, or any command (as for `voice --agent`)
+manifest bridge --agent claude --continue  # pick up your newest Claude Code session here
+```
+
+Keep it running and use voice in the web app or the installed app. With no OpenAI key on the account (or in a vault without signing in), the app's voice button uses the browser's own speech recognition and voice, and each turn goes to your agent through this small server on `http://127.0.0.1:47821`. It answers only Manifest's own pages (`--origin` adds a self-hosted one), so other websites cannot drive your agent; Chrome may ask once to let Manifest reach the local network. No sign-in or key is needed. The note's dictation orb needs neither the bridge nor a key: without a key it uses the browser's recognition (Chrome sends the audio to Google's speech service; Safari uses Apple's).
+
 ### Your own agent, out loud
 
 ```bash

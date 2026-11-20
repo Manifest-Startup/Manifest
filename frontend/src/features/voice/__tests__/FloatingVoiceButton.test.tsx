@@ -465,3 +465,29 @@ describe("chooseEngine in a vault (installed Chrome app with a local folder)", (
     expect(engine).toMatchObject({ kind: "live", blocked: { kind: "sign_in" } });
   });
 });
+
+describe("chooseEngine without an OpenAI key", () => {
+  const { chooseEngine } = jest.requireActual("../FloatingVoiceButton") as typeof import("../FloatingVoiceButton");
+  beforeEach(() => jest.requireActual("../liveVoice").forgetLiveVoiceStatus());
+
+  test("uses Claude Code / Codex on this computer when `manifest bridge` runs", async () => {
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => [] } });
+    Object.defineProperty(window, "webkitSpeechRecognition", { configurable: true, writable: true, value: class {} });
+    global.fetch = jest.fn(async (url: string) =>
+      String(url).includes("127.0.0.1")
+        ? { ok: true, status: 200, json: async () => ({ ok: true, agent: "Claude Code" }) }
+        : { ok: true, status: 200, json: async () => ({ available: false, reason: "no_api_key" }) },
+    ) as unknown as typeof fetch;
+    await expect(chooseEngine(false, false)).resolves.toEqual({ kind: "local" });
+  });
+
+  test("otherwise says how to use a key or a local agent", async () => {
+    global.fetch = jest.fn(async (url: string) => {
+      if (String(url).includes("127.0.0.1")) throw new TypeError("Failed to fetch");
+      return { ok: true, status: 200, json: async () => ({ available: false, reason: "no_api_key" }) };
+    }) as unknown as typeof fetch;
+    const engine = await chooseEngine(false, false);
+    expect(engine).toMatchObject({ kind: "live", blocked: { kind: "no_api_key" } });
+    expect((engine as { blocked: { message: string } }).blocked.message).toContain("manifest bridge");
+  });
+});

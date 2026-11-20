@@ -170,3 +170,20 @@ def test_relay_helpers():
     assert clean_say({"text": "  hi\n there "}) == "hi there"
     assert clean_say("nope") == ""
     assert len(clean_say({"text": "a" * 9000})) == 4000
+
+
+def test_completed_transcripts_end_the_turn_without_waiting(monkeypatch):
+    """OpenAI's completed transcript is final; unmarked, Pipecat waited 0.5 s every turn."""
+    from app.services.voice.live.bot import VoiceSettings, build_stt
+    from pipecat.frames.frames import TranscriptionFrame
+    from pipecat.services.openai.stt import OpenAIRealtimeSTTService
+
+    pushed = []
+
+    async def capture(self, frame, direction=None):
+        pushed.append(frame)
+
+    monkeypatch.setattr(OpenAIRealtimeSTTService, "push_frame", capture)
+    stt = build_stt("sk-test", VoiceSettings())
+    asyncio.run(stt.push_frame(TranscriptionFrame("Hello there.", "user", "now")))
+    assert pushed and pushed[0].finalized is True

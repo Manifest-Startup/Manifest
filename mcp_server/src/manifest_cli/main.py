@@ -27,6 +27,7 @@ BUILTINS: dict[str, str] = {
     "logout": "Revoke this computer's CLI session and forget it.",
     "whoami": "Show who you are signed in as, and where.",
     "voice": "Talk to Manifest out loud: it can do everything the CLI can.",
+    "bridge": "Let the Manifest app use Claude Code or Codex on this computer (no OpenAI key).",
     "commands": "List every command (filter with --search).",
     "graphql": "Run any GraphQL document (escape hatch).",
     "api": "Call any REST endpoint: manifest api GET /api/keys/usage.",
@@ -601,6 +602,55 @@ def cmd_voice(ctx: Context, argv: list[str]) -> int:
     )
 
 
+def cmd_bridge(ctx: Context, argv: list[str]) -> int:
+    from manifest_cli import bridge
+    from manifest_cli.agents import make_agent, missing_agent
+
+    parser = _sub(
+        "bridge",
+        BUILTINS["bridge"],
+        epilog="Keep it running, then use voice in the Manifest web app or the installed app:\n"
+        "the browser listens and speaks, your agent answers. Only Manifest's own pages can\n"
+        "reach it, on 127.0.0.1. Example: manifest bridge --agent claude --continue",
+    )
+    parser.add_argument(
+        "--agent",
+        default="claude",
+        metavar="AGENT",
+        help="claude (Claude Code, default), codex, or a command that reads the turn on stdin",
+    )
+    parser.add_argument(
+        "--continue",
+        dest="continue_last",
+        action="store_true",
+        help="continue the agent's newest session in this folder (incl. VS Code)",
+    )
+    parser.add_argument("--resume", metavar="SESSION", help="resume this agent session")
+    parser.add_argument(
+        "--agent-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="extra argument for the agent, repeatable",
+    )
+    parser.add_argument("--port", type=int, default=bridge.DEFAULT_PORT, help="local port")
+    parser.add_argument(
+        "--origin",
+        action="append",
+        default=[],
+        metavar="URL",
+        help="also allow this app origin (e.g. a self-hosted Manifest)",
+    )
+    ns = parser.parse_args(argv)
+    agent = make_agent(
+        ns.agent, extra_args=ns.agent_arg, resume=ns.resume, continue_last=ns.continue_last
+    )
+    problem = missing_agent(agent)
+    if problem:
+        raise CliError(problem)
+    return bridge.run(agent, port=ns.port, extra_origins=ns.origin, out=ctx.out)
+
+
 def cmd_completion(ctx: Context, argv: list[str]) -> int:
     from manifest_cli.completion import script
 
@@ -635,6 +685,7 @@ def dispatch(ctx: Context, argv: list[str]) -> int:
         "logout": cmd_logout,
         "whoami": cmd_whoami,
         "voice": cmd_voice,
+        "bridge": cmd_bridge,
         "commands": cmd_commands,
         "graphql": cmd_graphql,
         "api": cmd_api,

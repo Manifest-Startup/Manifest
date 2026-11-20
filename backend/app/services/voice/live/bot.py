@@ -292,9 +292,8 @@ def build_stt(openai_key: str, settings: VoiceSettings) -> Any:
     The service broadcasts speech start/stop, so Pipecat's turn handling and interruptions
     work without a local VAD, and the transcript streams while the person speaks.
     """
-    from pipecat.services.openai.stt import OpenAIRealtimeSTTService
-
-    return OpenAIRealtimeSTTService(
+    stt_class = _final_transcript_stt_class()
+    return stt_class(
         api_key=openai_key,
         base_url=settings.realtime_stt_url(),
         turn_detection={
@@ -302,10 +301,30 @@ def build_stt(openai_key: str, settings: VoiceSettings) -> Any:
             "silence_duration_ms": settings.turn_silence_ms,
             "prefix_padding_ms": 300,
         },
-        settings=OpenAIRealtimeSTTService.Settings(
-            model=settings.stt_model, noise_reduction="near_field"
-        ),
+        settings=stt_class.Settings(model=settings.stt_model, noise_reduction="near_field"),
     )
+
+
+def _final_transcript_stt_class() -> type:
+    """OpenAI's realtime STT, with its completed transcript marked final.
+
+    OpenAI sends one ``completed`` transcript per spoken segment, after the turn ended, and
+    no more text follows it. Pipecat passes it on unmarked, so its turn logic waited another
+    0.5 s "for more text" before answering, on every turn. Marked final, the turn ends now.
+    """
+    from pipecat.frames.frames import TranscriptionFrame
+    from pipecat.services.openai.stt import OpenAIRealtimeSTTService
+
+    class FinalTranscriptSTT(OpenAIRealtimeSTTService):
+        async def push_frame(self, frame: Any, direction: Any = None) -> None:
+            if isinstance(frame, TranscriptionFrame):
+                frame.finalized = True
+            if direction is None:
+                await super().push_frame(frame)
+            else:
+                await super().push_frame(frame, direction)
+
+    return FinalTranscriptSTT
 
 
 _warm_lock = threading.Lock()

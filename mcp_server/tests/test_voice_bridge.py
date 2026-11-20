@@ -1,0 +1,84 @@
+"""`manifest bridge`: the Manifest app reaches the person's own agent on 127.0.0.1."""
+
+from __future__ import annotations
+
+import asyncio
+import io
+import json
+import sys
+
+from manifest_cli import agents, bridge
+
+APP = "https://manifeststartup.com"
+
+
+async def _request(port: int, raw: bytes) -> tuple[str, dict[str, str], bytes]:
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    writer.write(raw)
+    await writer.drain()
+    data = await reader.read()
+    writer.close()
+    head, _, body = data.partition(b"\r\n\r\n")
+    lines = head.decode().split("\r\n")
+    headers = {k.lower(): v.strip() for k, _, v in (h.partition(":") for h in lines[1:])}
+    return lines[0], headers, body
+
+
+def _post(path: str, body: dict, origin: str = APP) -> bytes:
+    data = json.dumps(body).encode()
+    return (
+        f"POST {path} HTTP/1.1\r\nHost: x\r\nOrigin: {origin}\r\nContent-Type: application/json\r\n"
+        f"Content-Length: {len(data)}\r\n\r\n"
+    ).encode() + data
+
+
+def test_bridge_answers_the_app_with_the_agent_and_refuses_other_sites():
+    script = "import sys; print('agent heard: ' + sys.stdin.read())"
+    agent = agents.make_agent(f'{sys.executable} -c "{script}"')
+    out = io.StringIO()
+
+    async def run():
+        b = bridge.Bridge(agent, origins=bridge.DEFAULT_ORIGINS, out=out)
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            health = await _request(port, f"GET /health HTTP/1.1\r\nOrigin: {APP}\r\n\r\n".encode())
+            pre = await _request(
+                port,
+                f"OPTIONS /turn HTTP/1.1\r\nOrigin: {APP}\r\n"
+                "Access-Control-Request-Private-Network: true\r\n\r\n".encode(),
+            )
+            turn = await _request(
+                port,
+                _post(
+                    "/turn",
+                    {"text": "list my ideas", "context": {"idea_id": "i1", "idea_title": "Solar"}},
+                ),
+            )
+            evil = await _request(
+                port, _post("/turn", {"text": "rm -rf"}, origin="https://evil.example")
+            )
+        return health, pre, turn, evil
+
+    health, pre, turn, evil = asyncio.run(run())
+    assert json.loads(health[2])["ok"] is True
+    assert health[1]["access-control-allow-origin"] == APP
+    assert (
+        pre[0].endswith("204 No Content")
+        and pre[1]["access-control-allow-private-network"] == "true"
+    )
+    events = [json.loads(line) for line in turn[2].decode().splitlines()]
+    assert events[-1] == {"kind": "done", "text": ""}
+    said = events[0]["text"]
+    assert said.startswith("agent heard: (In the Manifest app") and said.endswith("list my ideas")
+    assert '"Solar"' in said
+    assert evil[0].endswith("403 Forbidden") and b"Only the Manifest app" in evil[2]
+    assert "you  list my ideas" in out.getvalue()
+
+
+def test_context_line():
+    assert (
+        bridge.describe_context({"path": "/ideas"})
+        == "(In the Manifest app, the person is on /ideas.)"
+    )
+    assert bridge.describe_context(None) == ""
