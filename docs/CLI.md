@@ -38,6 +38,19 @@ manifest voice --text                # type instead (needs only websockets)
 
 `manifest voice` joins the same live voice agent as the web app (`WS /api/voice-agent/live`, see [VOICE_AGENT_API.md](VOICE_AGENT_API.md)). Speech recognition, the model, Manifest's tools and speech run on the server with your own OpenAI key, so it can do everything these commands can; it asks for a spoken yes before anything destructive. The CLI only moves audio (16 kHz up, 24 kHz down) and prints the conversation and each action it takes.
 
+### Your own agent, out loud
+
+```bash
+manifest voice --agent claude              # Claude Code answers; Manifest listens and speaks
+manifest voice --agent claude --continue   # continue the newest Claude Code session in this folder (also VS Code's)
+manifest voice --agent claude --resume <session-id>
+manifest voice --agent codex               # OpenAI Codex CLI
+manifest voice --agent "./my-agent.sh"     # any command: the turn on stdin, its output is spoken
+manifest voice --agent claude --agent-arg=--permission-mode=acceptEdits   # pass flags through
+```
+
+With `--agent`, the server runs relay mode: it transcribes and speaks with your OpenAI key, and the agent you already use answers on this computer with its own tools, permissions and history. Claude Code runs as one long-lived process for the whole conversation (it starts while you speak, so its MCP servers and hooks start once), is read-only by default (Manifest plugin tools, Read/Grep/Glob, web search) and is told its replies are spoken. Your Claude Code Stop hooks still run after each answer; a slow one delays the *next* turn, not the answer.
+
 ## GraphQL commands
 
 Each query and mutation is a kebab-case command; arguments are flags.

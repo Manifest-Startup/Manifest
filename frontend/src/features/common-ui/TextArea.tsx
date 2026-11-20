@@ -26,6 +26,7 @@ import {
   requestListFocus,
   saveNoteCursor,
 } from "features/ideas/utils/noteFocus";
+import { DictationHighlight, registerDictationTarget } from "features/ideas/utils/noteDictation";
 
 interface TextAreaProps {
   value: string;
@@ -52,6 +53,8 @@ interface TextAreaProps {
    * put them back when the note opens again. Esc moves focus back to the ideas list.
    */
   noteKey?: string;
+  /** This is the open note: the voice orb writes dictation into it (at the cursor). */
+  dictationTarget?: boolean;
 }
 
 const TextArea: React.FC<TextAreaProps> = ({
@@ -68,6 +71,7 @@ const TextArea: React.FC<TextAreaProps> = ({
   loadSavedNote,
   highlights,
   noteKey,
+  dictationTarget = false,
 }) => {
   const noteKeyRef = useRef(noteKey);
   noteKeyRef.current = noteKey;
@@ -96,6 +100,7 @@ const TextArea: React.FC<TextAreaProps> = ({
           placeholder: placeholder || "Write something...",
         }),
         SourceHighlight.configure({ getTargets: () => highlightsRef.current }),
+        DictationHighlight,
         ...(live
           ? [
               Collaboration.configure({ fragment: live.fragment }),
@@ -241,6 +246,12 @@ const TextArea: React.FC<TextAreaProps> = ({
   useEffect(() => {
     restoredRef.current = null; // a different note: restore its own position
   }, [noteKey]);
+
+  // The open note is where the voice orb writes what the person says.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !dictationTarget) return;
+    return registerDictationTarget(editor);
+  }, [editor, dictationTarget]);
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !noteKey) return;

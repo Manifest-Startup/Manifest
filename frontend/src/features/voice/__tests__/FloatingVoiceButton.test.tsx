@@ -436,3 +436,32 @@ describe("FloatingVoiceButton Speech Integration", () => {
     });
   });
 });
+
+describe("hasNoteOrb", () => {
+  const { hasNoteOrb } = jest.requireActual("../FloatingVoiceButton") as typeof import("../FloatingVoiceButton");
+  test("the corner pill steps aside only on an idea's note, where the orb is", () => {
+    expect(hasNoteOrb("/ideas/abc123/description")).toBe(true);
+    expect(hasNoteOrb("/ideas/abc123")).toBe(true);
+    expect(hasNoteOrb("/ideas/abc123/pitch-deck")).toBe(false);
+    expect(hasNoteOrb("/ideas/qualify")).toBe(false);
+    expect(hasNoteOrb("/ideas")).toBe(false);
+  });
+});
+
+describe("chooseEngine in a vault (installed Chrome app with a local folder)", () => {
+  const { chooseEngine } = jest.requireActual("../FloatingVoiceButton") as typeof import("../FloatingVoiceButton");
+  beforeEach(() => jest.requireActual("../liveVoice").forgetLiveVoiceStatus());
+  const respond = (status: number, body: unknown = {}) =>
+    jest.fn().mockResolvedValue({ status, ok: status < 400, json: async () => body });
+
+  test("uses live voice through the account and never hides voice", async () => {
+    global.fetch = respond(200, { available: true }) as unknown as typeof fetch;
+    await expect(chooseEngine(false, true)).resolves.toEqual({ kind: "live", blocked: null });
+  });
+
+  test("asks to sign in instead of falling back to the cloud-only interview", async () => {
+    global.fetch = respond(401) as unknown as typeof fetch;
+    const engine = await chooseEngine(false, true);
+    expect(engine).toMatchObject({ kind: "live", blocked: { kind: "sign_in" } });
+  });
+});

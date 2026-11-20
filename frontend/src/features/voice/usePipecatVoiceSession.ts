@@ -10,6 +10,7 @@ import {
   INITIAL_LIVE_VOICE_STATE,
   interpretServerMessage,
   liveVoiceReducer,
+  loadPipecat,
   LiveVoiceContext,
   LiveVoiceState,
 } from './liveVoice';
@@ -66,6 +67,8 @@ export function usePipecatVoiceSession(): PipecatVoiceSessionApi {
     if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = window.setTimeout(() => {
       refreshTimerRef.current = null;
+      // A vault (local folder) gets the agent's account changes through cloud sync.
+      window.dispatchEvent(new Event('manifest:vault-sync-now'));
       void apollo.refetchQueries({ include: 'active' }).catch(error => log.warn('refetch failed', error));
     }, REFRESH_DEBOUNCE_MS);
   }, [apollo]);
@@ -93,11 +96,8 @@ export function usePipecatVoiceSession(): PipecatVoiceSessionApi {
     if (clientRef.current) return;
     dispatch({ type: 'connecting' });
     try {
-      // Loaded on first use so the Pipecat client never weighs on the app's boot chunks.
-      const [{ PipecatClient }, { WebSocketTransport, ProtobufFrameSerializer }] = await Promise.all([
-        import('@pipecat-ai/client-js'),
-        import('@pipecat-ai/websocket-transport'),
-      ]);
+      // Loaded on first use (or warmed on hover) so it never weighs on the app's boot chunks.
+      const [{ PipecatClient }, { WebSocketTransport, ProtobufFrameSerializer }] = await loadPipecat();
       const client = new PipecatClient({
         transport: new WebSocketTransport({
           serializer: new ProtobufFrameSerializer(),
