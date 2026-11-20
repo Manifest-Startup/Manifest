@@ -56,8 +56,16 @@ def describe_context(context: Any) -> str:
 
 
 class Bridge:
-    def __init__(self, agent: LocalAgent, *, origins: tuple[str, ...], out: TextIO) -> None:
+    def __init__(
+        self,
+        agent: LocalAgent,
+        *,
+        origins: tuple[str, ...],
+        out: TextIO,
+        voice_url: str | None = None,
+    ) -> None:
         self.agent, self.origins, self.out = agent, origins, out
+        self.voice_url = voice_url  # the local Pipecat voice, when it runs here
         self.lock = asyncio.Lock()
 
     def _cors(self, origin: str) -> list[str]:
@@ -114,7 +122,9 @@ class Bridge:
         if method == "OPTIONS":
             send("204 No Content", cors)
         elif method == "GET" and path == "/health":
-            body = json.dumps({"ok": True, "agent": self.agent.name}).encode()
+            body = json.dumps(
+                {"ok": True, "agent": self.agent.name, "voice": self.voice_url}
+            ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
         elif method == "POST" and path == "/turn":
             length = int(headers.get("content-length") or 0)
@@ -168,21 +178,41 @@ async def serve(
     port: int = DEFAULT_PORT,
     origins: tuple[str, ...] = DEFAULT_ORIGINS,
     out: TextIO,
+    voice: str | None = None,
 ) -> None:
-    bridge = Bridge(agent, origins=origins, out=out)
+    from manifest_cli import local_voice
+
+    missing = local_voice.available() if voice != "browser" else "browser voice chosen"
+    voice_url = None if missing else f"ws://127.0.0.1:{local_voice.VOICE_PORT}"
+    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url)
     server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
     warm = getattr(agent, "start", None)
     if warm is not None:
         await warm()  # Claude Code: start once now, so the first turn is quick
+    voice_task = None
+    if voice_url:
+        # Natural voice on this Mac: Pipecat with local Whisper and Kokoro, no key.
+        voice_task = asyncio.ensure_future(
+            local_voice.serve_forever(
+                agent, origins=origins, voice=voice or local_voice.DEFAULT_VOICE, out=out
+            )
+        )
     out.write(
         f"Manifest can now talk to {agent.name} on this computer (http://127.0.0.1:{port}).\n"
-        "Open Manifest and tap the voice button; no OpenAI key needed. Ctrl-C to stop.\n"
+        + (
+            f"Natural voice (Pipecat, local Whisper + Kokoro) on {voice_url}.\n"
+            if voice_url
+            else f"Browser voice only ({missing}).\n"
+        )
+        + "Open Manifest and tap the voice button; no OpenAI key needed. Ctrl-C to stop.\n"
     )
     out.flush()
     async with server:
         try:
             await server.serve_forever()
         finally:
+            if voice_task:
+                voice_task.cancel()
             agent.stop()
 
 
@@ -250,8 +280,10 @@ def uninstall(*, out: TextIO) -> int:
     return 0
 
 
-def run(agent: LocalAgent, *, port: int, extra_origins: list[str], out: TextIO) -> int:
+def run(
+    agent: LocalAgent, *, port: int, extra_origins: list[str], out: TextIO, voice: str | None = None
+) -> int:
     origins = DEFAULT_ORIGINS + tuple(o.rstrip("/") for o in extra_origins)
     with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(serve(agent, port=port, origins=origins, out=out))
+        asyncio.run(serve(agent, port=port, origins=origins, out=out, voice=voice))
     return 0

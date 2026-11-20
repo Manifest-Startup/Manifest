@@ -122,10 +122,14 @@ class ClaudeCodeAgent(LocalAgent):
 
     name: str = "Claude Code"
     _late_result: bool = False
+    # Words stream in as Claude writes; each sentence is passed on as soon as it ends,
+    # so speech starts while the rest of the answer is still being written.
+    _pending: str = ""
+    _streamed: bool = False
 
     def command(self, prompt: str = "") -> tuple[list[str], bytes | None]:
         argv = ["claude", "-p", "--input-format", "stream-json"]
-        argv += ["--output-format", "stream-json", "--verbose"]
+        argv += ["--output-format", "stream-json", "--verbose", "--include-partial-messages"]
         argv += ["--append-system-prompt", VOICE_STYLE]
         if not any(
             a.startswith(
@@ -187,13 +191,11 @@ class ClaudeCodeAgent(LocalAgent):
             self.session_id = event["session_id"]
         kind = event.get("type")
         events: list[Event] = []
+        if kind == "stream_event":
+            return self._stream(event.get("event") or {})
         if kind == "assistant":
-            for block in (event.get("message") or {}).get("content") or []:
-                if block.get("type") == "text" and str(block.get("text", "")).strip():
-                    events.append(("say", block["text"].strip()))
-                elif block.get("type") == "tool_use":
-                    events.append(("tool", str(block.get("name") or "tool")))
-        elif _stop_hook_started(event):
+            return self._assistant(event.get("message") or {})
+        if _stop_hook_started(event):
             # The answer is complete; the person's Stop hooks can take a while. End the turn
             # now and skip the result line that follows them.
             self._late_result = True
@@ -209,12 +211,54 @@ class ClaudeCodeAgent(LocalAgent):
             events.append(("done", ""))
         return events
 
+    def _assistant(self, message: dict) -> list[Event]:
+        events: list[Event] = []
+        for block in message.get("content") or []:
+            if block.get("type") == "text" and str(block.get("text", "")).strip():
+                if not self._streamed:  # already spoken sentence by sentence
+                    events.append(("say", block["text"].strip()))
+            elif block.get("type") == "tool_use":
+                events.append(("tool", str(block.get("name") or "tool")))
+        return events
+
+    def _stream(self, event: dict) -> list[Event]:
+        kind = event.get("type")
+        if kind == "message_start":
+            self._pending, self._streamed = "", False
+            return []
+        delta = event.get("delta") or {}
+        if kind == "content_block_delta" and delta.get("type") == "text_delta":
+            self._streamed = True
+            self._pending += str(delta.get("text") or "")
+            sentences, self._pending = split_sentences(self._pending)
+            return [("say", s) for s in sentences]
+        if kind in ("content_block_stop", "message_stop") and self._pending.strip():
+            rest, self._pending = self._pending.strip(), ""
+            return [("say", rest)]
+        return []
+
     def stop(self) -> None:
         process = self.process
         if process and process.returncode is None:
             if process.stdin:
                 process.stdin.close()  # let it finish its hooks and save the session
             asyncio.get_event_loop().call_later(10, _kill, process)
+
+
+def split_sentences(text: str) -> tuple[list[str], str]:
+    """Complete sentences in `text` (ended by . ! ? and a space), and the unfinished rest."""
+    out: list[str] = []
+    start = 0
+    for i, char in enumerate(text):
+        if char in ".!?" and i + 1 < len(text) and text[i + 1].isspace():
+            sentence = text[start : i + 1].strip()
+            # "e.g. " and "3.5 " are not sentence ends.
+            if sentence and not sentence.lower().endswith(
+                ("e.g.", "i.e.", "etc.", "vs.", "mr.", "dr.")
+            ):
+                out.append(sentence)
+                start = i + 1
+    return out, text[start:]
 
 
 def _stop_hook_started(event: dict) -> bool:

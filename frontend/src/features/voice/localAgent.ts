@@ -14,6 +14,8 @@ export const BRIDGE_INSTALL_COMMAND = 'manifest bridge --install';
 
 export interface BridgeInfo {
   agent: string;
+  /** The bridge's own Pipecat voice (local Whisper + Kokoro), when it runs one. */
+  voice: string | null;
 }
 
 export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { kind: 'done'; text: string };
@@ -30,8 +32,9 @@ export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null>
   try {
     const response = await fetch(`${BRIDGE_URL}/health`, { signal: controller.signal });
     if (!response.ok) return null;
-    const body = (await response.json()) as { ok?: boolean; agent?: string };
-    return body.ok ? { agent: body.agent || 'Your agent' } : null;
+    const body = (await response.json()) as { ok?: boolean; agent?: string; voice?: string | null };
+    const voice = typeof body.voice === 'string' && /^ws:\/\/127\.0\.0\.1:\d+$/.test(body.voice) ? body.voice : null;
+    return body.ok ? { agent: body.agent || 'Your agent', voice } : null;
   } catch {
     return null;
   } finally {

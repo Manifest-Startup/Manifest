@@ -647,6 +647,11 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         help="start the bridge at login and keep it running (macOS), with these options",
     )
     parser.add_argument("--uninstall", action="store_true", help="stop starting it at login")
+    parser.add_argument(
+        "--voice",
+        metavar="NAME",
+        help="Kokoro voice for natural local speech (default af_heart), or 'browser' for the browser's own voice",
+    )
     ns = parser.parse_args(argv)
     if ns.uninstall:
         return bridge.uninstall(out=ctx.out)
@@ -661,8 +666,9 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         args += ["--continue"] if ns.continue_last else []
         args += ["--resume", ns.resume] if ns.resume else []
         args += [f"--agent-arg={a}" for a in ns.agent_arg] + [f"--origin={o}" for o in ns.origin]
+        args += [f"--voice={ns.voice}"] if ns.voice else []
         return bridge.install(args, out=ctx.out)
-    return bridge.run(agent, port=ns.port, extra_origins=ns.origin, out=ctx.out)
+    return bridge.run(agent, port=ns.port, extra_origins=ns.origin, out=ctx.out, voice=ns.voice)
 
 
 def cmd_completion(ctx: Context, argv: list[str]) -> int:

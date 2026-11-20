@@ -491,3 +491,27 @@ describe("chooseEngine without an OpenAI key", () => {
     expect((engine as { blocked: { message: string } }).blocked.message).toContain("manifest bridge");
   });
 });
+
+describe("chooseEngine with the bridge's natural local voice", () => {
+  const { chooseEngine } = jest.requireActual("../FloatingVoiceButton") as typeof import("../FloatingVoiceButton");
+  beforeEach(() => jest.requireActual("../liveVoice").forgetLiveVoiceStatus());
+
+  test("uses Pipecat on this Mac (Whisper + Kokoro + Claude Code) when the bridge offers it", async () => {
+    global.fetch = jest.fn(async (url: string) =>
+      String(url).includes("127.0.0.1")
+        ? { ok: true, status: 200, json: async () => ({ ok: true, agent: "Claude Code", voice: "ws://127.0.0.1:47822" }) }
+        : { ok: true, status: 200, json: async () => ({ available: false, reason: "no_api_key" }) },
+    ) as unknown as typeof fetch;
+    await expect(chooseEngine(false, false)).resolves.toEqual({ kind: "live", blocked: null, wsUrl: "ws://127.0.0.1:47822" });
+  });
+
+  test("ignores a voice address that isn't this computer", async () => {
+    global.fetch = jest.fn(async (url: string) =>
+      String(url).includes("127.0.0.1")
+        ? { ok: true, status: 200, json: async () => ({ ok: true, agent: "x", voice: "wss://evil.example/voice" }) }
+        : { ok: true, status: 200, json: async () => ({ available: false, reason: "no_api_key" }) },
+    ) as unknown as typeof fetch;
+    const engine = await chooseEngine(false, false);
+    expect(engine).not.toHaveProperty("wsUrl");
+  });
+});

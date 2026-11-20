@@ -31,6 +31,11 @@ voice = [
     "websockets>=13.0",
     "sounddevice>=0.5.0",
 ]
+# `manifest bridge`: natural voice on this Mac with no API key (Pipecat, local Whisper on
+# Apple silicon, Kokoro voice); your own agent (Claude Code, Codex) is the brain.
+local-voice = [
+    "pipecat-ai[kokoro,mlx-whisper,whisper,silero,websocket]==1.16.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",

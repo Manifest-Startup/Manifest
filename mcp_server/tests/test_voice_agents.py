@@ -133,3 +133,34 @@ def test_relay_turns_go_to_the_agent_and_its_words_are_spoken():
 def test_relay_mode_uses_its_own_url():
     assert voice.live_url("https://manifest.app", "relay").endswith("live?path=%2Fcli&mode=relay")
     assert "mode=" not in voice.live_url("https://manifest.app")
+
+
+def test_claude_answers_are_spoken_sentence_by_sentence_as_they_stream():
+    agent = agents.make_agent("claude")
+    assert "--include-partial-messages" in agent.command()[0]
+    delta = lambda t: json.dumps(
+        {
+            "type": "stream_event",
+            "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": t}},
+        }
+    )
+    agent.parse(json.dumps({"type": "stream_event", "event": {"type": "message_start"}}))
+    assert agent.parse(delta("The sea is end")) == []
+    assert agent.parse(delta("less, e.g. wide. Its waves ke")) == [
+        ("say", "The sea is endless, e.g. wide.")
+    ]
+    assert agent.parse(delta("ep coming")) == []
+    assert agent.parse(
+        json.dumps({"type": "stream_event", "event": {"type": "content_block_stop"}})
+    ) == [("say", "Its waves keep coming")]
+    # The full message that follows is not spoken twice; tools still show.
+    full = {
+        "type": "assistant",
+        "message": {
+            "content": [
+                {"type": "text", "text": "The sea..."},
+                {"type": "tool_use", "name": "Read"},
+            ]
+        },
+    }
+    assert agent.parse(json.dumps(full)) == [("tool", "Read")]
