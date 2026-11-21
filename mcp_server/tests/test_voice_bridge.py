@@ -277,3 +277,47 @@ def test_local_speech_models_only_on_a_computer_with_room(monkeypatch):
         local_voice.os, "sysconf", lambda n: 4096 if n == "SC_PAGE_SIZE" else 4 * 1024**2
     )
     assert local_voice.enough_memory()  # 16 GB
+
+
+def test_bridge_speaks_a_sentence_in_the_natural_voice():
+    class FakeVoice:
+        voice, ready, warmed = "af_heart", True, 0
+
+        async def speak(self, text):
+            return b"\x01\x00" * len(text)
+
+        def warm(self):
+            FakeVoice.warmed += 1
+
+    agent = agents.make_agent("claude")
+
+    async def run():
+        b = bridge.Bridge(
+            agent, origins=bridge.DEFAULT_ORIGINS, out=io.StringIO(), speech=FakeVoice()
+        )
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            health = await _request(port, f"GET /health HTTP/1.1\r\nOrigin: {APP}\r\n\r\n".encode())
+            spoken = await _request(port, _post("/speak", {"text": "Hello there."}))
+            warm = await _request(port, _post("/speak/warm", {}))
+            evil = await _request(
+                port, _post("/speak", {"text": "hi"}, origin="https://evil.example")
+            )
+        return health, spoken, warm, evil
+
+    health, spoken, warm, evil = asyncio.run(run())
+    assert json.loads(health[2])["speech"] == "af_heart"
+    assert spoken[0].endswith("200 OK") and spoken[1]["x-sample-rate"] == "24000"
+    assert spoken[2] == b"\x01\x00" * len("Hello there.")
+    assert warm[0].endswith("204 No Content") and FakeVoice.warmed == 1
+    assert evil[0].endswith("403 Forbidden")
+
+
+def test_natural_voice_only_where_it_can_run(monkeypatch):
+    from manifest_cli import speech
+
+    monkeypatch.setattr(speech.platform, "system", lambda: "Linux")
+    assert "Apple silicon" in (speech.supported() or "")
+    voice = speech.Voice()
+    assert asyncio.run(voice.speak("Not loaded yet.")) == b""  # the app keeps the browser voice

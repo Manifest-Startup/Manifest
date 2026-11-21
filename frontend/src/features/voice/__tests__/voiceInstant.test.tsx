@@ -57,6 +57,6 @@ it('setup shows one command and connects by itself once the Mac answers', async 
   await act(async () => {
     await jest.advanceTimersByTimeAsync(2100);
   });
-  expect(onReady).toHaveBeenCalledWith({ agent: 'Codex', voice: null, interrupt: true });
+  expect(onReady).toHaveBeenCalledWith({ agent: 'Codex', voice: null, interrupt: true, speech: null });
   jest.useRealTimers();
 });

@@ -6,12 +6,14 @@ import { createLogger } from '../core/logError';
 import { INITIAL_LIVE_VOICE_STATE, liveVoiceReducer } from './liveVoice';
 import {
   browserSpeechAvailable,
+  createBridgeSpeaker,
   createSpeaker,
   isBargeIn,
   probeBridge,
   runBridgeTurn,
   startRecognition,
   VOICE_SETUP_COMMAND,
+  warmBridgeSpeech,
   type RecognitionHandle,
   type Speaker,
 } from './localAgent';
@@ -55,6 +57,8 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const heardRef = useRef({ final: '', interim: '' });
   const settleRef = useRef<number | null>(null);
   const decayRef = useRef<number | null>(null);
+  const naturalRef = useRef(false); // the bridge speaks in the natural voice
+  const warmedRef = useRef(false); // woke the voice for this question already
 
   const clearSettle = () => {
     if (settleRef.current !== null) window.clearTimeout(settleRef.current);
@@ -135,6 +139,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     const { final, interim } = heardRef.current;
     heardRef.current = { final: '', interim: '' };
     const text = `${final} ${interim}`.trim();
+    warmedRef.current = false;
     if (interim) recognitionRef.current?.restart(); // its "final" for these words would repeat them
     if (text) void turn(text);
   }, [turn]);
@@ -146,6 +151,10 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       if (speaker?.speaking) {
         if (!isBargeIn(text, speaker.recent)) return; // its own voice through the speakers
         interrupt();
+      }
+      if (naturalRef.current && !warmedRef.current) {
+        warmedRef.current = true;
+        warmBridgeSpeech(); // page the voice in while they're still talking
       }
       const heard = heardRef.current;
       if (final) heardRef.current = { final: `${heard.final} ${text}`.trim(), interim: '' };
@@ -191,18 +200,22 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       return;
     }
     activeRef.current = true;
-    speakerRef.current = createSpeaker(
-      speaking => {
-        levelsRef.current.bot = speaking ? 0.6 : 0;
-        dispatch({ type: speaking ? 'botStarted' : 'botStopped' });
-      },
-      () => {
-        levelsRef.current.bot = 0.95; // a pulse on each spoken word; decays below
-      },
-    );
+    const onSpeaking = (speaking: boolean) => {
+      levelsRef.current.bot = speaking ? 0.6 : 0;
+      dispatch({ type: speaking ? 'botStarted' : 'botStopped' });
+    };
+    // The natural voice (Kokoro on this Mac's GPU) when the bridge has it; else the browser's.
+    naturalRef.current = Boolean(bridge.speech) && typeof window.AudioContext !== 'undefined';
+    speakerRef.current = naturalRef.current
+      ? createBridgeSpeaker(onSpeaking)
+      : createSpeaker(onSpeaking, () => {
+          levelsRef.current.bot = 0.95; // a pulse on each spoken word; decays below
+        });
     decayRef.current = window.setInterval(() => {
       const levels = levelsRef.current;
-      levels.bot = speakerRef.current?.speaking ? Math.max(0.3, levels.bot * 0.85) : 0;
+      const speaker = speakerRef.current;
+      const loud = speaker?.level?.();
+      levels.bot = !speaker?.speaking ? 0 : loud !== undefined ? loud : Math.max(0.3, levels.bot * 0.85);
       levels.mic = mutedRef.current ? 0 : Math.max(0.12, levels.mic * 0.85);
     }, 50);
     recognitionRef.current = startRecognition({

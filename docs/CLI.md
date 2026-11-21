@@ -54,7 +54,7 @@ manifest bridge --model default            # keep the agent's own model (voice u
 manifest bridge --install                  # macOS: start it at login and keep it running (--uninstall undoes)
 ```
 
-The browser listens and speaks, so the first word comes about 2–3 s after you stop talking. You can talk over it: it stops speaking, interrupts the agent, and takes your new question. Tapping the orb or pressing Space also stops it. See [ADR 0017](adr/0017-voice-feels-instant.md).
+The browser listens, and on Apple silicon the answer is spoken in Kokoro's natural `af_heart` voice, made on the GPU (`pip install 'manifest-mcp[natural-voice]'`; the setup command installs it). Elsewhere the browser's own voice speaks. The first word comes about 3–4 s after you stop talking (2–3 s with the browser's voice). `--voice NAME` picks another Kokoro voice, and `--voice browser` turns it off. You can talk over it: it stops speaking, interrupts the agent, and takes your new question. Tapping the orb or pressing Space also stops it. See [ADR 0017](adr/0017-voice-feels-instant.md).
 
 **Natural voice, no key (Apple silicon, about 16 GB of RAM or more):** with `pip install 'manifest-mcp[local-voice]'` the bridge also runs a Pipecat voice on `ws://127.0.0.1:47822`: Silero VAD and smart-turn, Whisper large-v3-turbo (MLX, quantized), your agent as the brain, and Kokoro's neural voice (`--voice af_heart`). On smaller Macs it stays off, because the models swap and answers would take seconds; `--voice af_heart` forces it on. The first start downloads the models (about 1 GB).
 

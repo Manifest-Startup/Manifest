@@ -23,6 +23,8 @@ export interface BridgeInfo {
   voice: string | null;
   /** Hanging up a turn stops the agent's answer (the person talked over it). */
   interrupt: boolean;
+  /** The natural voice (Kokoro on the Apple GPU, POST /speak), e.g. "af_heart", once loaded. */
+  speech: string | null;
 }
 
 export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { kind: 'done'; text: string };
@@ -39,9 +41,16 @@ export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null>
   try {
     const response = await fetch(`${BRIDGE_URL}/health`, { signal: controller.signal });
     if (!response.ok) return null;
-    const body = (await response.json()) as { ok?: boolean; agent?: string; voice?: string | null; interrupt?: boolean };
+    const body = (await response.json()) as {
+      ok?: boolean;
+      agent?: string;
+      voice?: string | null;
+      interrupt?: boolean;
+      speech?: string | null;
+    };
     const voice = typeof body.voice === 'string' && /^ws:\/\/127\.0\.0\.1:\d+$/.test(body.voice) ? body.voice : null;
-    return body.ok ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt) } : null;
+    const speech = typeof body.speech === 'string' && body.speech ? body.speech : null;
+    return body.ok ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt), speech } : null;
   } catch {
     return null;
   } finally {
@@ -211,12 +220,14 @@ export function pickVoice(voices: SpeechSynthesisVoice[], language: string): Spe
 }
 
 export interface Speaker {
-  /** Queue one sentence; speech starts at once (the browser's voice needs no download). */
+  /** Queue one sentence; it is spoken after the ones before it. */
   say: (text: string) => void;
   readonly speaking: boolean;
   /** What it said recently, to tell its own echo from the person talking over it. */
   readonly recent: string;
   cancel: () => void;
+  /** How loud it is right now (0–1), for the orb; absent when unknown. */
+  level?: () => number;
 }
 
 /**
@@ -286,4 +297,170 @@ export function isBargeIn(heard: string, speaking: string): boolean {
   const bot = new Set(words(speaking));
   const echoed = said.filter(word => bot.has(word)).length;
   return echoed / said.length < 0.6;
+}
+
+/** Wake the natural voice while the person is still talking (it may have been paged out). */
+export function warmBridgeSpeech(): void {
+  void fetch(`${BRIDGE_URL}/speak/warm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(
+    () => undefined,
+  );
+}
+
+/**
+ * Split a sentence at its pauses (, ; : — –) into pieces of at least `min` words, so the
+ * natural voice can start on the first piece (Kokoro's time grows with length) while the
+ * rest is made. Pauses are where the voice breathes anyway, so it sounds the same.
+ */
+export function speechPieces(text: string, min = 4): string[] {
+  const parts = text.match(/[^,;:—–]+[,;:—–]?\s*/g) ?? [text];
+  const pieces: string[] = [];
+  let piece = '';
+  for (const part of parts) {
+    piece += part;
+    if (piece.trim().split(/\s+/).length >= min) {
+      pieces.push(piece.trim());
+      piece = '';
+    }
+  }
+  if (piece.trim()) {
+    if (pieces.length && piece.trim().split(/\s+/).length < min) pieces[pieces.length - 1] += ` ${piece.trim()}`;
+    else pieces.push(piece.trim());
+  }
+  return pieces.length ? pieces : [text];
+}
+
+/** Once a piece is due to play, wait no longer than this; then the browser says it. */
+export const BRIDGE_SPEECH_TIMEOUT_MS = 4000;
+
+/**
+ * The natural voice: each sentence is made by Kokoro on this Mac's GPU (the bridge's
+ * POST /speak, about 0.5 s) and played here. A sentence is requested the moment it arrives,
+ * so the next one is ready while the current one plays. Any sentence that fails or is slow
+ * is spoken by the browser's voice instead, so it never goes silent.
+ */
+export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Speaker {
+  const Ctx =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const context = new Ctx();
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.connect(context.destination);
+  const samples = new Float32Array(analyser.fftSize);
+  const fallback = createSpeaker(() => undefined);
+
+  type Item = { text: string; audio: Promise<AudioBuffer | null>; abort: AbortController };
+  let queue: Item[] = [];
+  let current: AudioBufferSourceNode | null = null;
+  let playing = false;
+  let generation = 0;
+  let recent: string[] = [];
+
+  const fetchAudio = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
+    try {
+      const response = await fetch(`${BRIDGE_URL}/speak`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text }),
+        signal: abort.signal,
+      });
+      if (!response.ok) return null;
+      const rate = Number(response.headers.get('x-sample-rate')) || 24000;
+      const pcm = new Int16Array(await response.arrayBuffer());
+      if (pcm.length === 0) return null;
+      const buffer = context.createBuffer(1, pcm.length, rate);
+      const channel = buffer.getChannelData(0);
+      for (let i = 0; i < pcm.length; i++) channel[i] = pcm[i] / 32768;
+      return buffer;
+    } catch {
+      return null;
+    }
+  };
+
+  /** The piece's audio, or null if it isn't ready this long after it's due to play. */
+  const due = (item: Item): Promise<AudioBuffer | null> =>
+    Promise.race([
+      item.audio,
+      new Promise<null>(resolve =>
+        setTimeout(() => {
+          item.abort.abort();
+          resolve(null);
+        }, BRIDGE_SPEECH_TIMEOUT_MS),
+      ),
+    ]);
+
+  const finish = () => {
+    playing = false;
+    current = null;
+    onSpeaking(false);
+  };
+
+  const playNext = async (mine: number): Promise<void> => {
+    const item = queue[0];
+    if (!item) return finish();
+    const buffer = await due(item);
+    if (mine !== generation) return;
+    queue = queue.slice(1);
+    if (!buffer) {
+      // The natural voice couldn't say this one in time: the browser says it.
+      await new Promise<void>(resolve => {
+        const utterance = new SpeechSynthesisUtterance(item.text);
+        const chosen = pickVoice(window.speechSynthesis.getVoices(), navigator.language || 'en');
+        if (chosen) utterance.voice = chosen;
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        window.speechSynthesis.speak(utterance);
+      });
+      if (mine === generation) void playNext(mine);
+      return;
+    }
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(analyser);
+    source.onended = () => {
+      if (mine === generation) void playNext(mine);
+    };
+    current = source;
+    source.start();
+  };
+
+  return {
+    say(text: string) {
+      if (context.state === 'suspended') void context.resume();
+      for (const piece of speechPieces(text)) {
+        const abort = new AbortController();
+        queue = [...queue, { text: piece, abort, audio: fetchAudio(piece, abort) }];
+      }
+      recent = [...recent, text].slice(-3);
+      if (!playing) {
+        playing = true;
+        onSpeaking(true);
+        void playNext(generation);
+      }
+    },
+    get speaking() {
+      return playing;
+    },
+    get recent() {
+      return recent.join(' ');
+    },
+    level() {
+      if (!current) return 0;
+      analyser.getFloatTimeDomainData(samples);
+      let sum = 0;
+      for (const value of samples) sum += value * value;
+      return Math.min(1, Math.sqrt(sum / samples.length) * 4);
+    },
+    cancel() {
+      generation += 1;
+      for (const item of queue) item.abort.abort();
+      queue = [];
+      try {
+        current?.stop();
+      } catch {
+        // Already stopped.
+      }
+      fallback.cancel();
+      if (playing) finish();
+    },
+  };
 }

@@ -16,6 +16,8 @@ default here; see ``agents.py``).
                    → newline-delimited JSON: {"kind": "say"|"tool"|"error", "text"}…
                      then {"kind": "done"}. Closing the connection early interrupts the
                      agent (the person talked over it).
+    POST /speak    {"text": "One sentence."} → 16-bit mono PCM, 24 kHz (Kokoro; see speech.py)
+    POST /speak/warm   page the voice model in while the person is still talking
     GET  /vault/folder   where this computer keeps the vault (see ``vault_folder.where``)
     POST /vault/folder   {"place": "icloud" | "documents" | "home" | "/full/path"} → moves it
 """
@@ -29,9 +31,13 @@ import os
 import plistlib
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
+
+from manifest_cli import speech
+from manifest_cli.speech import Voice
 
 if TYPE_CHECKING:
     from manifest_cli.agents import LocalAgent
@@ -67,9 +73,11 @@ class Bridge:
         origins: tuple[str, ...],
         out: TextIO,
         voice_url: str | None = None,
+        speech: Voice | None = None,
     ) -> None:
         self.agent, self.origins, self.out = agent, origins, out
         self.voice_url = voice_url  # the local Pipecat voice, when it runs here
+        self.speech = speech  # Kokoro on the Apple GPU, for /speak
         self.lock = asyncio.Lock()
 
     def _cors(self, origin: str) -> list[str]:
@@ -78,6 +86,7 @@ class Bridge:
             "Vary: Origin",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS",
             "Access-Control-Allow-Headers: content-type",
+            "Access-Control-Expose-Headers: X-Sample-Rate",
             # Chrome asks before a public site may reach a local server.
             "Access-Control-Allow-Private-Network: true",
         ]
@@ -132,6 +141,8 @@ class Bridge:
                     "agent": self.agent.name,
                     "voice": self.voice_url,
                     "interrupt": True,  # a hung-up /turn stops the agent's answer
+                    # The natural voice (POST /speak), once its model has loaded.
+                    "speech": self.speech.voice if self.speech and self.speech.ready else None,
                 }
             ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
@@ -139,6 +150,10 @@ class Bridge:
             length = int(headers.get("content-length") or 0)
             status, body = await self._vault_folder(method, reader, length)
             send(status, [*cors, "Content-Type: application/json"], json.dumps(body).encode())
+        elif method == "POST" and path in ("/speak", "/speak/warm"):
+            length = int(headers.get("content-length") or 0)
+            status, extra, audio = await self._speak(path, reader, length)
+            send(status, [*cors, *extra], audio)
         elif method == "POST" and path == "/turn":
             length = int(headers.get("content-length") or 0)
             if length <= 0 or length > MAX_BODY:
@@ -150,6 +165,23 @@ class Bridge:
         else:
             send("404 Not Found", cors)
         await writer.drain()
+
+    async def _speak(
+        self, path: str, reader: asyncio.StreamReader, length: int
+    ) -> tuple[str, list[str], bytes]:
+        """One sentence in the natural voice, or a warm-up while the person talks."""
+        if not (self.speech and self.speech.ready):
+            return "503 Service Unavailable", [], b""
+        if path == "/speak/warm":
+            self.speech.warm()
+            return "204 No Content", [], b""
+        if length <= 0 or length > MAX_BODY:
+            return "413 Payload Too Large", [], b""
+        payload = json.loads(await reader.readexactly(length))
+        text = str(payload.get("text") or "") if isinstance(payload, dict) else ""
+        audio = await self.speech.speak(text)
+        head = ["Content-Type: application/octet-stream", f"X-Sample-Rate: {speech.SAMPLE_RATE}"]
+        return "200 OK", head, audio
 
     async def _vault_folder(
         self, method: str, reader: asyncio.StreamReader, length: int
@@ -255,13 +287,19 @@ async def serve(
 ) -> None:
     from manifest_cli import local_voice
 
+    # The natural voice: the browser hears, Kokoro on the Apple GPU speaks (POST /speak).
+    no_speech = speech.supported() if voice != "browser" else "browser voice chosen"
+    natural = None if no_speech else Voice(voice or speech.DEFAULT_VOICE)
+    if natural:
+        threading.Thread(target=natural.load, daemon=True).start()  # ready in a few seconds
     missing = local_voice.available() if voice != "browser" else "browser voice chosen"
-    if not missing and voice is None and not local_voice.enough_memory():
-        # Whisper + Kokoro on a small Mac swap and answer in seconds; the browser's own
-        # speech is instant. `--voice <kokoro voice>` still forces local models.
+    if not missing and natural:
+        missing = "the natural voice (browser hearing, Kokoro on the GPU) is faster"
+    elif not missing and voice is None and not local_voice.enough_memory():
+        # Whisper + Kokoro on a small Mac swap and answer in seconds.
         missing = "the browser's speech is faster on this Mac"
     voice_url = None if missing else f"ws://127.0.0.1:{local_voice.VOICE_PORT}"
-    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url)
+    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url, speech=natural)
     server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
     warm = getattr(agent, "start", None)
     if warm is not None:
@@ -277,9 +315,11 @@ async def serve(
     out.write(
         f"Manifest can now talk to {agent.name} on this computer (http://127.0.0.1:{port}).\n"
         + (
-            f"Natural voice (Pipecat, local Whisper + Kokoro) on {voice_url}.\n"
+            f"Natural voice: Kokoro ({natural.voice}) on the Apple GPU, loading now.\n"
+            if natural
+            else f"Natural voice (Pipecat, local Whisper + Kokoro) on {voice_url}.\n"
             if voice_url
-            else f"Browser voice only ({missing}).\n"
+            else f"Browser voice only ({no_speech}; {missing}).\n"
         )
         + "Open Manifest and tap the voice button; no OpenAI key needed. Ctrl-C to stop.\n"
     )

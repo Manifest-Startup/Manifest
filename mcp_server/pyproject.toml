@@ -36,6 +36,11 @@ voice = [
 local-voice = [
     "pipecat-ai[kokoro,mlx-whisper,whisper,silero,websocket]==1.16.0",
 ]
+# The natural voice for the bridge: Kokoro on the Apple GPU (speech.py). Apple silicon only.
+natural-voice = [
+    "mlx-audio>=0.6.7; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "misaki[en]>=0.9; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
