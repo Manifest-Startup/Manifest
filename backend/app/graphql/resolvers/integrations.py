@@ -15,8 +15,8 @@ from app.utils.logger import logger
 
 
 def _visible_integrations(rows: list[dict]) -> list[dict]:
-    """Integrations shown in the UI; the BYOK OpenAI key is exposed only via aiKeyStatus."""
-    return [row for row in rows if row.get("service_id") != "openai"]
+    """Integrations shown in the UI; BYOK keys (OpenAI, Apollo) are exposed only via their key status fields."""
+    return [row for row in rows if row.get("service_id") not in ("openai", "apollo")]
 
 
 def _is_linked(row: dict) -> bool:

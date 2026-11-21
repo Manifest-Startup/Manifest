@@ -39,6 +39,7 @@ EXCLUDED: dict[str, str] = {
     "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
     "openMediaRealtimeToken": "Returns a live Open Media credential for the web app's realtime socket; agents never hold credentials.",
     "saveOpenaiApiKey": "Secret keys never go through chat. Add your OpenAI key in Account → AI settings.",
+    "saveApolloApiKey": "Secret keys never go through chat. Add your Apollo.io key in Account → AI settings.",
     "connectIntegration": "Takes raw OAuth tokens. Connect integrations from Account → Integrations in the app, where the provider's sign-in runs.",
     "runBackgroundTasks": "Superseded by enqueue_background_tasks, which is durable and deduplicated.",
     "rest:upload-profile-picture": "Needs a file upload (multipart). Change your picture in Account → Profile.",

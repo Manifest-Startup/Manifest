@@ -8,8 +8,8 @@ Capability          Provider                                    Needs
 ==================  ==========================================  ==============================
 web.search          OpenAI search models (``AIRouter``)         the person's OpenAI key (BYOK)
 web.read            ``app.security.safe_http`` page fetch        nothing
-prospects.search    Apollo.io organization + people search      ``APOLLO_API_KEY`` on the server
-prospects.enrich    Apollo.io people match                      ``APOLLO_API_KEY`` on the server
+prospects.search    Apollo.io organization + people search      their Apollo.io key, else ``APOLLO_API_KEY``
+prospects.enrich    Apollo.io people match                      their Apollo.io key, else ``APOLLO_API_KEY``
 email.createDraft   Gmail API ``users.drafts.create``           the person's Gmail connection
 email.getDraft      Gmail API ``users.drafts.get``              the person's Gmail connection
 ==================  ==========================================  ==============================
@@ -148,14 +148,89 @@ def website_resolves(url: str) -> bool:
 # ---- prospects.search / prospects.enrich (Apollo.io) ------------------------------------
 
 
-def apollo_key() -> str | None:
+APOLLO_SERVICE_ID = "apollo"
+APOLLO_SERVICE_NAME = "Apollo.io"
+APOLLO_HEALTH_URL = "https://api.apollo.io/v1/auth/health"
+
+
+class InvalidApolloKeyError(ValueError):
+    """The key is malformed or Apollo.io rejected it."""
+
+
+def platform_apollo_key() -> str | None:
+    """The operator's Apollo.io key (``APOLLO_API_KEY``), for people who'd rather not set up
+    their own: the seamless hosted setup. Their own key always comes first."""
     return (os.getenv("APOLLO_API_KEY") or "").strip() or None
 
 
-def _apollo_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
-    key = apollo_key()
+def apollo_key_source(user_id: str) -> tuple[str | None, str]:
+    """(key, "user" | "platform" | "none"): the person's own Apollo.io key, else the operator's."""
+    from app.services.ai.user_keys import load_user_key
+
+    try:
+        own = load_user_key(user_id, APOLLO_SERVICE_ID)
+    except Exception as exc:  # lookup or decryption trouble: don't block, fall back
+        logger.warning("[discovery] apollo key lookup failed: %s", type(exc).__name__)
+        own = None
+    if own:
+        return own, "user"
+    platform = platform_apollo_key()
+    return (platform, "platform") if platform else (None, "none")
+
+
+def apollo_key_for(user_id: str) -> str | None:
+    return apollo_key_source(user_id)[0]
+
+
+def validate_apollo_key(raw: str) -> str:
+    key = (raw or "").strip()
+    if len(key) < 16 or any(c.isspace() for c in key):
+        raise InvalidApolloKeyError("That doesn't look like an Apollo.io API key.")
+    try:
+        response = requests.get(
+            APOLLO_HEALTH_URL, headers={"X-Api-Key": key, "Cache-Control": "no-cache"}, timeout=15
+        )
+    except requests.RequestException as exc:
+        raise InvalidApolloKeyError(
+            "Couldn't reach Apollo.io to check the key. Try again."
+        ) from exc
+    data = (
+        response.json()
+        if response.headers.get("content-type", "").startswith("application/json")
+        else {}
+    )
+    if response.status_code >= 400 or not (isinstance(data, dict) and data.get("is_logged_in")):
+        raise InvalidApolloKeyError("Apollo.io rejected this key. Check it and try again.")
+    return key
+
+
+def save_apollo_key(user_id: str, raw: str) -> str:
+    """Verify with Apollo.io, then store encrypted like the OpenAI key. Returns the last four."""
+    from app.services.ai.user_keys import store_key
+
+    return store_key(
+        user_id,
+        validate_apollo_key(raw),
+        service_id=APOLLO_SERVICE_ID,
+        service_name=APOLLO_SERVICE_NAME,
+    )
+
+
+def apollo_key_last4(user_id: str) -> str | None:
+    from app.services.ai.user_keys import key_last4
+
+    return key_last4(user_id, APOLLO_SERVICE_ID)
+
+
+def remove_apollo_key(user_id: str) -> None:
+    from app.services.ai.user_keys import delete_user_key
+
+    delete_user_key(user_id, APOLLO_SERVICE_ID)
+
+
+def _apollo_post(path: str, body: dict[str, Any], key: str | None) -> dict[str, Any]:
     if not key:
-        raise ConnectorUnavailable("Apollo.io is not set up on this Manifest server.")
+        raise ConnectorUnavailable("Add your Apollo.io key in Account → AI settings.")
     response = requests.post(
         f"{APOLLO_BASE}/{path}",
         json=body,
@@ -169,7 +244,12 @@ def _apollo_post(path: str, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def apollo_search_organizations(
-    *, keywords: list[str], locations: list[str], employee_ranges: list[str], per_page: int = 15
+    *,
+    key: str | None,
+    keywords: list[str],
+    locations: list[str],
+    employee_ranges: list[str],
+    per_page: int = 15,
 ) -> list[dict[str, Any]]:
     """Companies matching an ideal customer profile, as provider-neutral prospect seeds."""
     body: dict[str, Any] = {"page": 1, "per_page": max(1, min(per_page, 25))}
@@ -179,7 +259,7 @@ def apollo_search_organizations(
         body["organization_locations"] = locations[:3]
     if employee_ranges:
         body["organization_num_employees_ranges"] = employee_ranges[:3]
-    data = _apollo_post("mixed_companies/search", body)
+    data = _apollo_post("mixed_companies/search", body, key)
     out: list[dict[str, Any]] = []
     for org in (data.get("organizations") or []) + (data.get("accounts") or []):
         if not isinstance(org, dict) or not org.get("name"):
@@ -202,7 +282,9 @@ def apollo_search_organizations(
     return out
 
 
-def apollo_find_decision_maker(*, domain: str, titles: list[str]) -> dict[str, Any] | None:
+def apollo_find_decision_maker(
+    *, key: str | None, domain: str, titles: list[str]
+) -> dict[str, Any] | None:
     """The most senior matching person at a company (no email; enrichment reveals that)."""
     if not domain:
         return None
@@ -214,13 +296,24 @@ def apollo_find_decision_maker(*, domain: str, titles: list[str]) -> dict[str, A
             "page": 1,
             "per_page": 3,
         },
+        key,
     )
     for person in data.get("people") or []:
         if isinstance(person, dict) and (person.get("name") or person.get("first_name")):
             return {
                 "apollo_id": person.get("id"),
+                # Apollo's free people search hides the surname ("Ho***e") until enrichment.
                 "name": person.get("name")
-                or " ".join(filter(None, [person.get("first_name"), person.get("last_name")])),
+                or " ".join(
+                    filter(
+                        None,
+                        [
+                            person.get("first_name"),
+                            person.get("last_name") or person.get("last_name_obfuscated"),
+                        ],
+                    )
+                ),
+                "has_email": bool(person.get("has_email")),
                 "title": person.get("title"),
                 "linkedin_url": person.get("linkedin_url"),
                 "source": "apollo",
@@ -228,9 +321,9 @@ def apollo_find_decision_maker(*, domain: str, titles: list[str]) -> dict[str, A
     return None
 
 
-def apollo_enrich_email(apollo_id: str) -> str | None:
+def apollo_enrich_email(key: str | None, apollo_id: str) -> str | None:
     """A verified work email for one person, or None. Uses Apollo credits; call on request."""
-    data = _apollo_post("people/match", {"id": apollo_id, "reveal_personal_emails": False})
+    data = _apollo_post("people/match", {"id": apollo_id, "reveal_personal_emails": False}, key)
     person = data.get("person") or {}
     if person.get("email") and person.get("email_status") == "verified":
         return str(person["email"])
@@ -350,7 +443,12 @@ def capability_status(db: Any, user_id: str, ai_layer: Any) -> dict[str, dict[st
     """Which capabilities work right now for this person, and how to enable the rest."""
     router = getattr(ai_layer, "router", None)
     has_ai = bool(router is not None and router.is_available())
-    has_apollo = apollo_key() is not None
+    apollo_source = apollo_key_source(user_id)[1]
+    has_apollo = apollo_source != "none"
+    # Whose Apollo account searches run on: the person's own, or Manifest's (seamless setup).
+    apollo_provider = {"user": "apollo (your account)", "platform": "apollo (Manifest's)"}.get(
+        apollo_source, "apollo"
+    )
     try:
         has_gmail = gmail_connection(db, user_id) is not None
     except Exception as exc:  # decryption or lookup failure: report, don't crash
@@ -370,15 +468,17 @@ def capability_status(db: Any, user_id: str, ai_layer: Any) -> dict[str, dict[st
         "prospects.search": {
             # Without Apollo, prospects come from web search, which needs the OpenAI key.
             "available": has_apollo or has_ai,
-            "provider": "apollo" if has_apollo else "web-search",
+            "provider": apollo_provider if has_apollo else "web-search",
             "hint": None
             if has_apollo or has_ai
-            else "Add your OpenAI key in Account → AI settings (or set up Apollo.io).",
+            else "Add your OpenAI key (or your Apollo.io key) in Account → AI settings.",
         },
         "prospects.enrich": {
             "available": has_apollo,
-            "provider": "apollo",
-            "hint": None if has_apollo else "Apollo.io is not set up; contacts stay unverified.",
+            "provider": apollo_provider,
+            "hint": None
+            if has_apollo
+            else "Add your Apollo.io key in Account → AI settings; contacts stay unverified.",
         },
         "email.createDraft": {
             "available": has_gmail,

@@ -588,3 +588,24 @@ export interface SaveOpenaiApiKeyVariables {
 export interface RemoveOpenaiApiKeyData {
   removeOpenaiApiKey: AiKeyStatus;
 }
+
+export interface ApolloKeyStatus {
+  connected: boolean;
+  last4?: string | null;
+}
+
+export interface GetApolloKeyStatusData {
+  apolloKeyStatus: ApolloKeyStatus;
+}
+
+export interface SaveApolloApiKeyData {
+  saveApolloApiKey: ApolloKeyStatus;
+}
+
+export interface SaveApolloApiKeyVariables {
+  apiKey: string;
+}
+
+export interface RemoveApolloApiKeyData {
+  removeApolloApiKey: ApolloKeyStatus;
+}

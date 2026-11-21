@@ -19,7 +19,7 @@ OPEN_MEDIA_SERVICE_ID = "open_media"
 GITHUB_SERVICE_ID = "github"
 _SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 # Managed elsewhere: the OpenAI key lives in AI settings, never here.
-_RESERVED = {"openai"}
+_RESERVED = {"openai", "apollo"}
 
 STATUS_CONNECTED = "connected"
 STATUS_ALREADY_CONNECTED = "already_connected"
@@ -41,7 +41,9 @@ def normalize_service_id(raw: str) -> str:
             "serviceId must be 1-40 lowercase letters, digits, '-' or '_' (for example 'notion')."
         )
     if service_id in _RESERVED:
-        raise ValueError("Save your OpenAI key in Account → AI settings, not as an integration.")
+        raise ValueError(
+            "Save your OpenAI or Apollo.io key in Account → AI settings, not as an integration."
+        )
     return service_id
 
 

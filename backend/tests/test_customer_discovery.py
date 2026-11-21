@@ -418,3 +418,73 @@ def test_prospect_search_is_unavailable_without_a_key_or_apollo(db):
     status = connectors.capability_status(db, USER, layer)
     assert status["prospects.search"]["available"] is False
     assert status["web.read"]["available"] is True
+
+
+def test_apollo_uses_the_persons_own_key_first_then_manifests(monkeypatch):
+    from app.services.ai import user_keys
+
+    monkeypatch.setenv("APOLLO_API_KEY", "platform-key")
+    monkeypatch.setattr(user_keys, "load_user_key", lambda uid, service_id="openai": "own-key")
+    assert connectors.apollo_key_source(USER) == ("own-key", "user")
+    monkeypatch.setattr(user_keys, "load_user_key", lambda uid, service_id="openai": None)
+    assert connectors.apollo_key_source(USER) == ("platform-key", "platform")
+    monkeypatch.delenv("APOLLO_API_KEY")
+    assert connectors.apollo_key_source(USER) == (None, "none")
+
+
+def test_apollo_alone_finds_real_companies_but_claims_no_need(db, monkeypatch):
+    calls = []
+    monkeypatch.setattr(connectors, "apollo_key_for", lambda uid: "k")
+    monkeypatch.setattr(
+        connectors,
+        "apollo_search_organizations",
+        lambda **kw: calls.append(kw)
+        or [
+            {
+                "name": "Brightside Social",
+                "website": "https://brightside.example",
+                "domain": "brightside.example",
+                "linkedin_url": "https://linkedin.com/company/brightside",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        connectors,
+        "apollo_find_decision_maker",
+        lambda **kw: {
+            "name": "Dana Lee",
+            "title": "Founder",
+            "apollo_id": "p1",
+            "source": "apollo",
+        },
+    )
+    no_ai = SimpleNamespace(
+        router=SimpleNamespace(is_available=lambda: False), is_available=lambda: False
+    )
+    result = cd.find_prospects(
+        db=db, ai_layer=no_ai, user_id=USER, idea=IDEA, segment="Social media agencies"
+    )
+    assert calls[0]["key"] == "k" and calls[0]["keywords"] == ["Social media agencies"]
+    [p] = result["state"]["prospects"]
+    assert p["origin"] == "apollo" and p["scores"]["need_evidence"] == 0
+    assert p["decision_maker"]["name"] == "Dana Lee"
+    assert any("Apollo.io only" in x for x in result["limitations"])
+
+
+def test_apollo_keys_are_checked_with_apollo(monkeypatch):
+    import requests
+
+    def fake_get(url, headers, timeout):
+        ok = headers["X-Api-Key"] == "good-key-1234567890"
+        return SimpleNamespace(
+            status_code=200,
+            headers={"content-type": "application/json"},
+            json=lambda: {"healthy": True, "is_logged_in": ok},
+        )
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    assert connectors.validate_apollo_key(" good-key-1234567890 ") == "good-key-1234567890"
+    with pytest.raises(connectors.InvalidApolloKeyError, match="rejected"):
+        connectors.validate_apollo_key("bad-key-1234567890x")
+    with pytest.raises(connectors.InvalidApolloKeyError, match="look like"):
+        connectors.validate_apollo_key("short")

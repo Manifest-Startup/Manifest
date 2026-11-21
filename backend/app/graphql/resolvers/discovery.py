@@ -12,7 +12,12 @@ from typing import Any
 
 import strawberry
 from app.auth.current_user import get_current_user_id
-from app.graphql.types.discovery import CustomerDiscovery, DiscoveryCapability, map_discovery
+from app.graphql.types.discovery import (
+    ApolloKeyStatus,
+    CustomerDiscovery,
+    DiscoveryCapability,
+    map_discovery,
+)
 from strawberry.scalars import JSON
 
 
@@ -85,8 +90,20 @@ def _ai_layer() -> Any:
     return manifest_manager.ai_layer
 
 
+async def _apollo_status(user_id: str) -> ApolloKeyStatus:
+    from app.services.integrations import discovery_connectors as connectors
+
+    last4 = await asyncio.to_thread(connectors.apollo_key_last4, user_id)
+    return ApolloKeyStatus(connected=bool(last4), last4=last4)
+
+
 @strawberry.type
 class DiscoveryQuery:
+    @strawberry.field
+    async def apollo_key_status(self, info: strawberry.Info) -> ApolloKeyStatus:
+        """Whether you saved your own Apollo.io key for finding prospects (never the key)."""
+        return await _apollo_status(str(get_current_user_id(info.context["request"])))
+
     @strawberry.field
     async def customer_discovery(self, info: strawberry.Info, idea_id: str) -> CustomerDiscovery:
         """Read the customer discovery saved for an idea: research, segments, prospects and
@@ -117,6 +134,29 @@ class DiscoveryQuery:
 
 @strawberry.type
 class DiscoveryMutation:
+    @strawberry.mutation
+    async def save_apollo_api_key(self, info: strawberry.Info, api_key: str) -> ApolloKeyStatus:
+        """Save your own Apollo.io API key (verified with Apollo, encrypted at rest). Prospect
+        searches then use your Apollo account and credits. Never ask for it in chat: the person
+        adds it in Account → AI settings."""
+        from app.services.integrations import discovery_connectors as connectors
+
+        user_id = str(get_current_user_id(info.context["request"]))
+        try:
+            await asyncio.to_thread(connectors.save_apollo_key, user_id, api_key)
+        except connectors.InvalidApolloKeyError as exc:
+            raise Exception(str(exc)) from None
+        return await _apollo_status(user_id)
+
+    @strawberry.mutation
+    async def remove_apollo_api_key(self, info: strawberry.Info) -> ApolloKeyStatus:
+        """Remove your saved Apollo.io key; prospects then come from web search only."""
+        from app.services.integrations import discovery_connectors as connectors
+
+        user_id = str(get_current_user_id(info.context["request"]))
+        await asyncio.to_thread(connectors.remove_apollo_key, user_id)
+        return await _apollo_status(user_id)
+
     @strawberry.mutation
     async def research_market(
         self,
