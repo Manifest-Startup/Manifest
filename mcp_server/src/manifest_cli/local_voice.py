@@ -17,12 +17,13 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+import time
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
     from manifest_cli.agents import LocalAgent
 
-VOICE_PORT = 47822
+VOICE_PORT = int(os.environ.get("MANIFEST_VOICE_PORT") or 47822)
 DEFAULT_VOICE = "af_heart"  # Kokoro's most natural English voice
 # Quantized: much less memory than the full model, nearly the same accuracy.
 STT_MODEL = os.environ.get("MANIFEST_VOICE_STT_MODEL") or "mlx-community/whisper-large-v3-turbo-q4"
@@ -100,9 +101,10 @@ def brain_class() -> type:  # noqa: C901 (one class, built lazily so Pipecat loa
     class AgentBrain(FrameProcessor):
         """Where the LLM would be: the person's agent answers each turn, sentence by sentence."""
 
-        def __init__(self, agent: LocalAgent, notify: Any) -> None:
+        def __init__(self, agent: LocalAgent, notify: Any, log: Any = None) -> None:
             super().__init__()
             self.agent, self.notify = agent, notify
+            self.log = log or (lambda _line: None)
             self.context = ""
             self._turn = 0
             self._lock = asyncio.Lock()
@@ -157,11 +159,14 @@ def brain_class() -> type:  # noqa: C901 (one class, built lazily so Pipecat loa
             if text:
                 self._turn += 1
                 self._speaking = False
+                self.log(f"voice: ask (turn {self._turn}): {text[:80]}")
                 await self._answer(text, self._turn)
 
         async def _say(self, text: str, turn: int, *, filler: bool = False) -> None:
             if turn <= self._cut:
+                self.log(f"voice: dropped (interrupted turn {turn}): {text[:60]}")
                 return
+            self.log(f"voice: say (turn {turn}{', filler' if filler else ''}): {text[:60]}")
             if not filler:  # a filler ("One moment.") isn't the answer; talking over it is fine
                 self._speaking = True
             await self.push_frame(LLMFullResponseStartFrame())
@@ -249,7 +254,11 @@ async def run_session(
         if worker is not None:
             await worker.rtvi.send_server_message(data)
 
-    brain = brain_class()(agent, notify)
+    def log(line: str) -> None:
+        out.write(f"{line}  @{time.time():.3f}\n")
+        out.flush()
+
+    brain = brain_class()(agent, notify, log)
     user, _assistant = LLMContextAggregatorPair(
         LLMContext(), user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer())
     )
