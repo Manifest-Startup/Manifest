@@ -20,5 +20,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0015 — Shared notes highlight statements that contradict each other](0015-shared-notes-highlight-contradictions.md)
 - [0016 — Your own GitHub, connected once and controlled from everywhere](0016-your-github-in-manifest.md)
 - [0017 — Voice with your own agent feels instant, and you can talk over it](0017-voice-feels-instant.md)
+- [0018 — From an idea to first customers, in the conversation](0018-from-an-idea-to-first-customers.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

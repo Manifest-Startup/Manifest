@@ -25,6 +25,7 @@ If tools answer that sign-in expired, ask the person to reconnect Manifest in th
 | Profile, sessions, privacy, data requests, API keys, AI key and spend, integrations | manifest-account |
 | Local Obsidian-style vault of ideas, documents and notes; saving notes while you talk | manifest-vault |
 | Your own GitHub: repos, issues, pull requests, branches, files, CI (Actions), releases | manifest-github |
+| Validate an idea and find first customers: market research, segments, prospects, outreach emails, Gmail drafts | manifest-customers |
 | Platform administration (admins only) | manifest-admin |
 
 Start broad questions with `universal_search` (ideas, documents and people at once) or `ideas`, and `me` when you need to know who the person is.

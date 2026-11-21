@@ -198,6 +198,14 @@ OAUTH_PROVIDERS = {
         "client_id_env": "GOOGLE_CLIENT_ID",
         "client_secret_env": "GOOGLE_CLIENT_SECRET",
     },
+    # Gmail for customer-discovery drafts: compose only (create drafts; the founder sends).
+    "gmail": {
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "scopes": ["https://www.googleapis.com/auth/gmail.compose"],
+        "client_id_env": "GOOGLE_CLIENT_ID",
+        "client_secret_env": "GOOGLE_CLIENT_SECRET",
+    },
     "apple": {
         "auth_url": "https://appleid.apple.com/auth/authorize",
         "token_url": "https://appleid.apple.com/auth/token",
@@ -308,7 +316,7 @@ async def oauth_start(request: Request, provider: str):
         "scope": scopes,
     }
 
-    if provider == "google":
+    if provider in ("google", "gmail"):
         params["access_type"] = "offline"
         params["prompt"] = "consent"
     elif provider == "apple":

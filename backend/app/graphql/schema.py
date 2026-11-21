@@ -23,6 +23,7 @@ from app.graphql.resolvers.admin import AdminMutation, AdminQuery
 from app.graphql.resolvers.canvas import CanvasMutation, CanvasQuery
 from app.graphql.resolvers.collaboration import CollaborationMutation, CollaborationQuery
 from app.graphql.resolvers.costs import CostsMutation, CostsQuery
+from app.graphql.resolvers.discovery import DiscoveryMutation, DiscoveryQuery
 from app.graphql.resolvers.documents import (  # noqa: F401
     DocumentsMutation,
     DocumentsQuery,
@@ -86,6 +87,7 @@ class Query(
     QualificationQuery,
     CostsQuery,
     CanvasQuery,
+    DiscoveryQuery,
     AdminQuery,
     VoiceQuery,
     VaultQuery,
@@ -111,6 +113,7 @@ class Mutation(
     QualificationMutation,
     CostsMutation,
     CanvasMutation,
+    DiscoveryMutation,
     VoiceMutation,
     VaultSyncMutation,
 ):
@@ -180,6 +183,23 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "vaultFiles": "ideas.read",
         "put_vault_file": "ideas.write",
         "putVaultFile": "ideas.write",
+        # --- Customer discovery (research, prospects, outreach drafts) ---
+        "customer_discovery": "ideas.read",
+        "customerDiscovery": "ideas.read",
+        "discovery_capabilities": "ideas.read",
+        "discoveryCapabilities": "ideas.read",
+        "research_market": "ideas.write",
+        "researchMarket": "ideas.write",
+        "find_prospects": "ideas.write",
+        "findProspects": "ideas.write",
+        "exclude_prospects": "ideas.write",
+        "excludeProspects": "ideas.write",
+        "draft_outreach": "ideas.write",
+        "draftOutreach": "ideas.write",
+        "save_customer_discovery": "ideas.write",
+        "saveCustomerDiscovery": "ideas.write",
+        "create_outreach_email_drafts": "ideas.write",
+        "createOutreachEmailDrafts": "ideas.write",
         "ideaKnowledgeGraph": "ideas.read",
         "idea_knowledge_graph": "ideas.read",
         "search_ideas": "ideas.read",
