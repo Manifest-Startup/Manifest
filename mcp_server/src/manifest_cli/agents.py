@@ -27,11 +27,18 @@ VOICE_STYLE = (
     "You are being spoken to out loud through Manifest voice; your replies are read aloud. "
     "Answer in short, natural spoken sentences. No markdown, lists, code blocks, tables, "
     "URLs or file paths read aloud: say what you did or found in plain words. Before a long "
-    "task, say in one short sentence what you are about to do."
+    "task, say in one short sentence what you are about to do. "
+    "The person's Manifest vault is a folder on this computer. To say where it is, run "
+    "`manifest vault-folder`; to move it when they ask (for example to iCloud Drive), run "
+    "`manifest vault-folder icloud`, `documents`, `home` or a full path. Moving keeps every "
+    "file and restarts sync."
 )
 
-# Read-only by default; the Manifest plugin's own tools ask for confirmation themselves.
-CLAUDE_DEFAULT_TOOLS = "mcp__plugin_manifest_manifest Read Grep Glob WebSearch WebFetch"
+# Read-only by default; the Manifest plugin's own tools ask for confirmation themselves. The one
+# shell command allowed is showing or moving the vault folder (it never deletes anything).
+CLAUDE_DEFAULT_TOOLS = (
+    "mcp__plugin_manifest_manifest Read Grep Glob WebSearch WebFetch Bash(manifest vault-folder:*)"
+)
 
 Event = tuple[str, str]
 

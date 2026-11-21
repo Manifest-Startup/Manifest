@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -161,3 +162,95 @@ def test_only_your_files_and_writing_sync(mv, tmp_path):
     # The untouched "## My notes" scaffold isn't worth uploading.
     changed, _ = mv.pending_changes(vault, {})
     assert "Manifest/Ideas/A.md" not in changed and "Notes/n.md" in changed
+
+
+# -- the vault folder setting and `move` ------------------------------------------------------
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch, mv):
+    """A fake home with iCloud Drive and no background service."""
+    monkeypatch.setattr(mv.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setenv("MANIFEST_CONFIG", str(tmp_path / ".config/manifest/cli.json"))
+    monkeypatch.delenv("MANIFEST_VAULT", raising=False)
+    icloud = tmp_path / "Library/Mobile Documents/com~apple~CloudDocs"
+    icloud.mkdir(parents=True)
+    monkeypatch.setattr(mv, "ICLOUD_DRIVE", icloud)
+    monkeypatch.setitem(mv.PLACES, "icloud", icloud)
+    monkeypatch.setitem(mv.PLACES, "home", tmp_path)
+    monkeypatch.setattr(mv, "set_folder_icon", lambda root: True)
+    return tmp_path
+
+
+def test_vault_folder_resolves_flag_env_setting_then_default(mv, home, monkeypatch):
+    assert mv.vault_source(None) == (str(home / "Manifest Vault"), "default")
+    mv.save_vault_setting(home / "Saved")
+    assert mv.vault_source(None) == (str(home / "Saved"), "setting")
+    monkeypatch.setenv("MANIFEST_VAULT", str(home / "Env"))
+    assert mv.vault_source(None)[1] == "env"
+    assert mv.vault_source("/x") == ("/x", "flag")
+
+
+def test_move_to_icloud_keeps_every_file_and_remembers_it(mv, home, capsys):
+    vault = home / "Manifest Vault"
+    (vault / "Notes").mkdir(parents=True)
+    (vault / "Notes/a.md").write_text("keep me")
+    (vault / ".obsidian").mkdir()
+    assert mv.main(["move", "icloud", "--json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    target = home / "Library/Mobile Documents/com~apple~CloudDocs/Manifest Vault"
+    assert result == {"folder": str(target), "from": str(vault), "moved": True, "icon": True}
+    assert (target / "Notes/a.md").read_text() == "keep me" and (target / ".obsidian").is_dir()
+    assert not vault.exists()
+    assert mv.main(["where", "--json"]) == 0
+    where = json.loads(capsys.readouterr().out)
+    assert where["folder"] == str(target) and where["source"] == "setting" and where["icloud"]
+    # Moving again to the same place is a no-op.
+    assert mv.main(["move", "icloud", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["moved"] is False
+
+
+def test_move_refuses_to_overwrite_or_nest(mv, home):
+    vault = home / "Manifest Vault"
+    vault.mkdir()
+    taken = home / "Taken"
+    taken.mkdir()
+    (taken / "Manifest Vault").mkdir()
+    (taken / "Manifest Vault/x.md").write_text("theirs")
+    with pytest.raises(SystemExit, match="isn't empty"):
+        mv.main(["move", str(taken)])
+    with pytest.raises(SystemExit, match="inside the vault"):
+        mv.main(["move", str(vault / "inner")])
+    with pytest.raises(SystemExit, match="full path"):
+        mv.main(["move", "relative/folder"])
+    assert vault.is_dir() and (taken / "Manifest Vault/x.md").read_text() == "theirs"
+
+
+def test_move_restarts_background_sync_on_the_new_folder(mv, home, monkeypatch):
+    (home / "Manifest Vault").mkdir()
+    service = home / "service.plist"
+    service.write_text("x")
+    monkeypatch.setattr(mv, "_service_paths", lambda: (home / "s.py", service, home / "log"))
+    calls = []
+    monkeypatch.setattr(mv, "_stop_service", lambda: calls.append("stop"))
+    monkeypatch.setattr(mv, "_install_service", lambda root: calls.append(("start", root)))
+    mv.main(["move", "icloud"])
+    target = home / "Library/Mobile Documents/com~apple~CloudDocs/Manifest Vault"
+    assert calls == ["stop", ("start", target)]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS app bundle")
+def test_background_sync_runs_through_a_signed_app(mv, tmp_path):
+    exe = mv.sync_app(tmp_path)
+    assert exe == tmp_path / "Manifest Vault Sync.app/Contents/MacOS/manifest-vault-sync"
+    assert mv.sync_app(tmp_path) == exe
+    plist = mv._plist("/py", tmp_path / "s.py", tmp_path / "v", tmp_path / "log", exe)
+    assert plist.index(str(exe)) < plist.index("<string>/py</string>")
+
+
+def test_install_from_the_installed_copy_does_not_copy_onto_itself(mv, tmp_path, monkeypatch):
+    installed = Path(mv.__file__).resolve()
+    monkeypatch.setattr(mv, "_service_paths", lambda: (installed, tmp_path / "s", tmp_path / "l"))
+    monkeypatch.setattr(mv.platform, "system", lambda: "Plan9")
+    with pytest.raises(SystemExit, match="Background sync installs on macOS and Linux"):
+        mv._install_service(tmp_path / "vault")  # got past the copy

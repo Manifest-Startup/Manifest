@@ -15,6 +15,8 @@ default here; see ``agents.py``).
     POST /turn     {"text": "...", "context": {"path", "idea_id", "idea_title"}}
                    → newline-delimited JSON: {"kind": "say"|"tool"|"error", "text"}…
                      then {"kind": "done"}
+    GET  /vault/folder   where this computer keeps the vault (see ``vault_folder.where``)
+    POST /vault/folder   {"place": "icloud" | "documents" | "home" | "/full/path"} → moves it
 """
 
 from __future__ import annotations
@@ -127,6 +129,10 @@ class Bridge:
                 {"ok": True, "agent": self.agent.name, "voice": self.voice_url}
             ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
+        elif path == "/vault/folder" and method in ("GET", "POST"):
+            length = int(headers.get("content-length") or 0)
+            status, body = await self._vault_folder(method, reader, length)
+            send(status, [*cors, "Content-Type: application/json"], json.dumps(body).encode())
         elif method == "POST" and path == "/turn":
             length = int(headers.get("content-length") or 0)
             if length <= 0 or length > MAX_BODY:
@@ -138,6 +144,25 @@ class Bridge:
         else:
             send("404 Not Found", cors)
         await writer.drain()
+
+    async def _vault_folder(
+        self, method: str, reader: asyncio.StreamReader, length: int
+    ) -> tuple[str, dict[str, Any]]:
+        from manifest_cli import vault_folder
+
+        try:
+            if method == "GET":
+                return "200 OK", await asyncio.to_thread(vault_folder.where)
+            if length <= 0 or length > MAX_BODY:
+                return "413 Payload Too Large", {"error": 'Send {"place": ...}.'}
+            payload = json.loads(await reader.readexactly(length))
+            place = str(payload.get("place") or "") if isinstance(payload, dict) else ""
+            result = await asyncio.to_thread(vault_folder.move, place)
+            self.out.write(f"vault  moved to {result.get('folder')}\n")
+            self.out.flush()
+            return "200 OK", result
+        except vault_folder.VaultFolderError as exc:
+            return "409 Conflict", {"error": str(exc)}
 
     async def _turn(self, writer: asyncio.StreamWriter, cors: list[str], payload: dict) -> None:
         text = " ".join(str(payload.get("text") or "").split())[:4000]
@@ -224,11 +249,15 @@ def launch_agent_path() -> Path:
     return Path.home() / "Library" / "LaunchAgents" / f"{LAUNCH_LABEL}.plist"
 
 
-def launch_agent_plist(args: list[str], *, path_env: str, log: Path) -> dict[str, Any]:
-    """A login item that keeps `manifest bridge` running (restarted if it stops)."""
+def launch_agent_plist(
+    args: list[str], *, path_env: str, log: Path, launcher: Path | None = None
+) -> dict[str, Any]:
+    """A login item that keeps `manifest bridge` running (restarted if it stops). With a
+    `launcher` (macos_app), it runs as "Manifest Bridge", which may use an iCloud vault."""
+    program = ([str(launcher)] if launcher else []) + [sys.executable]
     return {
         "Label": LAUNCH_LABEL,
-        "ProgramArguments": [sys.executable, "-m", "manifest_cli", "bridge", *args],
+        "ProgramArguments": [*program, "-m", "manifest_cli", "bridge", *args],
         "RunAtLoad": True,
         "KeepAlive": True,
         "WorkingDirectory": str(Path.home()),
@@ -276,9 +305,13 @@ def install(args: list[str], *, out: TextIO) -> int:
     plist.parent.mkdir(parents=True, exist_ok=True)
     domain = f"gui/{os.getuid()}"
     subprocess.run(["launchctl", "bootout", f"{domain}/{LAUNCH_LABEL}"], capture_output=True)
+    from manifest_cli import macos_app
+
+    app = macos_app.launcher("Manifest Bridge", LAUNCH_LABEL)
     with plist.open("wb") as handle:
         plistlib.dump(
-            launch_agent_plist(args, path_env=os.environ.get("PATH", ""), log=log), handle
+            launch_agent_plist(args, path_env=os.environ.get("PATH", ""), log=log, launcher=app),
+            handle,
         )
     started = _bootstrap_when_unloaded(domain, plist)
     if started.returncode != 0:

@@ -51,6 +51,15 @@ manifest bridge --install                  # macOS: start it at login and keep i
 
 Keep it running and use voice in the web app or the installed app. With no OpenAI key on the account (or in a vault without signing in), the app's voice button uses the browser's own speech recognition and voice, and each turn goes to your agent through this small server on `http://127.0.0.1:47821`. It answers only Manifest's own pages (`--origin` adds a self-hosted one), so other websites cannot drive your agent; Chrome may ask once to let Manifest reach the local network. No sign-in or key is needed. The note's dictation orb needs neither the bridge nor a key: without a key it uses the browser's recognition (Chrome sends the audio to Google's speech service; Safari uses Apple's).
 
+### Where your vault lives: `manifest vault-folder`
+
+```bash
+manifest vault-folder                      # where the vault is on this computer
+manifest vault-folder icloud               # move it to iCloud Drive (or documents, home, or a full path)
+```
+
+Moving keeps every file (it refuses a place that isn't empty), restarts background sync on the new folder, gives it the Manifest folder icon and saves the choice in `~/.config/manifest/vault.json` for the plugin, the app and voice. It runs the vault script from the Manifest plugin (`manifest_vault.py move`). The running bridge exposes the same thing to Settings → Storage (`GET`/`POST /vault/folder`), and Claude Code may run this one command during voice without asking, so "move my vault to iCloud Drive" works out loud.
+
 ### Your own agent, out loud
 
 ```bash

@@ -7,6 +7,8 @@ import io
 import json
 import sys
 
+import pytest
+
 from manifest_cli import agents, bridge
 
 APP = "https://manifeststartup.com"
@@ -142,7 +144,90 @@ def test_install_retries_until_the_old_bridge_has_stopped(tmp_path, monkeypatch)
     monkeypatch.setattr(bridge.time, "sleep", lambda _s: None)
     monkeypatch.setattr(bridge, "launch_agent_path", lambda: tmp_path / "agent.plist")
     monkeypatch.setattr(bridge.Path, "home", staticmethod(lambda: tmp_path))
+    from manifest_cli import macos_app
+
+    monkeypatch.setattr(macos_app, "launcher", lambda *a, **k: None)
     out = io.StringIO()
     assert bridge.install(["--agent", "claude"], out=out) == 0
     assert calls.count("bootstrap") == 3
     assert "starts when you log in" in out.getvalue()
+
+
+def test_bridge_shows_and_moves_the_vault_folder(monkeypatch):
+    from manifest_cli import vault_folder
+
+    moves = []
+    monkeypatch.setattr(vault_folder, "where", lambda: {"folder": "/v", "icloud": False})
+
+    def move(place):
+        if place == "nowhere":
+            raise vault_folder.VaultFolderError("Give the new place as a full path.")
+        moves.append(place)
+        return {"folder": "/icloud/v", "moved": True}
+
+    monkeypatch.setattr(vault_folder, "move", move)
+    out = io.StringIO()
+
+    async def run():
+        b = bridge.Bridge(agents.make_agent("cat"), origins=bridge.DEFAULT_ORIGINS, out=out)
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            get = await _request(
+                port, f"GET /vault/folder HTTP/1.1\r\nOrigin: {APP}\r\n\r\n".encode()
+            )
+            ok = await _request(port, _post("/vault/folder", {"place": "icloud"}))
+            bad = await _request(port, _post("/vault/folder", {"place": "nowhere"}))
+            evil = await _request(
+                port, _post("/vault/folder", {"place": "/tmp"}, origin="https://evil.example")
+            )
+        return get, ok, bad, evil
+
+    get, ok, bad, evil = asyncio.run(run())
+    assert json.loads(get[2]) == {"folder": "/v", "icloud": False}
+    assert get[1]["access-control-allow-origin"] == APP
+    assert json.loads(ok[2])["moved"] is True and moves == ["icloud"]
+    assert bad[0].endswith("409 Conflict") and "full path" in json.loads(bad[2])["error"]
+    assert evil[0].endswith("403 Forbidden")
+
+
+def test_vault_folder_runs_the_newest_script_with_move(tmp_path, monkeypatch):
+    from manifest_cli import vault_folder
+
+    old = tmp_path / "old.py"
+    old.write_text("print('no move here')")
+    new = tmp_path / "new.py"
+    new.write_text(
+        "import json, sys\n" "def cmd_move(): pass\n" "print(json.dumps({'args': sys.argv[1:]}))\n"
+    )
+    monkeypatch.setattr(vault_folder, "_candidates", lambda: [old, new])
+    assert vault_folder.move("icloud") == {"args": ["move", "icloud", "--json"]}
+    assert vault_folder.where() == {"args": ["where", "--json"]}
+    with pytest.raises(vault_folder.VaultFolderError):
+        vault_folder.move("  ")
+    monkeypatch.setattr(vault_folder, "_candidates", lambda: [old])
+    with pytest.raises(vault_folder.VaultFolderError, match="isn't set up"):
+        vault_folder.where()
+
+
+def test_bridge_runs_through_its_app_so_it_may_use_an_icloud_vault(tmp_path):
+    exe = tmp_path / "Manifest Bridge.app/Contents/MacOS/bridge"
+    plist = bridge.launch_agent_plist([], path_env="", log=tmp_path / "b.log", launcher=exe)
+    assert plist["ProgramArguments"][:2] == [str(exe), sys.executable]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS app bundle")
+def test_macos_app_is_built_once_and_signed(tmp_path):
+    from manifest_cli import macos_app
+
+    exe = macos_app.launcher("Manifest Bridge", "com.manifeststartup.bridge", base=tmp_path)
+    assert exe == tmp_path / "Manifest Bridge.app/Contents/MacOS/bridge"
+    info = (tmp_path / "Manifest Bridge.app/Contents/Info.plist").read_text()
+    assert "<string>com.manifeststartup.bridge</string>" in info
+    before = exe.stat().st_mtime_ns
+    assert macos_app.launcher("Manifest Bridge", "com.manifeststartup.bridge", base=tmp_path) == exe
+    assert exe.stat().st_mtime_ns == before  # kept, so a permission granted to it lasts
+    import subprocess
+
+    out = subprocess.run([str(exe), "echo", "ran"], capture_output=True, text=True)
+    assert out.stdout.strip() == "ran"
