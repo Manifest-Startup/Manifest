@@ -8,7 +8,6 @@ import json
 import sys
 
 import pytest
-
 from manifest_cli import agents, bridge
 
 APP = "https://manifeststartup.com"
@@ -198,7 +197,7 @@ def test_vault_folder_runs_the_newest_script_with_move(tmp_path, monkeypatch):
     old.write_text("print('no move here')")
     new = tmp_path / "new.py"
     new.write_text(
-        "import json, sys\n" "def cmd_move(): pass\n" "print(json.dumps({'args': sys.argv[1:]}))\n"
+        "import json, sys\ndef cmd_move(): pass\nprint(json.dumps({'args': sys.argv[1:]}))\n"
     )
     monkeypatch.setattr(vault_folder, "_candidates", lambda: [old, new])
     assert vault_folder.move("icloud") == {"args": ["move", "icloud", "--json"]}
@@ -231,3 +230,94 @@ def test_macos_app_is_built_once_and_signed(tmp_path):
 
     out = subprocess.run([str(exe), "echo", "ran"], capture_output=True, text=True)
     assert out.stdout.strip() == "ran"
+
+
+def test_hanging_up_a_turn_interrupts_the_agent():
+    class Slow(agents.LocalAgent):
+        interrupted = 0
+
+        async def turn(self, prompt):
+            for i in range(200):
+                yield ("say", f"Sentence {i}. " + "x" * 2000)
+                await asyncio.sleep(0.01)
+
+        async def interrupt(self):
+            Slow.interrupted += 1
+
+    agent = Slow(name="Slow")
+    out = io.StringIO()
+
+    async def run():
+        b = bridge.Bridge(agent, origins=bridge.DEFAULT_ORIGINS, out=out)
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            writer.write(_post("/turn", {"text": "tell me everything"}))
+            await writer.drain()
+            await reader.readuntil(b"Sentence 1.")
+            writer.transport.abort()  # the person talked over it
+            for _ in range(200):
+                if Slow.interrupted:
+                    break
+                await asyncio.sleep(0.02)
+
+    asyncio.run(run())
+    assert Slow.interrupted >= 1 and "(interrupted)" in out.getvalue()
+
+
+def test_local_speech_models_only_on_a_computer_with_room(monkeypatch):
+    from manifest_cli import local_voice
+
+    monkeypatch.setattr(
+        local_voice.os, "sysconf", lambda n: 4096 if n == "SC_PAGE_SIZE" else 2 * 1024**2
+    )
+    assert not local_voice.enough_memory()  # 8 GB
+    monkeypatch.setattr(
+        local_voice.os, "sysconf", lambda n: 4096 if n == "SC_PAGE_SIZE" else 4 * 1024**2
+    )
+    assert local_voice.enough_memory()  # 16 GB
+
+
+def test_bridge_speaks_a_sentence_in_the_natural_voice():
+    class FakeVoice:
+        voice, ready, warmed = "af_heart", True, 0
+
+        async def speak(self, text):
+            return b"\x01\x00" * len(text)
+
+        def warm(self):
+            FakeVoice.warmed += 1
+
+    agent = agents.make_agent("claude")
+
+    async def run():
+        b = bridge.Bridge(
+            agent, origins=bridge.DEFAULT_ORIGINS, out=io.StringIO(), speech=FakeVoice()
+        )
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            health = await _request(port, f"GET /health HTTP/1.1\r\nOrigin: {APP}\r\n\r\n".encode())
+            spoken = await _request(port, _post("/speak", {"text": "Hello there."}))
+            warm = await _request(port, _post("/speak/warm", {}))
+            evil = await _request(
+                port, _post("/speak", {"text": "hi"}, origin="https://evil.example")
+            )
+        return health, spoken, warm, evil
+
+    health, spoken, warm, evil = asyncio.run(run())
+    assert json.loads(health[2])["speech"] == "af_heart"
+    assert spoken[0].endswith("200 OK") and spoken[1]["x-sample-rate"] == "24000"
+    assert spoken[2] == b"\x01\x00" * len("Hello there.")
+    assert warm[0].endswith("204 No Content") and FakeVoice.warmed == 1
+    assert evil[0].endswith("403 Forbidden")
+
+
+def test_natural_voice_only_where_it_can_run(monkeypatch):
+    from manifest_cli import speech
+
+    monkeypatch.setattr(speech.platform, "system", lambda: "Linux")
+    assert "Apple silicon" in (speech.supported() or "")
+    voice = speech.Voice()
+    assert asyncio.run(voice.speak("Not loaded yet.")) == b""  # the app keeps the browser voice

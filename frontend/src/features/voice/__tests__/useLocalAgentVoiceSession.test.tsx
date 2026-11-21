@@ -6,15 +6,28 @@ import { MemoryRouter } from 'react-router-dom';
 import { useLocalAgentVoiceSession } from '../useLocalAgentVoiceSession';
 
 type Rec = { onresult: (e: unknown) => void; onend: () => void; start: jest.Mock; abort: jest.Mock };
+type Utterance = { text: string; onend: (() => void) | null };
+
+const result = (transcript: string, isFinal: boolean) => ({
+  resultIndex: 0,
+  results: [Object.assign([{ transcript }], { isFinal })],
+});
 
 describe('useLocalAgentVoiceSession', () => {
   const recognitions: Rec[] = [];
-  const spoken: string[] = [];
-  let finishTurn: () => void = () => undefined;
+  const speaking: Utterance[] = [];
+  const cancel = jest.fn();
+  const signals: AbortSignal[] = [];
+  let answer = 'Two ideas.';
+  let keepOpen = false;
 
   beforeEach(() => {
     recognitions.length = 0;
-    spoken.length = 0;
+    speaking.length = 0;
+    signals.length = 0;
+    cancel.mockReset();
+    answer = 'Two ideas.';
+    keepOpen = false;
     (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition = class {
       start = jest.fn();
       abort = jest.fn();
@@ -26,31 +39,29 @@ describe('useLocalAgentVoiceSession', () => {
       onend: (() => void) | null = null;
       constructor(public text: string) {}
     };
+    // Speech stays "in progress" until a test finishes it, so barge-in can be tried.
     Object.defineProperty(window, 'speechSynthesis', {
       configurable: true,
-      value: {
-        getVoices: () => [],
-        cancel: jest.fn(),
-        speak: (u: { text: string; onend: () => void }) => {
-          spoken.push(u.text);
-          setTimeout(() => u.onend(), 0);
-        },
-      },
+      value: { getVoices: () => [], cancel, speak: (u: Utterance) => speaking.push(u) },
     });
     const encoder = new TextEncoder();
-    global.fetch = jest.fn(async (url: string) => {
-      if (url.endsWith('/health')) return { ok: true, json: async () => ({ ok: true, agent: 'Claude Code' }) };
-      // The answer streams at once; "done" only comes later (Claude Code's Stop hooks).
+    global.fetch = jest.fn(async (url: string, init?: { signal?: AbortSignal }) => {
+      if (url.endsWith('/health')) return { ok: true, json: async () => ({ ok: true, agent: 'Claude Code', interrupt: true }) };
+      if (init?.signal) signals.push(init.signal);
       let step = 0;
-      const late = new Promise<void>(resolve => (finishTurn = resolve));
       return {
         ok: true,
         body: {
           getReader: () => ({
             read: async () => {
               step += 1;
-              if (step === 1) return { done: false, value: encoder.encode('{"kind":"say","text":"Two ideas."}\n') };
-              await late;
+              if (step === 1) return { done: false, value: encoder.encode(JSON.stringify({ kind: 'say', text: answer }) + '\n') };
+              if (keepOpen && init?.signal) {
+                // Still answering (more sentences to come) until the person talks over it.
+                const signal = init.signal;
+                await new Promise(resolve => signal.addEventListener('abort', resolve));
+                throw new DOMException('aborted', 'AbortError');
+              }
               return { done: true, value: undefined };
             },
           }),
@@ -59,33 +70,71 @@ describe('useLocalAgentVoiceSession', () => {
     }) as unknown as typeof fetch;
   });
 
-  it('greets, sends a spoken turn to the agent, speaks the answer and listens again before the agent is done', async () => {
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <MockedProvider>
-        <MemoryRouter initialEntries={['/ideas/abc/description']}>{children}</MemoryRouter>
-      </MockedProvider>
-    );
-    const { result } = renderHook(() => useLocalAgentVoiceSession(), { wrapper });
-    await act(async () => {
-      await result.current.start();
-    });
-    expect(spoken).toEqual(['Claude Code is listening.']);
-    await waitFor(() => expect(result.current.state.phase).toBe('listening'));
-    const rec = recognitions[0];
-    const startsBefore = rec.start.mock.calls.length;
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <MockedProvider>
+      <MemoryRouter initialEntries={['/ideas/abc/description']}>{children}</MemoryRouter>
+    </MockedProvider>
+  );
+  const turns = () =>
+    (global.fetch as jest.Mock).mock.calls.filter(([url]) => String(url).endsWith('/turn')).map(([, init]) => JSON.parse(init.body).text);
 
+  async function started() {
+    const hook = renderHook(() => useLocalAgentVoiceSession(), { wrapper });
     await act(async () => {
-      rec.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: 'What ideas do I have?' }], { isFinal: true })] });
+      await hook.result.current.start();
     });
-    await waitFor(() => expect(spoken).toContain('Two ideas.'));
-    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
-    expect(body).toMatchObject({ text: 'What ideas do I have?', context: { idea_id: 'abc' } });
-    // Listening again while the agent's turn is still open.
-    await waitFor(() => expect(rec.start.mock.calls.length).toBeGreaterThan(startsBefore));
+    return hook;
+  }
+
+  it('listens at once, sends the question when the person pauses and speaks the answer', async () => {
+    const { result: session } = await started();
+    expect(speaking).toHaveLength(0); // no greeting to sit through
+    expect(session.current.state.phase).toBe('listening');
+    const rec = recognitions[0];
+    act(() => rec.onresult(result('What ideas do I have?', true)));
+    await waitFor(() => expect(speaking.map(u => u.text)).toEqual(['Two ideas.']));
+    expect(turns()).toEqual(['What ideas do I have?']);
+    expect(JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body)).toMatchObject({ context: { idea_id: 'abc' } });
+    expect(rec.abort).not.toHaveBeenCalled(); // the mic stays open while it talks
     await act(async () => {
-      finishTurn();
-      await result.current.end();
+      speaking[0].onend?.();
     });
-    expect(result.current.state.captions.map(c => c.text)).toEqual(['What ideas do I have?', 'Two ideas.']);
+    expect(session.current.state.phase).toBe('listening');
+  });
+
+  it("doesn't wait for the browser's final result once the words stop changing", async () => {
+    await started();
+    const rec = recognitions[0];
+    act(() => rec.onresult(result('summarise my pitch', false)));
+    await waitFor(() => expect(turns()).toEqual(['summarise my pitch']), { timeout: 2000 });
+    expect(rec.abort).toHaveBeenCalled(); // forget its late "final" copy of the same words
+  });
+
+  it('ignores its own voice coming back, but stops when the person talks over it', async () => {
+    answer = 'You have two ideas about solar panels and one about coffee.';
+    keepOpen = true;
+    await started();
+    const rec = recognitions[0];
+    act(() => rec.onresult(result('What ideas do I have?', true)));
+    await waitFor(() => expect(speaking).toHaveLength(1));
+    const firstTurn = signals[0];
+    cancel.mockClear(); // starting the turn cleared any old speech
+
+    act(() => rec.onresult(result('two ideas about solar panels', false))); // echo through the speakers
+    expect(cancel).not.toHaveBeenCalled();
+
+    act(() => rec.onresult(result('wait, open the coffee one', false)));
+    expect(cancel).toHaveBeenCalled();
+    expect(firstTurn.aborted).toBe(true); // the bridge stops the agent's answer
+    await waitFor(() => expect(turns()).toEqual(['What ideas do I have?', 'wait, open the coffee one']), { timeout: 2000 });
+  });
+
+  it('stops speaking when tapped', async () => {
+    const { result: session } = await started();
+    act(() => recognitions[0].onresult(result('hello', true)));
+    await waitFor(() => expect(session.current.state.phase).toBe('speaking'));
+    act(() => session.current.interrupt?.());
+    expect(cancel).toHaveBeenCalled();
+    expect(session.current.state.phase).toBe('listening');
   });
 });

@@ -488,7 +488,7 @@ describe("chooseEngine without an OpenAI key", () => {
     }) as unknown as typeof fetch;
     const engine = await chooseEngine(false, false);
     expect(engine).toMatchObject({ kind: "live", blocked: { kind: "no_api_key" } });
-    expect((engine as { blocked: { message: string } }).blocked.message).toContain("manifest bridge");
+    expect((engine as { blocked: { message: string } }).blocked.message).toContain("voice.sh");
   });
 });
 

@@ -239,7 +239,7 @@ mic ─▶ WebSocket (RTVI over protobuf) ─▶ OpenAI Realtime transcription (
 
 When live voice isn't available (no key on the account, or a vault without signing in), the web app doesn't stop at "add a key":
 
-- **Voice button:** if `manifest bridge` runs on this computer (`http://127.0.0.1:47821`, probed only in this case), the browser listens (`SpeechRecognition`) and speaks (`speechSynthesis`), and each turn goes to the person's Claude Code or Codex (`frontend/src/features/voice/localAgent.ts`, `useLocalAgentVoiceSession.ts`). The mic pauses while the agent speaks and opens again once the answer is spoken; follow-ups queue. Otherwise the panel names both options.
+- **Voice button:** if `manifest bridge` runs on this computer (`http://127.0.0.1:47821`, probed only in this case), the browser listens (`SpeechRecognition`) and speaks (`speechSynthesis`), and each turn goes to the person's Claude Code or Codex (`frontend/src/features/voice/localAgent.ts`, `useLocalAgentVoiceSession.ts`). The question goes out when the person pauses, and the mic stays open while it speaks. Talking over it (its own echo is ignored), tapping the orb or pressing Space stops the voice, and the bridge interrupts the agent ([ADR 0017](adr/0017-voice-feels-instant.md)). Otherwise the panel shows a one-step setup (`curl -fsSL https://manifeststartup.com/voice.sh | sh`) that connects by itself, or the option to add an OpenAI key.
 - **Note dictation:** falls back to the browser's speech recognition.
 
 ### `GET /api/voice-agent/live/status`

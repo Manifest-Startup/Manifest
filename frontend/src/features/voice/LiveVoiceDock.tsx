@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 
 import type { LiveVoiceError } from './liveVoice';
+import type { BridgeInfo } from './localAgent';
 import LiveVoicePanel, { LiveVoicePanelLayout } from './LiveVoicePanel';
 import { usePipecatVoiceSession } from './usePipecatVoiceSession';
 
@@ -11,10 +12,19 @@ interface LiveVoiceDockProps {
   onClose?: () => void;
   /** Connect here instead of Manifest's server, e.g. the local bridge's Pipecat voice. */
   wsUrl?: string;
+  /** The setup card found voice on this computer: switch to it. */
+  onSetupReady?: (bridge: BridgeInfo) => void;
 }
 
 /** Live voice session + panel. Lazy-loaded, so Pipecat never ships in the boot chunks. */
-const LiveVoiceDock: React.FC<LiveVoiceDockProps> = ({ autoStart = true, blocked = null, layout = 'docked', onClose, wsUrl }) => {
+const LiveVoiceDock: React.FC<LiveVoiceDockProps> = ({
+  autoStart = true,
+  blocked = null,
+  layout = 'docked',
+  onClose,
+  wsUrl,
+  onSetupReady,
+}) => {
   const session = usePipecatVoiceSession(wsUrl);
   const { start, end } = session;
   const started = useRef(false);
@@ -32,7 +42,9 @@ const LiveVoiceDock: React.FC<LiveVoiceDockProps> = ({ autoStart = true, blocked
       }
     : undefined;
 
-  return <LiveVoicePanel blocked={blocked} layout={layout} onClose={close} session={session} />;
+  return (
+    <LiveVoicePanel blocked={blocked} layout={layout} onClose={close} onSetupReady={onSetupReady} session={session} />
+  );
 };
 
 export default LiveVoiceDock;

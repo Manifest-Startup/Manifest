@@ -468,7 +468,7 @@ def cmd_login(ctx: Context, argv: list[str]) -> int:
     who = (grant.get("user") or {}).get("email") or (grant.get("user") or {}).get("user_id")
     ctx.err.write(f"Signed in to {base_url} as {who}.\n")
     ctx.err.write(
-        f"Session \"{grant.get('label')}\" saved to {path} (until {_day(grant.get('expires_at'))}).\n"
+        f'Session "{grant.get("label")}" saved to {path} (until {_day(grant.get("expires_at"))}).\n'
     )
     return 0
 
@@ -809,9 +809,16 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     )
     parser.add_argument(
         "--agent",
-        default="claude",
+        default="auto",
         metavar="AGENT",
-        help="claude (Claude Code, default), codex, or a command that reads the turn on stdin",
+        help="auto (Claude Code if installed, else Codex; default), claude, codex, "
+        "or a command that reads the turn on stdin",
+    )
+    parser.add_argument(
+        "--model",
+        metavar="MODEL",
+        help="the agent's model for voice (default: a fast one, Claude Code's haiku; "
+        "'default' keeps the agent's own setting)",
     )
     parser.add_argument(
         "--continue",
@@ -850,7 +857,11 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     if ns.uninstall:
         return bridge.uninstall(out=ctx.out)
     agent = make_agent(
-        ns.agent, extra_args=ns.agent_arg, resume=ns.resume, continue_last=ns.continue_last
+        ns.agent,
+        extra_args=ns.agent_arg,
+        resume=ns.resume,
+        continue_last=ns.continue_last,
+        model=ns.model,
     )
     problem = missing_agent(agent)
     if problem:
@@ -861,6 +872,7 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         args += ["--resume", ns.resume] if ns.resume else []
         args += [f"--agent-arg={a}" for a in ns.agent_arg] + [f"--origin={o}" for o in ns.origin]
         args += [f"--voice={ns.voice}"] if ns.voice else []
+        args += [f"--model={ns.model}"] if ns.model else []
         return bridge.install(args, out=ctx.out)
     return bridge.run(agent, port=ns.port, extra_origins=ns.origin, out=ctx.out, voice=ns.voice)
 

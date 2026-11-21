@@ -8,7 +8,7 @@ import { ariaShortcut, hasMod, shortcutLabel } from "features/ideas/utils/noteFo
 import "./voicePanel.css";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
 import { liveVoiceStatus, LiveVoiceError, warmLiveVoice } from "./liveVoice";
-import { BRIDGE_INSTALL_COMMAND, browserSpeechAvailable, probeBridge } from "./localAgent";
+import { browserSpeechAvailable, probeBridge, VOICE_SETUP_COMMAND } from "./localAgent";
 import {
   getStoredVoiceMode,
   setStoredVoiceMode,
@@ -37,12 +37,12 @@ type VoiceEngine =
 
 const NO_KEY: LiveVoiceError = {
   kind: "no_api_key",
-  message: `Add your OpenAI key in Account → AI settings, or use Claude Code or Codex on this computer with no key: run ${BRIDGE_INSTALL_COMMAND}`,
+  message: `Use Claude Code or Codex on this computer (run ${VOICE_SETUP_COMMAND} once), or add your OpenAI key in Settings.`,
 };
 
 const VAULT_SIGN_IN: LiveVoiceError = {
   kind: "sign_in",
-  message: `Sign in to use Manifest's voice, or use Claude Code or Codex on this computer: run ${BRIDGE_INSTALL_COMMAND}`,
+  message: `Use Claude Code or Codex on this computer (run ${VOICE_SETUP_COMMAND} once), or sign in to use Manifest's voice.`,
 };
 
 /**
@@ -155,6 +155,14 @@ const FloatingVoiceButton: React.FC = () => {
     setEngine(await chooseEngine(Boolean(isGuest)));
   }, [isGuest]);
 
+  // The setup card saw voice come up on this computer: pick the engine again and reconnect.
+  const [attempt, setAttempt] = useState(0);
+  const reconnect = useCallback(async () => {
+    setEngine(await chooseEngine(Boolean(isGuest)));
+    setAttempt((n) => n + 1);
+  }, [isGuest]);
+  const onSetupReady = useCallback(() => void reconnect(), [reconnect]);
+
   const close = useCallback(() => {
     setIsOpen(false);
     setEngine(null);
@@ -242,11 +250,18 @@ const FloatingVoiceButton: React.FC = () => {
         >
           {engine.kind === "live" ? (
             <Suspense fallback={null}>
-              <LiveVoiceDock autoStart={!engine.blocked} blocked={engine.blocked} onClose={close} wsUrl={engine.wsUrl} />
+              <LiveVoiceDock
+                autoStart={!engine.blocked}
+                blocked={engine.blocked}
+                key={attempt}
+                onClose={close}
+                onSetupReady={onSetupReady}
+                wsUrl={engine.wsUrl}
+              />
             </Suspense>
           ) : engine.kind === "local" ? (
             <Suspense fallback={null}>
-              <LocalAgentVoiceDock onClose={close} />
+              <LocalAgentVoiceDock key={attempt} onClose={close} onSetupReady={onSetupReady} />
             </Suspense>
           ) : (
             <LegacyVoiceOverlay onClose={close} onSwitchToWorkspace={switchToWorkspaceMode} />

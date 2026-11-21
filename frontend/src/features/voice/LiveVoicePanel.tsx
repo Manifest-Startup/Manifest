@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 
 import type { LiveActivity, LiveVoiceError, LiveVoicePhase, LiveVoiceState } from './liveVoice';
 import { suggestionsFor } from './liveVoice';
-import { BRIDGE_INSTALL_COMMAND } from './localAgent';
+import type { BridgeInfo } from './localAgent';
 import type { PipecatVoiceSessionApi } from './usePipecatVoiceSession';
+import VoiceSetup from './VoiceSetup';
 import './liveVoicePanel.css';
 
 export type LiveVoicePanelLayout = 'docked' | 'page';
@@ -15,7 +16,13 @@ interface LiveVoicePanelProps {
   /** Shown instead of the conversation when live voice can't start (e.g. no OpenAI key). */
   blocked?: LiveVoiceError | null;
   onClose?: () => void;
+  /** Voice was just set up on this computer (the bridge answered): connect to it. */
+  onSetupReady?: (bridge: BridgeInfo) => void;
 }
+
+/** Errors that mean "nothing to talk to here yet": show the one-step setup instead. */
+export const needsSetup = (error: LiveVoiceError | null | undefined) =>
+  Boolean(error && (error.kind === 'setup' || error.kind === 'no_api_key' || error.kind === 'sign_in'));
 
 type Mood = LiveVoicePhase | 'muted';
 
@@ -109,8 +116,8 @@ const Orb: React.FC<{ size: 'sm' | 'lg'; orbRef?: React.RefObject<HTMLDivElement
   </div>
 );
 
-const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'docked', blocked, onClose }) => {
-  const { state, context, start, end, toggleMute, sendText } = session;
+const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'docked', blocked, onClose, onSetupReady }) => {
+  const { state, context, start, end, toggleMute, sendText, interrupt } = session;
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState('');
   const glowRef = useRef<HTMLDivElement>(null);
@@ -140,11 +147,25 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
     if (typing) inputRef.current?.focus();
   }, [typing]);
 
+  const canInterrupt = Boolean(interrupt) && state.phase === 'speaking';
+  useEffect(() => {
+    if (!canInterrupt || !interrupt) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.code !== 'Space' || target?.closest('input, textarea, button, [contenteditable="true"]')) return;
+      event.preventDefault();
+      interrupt();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canInterrupt, interrupt]);
+
   const lastAssistant = [...state.captions].reverse().find(caption => caption.role === 'assistant');
   const lastUser = [...state.captions].reverse().find(caption => caption.role === 'user');
   const userIsNewer = Boolean(lastUser && (!lastAssistant || lastUser.id > lastAssistant.id));
   const action = state.activity[state.activity.length - 1];
-  const status = statusLine(mood, action);
+  const status = canInterrupt && action?.status !== 'running' ? { text: 'Talk or tap to interrupt', kind: 'speaking' } : statusLine(mood, action);
+  const setup = needsSetup(error);
   const showSuggestions = !error && state.captions.length === 0 && !connecting && !typing;
 
   const say = async (text: string) => {
@@ -162,18 +183,14 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
   };
 
   let words: React.ReactNode;
-  if (error) {
-    words = (
-      <span className="lv-line">
-        {error.kind === 'no_api_key' ? (
-          <>
-            Talk to Claude Code on this Mac: run <code>{BRIDGE_INSTALL_COMMAND}</code> once. Or add an OpenAI key.
-          </>
-        ) : (
-          error.message
-        )}
-      </span>
+  if (setup && error) {
+    words = onSetupReady ? (
+      <VoiceSetup onReady={onSetupReady} signIn={error.kind === 'sign_in'} />
+    ) : (
+      <span className="lv-line">{error.message}</span>
     );
+  } else if (error) {
+    words = <span className="lv-line">{error.message}</span>;
   } else if (typing) {
     words = (
       <form className="lv-type" onSubmit={event => void submitDraft(event)}>
@@ -229,7 +246,13 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
       ) : (
         <div aria-hidden="true" className="lv-hero">
           <div className="lv-hero__glow" ref={glowRef} />
-          <Orb orbRef={orbRef} size="lg" />
+          {canInterrupt ? (
+            <button aria-label="Stop speaking" className="lv-orb-btn" onClick={interrupt} type="button">
+              <Orb orbRef={orbRef} size="lg" />
+            </button>
+          ) : (
+            <Orb orbRef={orbRef} size="lg" />
+          )}
         </div>
       )}
 
@@ -244,7 +267,15 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
       ) : null}
 
       <section aria-label="Talk to Manifest" className="lv-island" ref={islandRef} tabIndex={-1}>
-        {layout === 'docked' ? <Orb orbRef={orbRef} size="sm" /> : null}
+        {layout === 'docked' ? (
+          canInterrupt ? (
+            <button aria-label="Stop speaking" className="lv-orb-btn" onClick={interrupt} type="button">
+              <Orb orbRef={orbRef} size="sm" />
+            </button>
+          ) : (
+            <Orb orbRef={orbRef} size="sm" />
+          )
+        ) : null}
         <div aria-live="polite" className="lv-text">
           <span
             className={`lv-status lv-status--${status.kind}${status.text === 'Manifest' ? ' lv-sr' : ''}`}
@@ -257,7 +288,7 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
         </div>
 
         <div className="lv-controls">
-          {error?.kind === 'no_api_key' ? (
+          {setup && onSetupReady ? null : error?.kind === 'no_api_key' ? (
             <Link className="lv-pill" to="/account#ai-key">
               Add key
             </Link>

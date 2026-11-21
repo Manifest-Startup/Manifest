@@ -16,6 +16,7 @@ export type LiveVoicePhase =
   | 'error';
 
 export type LiveVoiceErrorKind =
+  | 'setup' // nothing to talk to on this computer yet: show the one-step setup
   | 'sign_in'
   | 'no_api_key'
   | 'unavailable'

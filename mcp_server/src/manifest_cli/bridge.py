@@ -11,10 +11,13 @@ Safety: it listens on 127.0.0.1 only and answers only pages from Manifest's own 
 drive your agent. The agent keeps its own permission rules (Claude Code is read-only by
 default here; see ``agents.py``).
 
-    GET  /health   {"ok": true, "agent": "Claude Code"}
+    GET  /health   {"ok": true, "agent": "Claude Code", "voice": ws url | null, "interrupt": true}
     POST /turn     {"text": "...", "context": {"path", "idea_id", "idea_title"}}
                    → newline-delimited JSON: {"kind": "say"|"tool"|"error", "text"}…
-                     then {"kind": "done"}
+                     then {"kind": "done"}. Closing the connection early interrupts the
+                     agent (the person talked over it).
+    POST /speak    {"text": "One sentence."} → 16-bit mono PCM, 24 kHz (Kokoro; see speech.py)
+    POST /speak/warm   page the voice model in while the person is still talking
     GET  /vault/folder   where this computer keeps the vault (see ``vault_folder.where``)
     POST /vault/folder   {"place": "icloud" | "documents" | "home" | "/full/path"} → moves it
 """
@@ -28,9 +31,13 @@ import os
 import plistlib
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
+
+from manifest_cli import speech
+from manifest_cli.speech import Voice
 
 if TYPE_CHECKING:
     from manifest_cli.agents import LocalAgent
@@ -66,9 +73,11 @@ class Bridge:
         origins: tuple[str, ...],
         out: TextIO,
         voice_url: str | None = None,
+        speech: Voice | None = None,
     ) -> None:
         self.agent, self.origins, self.out = agent, origins, out
         self.voice_url = voice_url  # the local Pipecat voice, when it runs here
+        self.speech = speech  # Kokoro on the Apple GPU, for /speak
         self.lock = asyncio.Lock()
 
     def _cors(self, origin: str) -> list[str]:
@@ -77,6 +86,7 @@ class Bridge:
             "Vary: Origin",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS",
             "Access-Control-Allow-Headers: content-type",
+            "Access-Control-Expose-Headers: X-Sample-Rate",
             # Chrome asks before a public site may reach a local server.
             "Access-Control-Allow-Private-Network: true",
         ]
@@ -126,24 +136,52 @@ class Bridge:
             send("204 No Content", cors)
         elif method == "GET" and path == "/health":
             body = json.dumps(
-                {"ok": True, "agent": self.agent.name, "voice": self.voice_url}
+                {
+                    "ok": True,
+                    "agent": self.agent.name,
+                    "voice": self.voice_url,
+                    "interrupt": True,  # a hung-up /turn stops the agent's answer
+                    # The natural voice (POST /speak), once its model has loaded.
+                    "speech": self.speech.voice if self.speech and self.speech.ready else None,
+                }
             ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
         elif path == "/vault/folder" and method in ("GET", "POST"):
             length = int(headers.get("content-length") or 0)
             status, body = await self._vault_folder(method, reader, length)
             send(status, [*cors, "Content-Type: application/json"], json.dumps(body).encode())
+        elif method == "POST" and path in ("/speak", "/speak/warm"):
+            length = int(headers.get("content-length") or 0)
+            status, extra, audio = await self._speak(path, reader, length)
+            send(status, [*cors, *extra], audio)
         elif method == "POST" and path == "/turn":
             length = int(headers.get("content-length") or 0)
             if length <= 0 or length > MAX_BODY:
                 send("413 Payload Too Large", cors)
             else:
                 payload = json.loads(await reader.readexactly(length))
-                await self._turn(writer, cors, payload if isinstance(payload, dict) else {})
+                await self._turn(reader, writer, cors, payload if isinstance(payload, dict) else {})
                 return
         else:
             send("404 Not Found", cors)
         await writer.drain()
+
+    async def _speak(
+        self, path: str, reader: asyncio.StreamReader, length: int
+    ) -> tuple[str, list[str], bytes]:
+        """One sentence in the natural voice, or a warm-up while the person talks."""
+        if not (self.speech and self.speech.ready):
+            return "503 Service Unavailable", [], b""
+        if path == "/speak/warm":
+            self.speech.warm()
+            return "204 No Content", [], b""
+        if length <= 0 or length > MAX_BODY:
+            return "413 Payload Too Large", [], b""
+        payload = json.loads(await reader.readexactly(length))
+        text = str(payload.get("text") or "") if isinstance(payload, dict) else ""
+        audio = await self.speech.speak(text)
+        head = ["Content-Type: application/octet-stream", f"X-Sample-Rate: {speech.SAMPLE_RATE}"]
+        return "200 OK", head, audio
 
     async def _vault_folder(
         self, method: str, reader: asyncio.StreamReader, length: int
@@ -164,7 +202,13 @@ class Bridge:
         except vault_folder.VaultFolderError as exc:
             return "409 Conflict", {"error": str(exc)}
 
-    async def _turn(self, writer: asyncio.StreamWriter, cors: list[str], payload: dict) -> None:
+    async def _turn(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        cors: list[str],
+        payload: dict,
+    ) -> None:
         text = " ".join(str(payload.get("text") or "").split())[:4000]
         head = [
             "HTTP/1.1 200 OK",
@@ -175,9 +219,8 @@ class Bridge:
         ]
         writer.write(("\r\n".join(head) + "\r\n\r\n").encode())
 
-        async def emit(kind: str, value: str = "") -> None:
-            writer.write((json.dumps({"kind": kind, "text": value}) + "\n").encode())
-            await writer.drain()
+        link = _TurnLink(reader, writer, self)
+        emit = link.emit
 
         if not text:
             await emit("done")
@@ -186,16 +229,52 @@ class Bridge:
         self.out.write(f"you  {text}\n")
         self.out.flush()
         async with self.lock:  # one turn at a time, in order
+            watcher = asyncio.ensure_future(link.watch())
             try:
                 async for kind, value in self.agent.turn(prompt):
-                    if kind in ("say", "tool", "error"):
+                    if kind in ("say", "tool", "error") and not link.gone:
                         await emit(kind, value)
                         if kind == "say":
                             self.out.write(f"{self.agent.name.lower()}  {value}\n")
                             self.out.flush()
             except FileNotFoundError:
                 await emit("error", f"Could not start {self.agent.name}.")
+            finally:
+                watcher.cancel()
         await emit("done")
+
+
+class _TurnLink:
+    """One /turn connection: streams events to the app, and notices at once when the app
+    hangs up (the person talked over the answer) so the agent is interrupted right away."""
+
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, bridge: Bridge):
+        self.reader, self.writer, self.bridge = reader, writer, bridge
+        self.gone = False
+
+    async def hung_up(self) -> None:
+        if self.gone:
+            return
+        self.gone = True
+        self.bridge.out.write("you  (interrupted)\n")
+        self.bridge.out.flush()
+        await self.bridge.agent.interrupt()  # stop the answer; the next turn needn't wait
+
+    async def watch(self) -> None:
+        # The request is fully read, so the app's side ends only when it hangs up.
+        with contextlib.suppress(ConnectionError):
+            while await self.reader.read(1024):
+                pass
+        await self.hung_up()
+
+    async def emit(self, kind: str, value: str = "") -> None:
+        if self.gone:
+            return
+        try:
+            self.writer.write((json.dumps({"kind": kind, "text": value}) + "\n").encode())
+            await self.writer.drain()
+        except ConnectionError:
+            await self.hung_up()
 
 
 async def serve(
@@ -208,9 +287,19 @@ async def serve(
 ) -> None:
     from manifest_cli import local_voice
 
+    # The natural voice: the browser hears, Kokoro on the Apple GPU speaks (POST /speak).
+    no_speech = speech.supported() if voice != "browser" else "browser voice chosen"
+    natural = None if no_speech else Voice(voice or speech.DEFAULT_VOICE)
+    if natural:
+        threading.Thread(target=natural.load, daemon=True).start()  # ready in a few seconds
     missing = local_voice.available() if voice != "browser" else "browser voice chosen"
+    if not missing and natural:
+        missing = "the natural voice (browser hearing, Kokoro on the GPU) is faster"
+    elif not missing and voice is None and not local_voice.enough_memory():
+        # Whisper + Kokoro on a small Mac swap and answer in seconds.
+        missing = "the browser's speech is faster on this Mac"
     voice_url = None if missing else f"ws://127.0.0.1:{local_voice.VOICE_PORT}"
-    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url)
+    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url, speech=natural)
     server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
     warm = getattr(agent, "start", None)
     if warm is not None:
@@ -226,9 +315,11 @@ async def serve(
     out.write(
         f"Manifest can now talk to {agent.name} on this computer (http://127.0.0.1:{port}).\n"
         + (
-            f"Natural voice (Pipecat, local Whisper + Kokoro) on {voice_url}.\n"
+            f"Natural voice: Kokoro ({natural.voice}) on the Apple GPU, loading now.\n"
+            if natural
+            else f"Natural voice (Pipecat, local Whisper + Kokoro) on {voice_url}.\n"
             if voice_url
-            else f"Browser voice only ({missing}).\n"
+            else f"Browser voice only ({no_speech}; {missing}).\n"
         )
         + "Open Manifest and tap the voice button; no OpenAI key needed. Ctrl-C to stop.\n"
     )
