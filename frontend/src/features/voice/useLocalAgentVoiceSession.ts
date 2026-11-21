@@ -9,10 +9,12 @@ import {
   createBridgeSpeaker,
   createSpeaker,
   isBargeIn,
+  isEcho,
   probeBridge,
   runBridgeTurn,
   startRecognition,
   VOICE_SETUP_COMMAND,
+  voiceAudioContext,
   warmBridgeSpeech,
   type RecognitionHandle,
   type Speaker,
@@ -26,6 +28,19 @@ export const FINAL_SETTLE_MS = 350;
 /** …or after the words in progress stop changing this long (faster than waiting for final). */
 export const INTERIM_SETTLE_MS = 700;
 const NUDGE_AFTER_MS = 3000;
+/** For this long after it stops talking, words that repeat what it said are its own echo. */
+export const ECHO_TAIL_MS = 1500;
+
+/** The mic with the browser's echo cancellation, so the voice playing here isn't heard. */
+async function echoCancelledMic(): Promise<MediaStream | null> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch {
+    return null; // recognition opens the mic itself; the word filter still drops echo
+  }
+}
 
 /**
  * Voice with no OpenAI key, built to feel instant: the browser hears (streaming recognition)
@@ -58,6 +73,8 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const settleRef = useRef<number | null>(null);
   const decayRef = useRef<number | null>(null);
   const naturalRef = useRef(false); // the bridge speaks in the natural voice
+  const micRef = useRef<MediaStream | null>(null);
+  const quietSinceRef = useRef(0); // when it last stopped talking
   const warmedRef = useRef(false); // woke the voice for this question already
 
   const clearSettle = () => {
@@ -151,6 +168,8 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       if (speaker?.speaking) {
         if (!isBargeIn(text, speaker.recent)) return; // its own voice through the speakers
         interrupt();
+      } else if (speaker && Date.now() - quietSinceRef.current < ECHO_TAIL_MS && isEcho(text, speaker.recent)) {
+        return; // the late tail of its own voice
       }
       if (naturalRef.current && !warmedRef.current) {
         warmedRef.current = true;
@@ -174,6 +193,8 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     interrupt();
     recognitionRef.current?.stop();
     recognitionRef.current = null;
+    micRef.current?.getTracks().forEach(track => track.stop());
+    micRef.current = null;
     speakerRef.current = null;
     if (decayRef.current !== null) window.clearInterval(decayRef.current);
     decayRef.current = null;
@@ -201,11 +222,12 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     }
     activeRef.current = true;
     const onSpeaking = (speaking: boolean) => {
+      if (!speaking) quietSinceRef.current = Date.now();
       levelsRef.current.bot = speaking ? 0.6 : 0;
       dispatch({ type: speaking ? 'botStarted' : 'botStopped' });
     };
     // The natural voice (Kokoro on this Mac's GPU) when the bridge has it; else the browser's.
-    naturalRef.current = Boolean(bridge.speech) && typeof window.AudioContext !== 'undefined';
+    naturalRef.current = Boolean(bridge.speech) && voiceAudioContext() !== null;
     speakerRef.current = naturalRef.current
       ? createBridgeSpeaker(onSpeaking)
       : createSpeaker(onSpeaking, () => {
@@ -218,10 +240,14 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       levels.bot = !speaker?.speaking ? 0 : loud !== undefined ? loud : Math.max(0.3, levels.bot * 0.85);
       levels.mic = mutedRef.current ? 0 : Math.max(0.12, levels.mic * 0.85);
     }, 50);
-    recognitionRef.current = startRecognition({
-      onText: onHeard,
-      onError: message => dispatch({ type: 'error', error: { kind: 'microphone', message } }),
-    });
+    micRef.current = await echoCancelledMic();
+    recognitionRef.current = startRecognition(
+      {
+        onText: onHeard,
+        onError: message => dispatch({ type: 'error', error: { kind: 'microphone', message } }),
+      },
+      micRef.current?.getAudioTracks()[0] ?? null,
+    );
     if (!recognitionRef.current) {
       void end();
       dispatch({ type: 'error', error: { kind: 'microphone', message: 'Allow microphone access to talk.' } });

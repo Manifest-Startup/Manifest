@@ -10,12 +10,17 @@ audio itself and falls back to the browser's voice if this isn't available.
     POST /speak/warm  pages the model back in while the person is still talking
 
 Extra: ``pip install 'manifest-mcp[natural-voice]'`` (mlx-audio + misaki; Apple silicon).
+
+With a Cartesia API key (``manifest bridge --cartesia-key``), answers are spoken by Cartesia
+Sonic in the voice of Pipecat's own demos instead, with Kokoro as the fallback.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 import platform
+import subprocess
 import threading
 from typing import Any
 
@@ -82,3 +87,95 @@ class Voice:
         the time the answer arrives (the person is still talking)."""
         if self.ready and not self._lock.locked():
             threading.Thread(target=self._pcm, args=("Okay.",), daemon=True).start()
+
+
+# ---- Cartesia (the voice of Pipecat's own demos) ------------------------------------------
+
+CARTESIA_URL = "https://api.cartesia.ai/tts/bytes"
+CARTESIA_VERSION = "2026-08-14"
+CARTESIA_MODEL = "sonic-3.6"
+# The default voice of Pipecat's quickstart bot (docs.pipecat.ai/getting-started/quickstart).
+PIPECAT_VOICE = "86e30c1d-714b-4074-a1f2-1cb6b552fb49"
+KEYCHAIN_SERVICE = "manifest-cartesia"
+
+
+def cartesia_key() -> str | None:
+    """The person's Cartesia API key: CARTESIA_API_KEY, else the macOS Keychain."""
+    key = os.environ.get("CARTESIA_API_KEY", "").strip()
+    if key:
+        return key
+    if platform.system() != "Darwin":
+        return None
+    found = subprocess.run(
+        ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+        capture_output=True,
+        text=True,
+    )
+    if found.returncode != 0:
+        return None
+    return found.stdout.strip() or None
+
+
+def save_cartesia_key(key: str) -> bool:
+    """Keep the key in the login Keychain. It goes through `security -i` on stdin, so it never
+    appears in a process list."""
+    key = key.strip().replace('"', "")
+    line = f'add-generic-password -U -s {KEYCHAIN_SERVICE} -a manifest -w "{key}"\n'
+    done = subprocess.run(["security", "-i"], input=line, capture_output=True, text=True)
+    return done.returncode == 0 and "error" not in (done.stdout + done.stderr).lower()
+
+
+class CartesiaVoice:
+    """Cartesia Sonic in the voice from Pipecat's demos (cloud; the answer's text is sent to
+    Cartesia). About 0.1–0.3 s per sentence. If a request fails, `fallback` speaks it."""
+
+    def __init__(self, key: str, voice: str = PIPECAT_VOICE, fallback: Voice | None = None):
+        self.key, self.voice_id, self.fallback = key, voice, fallback
+        self.voice = "cartesia"
+        self.ready = True
+        self.problem: str | None = None
+        self._client: Any = None
+
+    def _http(self) -> Any:
+        if self._client is None:
+            import httpx
+
+            self._client = httpx.AsyncClient(http2=False, timeout=8.0)  # keeps the connection warm
+        return self._client
+
+    def body(self, text: str) -> dict[str, Any]:
+        return {
+            "model_id": CARTESIA_MODEL,
+            "transcript": text,
+            "voice": {"id": self.voice_id},
+            "output_format": {
+                "container": "raw",
+                "encoding": "pcm_s16le",
+                "sample_rate": SAMPLE_RATE,
+            },
+            "language": "en",
+            "generation_config": {"speed": 1.0},
+        }
+
+    async def speak(self, text: str) -> bytes:
+        text = " ".join(text.split())[:MAX_CHARS]
+        if not text:
+            return b""
+        headers = {
+            "Authorization": f"Bearer {self.key}",
+            "Cartesia-Version": CARTESIA_VERSION,
+            "Content-Type": "application/json",
+        }
+        try:
+            response = await self._http().post(CARTESIA_URL, headers=headers, json=self.body(text))
+            if response.status_code == 200 and response.content:
+                self.problem = None
+                return response.content
+            self.problem = f"Cartesia {response.status_code}: {response.text[:200]}"
+        except Exception as exc:  # network: the fallback speaks
+            self.problem = f"Cartesia: {type(exc).__name__}"
+        return await self.fallback.speak(text) if self.fallback else b""
+
+    def warm(self) -> None:
+        if self.fallback:
+            self.fallback.warm()

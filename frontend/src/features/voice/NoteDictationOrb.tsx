@@ -10,7 +10,7 @@ import {
   type DictationWriter,
 } from 'features/ideas/utils/noteDictation';
 import { buildLiveVoiceUrl, classifyConnectionError, liveVoiceStatus, loadPipecat, warmLiveVoice } from './liveVoice';
-import { startRecognition } from './localAgent';
+import { primeVoiceAudio, startRecognition } from './localAgent';
 import { ariaShortcut, hasMod, shortcutLabel } from 'features/ideas/utils/noteFocus';
 import './noteDictationOrb.css';
 
@@ -248,7 +248,10 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
               aria-label="Talk to Manifest"
               className="manifest-dictation__agent"
               data-testid="note-voice-agent"
-              onClick={() => voiceOpenRequestVar(voiceOpenRequestVar() + 1)}
+              onClick={() => {
+            primeVoiceAudio();
+            voiceOpenRequestVar(voiceOpenRequestVar() + 1);
+          }}
               onFocus={warmLiveVoice}
               onPointerEnter={warmLiveVoice}
               title={`Talk to Manifest (${shortcutLabel('V')})`}

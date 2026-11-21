@@ -51,7 +51,8 @@ manifest bridge                            # Claude Code (or Codex if that's wha
 manifest bridge --agent codex              # or Codex, or any command (as for `voice --agent`)
 manifest bridge --agent claude --continue  # pick up your newest Claude Code session here
 manifest bridge --model default            # keep the agent's own model (voice uses Claude's haiku by default, for speed)
-manifest bridge --install                  # macOS: start it at login and keep it running (--uninstall undoes)
+manifest bridge --install                  # macOS: start it at login and keep it running, with HTTPS for Safari (--uninstall undoes)
+manifest bridge --cartesia-key             # speak in Cartesia's voice, as in Pipecat's demos (key kept in the Keychain)
 ```
 
 The browser listens, and on Apple silicon the answer is spoken in Kokoro's natural `af_heart` voice, made on the GPU (`pip install 'manifest-mcp[natural-voice]'`; the setup command installs it). Elsewhere the browser's own voice speaks. The first word comes about 3–4 s after you stop talking (2–3 s with the browser's voice). `--voice NAME` picks another Kokoro voice, and `--voice browser` turns it off. You can talk over it: it stops speaking, interrupts the agent, and takes your new question. Tapping the orb or pressing Space also stops it. See [ADR 0017](adr/0017-voice-feels-instant.md).

@@ -8,7 +8,7 @@ import { ariaShortcut, hasMod, shortcutLabel } from "features/ideas/utils/noteFo
 import "./voicePanel.css";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
 import { liveVoiceStatus, LiveVoiceError, warmLiveVoice } from "./liveVoice";
-import { browserSpeechAvailable, probeBridge, VOICE_SETUP_COMMAND } from "./localAgent";
+import { browserSpeechAvailable, primeVoiceAudio, probeBridge, VOICE_SETUP_COMMAND } from "./localAgent";
 import {
   getStoredVoiceMode,
   setStoredVoiceMode,
@@ -151,6 +151,7 @@ const FloatingVoiceButton: React.FC = () => {
   const launcherRef = useRef<HTMLButtonElement>(null);
 
   const open = useCallback(async () => {
+    primeVoiceAudio(); // still inside the click or key press: lets Safari play the answers
     setIsOpen(true);
     setEngine(await chooseEngine(Boolean(isGuest)));
   }, [isGuest]);

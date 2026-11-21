@@ -4,7 +4,7 @@
  * move folders, so the app asks `manifest bridge` on 127.0.0.1, which runs
  * `manifest vault-folder` for it.
  */
-import { BRIDGE_URL } from 'features/voice/localAgent';
+import { bridgeUrl } from 'features/voice/localAgent';
 
 export interface ComputerVault {
   folder: string;
@@ -38,7 +38,7 @@ async function call<T>(init?: RequestInit, timeoutMs = 20000): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${BRIDGE_URL}/vault/folder`, { ...init, signal: controller.signal });
+    const response = await fetch(`${bridgeUrl()}/vault/folder`, { ...init, signal: controller.signal });
     const body = (await response.json().catch(() => ({}))) as T & { error?: string };
     if (!response.ok) throw new Error(body.error || "Couldn't reach the vault on this computer.");
     return body;

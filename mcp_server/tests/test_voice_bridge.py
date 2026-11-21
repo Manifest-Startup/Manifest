@@ -146,6 +146,9 @@ def test_install_retries_until_the_old_bridge_has_stopped(tmp_path, monkeypatch)
     from manifest_cli import macos_app
 
     monkeypatch.setattr(macos_app, "launcher", lambda *a, **k: None)
+    from manifest_cli import bridge_tls
+
+    monkeypatch.setattr(bridge_tls, "ensure", lambda **_k: True)  # no real keychain in tests
     out = io.StringIO()
     assert bridge.install(["--agent", "claude"], out=out) == 0
     assert calls.count("bootstrap") == 3
@@ -321,3 +324,67 @@ def test_natural_voice_only_where_it_can_run(monkeypatch):
     assert "Apple silicon" in (speech.supported() or "")
     voice = speech.Voice()
     assert asyncio.run(voice.speak("Not loaded yet.")) == b""  # the app keeps the browser voice
+
+
+def test_bridge_certificate_is_limited_to_this_mac_and_keeps_no_signing_key(tmp_path):
+    from manifest_cli import bridge_tls
+
+    bridge_tls.make_certificate(tmp_path)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["bridge.key", "bridge.pem", "ca.pem"]
+    assert bridge_tls.certificate_ok(tmp_path)
+    assert bridge_tls.server_context(tmp_path) is not None
+    import subprocess
+
+    text = subprocess.run(
+        ["openssl", "x509", "-in", str(tmp_path / "ca.pem"), "-noout", "-text"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "Name Constraints" in text and "127.0.0.1" in text
+
+
+def test_cartesia_speaks_in_pipecats_voice_and_falls_back_to_kokoro():
+    import httpx
+    from manifest_cli import speech
+
+    seen: list[httpx.Request] = []
+    status = {"code": 200}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(status["code"], content=b"\x02\x00" * 4)
+
+    class Kokoro:
+        ready, voice = True, "af_heart"
+
+        async def speak(self, text):
+            return b"kokoro"
+
+        def warm(self):
+            pass
+
+    voice = speech.CartesiaVoice("sk_car_test", fallback=Kokoro())
+    voice._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert asyncio.run(voice.speak("Hello  there.")) == b"\x02\x00" * 4
+    request = seen[0]
+    assert str(request.url) == "https://api.cartesia.ai/tts/bytes"
+    assert request.headers["authorization"] == "Bearer sk_car_test"
+    assert request.headers["cartesia-version"] == speech.CARTESIA_VERSION
+    body = json.loads(request.content)
+    assert body["voice"] == {"id": speech.PIPECAT_VOICE} and body["transcript"] == "Hello there."
+    assert body["output_format"] == {
+        "container": "raw",
+        "encoding": "pcm_s16le",
+        "sample_rate": 24000,
+    }
+
+    status["code"] = 401  # a bad key or no credit: Kokoro says it instead
+    assert asyncio.run(voice.speak("Again.")) == b"kokoro"
+    assert "401" in (voice.problem or "")
+
+
+def test_cartesia_key_comes_from_the_environment_first(monkeypatch):
+    from manifest_cli import speech
+
+    monkeypatch.setenv("CARTESIA_API_KEY", " sk_car_env ")
+    assert speech.cartesia_key() == "sk_car_env"

@@ -8,6 +8,11 @@
 import type { LiveVoiceContext } from './liveVoice';
 
 export const BRIDGE_URL = 'http://127.0.0.1:47821';
+/** The same bridge over HTTPS (`manifest bridge --install` sets it up): Safari only allows this. */
+export const BRIDGE_HTTPS_URL = 'https://127.0.0.1:47823';
+let bridgeBase = BRIDGE_URL;
+/** Where the bridge answered last (HTTPS when it can, so Safari works). */
+export const bridgeUrl = () => bridgeBase;
 export const BRIDGE_COMMAND = 'manifest bridge';
 /** Once, with the CLI installed: keeps the bridge running at login. */
 export const BRIDGE_INSTALL_COMMAND = 'manifest bridge --install';
@@ -34,12 +39,9 @@ export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { k
  * refused), so the generous timeout only matters while Chrome asks the person whether
  * Manifest may reach this computer; it must not give up before they answer.
  */
-export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null> {
-  if (typeof fetch === 'undefined') return null;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+async function probeAt(base: string, signal: AbortSignal): Promise<BridgeInfo | null> {
   try {
-    const response = await fetch(`${BRIDGE_URL}/health`, { signal: controller.signal });
+    const response = await fetch(`${base}/health`, { signal });
     if (!response.ok) return null;
     const body = (await response.json()) as {
       ok?: boolean;
@@ -52,7 +54,21 @@ export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null>
     const speech = typeof body.speech === 'string' && body.speech ? body.speech : null;
     return body.ok ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt), speech } : null;
   } catch {
-    return null;
+    return null; // not running, or (Safari) plain HTTP to this computer is blocked
+  }
+}
+
+export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null> {
+  if (typeof fetch === 'undefined') return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const [secure, plain] = await Promise.all([
+      probeAt(BRIDGE_HTTPS_URL, controller.signal),
+      probeAt(BRIDGE_URL, controller.signal),
+    ]);
+    bridgeBase = secure ? BRIDGE_HTTPS_URL : BRIDGE_URL;
+    return secure ?? plain;
   } finally {
     clearTimeout(timer);
   }
@@ -65,7 +81,7 @@ export async function runBridgeTurn(
   onEvent: (event: BridgeEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`${BRIDGE_URL}/turn`, {
+  const response = await fetch(`${bridgeBase}/turn`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -125,14 +141,31 @@ export interface RecognitionHandle {
  * until `stop()`. `onText(text, final)`: the words heard so far in the current sentence,
  * then the final sentence.
  */
-export function startRecognition(handlers: {
-  onText: (text: string, final: boolean) => void;
-  onStart?: () => void;
-  onError: (message: string) => void;
-}): RecognitionHandle | null {
+export function startRecognition(
+  handlers: {
+    onText: (text: string, final: boolean) => void;
+    onStart?: () => void;
+    onError: (message: string) => void;
+  },
+  /** An echo-cancelled mic (Chrome): the voice playing in this tab is removed before it is heard. */
+  track?: MediaStreamTrack | null,
+): RecognitionHandle | null {
   const Ctor = browserRecognition();
   if (!Ctor) return null;
   const recognition = new Ctor();
+  let useTrack = Boolean(track);
+  const begin = () => {
+    if (useTrack && track && track.readyState === 'live') {
+      try {
+        (recognition.start as (t?: MediaStreamTrack) => void)(track);
+        return;
+      } catch (error) {
+        if (!(error instanceof TypeError)) throw error;
+        useTrack = false; // this browser can't take a track: its own mic, echo filtered by words
+      }
+    }
+    recognition.start();
+  };
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
@@ -168,14 +201,14 @@ export function startRecognition(handlers: {
   recognition.onend = () => {
     if (wanted && !paused) {
       try {
-        recognition.start();
+        begin();
       } catch {
         // Already restarting.
       }
     }
   };
   try {
-    recognition.start();
+    begin();
   } catch {
     return null;
   }
@@ -192,7 +225,7 @@ export function startRecognition(handlers: {
       if (!wanted || !paused) return;
       paused = false;
       try {
-        recognition.start();
+        begin();
       } catch {
         // Already running.
       }
@@ -289,6 +322,17 @@ const STOP_WORDS = /^(stop|wait|hold on|hang on|pause|no|nope|actually|sorry|exc
  * very words being said, so text that mostly repeats them is echo. A clear "stop" / "wait",
  * or two or more words of something else, is the person.
  */
+/**
+ * Just after it stopped talking, is this the tail of its own voice (recognition can deliver
+ * the speakers' echo up to a second late)? Mostly its own recent words means echo.
+ */
+export function isEcho(heard: string, spoken: string): boolean {
+  const said = words(heard);
+  if (said.length === 0) return true;
+  const bot = new Set(words(spoken));
+  return said.filter(word => bot.has(word)).length / said.length >= 0.6;
+}
+
 export function isBargeIn(heard: string, speaking: string): boolean {
   const said = words(heard);
   if (said.length === 0) return false;
@@ -301,7 +345,7 @@ export function isBargeIn(heard: string, speaking: string): boolean {
 
 /** Wake the natural voice while the person is still talking (it may have been paged out). */
 export function warmBridgeSpeech(): void {
-  void fetch(`${BRIDGE_URL}/speak/warm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(
+  void fetch(`${bridgeBase}/speak/warm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(
     () => undefined,
   );
 }
@@ -338,10 +382,31 @@ export const BRIDGE_SPEECH_TIMEOUT_MS = 4000;
  * so the next one is ready while the current one plays. Any sentence that fails or is slow
  * is spoken by the browser's voice instead, so it never goes silent.
  */
-export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Speaker {
+let sharedAudio: AudioContext | null = null;
+
+/** One audio output for the voice, made on the first click (Safari plays sound only after one). */
+export function voiceAudioContext(): AudioContext | null {
+  if (sharedAudio) return sharedAudio;
+  if (typeof window === 'undefined') return null;
   const Ctx =
     window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  const context = new Ctx();
+  if (!Ctx) return null;
+  sharedAudio = new Ctx();
+  return sharedAudio;
+}
+
+/** Call from the click (or key) that opens voice, so its answers can be heard in every browser. */
+export function primeVoiceAudio(): void {
+  try {
+    const context = voiceAudioContext();
+    if (context && context.state === 'suspended') void context.resume();
+  } catch {
+    // No Web Audio here: the browser's own voice speaks instead.
+  }
+}
+
+export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Speaker {
+  const context = voiceAudioContext() as AudioContext;
   const analyser = context.createAnalyser();
   analyser.fftSize = 512;
   analyser.connect(context.destination);
@@ -357,7 +422,7 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
 
   const fetchAudio = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
     try {
-      const response = await fetch(`${BRIDGE_URL}/speak`, {
+      const response = await fetch(`${bridgeBase}/speak`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text }),

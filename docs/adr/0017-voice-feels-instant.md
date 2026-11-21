@@ -1,7 +1,7 @@
 # 0017. Voice with your own agent feels instant, and you can talk over it
 
 - Status: Accepted (2026-11-20). Builds on [0014](0014-voice-is-fast-dictates-and-relays.md) (bridge, relay) and [0013](0013-voice-runs-on-pipecat.md) (Pipecat).
-- Code: `frontend/src/features/voice/useLocalAgentVoiceSession.ts`, `localAgent.ts` (`isBargeIn`, `pickVoice`, `createBridgeSpeaker`, `speechPieces`), `mcp_server/src/manifest_cli/speech.py`, `VoiceSetup.tsx`, `frontend/public/voice.sh`; `mcp_server/src/manifest_cli/bridge.py` (`_TurnLink`), `agents.py` (`interrupt`, `CLAUDE_VOICE_MODEL`, `detect_agent`), `local_voice.py` (`enough_memory`)
+- Code: `frontend/src/features/voice/useLocalAgentVoiceSession.ts`, `localAgent.ts` (`isBargeIn`, `pickVoice`, `createBridgeSpeaker`, `speechPieces`), `mcp_server/src/manifest_cli/speech.py`, `bridge_tls.py`, `VoiceSetup.tsx`, `frontend/public/voice.sh`; `mcp_server/src/manifest_cli/bridge.py` (`_TurnLink`), `agents.py` (`interrupt`, `CLAUDE_VOICE_MODEL`, `detect_agent`), `local_voice.py` (`enough_memory`)
 
 ## Context
 
@@ -13,6 +13,9 @@ With no OpenAI key, the bridge ran a local Pipecat voice (Whisper + Kokoro) next
 - **A fast brain.** Claude Code answers voice on Haiku (warm first word: median 1.7 s vs 2.3 s for the default model) unless `--model` says otherwise. Codex runs with low reasoning effort. `--agent auto` (the default) picks Claude Code, else Codex.
 - **Send on the pause.** The question goes when the words stop changing for 0.7 s, or 0.35 s after a final result. There's no spoken greeting.
 - **Talk over it.** The mic stays open while it speaks. Words that mostly repeat what it is saying are its own echo and are ignored. "Stop"/"wait", or two words of something else, cancel speech at once and hang up the turn. The bridge sees the hang-up at once and sends Claude Code an `interrupt` control request, so the same warm process takes the next question about 1 s later. Tapping the orb or pressing Space also stops it.
+- **It doesn't hear itself.** In Chrome, recognition listens through an echo-cancelled mic track (`getUserMedia` with echo cancellation, passed to `SpeechRecognition.start(track)`). That removes the voice this tab plays. For 1.5 s after it stops talking, words that mostly repeat what it just said are dropped as late echo (`isEcho`).
+- **Safari too.** Safari blocks secure pages from calling `http://127.0.0.1` or `http://localhost`. `manifest bridge --install` makes a certificate authority limited by name constraints to `127.0.0.1`/`localhost`, signs one certificate, deletes the authority's key, and asks macOS to trust it for TLS (`bridge_tls.py`). The bridge also serves `https://127.0.0.1:47823`, and the app uses HTTPS when it answers. Audio starts on the click that opens voice, because Safari plays sound only after a gesture.
+- **Pipecat's voice with a Cartesia key.** `manifest bridge --cartesia-key` keeps the key in the Keychain. Answers are then spoken by Cartesia Sonic in the voice of Pipecat's quickstart (`86e30c1d-…`), with Kokoro as the fallback. Cartesia is a cloud service, so the answer's text is sent to Cartesia.
 - **Only fatal errors end a session.** Pipecat errors with `fatal: false` are logged, not shown, and Kokoro's stop timeout is 12 s.
 - **Set up in one step.** The voice panel shows one command (`curl -fsSL https://manifeststartup.com/voice.sh | sh`): it installs the CLI from the public repo with uv and the login item, and the panel connects by itself when the bridge answers. "Add an OpenAI key" is the other choice.
 

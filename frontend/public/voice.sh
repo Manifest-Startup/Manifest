@@ -35,12 +35,12 @@ if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
 fi
 say "Installing the Manifest CLI…"
 uv tool install --force --quiet --python 3.12 \
-  "$package @ git+https://github.com/Manifest-Startup/Manifest#subdirectory=mcp_server"
+  "${package} @ git+https://github.com/Manifest-Startup/Manifest#subdirectory=mcp_server"
 PATH="$(uv tool dir --bin):$PATH"
 export PATH
 
 if [ "$(uname -s)" = "Darwin" ]; then
-  say "Connecting Manifest voice to $agent…"
+  say "Connecting Manifest voice to ${agent}…"
   manifest bridge --install
   say "Done. Go back to Manifest: voice connects by itself (the natural voice downloads once, ~330 MB)."
 else

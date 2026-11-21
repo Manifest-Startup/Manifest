@@ -71,3 +71,20 @@ describe('local agent bridge', () => {
     expect(rec.start).toHaveBeenCalledTimes(2);
   });
 });
+
+it('prefers the HTTPS bridge (all Safari allows) and uses it for every call', async () => {
+  const { probeBridge, bridgeUrl, BRIDGE_HTTPS_URL, BRIDGE_URL } = await import('../localAgent');
+  const up = new Set<string>();
+  global.fetch = jest.fn(async (url: string) => {
+    if (![...up].some(base => url.startsWith(base))) throw new TypeError('Load failed');
+    return { ok: true, json: async () => ({ ok: true, agent: 'Claude Code' }) };
+  }) as never;
+  up.add(BRIDGE_URL);
+  expect(await probeBridge()).toMatchObject({ agent: 'Claude Code' });
+  expect(bridgeUrl()).toBe(BRIDGE_URL); // Chrome, before HTTPS is set up
+  up.add(BRIDGE_HTTPS_URL);
+  await probeBridge();
+  expect(bridgeUrl()).toBe(BRIDGE_HTTPS_URL);
+  up.delete(BRIDGE_URL); // Safari: plain HTTP to this computer is blocked
+  expect(await probeBridge()).toMatchObject({ agent: 'Claude Code' });
+});
