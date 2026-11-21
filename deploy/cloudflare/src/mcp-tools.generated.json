@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "6764c8a0a8edfd3e016c8df8c4b9ecf559a28dfff449e3ea39fc377d32141b5e",
+ "catalog_sha256": "906d6569458cc258e1ac8d831a2e2cb27181bfd6538ea3d6859ae0b4cb389f1e",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -786,7 +786,7 @@
   {
    "name": "create_outreach_email_drafts",
    "title": "Create outreach email drafts",
-   "description": "Save the prepared emails (all, or the names/ids given) as drafts in the person's connected Gmail. Never sends; emails already in Gmail are not duplicated. Ask first. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "description": "Save the prepared emails (all, or the names/ids given) as drafts in the person's connected Gmail. Never sends; emails already in Gmail are not duplicated. Ask first. Without a Gmail connection nothing is saved: every email in customer_discovery has a compose_url (\"Open in Gmail\") that opens it pre-filled in the person's own Gmail. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
    "inputSchema": {
     "type": "object",
     "properties": {

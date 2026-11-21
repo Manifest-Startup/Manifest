@@ -885,10 +885,16 @@ def create_gmail_drafts(
         raise DiscoveryError("There are no prepared emails yet. Ask me to draft them first.")
     conn = connectors.gmail_connection(db, user_id)
     if conn is None:
-        raise connectors.ConnectorUnavailable(
-            "Gmail isn't connected. Connect it once in Account → Integrations → Gmail "
-            "(Manifest only creates drafts; it never sends)."
-        )
+        # No Gmail connection (the usual case): hand back compose links instead.
+        names = ", ".join(o["prospect_name"] for o in pending)
+        return {
+            "state": state,
+            "created": [],
+            "limitations": [
+                f"Gmail isn't connected, so nothing was saved there. Each email ({names}) has an "
+                "Open in Gmail link that opens it pre-filled in your Gmail, ready to save or send."
+            ],
+        }
     created, skipped, failed = [], [], []
     for draft in pending:
         if draft.get("gmail_draft_id"):
@@ -1075,6 +1081,10 @@ def _md_prospect(i: int, p: dict[str, Any]) -> list[str]:
     return lines
 
 
+def compose_url(o: dict[str, Any]) -> str:
+    return connectors.gmail_compose_url(to=o.get("to"), subject=o["subject"], body=o["body"])
+
+
 def _md_outreach(o: dict[str, Any]) -> list[str]:
     status = "saved in Gmail drafts" if o.get("gmail_draft_id") else "not in Gmail yet"
     lines = [
@@ -1082,6 +1092,7 @@ def _md_outreach(o: dict[str, Any]) -> list[str]:
         f"### {o['prospect_name']} ({status})",
         f"**To:** {o.get('to') or '(no verified address yet)'}  ",
         f"**Subject:** {o['subject']}",
+        f"[Open in Gmail]({compose_url(o)})",
         "",
         o["body"],
     ]
@@ -1153,8 +1164,8 @@ def view(state: dict[str, Any], *, limitations: list[str] | None = None) -> dict
         "limitations": limitations or [],
         "updatedAt": state.get("updated_at"),
         "data": {
-            k: state.get(k)
-            for k in ("research", "icp", "segment", "prospects", "excluded", "outreach")
+            **{k: state.get(k) for k in ("research", "icp", "segment", "prospects", "excluded")},
+            "outreach": [{**o, "compose_url": compose_url(o)} for o in outreach],
         },
         "speakingTip": "Say the summary and the top reasons in a sentence or two; don't read lists, URLs or emails aloud.",
     }

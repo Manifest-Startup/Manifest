@@ -248,7 +248,9 @@ class DiscoveryMutation:
         self, info: strawberry.Info, idea_id: str, prospects: list[str] | None = None
     ) -> CustomerDiscovery:
         """Save the prepared emails (all, or the names/ids given) as drafts in the person's
-        connected Gmail. Never sends; emails already in Gmail are not duplicated. Ask first."""
+        connected Gmail. Never sends; emails already in Gmail are not duplicated. Ask first.
+        Without a Gmail connection nothing is saved: every email in customer_discovery has a
+        compose_url ("Open in Gmail") that opens it pre-filled in the person's own Gmail."""
         from app.services.ideas import customer_discovery as cd
 
         return await _run(
