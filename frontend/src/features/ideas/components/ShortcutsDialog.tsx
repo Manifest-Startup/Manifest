@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { hasMod, isApple, isTypingTarget, requestListFocus } from "../utils/noteFocus";
 
 /**
- * Every keyboard shortcut in the ideas workspace, in one sheet (⌘/ or ?).
+ * Every keyboard shortcut in Manifest, in one sheet (⌘/ or ? anywhere in the app).
  * Navigation follows Apple Notes and Notion; writing follows Google Docs and the editor
  * (Tiptap) defaults, so the keys people already know work here.
  */
@@ -15,6 +15,16 @@ export function shortcutGroups(apple = isApple()): { title: string; rows: Row[] 
   const join = (...keys: string[]) => keys.join(apple ? "" : "+");
   return [
     {
+      title: "Everywhere",
+      rows: [
+        [join(mod, "K"), "Search everything"],
+        [join(alt, mod, "V"), "Talk to Manifest (voice)"],
+        [join(mod, ","), "Account and settings"],
+        [join(mod, "/") + "  ?", "Show these shortcuts"],
+        ["Esc", "Close a dialog, voice or search"],
+      ],
+    },
+    {
       title: "Move around",
       rows: [
         ["↑  ↓", "Previous or next idea (in the ideas list)"],
@@ -22,7 +32,6 @@ export function shortcutGroups(apple = isApple()): { title: string; rows: Row[] 
         ["Return", "Open the note, where you left off"],
         ["Esc", "Back to the ideas list"],
         ["→  ←", "Show or hide an idea's documents"],
-        [join(mod, "K"), "Search everything"],
         [join(mod, "["), "Back"],
         [join(mod, "]"), "Forward"],
       ],
@@ -34,7 +43,7 @@ export function shortcutGroups(apple = isApple()): { title: string; rows: Row[] 
         [join(mod, "S"), "Save now (it also saves as you type)"],
         [join(mod, "\\"), "Show or hide the ideas list"],
         [join(mod, shift, "F"), "Focus mode"],
-        [join(mod, "/"), "Show these shortcuts"],
+        [join(alt, mod, "D"), "Dictate into the note (Esc stops)"],
       ],
     },
     {
@@ -125,15 +134,13 @@ export const ShortcutsDialog: React.FC<{ open: boolean; onClose: () => void }> =
 export default ShortcutsDialog;
 
 /**
- * The workspace's global shortcuts (and the sheet that lists them). Rendered once on the
- * ideas page; `onToggleLibrary` shows or hides the ideas list.
+ * The ideas workspace's own shortcuts, rendered once on the ideas page; `onToggleLibrary`
+ * shows or hides the ideas list. The sheet itself (⌘/ or ?) is app-wide: AppShortcuts.
  */
 export const WorkspaceShortcuts: React.FC<{
   onToggleLibrary?: () => void;
   onNewIdea: () => void;
 }> = ({ onToggleLibrary, onNewIdea }) => {
-  const [open, setOpen] = React.useState(false);
-  const close = React.useCallback(() => setOpen(false), []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -149,17 +156,7 @@ export const WorkspaceShortcuts: React.FC<{
         onToggleLibrary();
         return;
       }
-      if (mod && !event.altKey && key === "/") {
-        event.preventDefault();
-        setOpen((value) => !value);
-        return;
-      }
       if (isTypingTarget(event.target) || mod || event.altKey) return;
-      if (event.key === "?") {
-        event.preventDefault();
-        setOpen(true);
-        return;
-      }
       // Arrows with nothing focused go to the ideas list, so they always walk the notes.
       if ((event.key === "ArrowDown" || event.key === "ArrowUp") && document.activeElement === document.body) {
         event.preventDefault();
@@ -169,5 +166,5 @@ export const WorkspaceShortcuts: React.FC<{
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onNewIdea, onToggleLibrary]);
-  return <ShortcutsDialog open={open} onClose={close} />;
+  return null;
 };

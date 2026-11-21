@@ -66,14 +66,8 @@ describe('Workspace panels', () => {
     expect(screen.getByText('Related content')).toBeVisible();
   });
 
-  it('opens the shortcuts sheet with ⌘/ and makes a new idea with ⌥⌘N', () => {
+  it('makes a new idea with ⌥⌘N', () => {
     render(<IdeasPage />);
-    fireEvent.keyDown(window, { key: '/', ctrlKey: true, metaKey: true });
-    fireEvent.keyDown(window, { key: '?' });
-    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
-    expect(screen.getByText('Open the note, where you left off')).toBeInTheDocument();
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull();
     fireEvent.keyDown(window, { key: 'n', code: 'KeyN', altKey: true, ctrlKey: true });
     fireEvent.keyDown(window, { key: 'n', code: 'KeyN', altKey: true, metaKey: true });
     expect(mockCreateAndOpen).toHaveBeenCalledWith('keyboard_shortcut');

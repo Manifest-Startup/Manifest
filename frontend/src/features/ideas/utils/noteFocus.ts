@@ -72,6 +72,12 @@ export const isApple = () =>
 export const hasMod = (event: KeyboardEvent | React.KeyboardEvent) =>
   isApple() ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
 
+/** How a ⌥⌘<key> (Ctrl+Alt+<key>) shortcut reads on this platform, e.g. "⌥⌘D". */
+export const shortcutLabel = (key: string) => (isApple() ? `⌥⌘${key}` : `Ctrl+Alt+${key}`);
+
+/** The same shortcut for `aria-keyshortcuts`. */
+export const ariaShortcut = (key: string) => (isApple() ? `Alt+Meta+${key}` : `Control+Alt+${key}`);
+
 /** The event comes from somewhere the person is typing (inputs, the note, contenteditable). */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
