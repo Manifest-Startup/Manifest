@@ -31,6 +31,18 @@ export interface PipecatVoiceSessionApi {
   end: () => Promise<void>;
   toggleMute: () => void;
   sendText: (text: string) => Promise<void>;
+  /** Stop the voice mid-answer (tap the orb or press Space). Talking over it works too. */
+  interrupt?: () => void;
+}
+
+/**
+ * Only a fatal error ends the conversation. Pipecat also reports recoverable hiccups (a
+ * sentence that produced no audio, a slow service) as errors with `fatal: false`; treating
+ * those as fatal turned the orb red after the first word.
+ */
+export function isFatalVoiceError(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return true;
+  return (data as { fatal?: unknown }).fatal !== false;
 }
 
 const REFRESH_DEBOUNCE_MS = 600;
@@ -130,6 +142,7 @@ export function usePipecatVoiceSession(wsUrl?: string): PipecatVoiceSessionApi {
           onError: message => {
             const text = (message?.data as { message?: string } | undefined)?.message;
             log.warn('voice error', text);
+            if (!isFatalVoiceError(message?.data)) return; // recoverable: keep talking
             dispatch({ type: 'error', error: classifyConnectionError(text) });
           },
           onDeviceError: () =>

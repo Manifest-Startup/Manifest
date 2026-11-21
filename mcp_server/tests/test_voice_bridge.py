@@ -8,7 +8,6 @@ import json
 import sys
 
 import pytest
-
 from manifest_cli import agents, bridge
 
 APP = "https://manifeststartup.com"
@@ -198,7 +197,7 @@ def test_vault_folder_runs_the_newest_script_with_move(tmp_path, monkeypatch):
     old.write_text("print('no move here')")
     new = tmp_path / "new.py"
     new.write_text(
-        "import json, sys\n" "def cmd_move(): pass\n" "print(json.dumps({'args': sys.argv[1:]}))\n"
+        "import json, sys\ndef cmd_move(): pass\nprint(json.dumps({'args': sys.argv[1:]}))\n"
     )
     monkeypatch.setattr(vault_folder, "_candidates", lambda: [old, new])
     assert vault_folder.move("icloud") == {"args": ["move", "icloud", "--json"]}
@@ -231,3 +230,50 @@ def test_macos_app_is_built_once_and_signed(tmp_path):
 
     out = subprocess.run([str(exe), "echo", "ran"], capture_output=True, text=True)
     assert out.stdout.strip() == "ran"
+
+
+def test_hanging_up_a_turn_interrupts_the_agent():
+    class Slow(agents.LocalAgent):
+        interrupted = 0
+
+        async def turn(self, prompt):
+            for i in range(200):
+                yield ("say", f"Sentence {i}. " + "x" * 2000)
+                await asyncio.sleep(0.01)
+
+        async def interrupt(self):
+            Slow.interrupted += 1
+
+    agent = Slow(name="Slow")
+    out = io.StringIO()
+
+    async def run():
+        b = bridge.Bridge(agent, origins=bridge.DEFAULT_ORIGINS, out=out)
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            writer.write(_post("/turn", {"text": "tell me everything"}))
+            await writer.drain()
+            await reader.readuntil(b"Sentence 1.")
+            writer.transport.abort()  # the person talked over it
+            for _ in range(200):
+                if Slow.interrupted:
+                    break
+                await asyncio.sleep(0.02)
+
+    asyncio.run(run())
+    assert Slow.interrupted >= 1 and "(interrupted)" in out.getvalue()
+
+
+def test_local_speech_models_only_on_a_computer_with_room(monkeypatch):
+    from manifest_cli import local_voice
+
+    monkeypatch.setattr(
+        local_voice.os, "sysconf", lambda n: 4096 if n == "SC_PAGE_SIZE" else 2 * 1024**2
+    )
+    assert not local_voice.enough_memory()  # 8 GB
+    monkeypatch.setattr(
+        local_voice.os, "sysconf", lambda n: 4096 if n == "SC_PAGE_SIZE" else 4 * 1024**2
+    )
+    assert local_voice.enough_memory()  # 16 GB

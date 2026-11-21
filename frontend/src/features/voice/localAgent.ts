@@ -8,14 +8,21 @@
 import type { LiveVoiceContext } from './liveVoice';
 
 export const BRIDGE_URL = 'http://127.0.0.1:47821';
-export const BRIDGE_COMMAND = 'manifest bridge --agent claude';
-/** Once: keeps the bridge running at login, so voice always reaches Claude Code. */
+export const BRIDGE_COMMAND = 'manifest bridge';
+/** Once, with the CLI installed: keeps the bridge running at login. */
 export const BRIDGE_INSTALL_COMMAND = 'manifest bridge --install';
+/**
+ * Once, from nothing: installs the `manifest` CLI and starts the bridge at login, using
+ * Claude Code if it is installed, else Codex (public/voice.sh, served by the app).
+ */
+export const VOICE_SETUP_COMMAND = 'curl -fsSL https://manifeststartup.com/voice.sh | sh';
 
 export interface BridgeInfo {
   agent: string;
   /** The bridge's own Pipecat voice (local Whisper + Kokoro), when it runs one. */
   voice: string | null;
+  /** Hanging up a turn stops the agent's answer (the person talked over it). */
+  interrupt: boolean;
 }
 
 export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { kind: 'done'; text: string };
@@ -32,9 +39,9 @@ export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null>
   try {
     const response = await fetch(`${BRIDGE_URL}/health`, { signal: controller.signal });
     if (!response.ok) return null;
-    const body = (await response.json()) as { ok?: boolean; agent?: string; voice?: string | null };
+    const body = (await response.json()) as { ok?: boolean; agent?: string; voice?: string | null; interrupt?: boolean };
     const voice = typeof body.voice === 'string' && /^ws:\/\/127\.0\.0\.1:\d+$/.test(body.voice) ? body.voice : null;
-    return body.ok ? { agent: body.agent || 'Your agent', voice } : null;
+    return body.ok ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt) } : null;
   } catch {
     return null;
   } finally {
@@ -96,6 +103,14 @@ export function browserSpeechAvailable(): boolean {
   return Boolean(browserRecognition()) && typeof window !== 'undefined' && 'speechSynthesis' in window;
 }
 
+export interface RecognitionHandle {
+  stop: () => void;
+  pause: () => void;
+  resume: () => void;
+  /** Forget words still being recognised (already sent as a turn) and keep listening. */
+  restart: () => void;
+}
+
 /**
  * Continuous recognition that keeps itself going (browsers stop after a pause or a minute)
  * until `stop()`. `onText(text, final)`: the words heard so far in the current sentence,
@@ -105,7 +120,7 @@ export function startRecognition(handlers: {
   onText: (text: string, final: boolean) => void;
   onStart?: () => void;
   onError: (message: string) => void;
-}): { stop: () => void; pause: () => void; resume: () => void } | null {
+}): RecognitionHandle | null {
   const Ctor = browserRecognition();
   if (!Ctor) return null;
   const recognition = new Ctor();
@@ -173,33 +188,61 @@ export function startRecognition(handlers: {
         // Already running.
       }
     },
+    // abort() drops pending results; onend then starts it again (wanted, not paused).
+    restart: () => {
+      if (wanted && !paused) recognition.abort();
+    },
   };
 }
 
-/** Speak sentences in order with the browser's own voice; `onIdle` once all are spoken. */
-export function createSpeaker(onSpeaking: (speaking: boolean) => void) {
+/** The most natural local voice for this language: Premium/Enhanced first (no network). */
+export function pickVoice(voices: SpeechSynthesisVoice[], language: string): SpeechSynthesisVoice | null {
+  const lang = language.slice(0, 2) || 'en';
+  const mine = voices.filter(v => v.lang.toLowerCase().startsWith(lang));
+  const local = mine.filter(v => v.localService);
+  return (
+    local.find(v => /Premium|Enhanced|Siri/i.test(v.name)) ??
+    local.find(v => /Samantha|Ava|Zoe|Allison|Natural/i.test(v.name)) ??
+    local.find(v => v.default) ??
+    local[0] ??
+    mine[0] ??
+    null
+  );
+}
+
+export interface Speaker {
+  /** Queue one sentence; speech starts at once (the browser's voice needs no download). */
+  say: (text: string) => void;
+  readonly speaking: boolean;
+  /** What it said recently, to tell its own echo from the person talking over it. */
+  readonly recent: string;
+  cancel: () => void;
+}
+
+/**
+ * Speak sentences in order with the browser's own voice. `onSpeaking` flips when speech
+ * starts and when everything queued has been said; `onWord` pulses on each spoken word.
+ */
+export function createSpeaker(onSpeaking: (speaking: boolean) => void, onWord?: () => void): Speaker {
   let pending = 0;
-  const voice = () => {
-    const voices = window.speechSynthesis.getVoices();
-    const lang = navigator.language?.slice(0, 2) || 'en';
-    return (
-      voices.find(v => v.lang.startsWith(lang) && /Samantha|Siri|Natural|Google/i.test(v.name)) ??
-      voices.find(v => v.lang.startsWith(lang)) ??
-      null
-    );
-  };
+  let recent: string[] = [];
+  let generation = 0;
   return {
     say(text: string) {
       const utterance = new SpeechSynthesisUtterance(text);
-      const chosen = voice();
+      const chosen = pickVoice(window.speechSynthesis.getVoices(), navigator.language || 'en');
       if (chosen) utterance.voice = chosen;
-      utterance.rate = 1.05;
+      utterance.rate = 1.08;
+      const mine = generation;
       const done = () => {
+        if (mine !== generation) return; // cancelled
         pending = Math.max(0, pending - 1);
         if (pending === 0) onSpeaking(false);
       };
       utterance.onend = done;
       utterance.onerror = done;
+      if (onWord) utterance.onboundary = () => onWord();
+      recent = [...recent, text].slice(-3);
       pending += 1;
       if (pending === 1) onSpeaking(true);
       window.speechSynthesis.speak(utterance);
@@ -207,10 +250,40 @@ export function createSpeaker(onSpeaking: (speaking: boolean) => void) {
     get speaking() {
       return pending > 0;
     },
+    get recent() {
+      return recent.join(' ');
+    },
     cancel() {
+      generation += 1;
+      const was = pending > 0;
       pending = 0;
       window.speechSynthesis.cancel();
-      onSpeaking(false);
+      if (was) onSpeaking(false);
     },
   };
+}
+
+const words = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s']/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+const STOP_WORDS = /^(stop|wait|hold on|hang on|pause|no|nope|actually|sorry|excuse me|quiet|shh+)\b/i;
+
+/**
+ * While the voice is speaking, is what the mic heard the person talking over it (true) or the
+ * speaker's own sound coming back (false)? Speech through the speakers is recognised as the
+ * very words being said, so text that mostly repeats them is echo. A clear "stop" / "wait",
+ * or two or more words of something else, is the person.
+ */
+export function isBargeIn(heard: string, speaking: string): boolean {
+  const said = words(heard);
+  if (said.length === 0) return false;
+  if (STOP_WORDS.test(heard.trim())) return true;
+  if (said.length < 2) return false;
+  const bot = new Set(words(speaking));
+  const echoed = said.filter(word => bot.has(word)).length;
+  return echoed / said.length < 0.6;
 }

@@ -17,9 +17,11 @@ in the background while the next turn is already being heard.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import shlex
 import shutil
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
@@ -41,6 +43,14 @@ CLAUDE_DEFAULT_TOOLS = (
 )
 
 Event = tuple[str, str]
+
+# Voice must answer fast: Claude Code's Haiku starts speaking ~0.6 s sooner than the default
+# model (measured warm, 2026-11-20). `--model default` keeps the person's own choice.
+CLAUDE_VOICE_MODEL = "haiku"
+
+
+def _has_flag(args: list[str], *names: str) -> bool:
+    return any(a == n or a.startswith(n + "=") for a in args for n in names)
 
 
 async def _drain(process: asyncio.subprocess.Process) -> None:
@@ -65,6 +75,7 @@ class LocalAgent:
     resume: str | None = None
     continue_last: bool = False
     session_id: str | None = None
+    model: str | None = None  # None: the agent's fast voice default; "default": its own
     process: asyncio.subprocess.Process | None = None
     _finishing: set[asyncio.Future[None]] = field(default_factory=set)
 
@@ -113,6 +124,11 @@ class LocalAgent:
             last = err.strip().splitlines()[-1] if err.strip() else f"exit code {code}"
             yield ("error", _short(last, 160))
 
+    async def interrupt(self) -> None:
+        """Stop the answer in progress (the person talked over it)."""
+        if self.process and self.process.returncode is None:
+            self.process.terminate()
+
     def stop(self) -> None:
         if self.process and self.process.returncode is None:
             self.process.terminate()
@@ -145,6 +161,8 @@ class ClaudeCodeAgent(LocalAgent):
             for a in self.extra_args
         ):
             argv += ["--allowedTools", CLAUDE_DEFAULT_TOOLS]
+        if not _has_flag(self.extra_args, "--model") and self.model != "default":
+            argv += ["--model", self.model or CLAUDE_VOICE_MODEL]
         if self.session_id:
             argv += ["--resume", self.session_id]
         elif self.resume:
@@ -188,6 +206,18 @@ class ClaudeCodeAgent(LocalAgent):
         # The process ended (crashed or was stopped): start fresh, resuming, next turn.
         self.process = None
         yield ("error", "Claude Code stopped")
+
+    async def interrupt(self) -> None:
+        """Ask Claude Code to stop the current answer; the turn then ends within ~1 s and the
+        same process takes the next question (no restart, the session stays warm)."""
+        process = self.process
+        if not (process and process.returncode is None and process.stdin):
+            return
+        body = {"type": "control_request", "request_id": f"stop-{time.monotonic_ns()}"}
+        body["request"] = {"subtype": "interrupt"}
+        process.stdin.write((json.dumps(body) + "\n").encode())
+        with contextlib.suppress(ConnectionError):
+            await process.stdin.drain()
 
     def parse(self, line: str) -> list[Event]:
         try:
@@ -285,14 +315,36 @@ class CodexAgent(LocalAgent):
 
     def command(self, prompt: str) -> tuple[list[str], bytes | None]:
         text = f"{VOICE_STYLE}\n\n{prompt}" if not self.session_id else prompt
+        fast: list[str] = []
+        if self.model not in (None, "default"):
+            fast = ["-m", self.model]
+        if self.model != "default" and "model_reasoning_effort" not in " ".join(self.extra_args):
+            fast += ["-c", 'model_reasoning_effort="low"']  # spoken answers: start talking sooner
         if self.session_id:
-            argv = ["codex", "exec", "resume", "--json", *self.extra_args, self.session_id, "-"]
+            argv = [
+                "codex",
+                "exec",
+                "resume",
+                "--json",
+                *fast,
+                *self.extra_args,
+                self.session_id,
+                "-",
+            ]
         elif self.resume:
-            argv = ["codex", "exec", "resume", "--json", *self.extra_args, self.resume, "-"]
+            argv = ["codex", "exec", "resume", "--json", *fast, *self.extra_args, self.resume, "-"]
         elif self.continue_last:
-            argv = ["codex", "exec", "resume", "--json", "--last", *self.extra_args, "-"]
+            argv = ["codex", "exec", "resume", "--json", "--last", *fast, *self.extra_args, "-"]
         else:
-            argv = ["codex", "exec", "--json", "--skip-git-repo-check", *self.extra_args, "-"]
+            argv = [
+                "codex",
+                "exec",
+                "--json",
+                "--skip-git-repo-check",
+                *fast,
+                *self.extra_args,
+                "-",
+            ]
         return argv, text.encode()
 
     def parse(self, line: str) -> list[Event]:
@@ -336,20 +388,32 @@ class CommandAgent(LocalAgent):
         return [("say", output.strip())] if output.strip() else []
 
 
+def detect_agent() -> str:
+    """The agent to use when none is named: Claude Code if installed, else Codex."""
+    for binary in ("claude", "codex"):
+        if shutil.which(binary):
+            return binary
+    return "claude"
+
+
 def make_agent(
     spec: str,
     *,
     extra_args: list[str] | None = None,
     resume: str | None = None,
     continue_last: bool = False,
+    model: str | None = None,
 ) -> LocalAgent:
-    """`claude`, `codex`, or a command line."""
+    """`auto` (Claude Code, else Codex), `claude`, `codex`, or a command line."""
     common = {
         "extra_args": list(extra_args or []),
         "resume": resume,
         "continue_last": continue_last,
+        "model": model,
     }
     key = spec.strip().lower()
+    if key in ("", "auto"):
+        key = detect_agent()
     if key in ("claude", "claude-code", "claude_code"):
         return ClaudeCodeAgent(**common)
     if key == "codex":

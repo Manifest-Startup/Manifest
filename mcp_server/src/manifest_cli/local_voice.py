@@ -36,6 +36,20 @@ MAX_TRANSCRIPT_WAIT_SECONDS = 4.0
 TOOL_PREFIX = "mcp__plugin_manifest_manifest__"
 
 
+# Below this, Whisper + Kokoro next to the agent push the Mac into swap and every reply
+# waits seconds (8 GB M1, 2026-11-20: 3–6 s before the first word). The browser speaks instead.
+MIN_MEMORY_BYTES = 15 * 1024**3
+
+
+def enough_memory() -> bool:
+    """True when this computer has room for the local speech models (about 16 GB or more)."""
+    try:
+        total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (ValueError, OSError, AttributeError):
+        return False
+    return total >= MIN_MEMORY_BYTES
+
+
 def available() -> str | None:
     """None when local voice can run here, else what's missing."""
     try:
@@ -245,7 +259,11 @@ async def run_session(
             WhisperSTTServiceMLX(settings=WhisperSTTServiceMLX.Settings(model=STT_MODEL)),
             user,
             brain,
-            KokoroTTSService(settings=KokoroTTSService.Settings(voice=voice)),
+            # Under load Kokoro can take over 3 s to start a sentence; Pipecat's default would
+            # then end it as "no audio" (an error the app showed as a red orb).
+            KokoroTTSService(
+                settings=KokoroTTSService.Settings(voice=voice), stop_frame_timeout_s=12.0
+            ),
             transport.output(),
         ]
     )

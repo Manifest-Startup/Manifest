@@ -138,12 +138,18 @@ def test_relay_mode_uses_its_own_url():
 def test_claude_answers_are_spoken_sentence_by_sentence_as_they_stream():
     agent = agents.make_agent("claude")
     assert "--include-partial-messages" in agent.command()[0]
-    delta = lambda t: json.dumps(
-        {
-            "type": "stream_event",
-            "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": t}},
-        }
-    )
+
+    def delta(t: str) -> str:
+        return json.dumps(
+            {
+                "type": "stream_event",
+                "event": {
+                    "type": "content_block_delta",
+                    "delta": {"type": "text_delta", "text": t},
+                },
+            }
+        )
+
     agent.parse(json.dumps({"type": "stream_event", "event": {"type": "message_start"}}))
     assert agent.parse(delta("The sea is end")) == []
     assert agent.parse(delta("less, e.g. wide. Its waves ke")) == [
@@ -164,3 +170,52 @@ def test_claude_answers_are_spoken_sentence_by_sentence_as_they_stream():
         },
     }
     assert agent.parse(json.dumps(full)) == [("tool", "Read")]
+
+
+def test_voice_uses_a_fast_model_unless_the_person_chose_one():
+    def model_of(argv: list[str]) -> str | None:
+        return argv[argv.index("--model") + 1] if "--model" in argv else None
+
+    assert model_of(agents.make_agent("claude").command()[0]) == agents.CLAUDE_VOICE_MODEL
+    assert model_of(agents.make_agent("claude", model="opus").command()[0]) == "opus"
+    assert model_of(agents.make_agent("claude", model="default").command()[0]) is None
+    own = agents.make_agent("claude", extra_args=["--model", "sonnet"]).command()[0]
+    assert own.count("--model") == 1 and model_of(own) == "sonnet"
+
+    codex = agents.make_agent("codex").command("hi")[0]
+    assert 'model_reasoning_effort="low"' in codex
+    assert (
+        'model_reasoning_effort="low"'
+        not in agents.make_agent("codex", model="default").command("hi")[0]
+    )
+    chosen = agents.make_agent("codex", model="gpt-5").command("hi")[0]
+    assert chosen[chosen.index("-m") + 1] == "gpt-5"
+
+
+def test_auto_picks_claude_code_then_codex(monkeypatch):
+    found = {"codex"}
+    monkeypatch.setattr(agents.shutil, "which", lambda b: f"/bin/{b}" if b in found else None)
+    assert agents.make_agent("auto").name == "Codex"
+    found.add("claude")
+    assert agents.make_agent("auto").name == "Claude Code"
+
+
+def test_interrupting_claude_sends_a_control_request():
+    agent = agents.make_agent("claude")
+    written: list[bytes] = []
+
+    class Stdin:
+        def write(self, data: bytes) -> None:
+            written.append(data)
+
+        async def drain(self) -> None:
+            return None
+
+    class Process:
+        returncode = None
+        stdin = Stdin()
+
+    agent.process = Process()  # type: ignore[assignment]
+    asyncio.run(agent.interrupt())
+    body = json.loads(written[0])
+    assert body["type"] == "control_request" and body["request"] == {"subtype": "interrupt"}

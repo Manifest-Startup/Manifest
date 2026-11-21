@@ -378,3 +378,80 @@
     transition: none !important;
   }
 }
+
+/* ---- one-step setup (VoiceSetup): voice isn't connected on this computer yet ---- */
+.lv-island:has(.lv-setup) {
+  align-items: flex-start;
+  border-radius: 24px;
+  padding: 14px 12px 14px 14px;
+}
+.lv-setup {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  animation: lv-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lv-setup p { margin: 0; }
+.lv-setup__lead {
+  color: var(--lv-ink);
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+.lv-setup__cmd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 4px 4px 10px;
+  border-radius: 10px;
+  background: var(--lv-fill);
+}
+.lv-setup__cmd code {
+  flex: 1;
+  min-width: 0;
+  color: var(--lv-ink);
+  font: 500 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.lv-setup__copy {
+  flex: none;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: #000;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.lv-setup__copy:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }
+.lv-setup__wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--lv-ink-2);
+  font-size: 12px;
+  font-weight: 550;
+}
+.lv-setup__alt {
+  color: var(--lv-ink-2);
+  font-size: 12px;
+}
+.lv-setup__alt a { color: #64d2ff; }
+
+/* While it speaks, the orb is a stop button (tap, or Space). */
+.lv-orb-btn {
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lv-orb-btn:hover { transform: scale(1.06); }
+.lv-orb-btn:active { transform: scale(0.94); }
+.lv-orb-btn:focus-visible { outline: 2px solid #0a84ff; outline-offset: 3px; }
