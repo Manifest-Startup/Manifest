@@ -30,6 +30,8 @@ export interface BridgeInfo {
   interrupt: boolean;
   /** The natural voice (Kokoro on the Apple GPU, POST /speak), e.g. "af_heart", once loaded. */
   speech: string | null;
+  /** "ready", "loading", "off", or what's wrong with the natural voice. */
+  speechStatus?: string;
 }
 
 export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { kind: 'done'; text: string };
@@ -49,10 +51,14 @@ async function probeAt(base: string, signal: AbortSignal): Promise<BridgeInfo | 
       voice?: string | null;
       interrupt?: boolean;
       speech?: string | null;
+      speech_status?: string;
     };
     const voice = typeof body.voice === 'string' && /^ws:\/\/127\.0\.0\.1:\d+$/.test(body.voice) ? body.voice : null;
     const speech = typeof body.speech === 'string' && body.speech ? body.speech : null;
-    return body.ok ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt), speech } : null;
+    const speechStatus = typeof body.speech_status === 'string' ? body.speech_status.slice(0, 300) : undefined;
+    return body.ok
+      ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt), speech, speechStatus }
+      : null;
   } catch {
     return null; // not running, or (Safari) plain HTTP to this computer is blocked
   }

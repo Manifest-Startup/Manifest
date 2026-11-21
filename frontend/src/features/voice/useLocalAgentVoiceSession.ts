@@ -28,6 +28,9 @@ export const FINAL_SETTLE_MS = 350;
 /** …or after the words in progress stop changing this long (faster than waiting for final). */
 export const INTERIM_SETTLE_MS = 700;
 const NUDGE_AFTER_MS = 3000;
+/** While the natural voice is still loading, look again this often (and switch to it). */
+export const NATURAL_VOICE_POLL_MS = 4000;
+const NATURAL_VOICE_POLL_LIMIT = 75; // about five minutes
 /** For this long after it stops talking, words that repeat what it said are its own echo. */
 export const ECHO_TAIL_MS = 1500;
 
@@ -74,6 +77,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const decayRef = useRef<number | null>(null);
   const naturalRef = useRef(false); // the bridge speaks in the natural voice
   const micRef = useRef<MediaStream | null>(null);
+  const upgradeRef = useRef<number | null>(null);
   const quietSinceRef = useRef(0); // when it last stopped talking
   const warmedRef = useRef(false); // woke the voice for this question already
 
@@ -198,6 +202,8 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     speakerRef.current = null;
     if (decayRef.current !== null) window.clearInterval(decayRef.current);
     decayRef.current = null;
+    if (upgradeRef.current !== null) window.clearTimeout(upgradeRef.current);
+    upgradeRef.current = null;
     levelsRef.current = { mic: 0, bot: 0 };
     dispatch({ type: 'disconnected' });
   }, [interrupt]);
@@ -233,6 +239,24 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       : createSpeaker(onSpeaking, () => {
           levelsRef.current.bot = 0.95; // a pulse on each spoken word; decays below
         });
+    // The natural voice is still loading (or retrying): keep looking, and switch to it the
+    // moment it's ready, between answers. No reload needed.
+    if (!naturalRef.current && bridge.speechStatus && bridge.speechStatus !== 'off' && voiceAudioContext()) {
+      let tries = 0;
+      const look = async () => {
+        upgradeRef.current = null;
+        if (!activeRef.current || tries++ >= NATURAL_VOICE_POLL_LIMIT) return;
+        const now = await probeBridge(3000);
+        if (!activeRef.current) return;
+        if (now?.speech && !speakerRef.current?.speaking) {
+          naturalRef.current = true;
+          speakerRef.current = createBridgeSpeaker(onSpeaking);
+          return;
+        }
+        upgradeRef.current = window.setTimeout(() => void look(), NATURAL_VOICE_POLL_MS);
+      };
+      upgradeRef.current = window.setTimeout(() => void look(), NATURAL_VOICE_POLL_MS);
+    }
     decayRef.current = window.setInterval(() => {
       const levels = levelsRef.current;
       const speaker = speakerRef.current;
