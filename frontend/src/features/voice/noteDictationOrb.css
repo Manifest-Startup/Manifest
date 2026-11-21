@@ -1,45 +1,47 @@
-/* The note's voice orb (NoteDictationOrb): within reach, beside the reading column. */
+/* The note's voice dock (NoteDictationOrb): one black capsule with the dictation mic and the
+   Manifest voice orb, bottom right of the note — the same corner and edge as the app-wide
+   Voice pill, so voice lives in one place on every page. It stays put while the note scrolls. */
 .manifest-dictation {
   position: absolute;
   z-index: 20;
-  top: 16px;
   /* Just outside the 720px reading column on wide screens, inside the gutter otherwise. */
-  right: max(16px, calc((100% - 720px) / 2 - 76px));
+  right: max(16px, calc((100% - 720px) / 2 - 84px));
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
 }
-.manifest-dictation__orb,
-.manifest-dictation__agent {
+.manifest-dictation > * { pointer-events: auto; }
+
+.manifest-dictation__dock {
+  --level: 0;
   position: relative;
   isolation: isolate;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 50%;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
   color: #f5f5f7;
-  background: #000;
-  cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.08s linear;
+  box-shadow:
+    0 0 0 0 rgba(10, 132, 255, 0),
+    0 12px 32px -12px rgba(0, 0, 0, 0.55);
+  transition: box-shadow 0.08s linear;
 }
-.manifest-dictation__orb {
-  --level: 0;
-  width: 48px;
-  height: 48px;
-  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.55);
-}
-.manifest-dictation__orb::before {
+/* Iridescent edge, the same as the Voice pill. */
+.manifest-dictation__dock::before {
   content: "";
   position: absolute;
   inset: -1.5px;
   z-index: -2;
   border-radius: inherit;
   background: conic-gradient(from var(--mv-turn, 0deg), #0a84ff, #5ac8fa, #ffffff, #9be7ff, #0a84ff);
+  filter: blur(0.5px);
   animation: manifest-voice-turn 5s linear infinite;
 }
-.manifest-dictation__orb::after {
+.manifest-dictation__dock::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -47,60 +49,110 @@
   border-radius: inherit;
   background: #000;
 }
-.manifest-dictation__orb:hover { transform: scale(1.05); }
+.manifest-dictation[data-phase="listening"] .manifest-dictation__dock {
+  box-shadow:
+    0 0 0 calc(3px + var(--level) * 10px) rgba(10, 132, 255, 0.25),
+    0 12px 32px -12px rgba(0, 0, 0, 0.55);
+}
+
+.manifest-dictation__orb,
+.manifest-dictation__agent {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.manifest-dictation__orb:hover,
+.manifest-dictation__agent:hover { background: rgba(255, 255, 255, 0.12); }
+.manifest-dictation__orb:active,
+.manifest-dictation__agent:active { transform: scale(0.94); }
 .manifest-dictation__orb:focus-visible,
 .manifest-dictation__agent:focus-visible {
   outline: 2px solid #0a84ff;
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
+.manifest-dictation__agent .manifest-voice-launcher__orb { transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.manifest-dictation__agent:hover .manifest-voice-launcher__orb { transform: scale(1.12); }
+
+/* Hairline between the two actions. */
+.manifest-dictation__divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Dictating: the mic becomes a white stop button and the dock says so. */
 .manifest-dictation[data-phase="listening"] .manifest-dictation__orb {
   color: #000;
-  box-shadow:
-    0 0 0 calc(4px + var(--level) * 12px) rgba(10, 132, 255, 0.28),
-    0 10px 28px -12px rgba(0, 0, 0, 0.55);
+  background: #fff;
 }
-.manifest-dictation[data-phase="listening"] .manifest-dictation__orb::after { background: #fff; }
-.manifest-dictation[data-phase="connecting"] .manifest-dictation__orb { opacity: 0.75; }
-.manifest-dictation__agent {
-  width: 32px;
-  height: 32px;
-  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.5);
+.manifest-dictation[data-phase="connecting"] .manifest-dictation__orb {
+  animation: manifest-dictation-wait 1.2s ease-in-out infinite;
 }
-.manifest-dictation__agent:hover { transform: scale(1.06); }
-.manifest-dictation__hint {
-  position: absolute;
-  top: 12px;
-  right: 60px;
-  width: max-content;
-  max-width: min(260px, 70vw);
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg-secondary, #f5f5f7);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 550;
+@keyframes manifest-dictation-wait { 50% { opacity: 0.45; } }
+.manifest-dictation__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
-.manifest-dictation__hint--problem {
-  white-space: normal;
+.manifest-dictation__status kbd {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(245, 245, 247, 0.8);
+  font: inherit;
+  font-size: 11px;
+}
+.manifest-dictation__live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0a84ff;
+  box-shadow: 0 0 0 calc(var(--level) * 5px) rgba(10, 132, 255, 0.35);
+}
+
+.manifest-dictation__problem {
+  max-width: min(280px, 70vw);
   padding: 8px 12px;
   border-radius: 12px;
-  line-height: 1.4;
+  background: var(--bg-secondary, #f5f5f7);
   box-shadow: 0 8px 24px -14px rgba(0, 0, 0, 0.4);
   color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.4;
 }
-.manifest-dictation__hint a { color: var(--read-link, #0071e3); }
+.manifest-dictation__problem a { color: var(--read-link, #0071e3); }
+
 @media (max-width: 640px) {
-  /* Thumb reach on phones: bottom right of the note, above the save status. */
+  /* Thumb reach on phones: above the save status. */
   .manifest-dictation {
-    top: auto;
     right: 16px;
-    bottom: 56px;
-    flex-direction: column-reverse;
+    bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 16px));
   }
-  .manifest-dictation__hint { top: auto; bottom: 12px; }
+  .manifest-dictation__orb,
+  .manifest-dictation__agent { width: 44px; height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .manifest-dictation__orb::before { animation: none; }
-  .manifest-dictation__orb { transition: none; }
+  .manifest-dictation__dock::before,
+  .manifest-dictation[data-phase="connecting"] .manifest-dictation__orb { animation: none; }
+  .manifest-dictation__orb,
+  .manifest-dictation__agent,
+  .manifest-dictation__agent .manifest-voice-launcher__orb { transition: none; }
 }

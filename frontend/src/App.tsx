@@ -10,6 +10,7 @@ import ErrorBoundary from "features/core/ErrorBoundary";
 import { userVar } from "features/core/apollo/localState";
 import { createLogger } from "features/core/logError";
 import AppFooter from "features/navigation/components/AppFooter";
+import AppShortcuts from "features/navigation/components/AppShortcuts";
 import NavigationBar from "features/navigation/components/NavigationBar";
 import MessageBanner from "features/notifications/components/MessageBanner";
 import AiKeyRequiredNotice from "features/ai/AiKeyRequiredNotice";
@@ -212,6 +213,7 @@ const App = () => {
             </div>
           </main>
           {hideTopChrome ? null : <AppFooter />}
+          <AppShortcuts signedIn={Boolean(isLoggedIn)} />
           {!hideTopChrome && isLoggedIn ? (
             <Suspense fallback={null}>
               <FloatingVoiceButton />

@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 
 import { userVar, voiceOpenRequestVar } from "../core/apollo/localState";
 import { isVaultMode } from "features/vault/mode";
+import { ariaShortcut, hasMod, shortcutLabel } from "features/ideas/utils/noteFocus";
 import "./voicePanel.css";
 import { useVoiceIdeaSession } from "./useVoiceIdeaSession";
 import { liveVoiceStatus, LiveVoiceError, warmLiveVoice } from "./liveVoice";
@@ -187,6 +188,19 @@ const FloatingVoiceButton: React.FC = () => {
     void open();
   }, [isLoggedIn, location.pathname, openRequestVersion, open]);
 
+  // ⌥⌘V (Ctrl+Alt+V) opens or closes Manifest voice from anywhere in the app.
+  useEffect(() => {
+    if (!isLoggedIn || location.pathname === "/login") return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!hasMod(event) || !event.altKey || event.shiftKey || event.code !== "KeyV") return;
+      event.preventDefault();
+      if (isOpen) close();
+      else void open();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [close, isLoggedIn, isOpen, location.pathname, open]);
+
   if (!isLoggedIn || location.pathname === "/login") {
     return null;
   }
@@ -204,6 +218,7 @@ const FloatingVoiceButton: React.FC = () => {
       {!isOpen && !hasNoteOrb(location.pathname) ? (
         <button
           ref={launcherRef}
+          aria-keyshortcuts={ariaShortcut("V")}
           aria-label="Start voice conversation"
           className="manifest-voice-launcher fixed z-[120] bottom-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+5.5rem))] end-[max(1.5rem,env(safe-area-inset-right,0px))] max-sm:bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+4.25rem))] sm:bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:end-6"
           data-testid="voice-launcher"
@@ -212,6 +227,7 @@ const FloatingVoiceButton: React.FC = () => {
           }}
           onFocus={warmLiveVoice}
           onPointerEnter={warmLiveVoice}
+          title={`Talk to Manifest (${shortcutLabel("V")})`}
           type="button"
         >
           <span aria-hidden="true" className="manifest-voice-launcher__orb" />

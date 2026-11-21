@@ -11,6 +11,7 @@ import {
 } from 'features/ideas/utils/noteDictation';
 import { buildLiveVoiceUrl, classifyConnectionError, liveVoiceStatus, loadPipecat, warmLiveVoice } from './liveVoice';
 import { startRecognition } from './localAgent';
+import { ariaShortcut, hasMod, shortcutLabel } from 'features/ideas/utils/noteFocus';
 import './noteDictationOrb.css';
 
 const log = createLogger('NoteDictationOrb');
@@ -24,8 +25,8 @@ interface Problem {
 
 /**
  * The note's voice orb: tap, talk, and the words appear in the note at the cursor as
- * they are spoken (Pipecat dictation mode). Tap again or press Esc to stop. The small
- * button beside it opens the Manifest voice agent instead.
+ * they are spoken (Pipecat dictation mode). Tap again or press Esc to stop; ⌥⌘D toggles it.
+ * The blue orb beside it opens the Manifest voice agent instead (⌥⌘V).
  */
 const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
   const [phase, setPhase] = useState<Phase>('idle');
@@ -35,7 +36,7 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
   const browserRef = useRef<ReturnType<typeof startRecognition>>(null);
   const writerRef = useRef<DictationWriter | null>(null);
   const heardRef = useRef('');
-  const orbRef = useRef<HTMLButtonElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => onDictationTargetChange(setHasNote), []);
 
@@ -47,7 +48,7 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
     writerRef.current?.end();
     writerRef.current = null;
     heardRef.current = '';
-    orbRef.current?.style.setProperty('--level', '0');
+    dockRef.current?.style.setProperty('--level', '0');
     setPhase(current => (current === 'error' ? current : 'idle'));
     if (client) {
       try {
@@ -142,7 +143,7 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
             }
           },
           onLocalAudioLevel: level => {
-            orbRef.current?.style.setProperty('--level', Math.min(1, level * 3).toFixed(2));
+            dockRef.current?.style.setProperty('--level', Math.min(1, level * 3).toFixed(2));
           },
         },
       });
@@ -161,66 +162,37 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
 
   const active = phase === 'connecting' || phase === 'listening';
 
+  // Esc stops; ⌥⌘D (Ctrl+Alt+D) starts or stops dictation from anywhere on the note.
   useEffect(() => {
-    if (!active) return;
+    if (!hasNote && !active) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (active && event.key === 'Escape') {
         event.preventDefault();
         void stop();
+        return;
+      }
+      if (hasMod(event) && event.altKey && !event.shiftKey && event.code === 'KeyD') {
+        event.preventDefault();
+        void (active ? stop() : start());
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [active, stop]);
+  }, [active, hasNote, start, stop]);
 
   // A different note, or leaving it: stop writing into it.
   useEffect(() => () => void stop(), [ideaId, stop]);
 
   if (!hasNote && !active) return null;
 
-  const label = phase === 'listening' ? 'Stop dictation' : phase === 'connecting' ? 'Connecting…' : 'Dictate into the note';
+  const dictateKeys = shortcutLabel('D');
+  const label =
+    phase === 'listening' ? 'Stop dictation' : phase === 'connecting' ? 'Connecting…' : 'Dictate into the note';
 
   return (
     <div className="manifest-dictation" data-phase={phase}>
-      <button
-        ref={orbRef}
-        aria-label={label}
-        aria-pressed={active}
-        className="manifest-dictation__orb"
-        data-testid="note-dictation-orb"
-        onClick={() => void (active ? stop() : start())}
-        onFocus={warmLiveVoice}
-        onMouseDown={event => event.preventDefault()} // keep the note's cursor where it is
-        onPointerEnter={warmLiveVoice}
-        title={phase === 'listening' ? 'Listening — tap or Esc to stop' : 'Dictate into the note'}
-        type="button"
-      >
-        <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
-          <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
-          <path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      </button>
-      {!active ? (
-        <button
-          aria-label="Talk to Manifest"
-          className="manifest-dictation__agent"
-          data-testid="note-voice-agent"
-          onClick={() => voiceOpenRequestVar(voiceOpenRequestVar() + 1)}
-          onFocus={warmLiveVoice}
-          onPointerEnter={warmLiveVoice}
-          title="Talk to Manifest"
-          type="button"
-        >
-          <span aria-hidden="true" className="manifest-voice-launcher__orb" />
-        </button>
-      ) : null}
-      {phase === 'listening' ? (
-        <span className="manifest-dictation__hint" role="status">
-          Listening
-        </span>
-      ) : null}
       {phase === 'error' && problem ? (
-        <span className="manifest-dictation__hint manifest-dictation__hint--problem" role="alert">
+        <span className="manifest-dictation__problem" role="alert">
           {problem.message}
           {problem.link ? (
             <>
@@ -230,6 +202,63 @@ const NoteDictationOrb: React.FC<{ ideaId: string }> = ({ ideaId }) => {
           ) : null}
         </span>
       ) : null}
+      <div ref={dockRef} aria-label="Voice" className="manifest-dictation__dock" role="group">
+        {phase === 'listening' ? (
+          <span className="manifest-dictation__status" role="status">
+            <span aria-hidden="true" className="manifest-dictation__live" />
+            Listening
+            <kbd aria-hidden="true">esc</kbd>
+          </span>
+        ) : null}
+        <button
+          aria-keyshortcuts={ariaShortcut('D')}
+          aria-label={label}
+          aria-pressed={active}
+          className="manifest-dictation__orb"
+          data-testid="note-dictation-orb"
+          onClick={() => void (active ? stop() : start())}
+          onFocus={warmLiveVoice}
+          onMouseDown={event => event.preventDefault()} // keep the note's cursor where it is
+          onPointerEnter={warmLiveVoice}
+          title={phase === 'listening' ? 'Stop dictation (Esc)' : `Dictate into the note (${dictateKeys})`}
+          type="button"
+        >
+          {phase === 'listening' ? (
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
+              <rect x="6" y="6" width="12" height="12" rx="3" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20">
+              <rect x="9" y="2.5" width="6" height="12" rx="3" fill="currentColor" />
+              <path
+                d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="1.8"
+              />
+            </svg>
+          )}
+        </button>
+        {!active ? (
+          <>
+            <span aria-hidden="true" className="manifest-dictation__divider" />
+            <button
+              aria-keyshortcuts={ariaShortcut('V')}
+              aria-label="Talk to Manifest"
+              className="manifest-dictation__agent"
+              data-testid="note-voice-agent"
+              onClick={() => voiceOpenRequestVar(voiceOpenRequestVar() + 1)}
+              onFocus={warmLiveVoice}
+              onPointerEnter={warmLiveVoice}
+              title={`Talk to Manifest (${shortcutLabel('V')})`}
+              type="button"
+            >
+              <span aria-hidden="true" className="manifest-voice-launcher__orb" />
+            </button>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 };
