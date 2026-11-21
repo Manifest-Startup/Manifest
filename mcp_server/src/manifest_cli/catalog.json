@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "ca46af12f5ddccdc9685cfad897e848f2884d50650de2f8492334bc2d07839b8",
+ "schema_sha256": "223d8aeff40459ae46511b173ecea7d632e329b8a300bafd5a52f5c56ee4d571",
  "operations": [
   {
    "name": "me",
@@ -1426,6 +1426,36 @@
      "description": ""
     }
    ]
+  },
+  {
+   "name": "customerDiscovery",
+   "command": "customer-discovery",
+   "kind": "query",
+   "description": "Read the customer discovery saved for an idea: research, segments, prospects and prepared emails. Cheap; call it before redoing any step.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "discoveryCapabilities",
+   "command": "discovery-capabilities",
+   "kind": "query",
+   "description": "Which research and email connectors work right now (web search, Apollo.io, Gmail) and how to enable the rest.",
+   "destructive": false,
+   "returns": "[DiscoveryCapability!]!",
+   "selection": "{ name available provider hint }",
+   "args": []
   },
   {
    "name": "adminCostOverview",
@@ -4009,6 +4039,234 @@
      "kind": "scalar",
      "required": false,
      "default": true,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "researchMarket",
+   "command": "research-market",
+   "kind": "mutation",
+   "description": "Research the idea's market on the live web: competitors and their gaps, customer complaints, willingness to pay, three customer segments with a recommended first one, and a business model (as hypotheses). Pass what the founder just said as notes, and the product's site as website. Reuses research under a week old unless refresh is true. Uses your OpenAI key; takes about a minute.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "notes",
+     "flag": "--notes",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "website",
+     "flag": "--website",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "refresh",
+     "flag": "--refresh",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "findProspects",
+   "command": "find-prospects",
+   "kind": "mutation",
+   "description": "Find real companies that might buy, for the chosen segment (default: the recommended one), each with evidence of need, an explainable score and what is still unverified. Uses Apollo.io when the server has it, otherwise web search; websites are checked. more=true adds to the current list; exclude skips companies by name. About a minute.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "segment",
+     "flag": "--segment",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "count",
+     "flag": "--count",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 5,
+     "description": ""
+    },
+    {
+     "name": "exclude",
+     "flag": "--exclude",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "more",
+     "flag": "--more",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "excludeProspects",
+   "command": "exclude-prospects",
+   "kind": "mutation",
+   "description": "Drop prospects by name (or id) and never suggest them again for this idea.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "names",
+     "flag": "--names",
+     "type": "[String!]!",
+     "kind": "list",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "draftOutreach",
+   "command": "draft-outreach",
+   "kind": "mutation",
+   "description": "Write one short, personal customer-discovery email per prospect (all of them, or the names/ids given), using only the evidence found. Nothing is sent. Uses your OpenAI key.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "prospects",
+     "flag": "--prospects",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "senderName",
+     "flag": "--sender-name",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "saveCustomerDiscovery",
+   "command": "save-customer-discovery",
+   "kind": "mutation",
+   "description": "Save customer discovery you researched yourself (use this when the person has no OpenAI key and you have web search). work may hold research, segment, icp, prospects (append: true to add) and outreach, in the shapes customer_discovery returns. Every prospect needs a source URL; unsourced findings are stored as hypotheses.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "work",
+     "flag": "--work",
+     "type": "JSON!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "createOutreachEmailDrafts",
+   "command": "create-outreach-email-drafts",
+   "kind": "mutation",
+   "description": "Save the prepared emails (all, or the names/ids given) as drafts in the person's connected Gmail. Never sends; emails already in Gmail are not duplicated. Ask first.",
+   "destructive": true,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "prospects",
+     "flag": "--prospects",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
      "description": ""
     }
    ]

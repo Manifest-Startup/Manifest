@@ -488,6 +488,8 @@ def list_recent_runs(*, db, user_id: str, limit: int = 20) -> list[dict[str, Any
 ESTIMATED_COST_USD_PER_RUN: dict[str, float] = {
     "qualification": 0.002,
     "partner_discovery": 0.005,
+    # Grounded web search (search-preview models) plus a structured answer.
+    "customer_discovery": 0.03,
     "bmc_customer_segments": 0.004,
     "bmc_value_propositions": 0.004,
     "bmc_channels": 0.004,

@@ -48,11 +48,16 @@ CORE_TOOLS: tuple[str, ...] = (
     "reply_in_inbox",
     "unread_message_count",
     "put_vault_file",
+    "customer_discovery",
+    "research_market",
+    "find_prospects",
+    "draft_outreach",
 )
 
 # Answers longer than this are cut before they reach the model (speech needs gist, not dumps).
-MAX_RESULT_CHARS = 6000
-REQUEST_TIMEOUT_SECONDS = 60.0
+MAX_RESULT_CHARS = 10000
+# Market and prospect research search the live web; stay under the edge proxy's 100 s.
+REQUEST_TIMEOUT_SECONDS = 95.0
 AUTH_ERROR = re.compile(r"not authenticated|authentication required|unauthori[sz]ed", re.I)
 
 # Client-side actions the browser performs (navigation and workspace controls).
@@ -99,6 +104,13 @@ TOOL_LABELS: dict[str, str] = {
     "send_message": "Sending the message",
     "unread_message_count": "Counting unread messages",
     "put_vault_file": "Saving to your vault",
+    "customer_discovery": "Checking the customer research",
+    "research_market": "Researching the market",
+    "find_prospects": "Researching potential customers",
+    "exclude_prospects": "Updating the prospect list",
+    "draft_outreach": "Drafting the emails",
+    "create_outreach_email_drafts": "Saving drafts to Gmail",
+    "save_customer_discovery": "Saving the customer research",
     "delete_idea": "Deleting the idea",
     "toggle_publish_idea": "Changing who can see the idea",
     "invite_collaborator": "Inviting a collaborator",
@@ -161,6 +173,17 @@ def _clip(value: Any) -> Any:
     text = json.dumps(value, ensure_ascii=False, default=str)
     if len(text) <= MAX_RESULT_CHARS:
         return value
+    if isinstance(value, dict):  # keep short fields (summaries, status) whole; cut the bulk
+        small = {
+            k: v
+            for k, v in value.items()
+            if len(json.dumps(v, ensure_ascii=False, default=str)) <= 500
+        }
+        budget = MAX_RESULT_CHARS - len(json.dumps(small, ensure_ascii=False, default=str))
+        if small and budget > 500:
+            rest = {k: v for k, v in value.items() if k not in small}
+            preview = json.dumps(rest, ensure_ascii=False, default=str)[:budget]
+            return {**small, "truncated": True, "preview": preview}
     return {"truncated": True, "preview": text[:MAX_RESULT_CHARS]}
 
 

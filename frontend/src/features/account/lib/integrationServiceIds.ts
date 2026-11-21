@@ -5,6 +5,7 @@
 export const integrationServiceIds = [
   'open_media',
   'google',
+  'gmail',
   'apple',
   'microsoft',
   'notion',

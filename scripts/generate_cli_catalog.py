@@ -43,6 +43,8 @@ _DESTRUCTIVE_EXTRA = {
     "github_merge_pull_request",
     "github_update_repo",
     "github_api_request",
+    # Writes into the person's Gmail (drafts only, never sent): ask first.
+    "create_outreach_email_drafts",
 }
 # Commands the CLI itself owns; a schema field with one of these names would be shadowed.
 RESERVED_COMMANDS = {

@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "89e4c1eebcf2bc68332f96b01f5ebff559b9dd95fac4871ec959172a220f089a",
+ "catalog_sha256": "6764c8a0a8edfd3e016c8df8c4b9ecf559a28dfff449e3ea39fc377d32141b5e",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -784,6 +784,49 @@
    }
   },
   {
+   "name": "create_outreach_email_drafts",
+   "title": "Create outreach email drafts",
+   "description": "Save the prepared emails (all, or the names/ids given) as drafts in the person's connected Gmail. Never sends; emails already in Gmail are not duplicated. Ask first. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "prospects": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Create outreach email drafts",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "createOutreachEmailDrafts",
+    "document": "mutation CreateOutreachEmailDrafts($ideaId: String!, $prospects: [String!]) { createOutreachEmailDrafts(ideaId: $ideaId, prospects: $prospects) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "prospects"
+    ]
+   }
+  },
+  {
    "name": "create_pitch_reel_comment",
    "title": "Create pitch reel comment",
    "description": "Comment on a pitch reel's Open Media clip. Changes the person's Manifest account; say what you will do before calling.",
@@ -817,6 +860,38 @@
     "variables": [
      "reelId",
      "body"
+    ]
+   }
+  },
+  {
+   "name": "customer_discovery",
+   "title": "Customer discovery",
+   "description": "Read the customer discovery saved for an idea: research, segments, prospects and prepared emails. Cheap; call it before redoing any step.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Customer discovery",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "customerDiscovery",
+    "document": "query CustomerDiscovery($ideaId: String!) { customerDiscovery(ideaId: $ideaId) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId"
     ]
    }
   },
@@ -921,6 +996,29 @@
    }
   },
   {
+   "name": "discovery_capabilities",
+   "title": "Discovery capabilities",
+   "description": "Which research and email connectors work right now (web search, Apollo.io, Gmail) and how to enable the rest.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Discovery capabilities",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "discoveryCapabilities",
+    "document": "query DiscoveryCapabilities { discoveryCapabilities { name available provider hint } }",
+    "variables": []
+   }
+  },
+  {
    "name": "document_guide",
    "title": "Document guide",
    "description": "Manifest's own instructions for writing a document yourself (business_model_canvas, pitch_deck, product_requirements_document, provisional_patent, similar_ideas). Use it when the person has no OpenAI key: write the document following it, then save_idea_document.",
@@ -949,6 +1047,49 @@
     "document": "query DocumentGuide($documentType: String!) { documentGuide(documentType: $documentType) { documentType title system instructions saveWith } }",
     "variables": [
      "documentType"
+    ]
+   }
+  },
+  {
+   "name": "draft_outreach",
+   "title": "Draft outreach",
+   "description": "Write one short, personal customer-discovery email per prospect (all of them, or the names/ids given), using only the evidence found. Nothing is sent. Uses your OpenAI key. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "prospects": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "senderName": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Draft outreach",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "draftOutreach",
+    "document": "mutation DraftOutreach($ideaId: String!, $prospects: [String!], $senderName: String) { draftOutreach(ideaId: $ideaId, prospects: $prospects, senderName: $senderName) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "prospects",
+     "senderName"
     ]
    }
   },
@@ -1217,6 +1358,46 @@
    }
   },
   {
+   "name": "exclude_prospects",
+   "title": "Exclude prospects",
+   "description": "Drop prospects by name (or id) and never suggest them again for this idea. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "names": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "names"
+    ]
+   },
+   "annotations": {
+    "title": "Exclude prospects",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "excludeProspects",
+    "document": "mutation ExcludeProspects($ideaId: String!, $names: [String!]!) { excludeProspects(ideaId: $ideaId, names: $names) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "names"
+    ]
+   }
+  },
+  {
    "name": "export_ideas",
    "title": "Export ideas",
    "description": "Export all user's ideas in the specified format (json, csv, markdown). Changes the person's Manifest account; say what you will do before calling.",
@@ -1243,6 +1424,59 @@
     "document": "mutation ExportIdeas($format: String) { exportIdeas(format: $format) { content format filename } }",
     "variables": [
      "format"
+    ]
+   }
+  },
+  {
+   "name": "find_prospects",
+   "title": "Find prospects",
+   "description": "Find real companies that might buy, for the chosen segment (default: the recommended one), each with evidence of need, an explainable score and what is still unverified. Uses Apollo.io when the server has it, otherwise web search; websites are checked. more=true adds to the current list; exclude skips companies by name. About a minute. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "segment": {
+      "type": "string"
+     },
+     "count": {
+      "type": "integer",
+      "default": 5
+     },
+     "exclude": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "more": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Find prospects",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "findProspects",
+    "document": "mutation FindProspects($ideaId: String!, $segment: String, $count: Int, $exclude: [String!], $more: Boolean) { findProspects(ideaId: $ideaId, segment: $segment, count: $count, exclude: $exclude, more: $more) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "segment",
+     "count",
+     "exclude",
+     "more"
     ]
    }
   },
@@ -4757,6 +4991,51 @@
    }
   },
   {
+   "name": "research_market",
+   "title": "Research market",
+   "description": "Research the idea's market on the live web: competitors and their gaps, customer complaints, willingness to pay, three customer segments with a recommended first one, and a business model (as hypotheses). Pass what the founder just said as notes, and the product's site as website. Reuses research under a week old unless refresh is true. Uses your OpenAI key; takes about a minute. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "notes": {
+      "type": "string"
+     },
+     "website": {
+      "type": "string"
+     },
+     "refresh": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Research market",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "researchMarket",
+    "document": "mutation ResearchMarket($ideaId: String!, $notes: String, $website: String, $refresh: Boolean) { researchMarket(ideaId: $ideaId, notes: $notes, website: $website, refresh: $refresh) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "notes",
+     "website",
+     "refresh"
+    ]
+   }
+  },
+  {
    "name": "reshare_pitch_reel",
    "title": "Reshare pitch reel",
    "description": "Reshare (or undo) a pitch reel's clip on the viewer's Open Media profile. Changes the person's Manifest account; say what you will do before calling.",
@@ -5010,6 +5289,41 @@
      "ideaId",
      "sectionName",
      "content"
+    ]
+   }
+  },
+  {
+   "name": "save_customer_discovery",
+   "title": "Save customer discovery",
+   "description": "Save customer discovery you researched yourself (use this when the person has no OpenAI key and you have web search). work may hold research, segment, icp, prospects (append: true to add) and outreach, in the shapes customer_discovery returns. Every prospect needs a source URL; unsourced findings are stored as hypotheses. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "work": {}
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "work"
+    ]
+   },
+   "annotations": {
+    "title": "Save customer discovery",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "saveCustomerDiscovery",
+    "document": "mutation SaveCustomerDiscovery($ideaId: String!, $work: JSON!) { saveCustomerDiscovery(ideaId: $ideaId, work: $work) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "work"
     ]
    }
   },
