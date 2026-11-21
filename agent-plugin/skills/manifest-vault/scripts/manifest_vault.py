@@ -12,10 +12,15 @@ It needs only Python 3.9+ (standard library) and works offline; changes sync whe
     manifest_vault.py watch [--interval S]        run the sync loop in this terminal
     manifest_vault.py sync  EXPORT.json | -       write a vault_export result (agents, offline)
     manifest_vault.py note  --title T [--idea "Idea title" ...] [--tag t ...] [TEXT | -]
-    manifest_vault.py since | where               last export time | the vault folder
+    manifest_vault.py since | where [--json]      last export time | the vault folder
+    manifest_vault.py move  DEST [--json]         move the vault (``icloud``, ``documents``,
+                                                  ``home`` or a path) and remember it
+    manifest_vault.py icon                        give the vault folder the Manifest icon (macOS)
 
-The vault is ``$MANIFEST_VAULT`` or ``~/Manifest Vault`` unless ``--vault`` says otherwise; it can
-also be an existing Obsidian vault (everything Manifest writes lives under ``Manifest/``).
+The vault folder is ``--vault``, else ``$MANIFEST_VAULT``, else the folder saved by ``move`` (in
+``~/.config/manifest/vault.json``, shared with the ``manifest`` CLI, its bridge and the app), else
+``~/Manifest Vault``. It can also be an existing Obsidian vault (everything Manifest writes lives
+under ``Manifest/``).
 
 What syncs: ``Manifest/`` comes down from your account. Your own files (``Notes/`` and any other
 .md, .txt or .canvas file outside ``Manifest/``) and your writing around the generated block in
@@ -150,9 +155,57 @@ class SignedOut(Exception):
 # -- local vault ---------------------------------------------------------------------------
 
 
+DEFAULT_VAULT_NAME = "Manifest Vault"
+ICLOUD_DRIVE = Path.home() / "Library/Mobile Documents/com~apple~CloudDocs"
+# Places a person can name instead of a path ("move it to iCloud").
+PLACES = {
+    "icloud": ICLOUD_DRIVE,
+    "icloud drive": ICLOUD_DRIVE,
+    "documents": Path.home() / "Documents",
+    "home": Path.home(),
+}
+
+
+def vault_setting_path() -> Path:
+    """The saved vault folder, beside cli.json: ~/.config/manifest/vault.json."""
+    return config_path().parent / "vault.json"
+
+
+def saved_vault() -> str | None:
+    try:
+        data = json.loads(vault_setting_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    folder = data.get("folder") if isinstance(data, dict) else None
+    return folder if isinstance(folder, str) and folder.strip() else None
+
+
+def save_vault_setting(folder: Path) -> None:
+    path = vault_setting_path()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps({"folder": str(folder)}, indent=1) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def vault_source(arg: str | None) -> tuple[str, str]:
+    """(folder, where it came from: flag, env, setting or default)."""
+    if arg:
+        return arg, "flag"
+    if os.environ.get("MANIFEST_VAULT"):
+        return os.environ["MANIFEST_VAULT"], "env"
+    saved = saved_vault()
+    if saved:
+        return saved, "setting"
+    return str(Path.home() / DEFAULT_VAULT_NAME), "default"
+
+
 def vault_dir(arg: str | None) -> Path:
-    raw = arg or os.environ.get("MANIFEST_VAULT") or str(Path.home() / "Manifest Vault")
-    return Path(raw).expanduser().resolve()
+    return Path(vault_source(arg)[0]).expanduser().resolve()
+
+
+def in_icloud(path: Path) -> bool:
+    return path == ICLOUD_DRIVE.resolve() or ICLOUD_DRIVE.resolve() in path.parents
 
 
 def safe_name(text: str, fallback: str = "Untitled") -> str:
@@ -239,10 +292,64 @@ def write_file(root: Path, relative: str, content: str, readmes: bool) -> str:
     return "updated"
 
 
+# The folder icon (macOS): the system folder with the Manifest mark on it, the way Finder shows
+# an app's iCloud folder (Obsidian, Pages). Drawn from the current system folder icon so it
+# matches the macOS version and accent; Finder keeps it in the folder's hidden "Icon\r" file.
+ICON_JS = r"""
+ObjC.import('AppKit');
+function run(argv) {
+  const [svg, folder] = argv;
+  const S = 1024;
+  const base = $.NSWorkspace.sharedWorkspace.iconForFileType('public.folder');
+  base.size = $.NSMakeSize(S, S);
+  const mark = $.NSImage.alloc.initWithContentsOfFile(svg);
+  if (!mark || mark.isNil()) return 'no-mark';
+  const img = $.NSImage.alloc.initWithSize($.NSMakeSize(S, S));
+  img.lockFocus;
+  base.drawInRectFromRectOperationFraction($.NSMakeRect(0, 0, S, S), $.NSZeroRect,
+    $.NSCompositingOperationSourceOver, 1);
+  const m = S * 0.36;
+  mark.drawInRectFromRectOperationFraction($.NSMakeRect((S - m) / 2, S * 0.29, m, m),
+    $.NSZeroRect, $.NSCompositingOperationSourceOver, 1);
+  img.unlockFocus;
+  return $.NSWorkspace.sharedWorkspace.setIconForFileOptions(img, folder, 0) ? 'ok' : 'failed';
+}
+"""
+
+
+def has_folder_icon(root: Path) -> bool:
+    return (root / "Icon\r").exists()
+
+
+def set_folder_icon(root: Path) -> bool:
+    """Give the vault folder the Manifest icon. macOS only; False if it couldn't."""
+    if platform.system() != "Darwin" or not root.is_dir() or not shutil.which("osascript"):
+        return False
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="manifest-icon-") as tmp:
+        svg, js = Path(tmp) / "mark.svg", Path(tmp) / "icon.js"
+        svg.write_text(LOGO_SVG, encoding="utf-8")
+        js.write_text(ICON_JS, encoding="utf-8")
+        try:
+            done = subprocess.run(
+                ["osascript", "-l", "JavaScript", str(js), str(svg), str(root)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+    return done.returncode == 0 and done.stdout.strip() == "ok"
+
+
 def ensure_branding(root: Path) -> None:
-    """The Manifest logo beside Home.md, the root README, and an Obsidian snippet that styles
-    Home. Each is written once; edits and a disabled snippet are respected."""
+    """The Manifest logo beside Home.md, the root README, the folder icon (macOS) and an
+    Obsidian snippet that styles Home. Each is written once; edits and a disabled snippet
+    are respected."""
     root.mkdir(parents=True, exist_ok=True)
+    if not has_folder_icon(root):
+        set_folder_icon(root)
     if not (root / "README.md").exists():
         atomic_write(root / "README.md", README)
     logo = root / LOGO_PATH
@@ -936,10 +1043,54 @@ def _service_paths() -> tuple[Path, Path, Path]:
     )
 
 
-def _plist(python: str, script: Path, root: Path, log: Path) -> str:
-    args = "".join(
-        f"\n    <string>{a}</string>" for a in (python, str(script), "watch", "--vault", str(root))
-    )
+APP_NAME = "Manifest Vault Sync"
+APP_INFO = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>{SERVICE_LABEL}</string>
+  <key>CFBundleName</key><string>{APP_NAME}</string>
+  <key>CFBundleExecutable</key><string>manifest-vault-sync</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1</string>
+  <key>LSBackgroundOnly</key><true/>
+  <key>NSFileProviderDomainUsageDescription</key>
+  <string>Manifest keeps your vault in sync when it's in iCloud Drive or another cloud folder.</string>
+</dict>
+</plist>
+"""
+
+
+def sync_app(base: Path) -> Path | None:
+    """macOS: a tiny signed app that background sync runs through, so it may use a vault in
+    iCloud Drive (macOS blocks plain background jobs there with "Operation not permitted").
+    Its executable is a copy of /usr/bin/env, so no compiler is needed. Built once and kept,
+    so a permission the person grants stays valid. None if it can't be built."""
+    app = base / f"{APP_NAME}.app"
+    exe = app / "Contents/MacOS/manifest-vault-sync"
+
+    def codesign(*args: str) -> bool:
+        try:
+            done = subprocess.run(["codesign", *args, str(app)], capture_output=True, timeout=60)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return done.returncode == 0
+
+    if exe.exists() and codesign("--verify"):
+        return exe
+    try:
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        (app / "Contents/Info.plist").write_text(APP_INFO, encoding="utf-8")
+        shutil.copyfile("/usr/bin/env", exe)  # contents only: env's system flags can't be copied
+        exe.chmod(0o755)
+    except OSError:
+        return None
+    return exe if codesign("--sign", "-", "--force") else None
+
+
+def _plist(python: str, script: Path, root: Path, log: Path, launcher: Path | None = None) -> str:
+    program = ([str(launcher)] if launcher else []) + [python, str(script)]
+    args = "".join(f"\n    <string>{a}</string>" for a in (*program, "watch", "--vault", str(root)))
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -968,14 +1119,22 @@ def cmd_install(ns: argparse.Namespace) -> int:
     root = vault_dir(ns.vault)
     if not token():
         raise SystemExit("Sign in first: `manifest_vault.py login`.")
+    _install_service(root)
+    return 0
+
+
+def _install_service(root: Path) -> None:
     script, service, log = _service_paths()
     script.parent.mkdir(parents=True, exist_ok=True)
     log.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(Path(__file__).resolve(), script)  # survives plugin updates and cache clears
+    here = Path(__file__).resolve()
+    if here != script.resolve():  # already running the installed copy (a move from the app)
+        shutil.copy2(here, script)  # survives plugin updates and cache clears
     system = platform.system()
     if system == "Darwin":
         service.parent.mkdir(parents=True, exist_ok=True)
-        service.write_text(_plist(sys.executable, script, root, log), encoding="utf-8")
+        launcher = sync_app(script.parent)
+        service.write_text(_plist(sys.executable, script, root, log, launcher), encoding="utf-8")
         domain = f"gui/{os.getuid()}"
         subprocess.run(["launchctl", "bootout", f"{domain}/{SERVICE_LABEL}"], capture_output=True)
         subprocess.run(["launchctl", "bootstrap", domain, str(service)], check=True)
@@ -997,7 +1156,132 @@ def cmd_install(ns: argparse.Namespace) -> int:
             f'at log-on that runs: "{sys.executable}" "{script}" watch --vault "{root}"'
         )
     print(f"Background sync is on for {root}. It starts at login; log: {log}")
+
+
+def _stop_service() -> None:
+    if platform.system() == "Darwin":
+        subprocess.run(
+            ["launchctl", "bootout", f"gui/{os.getuid()}/{SERVICE_LABEL}"], capture_output=True
+        )
+        # bootout returns before the process is gone; wait so it can't write mid-move.
+        for _ in range(50):
+            out = subprocess.run(
+                ["launchctl", "print", f"gui/{os.getuid()}/{SERVICE_LABEL}"],
+                capture_output=True,
+            )
+            if out.returncode != 0:
+                break
+            time.sleep(0.1)
+    elif platform.system() == "Linux":
+        subprocess.run(
+            ["systemctl", "--user", "stop", "manifest-vault-sync.service"], capture_output=True
+        )
+
+
+def move_target(dest: str, current: Path) -> Path:
+    """Where `move DEST` puts the vault. A named place or an existing folder gets the vault
+    inside it (like `mv`); any other path is the new vault folder itself."""
+    place = PLACES.get(dest.strip().lower())
+    if place is not None:
+        return (place / current.name).resolve()
+    target = Path(dest).expanduser()
+    if not target.is_absolute():
+        raise SystemExit("Give the new place as a full path, or icloud, documents or home.")
+    target = target.resolve()
+    if target.is_dir() and target != current and not (target / LOGO_PATH).exists():
+        return target / current.name
+    return target
+
+
+def move_vault(current: Path, target: Path) -> dict[str, Any]:
+    """Move the vault folder and remember it. Never overwrites or deletes anything."""
+    if target == current:
+        save_vault_setting(target)
+        return {"folder": str(target), "moved": False, "note": "already there"}
+    if current in target.parents:
+        raise SystemExit("The new place can't be inside the vault itself.")
+    if target.exists() and (not target.is_dir() or any(target.iterdir())):
+        raise SystemExit(f"{target} already exists and isn't empty; choose another place.")
+    if not target.parent.is_dir():
+        raise SystemExit(f"{target.parent} doesn't exist.")
+    _, service, _ = _service_paths()
+    background = service.exists()
+    if background:
+        _stop_service()
+    moved = False
+    try:
+        if current.is_dir():
+            if target.exists():
+                target.rmdir()  # empty (checked above)
+            shutil.move(str(current), str(target))
+            moved = True
+        else:
+            target.mkdir(parents=True, exist_ok=True)
+        save_vault_setting(target)
+    finally:
+        if background:  # restart on the new folder, or on the old one if the move failed
+            _install_service(target if moved or not current.is_dir() else current)
+    icon = set_folder_icon(target)
+    return {"folder": str(target), "from": str(current), "moved": moved, "icon": icon}
+
+
+def cmd_move(ns: argparse.Namespace) -> int:
+    current = vault_dir(ns.vault)
+    target = move_target(ns.dest, current)
+    result = move_vault(current, target)
+    if (
+        os.environ.get("MANIFEST_VAULT")
+        and Path(os.environ["MANIFEST_VAULT"]).expanduser().resolve() != target
+    ):
+        result["warning"] = (
+            "MANIFEST_VAULT is set in this shell and still points at the old folder; remove it."
+        )
+    if ns.json:
+        print(json.dumps(result))
+    else:
+        if result.get("moved"):
+            print(f"Moved your vault to {result['folder']}.")
+        elif result.get("note"):
+            print(f"Your vault is already at {result['folder']}.")
+        else:
+            print(f"Your vault will live at {result['folder']}.")
+        if result.get("warning"):
+            print(result["warning"])
     return 0
+
+
+def cmd_where(ns: argparse.Namespace) -> int:
+    raw, source = vault_source(ns.vault)
+    root = Path(raw).expanduser().resolve()
+    if not ns.json:
+        print(root)
+        return 0
+    _, service, _ = _service_paths()
+    print(
+        json.dumps(
+            {
+                "folder": str(root),
+                "source": source,
+                "exists": root.is_dir(),
+                "icloud": in_icloud(root),
+                "icloud_available": ICLOUD_DRIVE.is_dir(),
+                "background_sync": service.exists(),
+                "places": {
+                    k: str(v) for k, v in PLACES.items() if k != "icloud drive" and v.is_dir()
+                },
+            }
+        )
+    )
+    return 0
+
+
+def cmd_icon(ns: argparse.Namespace) -> int:
+    root = vault_dir(ns.vault)
+    ok = set_folder_icon(root)
+    print(
+        "The vault folder has the Manifest icon." if ok else "Couldn't set the icon (macOS only)."
+    )
+    return 0 if ok else 1
 
 
 def cmd_uninstall(ns: argparse.Namespace) -> int:
@@ -1089,7 +1373,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
-        "--vault", help="vault folder (default: $MANIFEST_VAULT or ~/Manifest Vault)"
+        "--vault",
+        help="vault folder (default: $MANIFEST_VAULT, the saved folder, or ~/Manifest Vault)",
     )
     common.add_argument(
         "--folder-readmes", action="store_true", help="add a README.md to new folders"
@@ -1119,12 +1404,17 @@ def main(argv: list[str] | None = None) -> int:
     note.add_argument("--tag", action="append")
     note.add_argument("text", nargs="?", default="-", help="note text, or - for stdin")
     sub.add_parser("since", parents=[common], help="print the last export time")
-    sub.add_parser("where", parents=[common], help="print the vault folder")
+    where = sub.add_parser("where", parents=[common], help="print the vault folder")
+    where.add_argument("--json", action="store_true", help="folder, source and places as JSON")
+    move = sub.add_parser("move", parents=[common], help="move the vault folder and remember it")
+    move.add_argument("dest", help="icloud, documents, home, or a full path")
+    move.add_argument("--json", action="store_true")
+    sub.add_parser("icon", parents=[common], help="give the vault folder the Manifest icon")
     ns = parser.parse_args(argv)
-    if ns.cmd == "where":
-        print(vault_dir(ns.vault))
-        return 0
     commands = {
+        "where": cmd_where,
+        "move": cmd_move,
+        "icon": cmd_icon,
         "sync": cmd_sync,
         "watch": cmd_watch,
         "login": cmd_login,

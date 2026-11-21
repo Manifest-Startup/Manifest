@@ -28,6 +28,7 @@ BUILTINS: dict[str, str] = {
     "whoami": "Show who you are signed in as, and where.",
     "voice": "Talk to Manifest out loud: it can do everything the CLI can.",
     "bridge": "Let the Manifest app use Claude Code or Codex on this computer (no OpenAI key).",
+    "vault-folder": "Show or move this computer's vault folder: manifest vault-folder icloud.",
     "commands": "List every command (filter with --search).",
     "graphql": "Run any GraphQL document (escape hatch).",
     "api": "Call any REST endpoint: manifest api GET /api/keys/usage.",
@@ -602,6 +603,37 @@ def cmd_voice(ctx: Context, argv: list[str]) -> int:
     )
 
 
+def cmd_vault_folder(ctx: Context, argv: list[str]) -> int:
+    from manifest_cli import vault_folder
+
+    parser = _sub(
+        "vault-folder",
+        BUILTINS["vault-folder"],
+        epilog="With no place, shows where the vault is. A place moves the whole folder there\n"
+        "(nothing is deleted), restarts background sync and remembers it for the app,\n"
+        "voice and agents. Examples: manifest vault-folder icloud · manifest vault-folder\n"
+        "~/Dropbox/Notes",
+    )
+    parser.add_argument("place", nargs="?", help="icloud, documents, home, or a full path")
+    ns = parser.parse_args(argv)
+    try:
+        result = vault_folder.move(ns.place) if ns.place else vault_folder.where()
+    except vault_folder.VaultFolderError as exc:
+        raise CliError(str(exc)) from exc
+    if ns.json:
+        ctx.out.write(json.dumps(result) + "\n")
+    elif ns.place:
+        verb = "Moved your vault to" if result.get("moved") else "Your vault is at"
+        ctx.out.write(f"{verb} {result['folder']}\n")
+        if result.get("warning"):
+            ctx.out.write(f"{result['warning']}\n")
+    else:
+        ctx.out.write(f"{result['folder']}\n")
+        if result.get("icloud"):
+            ctx.out.write("It's in iCloud Drive, so it's on your other Apple devices too.\n")
+    return 0
+
+
 def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     from manifest_cli import bridge
     from manifest_cli.agents import make_agent, missing_agent
@@ -706,6 +738,7 @@ def dispatch(ctx: Context, argv: list[str]) -> int:
         "whoami": cmd_whoami,
         "voice": cmd_voice,
         "bridge": cmd_bridge,
+        "vault-folder": cmd_vault_folder,
         "commands": cmd_commands,
         "graphql": cmd_graphql,
         "api": cmd_api,

@@ -5,9 +5,12 @@ description: "Keep the founder's ideas, Manifest documents and their own notes a
 
 # Local vault and knowledge graph
 
-The vault is a folder of Markdown files the person owns: `$MANIFEST_VAULT`, or `~/Manifest Vault` by default (`manifest_vault.py where` prints it; an existing Obsidian vault works too, Manifest only writes under `Manifest/`). Obsidian's Graph view turns it into a knowledge graph: ideas link to their documents, the skills they need, related ideas, interviews and notes.
+The vault is a folder of Markdown files the person owns: the folder saved by `manifest_vault.py move` (in `~/.config/manifest/vault.json`), or `$MANIFEST_VAULT`, or `~/Manifest Vault` by default (`manifest_vault.py where` prints it; an existing Obsidian vault works too, Manifest only writes under `Manifest/`). On macOS the folder gets the Manifest folder icon. Obsidian's Graph view turns it into a knowledge graph: ideas link to their documents, the skills they need, related ideas, interviews and notes.
 
 The helper is `scripts/manifest_vault.py` next to this file (Claude Code: `${CLAUDE_PLUGIN_ROOT}/skills/manifest-vault/scripts/manifest_vault.py`; run it with `python3`). It needs Python 3.9+, uses only the standard library and works offline; changes sync when back online. It never deletes anything, keeps the person's own writing outside the generated block, and never overwrites a file it didn't write. You need a local shell for it; hosts without one (claude.ai, ChatGPT) can't keep a local vault, so say so.
+
+## Move the vault folder
+When the person asks to move the vault ("put my vault in iCloud"), run `manifest_vault.py move icloud` (or `documents`, `home`, or a full path; `--json` for a result to read). It moves the whole folder without overwriting anything, saves the choice for the app, voice and every agent, restarts background sync on the new folder and sets the folder icon. With the `manifest` CLI installed, `manifest vault-folder [place]` does the same. In the app it's Settings → Storage → Vault folder on this computer (through `manifest bridge`). If `$MANIFEST_VAULT` is set, it overrides the saved folder; tell them to remove it.
 
 ## Save notes as the person talks
 Whenever the person describes an idea, thinks out loud, or dictates a note, save it right away; don't wait to be asked twice:

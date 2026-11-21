@@ -9,6 +9,14 @@ import {
   vaultSupported,
 } from "./mode";
 import type { SyncStatus } from "./cloudSync";
+import {
+  friendlyPath,
+  getComputerVault,
+  localNetworkGranted,
+  moveComputerVault,
+  type ComputerVault,
+} from "./computerFolder";
+import { BRIDGE_INSTALL_COMMAND } from "features/voice/localAgent";
 
 /**
  * Settings → Storage (ADR 0011, 0012): keep ideas in a folder on this computer (synced by
@@ -120,6 +128,128 @@ const CloudSyncPanel: React.FC = () => {
   );
 };
 
+/**
+ * The vault folder on this computer (background sync, agents, voice), through `manifest
+ * bridge`. Moving it keeps every file; voice can do the same ("move my vault to iCloud").
+ */
+export const ComputerVaultPanel: React.FC = () => {
+  const [vault, setVault] = useState<ComputerVault | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [custom, setCustom] = useState("");
+
+  const look = async () => {
+    setVault(undefined);
+    setVault(await getComputerVault());
+  };
+
+  useEffect(() => {
+    // Look only when Chrome already lets Manifest reach this computer (voice asked before);
+    // otherwise wait for a click, so opening Settings never raises a permission prompt.
+    void localNetworkGranted().then((granted) => (granted ? look() : setVault(null)));
+  }, []);
+
+  const move = async (place: string) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await moveComputerVault(place);
+      const next = await getComputerVault();
+      setVault(next);
+      const where = next ? friendlyPath(result.folder, next.places) : result.folder;
+      setMessage({
+        tone: "ok",
+        text: `${result.moved ? "Moved your vault to" : "Your vault is in"} ${where}.${result.warning ? ` ${result.warning}` : ""}`,
+      });
+      setCustom("");
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Couldn't move the vault." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="manifest-sync-panel" aria-labelledby="computer-vault-title">
+      <h3 id="computer-vault-title">Vault folder on this computer</h3>
+      {vault === undefined ? (
+        <p>Looking for your vault…</p>
+      ) : vault === null ? (
+        <>
+          <p>
+            Your agents, voice and background sync keep a vault folder on this computer. To see or move it from
+            here, run <code>{BRIDGE_INSTALL_COMMAND}</code> once, then look again. You can also just ask voice:
+            “move my vault to iCloud Drive”.
+          </p>
+          <button type="button" className="manifest-vault-secondary" onClick={() => void look()}>
+            Find my vault folder
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="manifest-sync-state">
+            <strong>{friendlyPath(vault.folder, vault.places)}</strong>
+            {vault.icloud ? " · in iCloud Drive, on all your Apple devices" : ""}
+            {vault.background_sync ? " · syncing in the background" : ""}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {!vault.icloud && vault.icloud_available ? (
+              <button
+                type="button"
+                className="manifest-vault-primary"
+                disabled={busy}
+                onClick={() => void move("icloud")}
+              >
+                Move to iCloud Drive
+              </button>
+            ) : null}
+            {vault.places.documents && !vault.folder.startsWith(`${vault.places.documents}/`) ? (
+              <button
+                type="button"
+                className="manifest-vault-secondary"
+                disabled={busy}
+                onClick={() => void move("documents")}
+              >
+                Move to Documents
+              </button>
+            ) : null}
+          </div>
+          <form
+            className="mt-4 flex flex-wrap gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (custom.trim()) void move(custom.trim());
+            }}
+          >
+            <label className="sr-only" htmlFor="vault-folder-path">
+              Another folder
+            </label>
+            <input
+              id="vault-folder-path"
+              className="manifest-field min-w-0 flex-1"
+              placeholder="Or another folder, e.g. ~/Dropbox/Notes"
+              value={custom}
+              disabled={busy}
+              onChange={(event) => setCustom(event.target.value)}
+            />
+            <button type="submit" className="manifest-vault-secondary" disabled={busy || !custom.trim()}>
+              {busy ? "Moving…" : "Move"}
+            </button>
+          </form>
+          {message ? (
+            <p
+              className={message.tone === "error" ? "manifest-sync-error" : "manifest-sync-report"}
+              role={message.tone === "error" ? "alert" : "status"}
+            >
+              {message.text}
+            </p>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+};
+
 export const StorageSection: React.FC = () => {
   const vault = isVaultMode();
   const supported = vaultSupported();
@@ -163,6 +293,7 @@ export const StorageSection: React.FC = () => {
       </p>
 
       {vault ? <CloudSyncPanel /> : null}
+      <ComputerVaultPanel />
 
       <div className="mt-5 flex flex-wrap gap-3">
         {vault ? (
