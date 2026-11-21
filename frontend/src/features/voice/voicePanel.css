@@ -231,7 +231,9 @@
   color: var(--text-secondary);
 }
 .manifest-voice-launcher {
-  position: relative;
+  /* Fixed here, not only via Tailwind's `fixed`: this sheet loads lazily after the
+     utilities, so any other position would win and drop the pill into the page flow. */
+  position: fixed;
   isolation: isolate;
   display: inline-flex;
   align-items: center;
