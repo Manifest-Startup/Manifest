@@ -26,9 +26,9 @@ export const VOICE_COMMAND_CATALOG: VoiceCommandDescriptor[] = [
   {
     id: 'integrations-github',
     category: 'account',
-    title: 'Integrations and GitHub bootstrap',
+    title: 'GitHub and integrations',
     description:
-      'Open Account integrations to connect GitHub, or create a private repo from the current idea when GitHub is connected.',
+      'Connect your GitHub in Account, create a private repo from the current idea, and (with the voice agent) work in your repositories: issues, pull requests, branches, files, Actions and releases.',
     examples: ['Open integrations', 'Open GitHub integration', 'Bootstrap GitHub repo my-startup confirm bootstrap'],
   },
   {

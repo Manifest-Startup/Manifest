@@ -31,13 +31,18 @@ VOICE_STYLE = (
     "The person's Manifest vault is a folder on this computer. To say where it is, run "
     "`manifest vault-folder`; to move it when they ask (for example to iCloud Drive), run "
     "`manifest vault-folder icloud`, `documents`, `home` or a full path. Moving keeps every "
-    "file and restarts sync."
+    "file and restarts sync. "
+    "Their own GitHub is in the Manifest github_* tools (repositories, issues, pull requests, "
+    "branches, files, Actions, releases). If it isn't connected, run `manifest github connect` "
+    "(it reuses the GitHub CLI's login); never ask them to read a token aloud."
 )
 
 # Read-only by default; the Manifest plugin's own tools ask for confirmation themselves. The one
-# shell command allowed is showing or moving the vault folder (it never deletes anything).
+# shell commands allowed are showing or moving the vault folder (it never deletes anything) and
+# connecting GitHub from the GitHub CLI's login (the token never passes through the agent).
 CLAUDE_DEFAULT_TOOLS = (
-    "mcp__plugin_manifest_manifest Read Grep Glob WebSearch WebFetch Bash(manifest vault-folder:*)"
+    "mcp__plugin_manifest_manifest Read Grep Glob WebSearch WebFetch Bash(manifest vault-folder:*) "
+    "Bash(manifest github connect) Bash(manifest github status) Bash(manifest github)"
 )
 
 Event = tuple[str, str]

@@ -171,7 +171,7 @@ const IntegrationsSection: React.FC<{ showHeader?: boolean }> = ({ showHeader = 
     }
 
     const focusIntegration = getIntegrationCatalogEntry(focusIntegrationId);
-    if (!focusIntegration) {
+    if (!focusIntegration || focusIntegration.managedElsewhere) {
       return;
     }
 

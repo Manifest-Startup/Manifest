@@ -1,6 +1,6 @@
 ---
 name: manifest-account
-description: "Manage a person's Manifest account: profile, signed-in sessions (browsers, CLI, agents), privacy choices and data-subject requests (access, export, correct, object, erase), API keys, their own OpenAI key status and AI spend cap, connected integrations, GitHub repos for ideas, surveys and contacting the team."
+description: "Manage a person's Manifest account: profile, signed-in sessions (browsers, CLI, agents), privacy choices and data-subject requests (access, export, correct, object, erase), API keys, their own OpenAI key status and AI spend cap, connected integrations (GitHub: see manifest-github), surveys and contacting the team."
 ---
 
 # Account, privacy and settings
@@ -31,7 +31,7 @@ description: "Manage a person's Manifest account: profile, signed-in sessions (b
 - Connected integrations are the person's **key partners**: every canvas lists them under Key Partners, Open Media included. An integration's linked field is true when the partner's own sign-in completed; otherwise it was added as a partner by name.
 - `start_integration_connection` connects a partner by `serviceId` (`notion`, `stripe`, or any service; pass `name` for a custom partner). Say what you'll connect first. The result status is connected, already connected, or needs browser: then give the person `connectUrl` to approve it on the provider's own sign-in page. Never ask for passwords or tokens.
 - `open_media_link` shows the linked Open Media account used for messages and pitch shorts.
-- `github_bootstrap` creates a GitHub repository for an idea (needs the GitHub integration).
+- GitHub (connect it, repos, issues, pull requests, CI, releases): see the manifest-github skill. `github_bootstrap` still creates a repository for an idea.
 
 ## Feedback and trust
 - `submit_survey`, `survey_insights`, `submit_contact_form` (show the message before sending).

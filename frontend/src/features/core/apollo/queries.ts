@@ -1594,3 +1594,47 @@ export const SAVE_IDEA_DOCUMENT = gql`
     }
   }
 `;
+
+// --- Your own GitHub (Account → GitHub) ---
+const GITHUB_ACCOUNT_FIELDS = `
+  connected
+  oauthAvailable
+  login
+  name
+  avatarUrl
+  htmlUrl
+  scopes
+  method
+  connectedAt
+  message
+`;
+
+export const GET_GITHUB_ACCOUNT = gql`
+  query GetGithubAccount {
+    githubAccount { ${GITHUB_ACCOUNT_FIELDS} }
+  }
+`;
+
+export const GET_GITHUB_RECENT_REPOS = gql`
+  query GetGithubRecentRepos($limit: Int) {
+    githubRepos(limit: $limit) {
+      fullName
+      htmlUrl
+      private
+      description
+      updatedAt
+    }
+  }
+`;
+
+export const CONNECT_GITHUB = gql`
+  mutation ConnectGithub($token: String!) {
+    connectGithub(token: $token) { ${GITHUB_ACCOUNT_FIELDS} }
+  }
+`;
+
+export const DISCONNECT_GITHUB = gql`
+  mutation DisconnectGithub {
+    disconnectGithub { ${GITHUB_ACCOUNT_FIELDS} }
+  }
+`;

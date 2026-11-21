@@ -35,7 +35,15 @@ _DESTRUCTIVE = re.compile(
     r"(?:^|_)(?:delete|deletion|remove|revoke|invest|investment|contribution|payment|pay|"
     r"disconnect|unfollow|restore|logout|erase|withdraw)(?:_|$)"
 )
-_DESTRUCTIVE_EXTRA = {"admin_set_user_role", "update_collaborator_role", "toggle_publish_idea"}
+_DESTRUCTIVE_EXTRA = {
+    "admin_set_user_role",
+    "update_collaborator_role",
+    "toggle_publish_idea",
+    # GitHub: merging, visibility/rename/archive and raw API calls change real code.
+    "github_merge_pull_request",
+    "github_update_repo",
+    "github_api_request",
+}
 # Commands the CLI itself owns; a schema field with one of these names would be shadowed.
 RESERVED_COMMANDS = {
     "login",
@@ -52,6 +60,7 @@ RESERVED_COMMANDS = {
     "dsar",
     "upload-profile-picture",
     "github-bootstrap",
+    "github",
     "voice-capabilities",
     "trust-center",
 }
@@ -261,7 +270,9 @@ def render(catalog: dict[str, Any]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--check", action="store_true", help="fail if the committed catalog is stale")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if the committed catalog is stale"
+    )
     parser.add_argument("--output", type=Path, default=CATALOG)
     args = parser.parse_args(argv)
     text = render(build_catalog())
@@ -281,7 +292,9 @@ def main(argv: list[str] | None = None) -> int:
     args.output.write_text(text)
     ops = json.loads(text)["operations"]
     queries = sum(1 for o in ops if o["kind"] == "query")
-    print(f"wrote {args.output.relative_to(ROOT)}: {queries} queries, {len(ops) - queries} mutations")
+    print(
+        f"wrote {args.output.relative_to(ROOT)}: {queries} queries, {len(ops) - queries} mutations"
+    )
     return 0
 
 

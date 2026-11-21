@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "9e6ab27f8104efa696824834027161b16a4b33fd6cdde25a11d992b9bd35b0af",
+ "catalog_sha256": "89e4c1eebcf2bc68332f96b01f5ebff559b9dd95fac4871ec959172a220f089a",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -536,6 +536,38 @@
    }
   },
   {
+   "name": "connect_github",
+   "title": "Connect github",
+   "description": "Connect your GitHub with a personal access token (classic with repo + workflow scopes, or fine-grained). It is checked with GitHub and stored encrypted. Prefer `manifest github connect` or the app; never paste a token into a chat. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "token": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "token"
+    ]
+   },
+   "annotations": {
+    "title": "Connect github",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "connectGithub",
+    "document": "mutation ConnectGithub($token: String!) { connectGithub(token: $token) { connected oauthAvailable login name avatarUrl htmlUrl scopes method connectedAt connectUrl message } }",
+    "variables": [
+     "token"
+    ]
+   }
+  },
+  {
    "name": "continue_idea_qualification",
    "title": "Continue idea qualification",
    "description": "Answer the current questions in an idea-qualification interview. Changes the person's Manifest account; say what you will do before calling.",
@@ -822,6 +854,34 @@
     "variables": [
      "ideaId"
     ]
+   }
+  },
+  {
+   "name": "disconnect_github",
+   "title": "Disconnect github",
+   "description": "Forget your GitHub token in Manifest. Also revoke it on GitHub if you no longer use it. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Disconnect github",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "disconnectGithub",
+    "document": "mutation DisconnectGithub { disconnectGithub { connected oauthAvailable login name avatarUrl htmlUrl scopes method connectedAt connectUrl message } }",
+    "variables": []
    }
   },
   {
@@ -1394,6 +1454,106 @@
    }
   },
   {
+   "name": "github_account",
+   "title": "Github account",
+   "description": "Whether your GitHub is connected, as whom and with which scopes; when it isn't, connectUrl and message say how to connect it.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Github account",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubAccount",
+    "document": "query GithubAccount { githubAccount { connected oauthAvailable login name avatarUrl htmlUrl scopes method connectedAt connectUrl message } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "github_api",
+   "title": "Github api",
+   "description": "Read anything else from GitHub's REST API with your token (GET only), for example /repos/owner/name/labels or /notifications. Use githubApiRequest to change things.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "path"
+    ]
+   },
+   "annotations": {
+    "title": "Github api",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubApi",
+    "document": "query GithubApi($path: String!) { githubApi(path: $path) { status ok body truncated } }",
+    "variables": [
+     "path"
+    ]
+   }
+  },
+  {
+   "name": "github_api_request",
+   "title": "Github api request",
+   "description": "Do anything else in GitHub's REST API with your token: labels, milestones, collaborators, stars, gists, notifications, branch protection… method: GET, POST, PUT, PATCH or DELETE; path on api.github.com; body: JSON. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "method": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "method",
+     "path"
+    ]
+   },
+   "annotations": {
+    "title": "Github api request",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubApiRequest",
+    "document": "mutation GithubApiRequest($method: String!, $path: String!, $body: String) { githubApiRequest(method: $method, path: $path, body: $body) { status ok body truncated } }",
+    "variables": [
+     "method",
+     "path",
+     "body"
+    ]
+   }
+  },
+  {
    "name": "github_bootstrap",
    "title": "Github bootstrap",
    "description": "Create a GitHub repository for an idea (needs the GitHub integration). Changes the person's Manifest account; say what you will do before calling.",
@@ -1429,6 +1589,1336 @@
      "repo_name"
     ],
     "extras": {}
+   }
+  },
+  {
+   "name": "github_branches",
+   "title": "Github branches",
+   "description": "Branches in a repository.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 100
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github branches",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubBranches",
+    "document": "query GithubBranches($repo: String!, $limit: Int) { githubBranches(repo: $repo, limit: $limit) { name sha protected } }",
+    "variables": [
+     "repo",
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "github_cancel_workflow_run",
+   "title": "Github cancel workflow run",
+   "description": "Cancel an Actions run that is queued or in progress. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "runId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "runId"
+    ]
+   },
+   "annotations": {
+    "title": "Github cancel workflow run",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCancelWorkflowRun",
+    "document": "mutation GithubCancelWorkflowRun($repo: String!, $runId: String!) { githubCancelWorkflowRun(repo: $repo, runId: $runId) }",
+    "variables": [
+     "repo",
+     "runId"
+    ]
+   }
+  },
+  {
+   "name": "github_comment",
+   "title": "Github comment",
+   "description": "Comment on an issue or pull request. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "number": {
+      "type": "integer"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "number",
+     "body"
+    ]
+   },
+   "annotations": {
+    "title": "Github comment",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubComment",
+    "document": "mutation GithubComment($repo: String!, $number: Int!, $body: String!) { githubComment(repo: $repo, number: $number, body: $body) { id body htmlUrl author createdAt } }",
+    "variables": [
+     "repo",
+     "number",
+     "body"
+    ]
+   }
+  },
+  {
+   "name": "github_commits",
+   "title": "Github commits",
+   "description": "Recent commits on a branch (default branch if omitted), optionally for one path.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 20
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github commits",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCommits",
+    "document": "query GithubCommits($repo: String!, $branch: String, $path: String, $limit: Int) { githubCommits(repo: $repo, branch: $branch, path: $path, limit: $limit) { sha message htmlUrl author date } }",
+    "variables": [
+     "repo",
+     "branch",
+     "path",
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "github_contents",
+   "title": "Github contents",
+   "description": "Read a file (its text) or list a folder (entries). Empty path = the repository root.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "ref": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github contents",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubContents",
+    "document": "query GithubContents($repo: String!, $path: String, $ref: String) { githubContents(repo: $repo, path: $path, ref: $ref) { type path htmlUrl sha size text note entries { name path type size } } }",
+    "variables": [
+     "repo",
+     "path",
+     "ref"
+    ]
+   }
+  },
+  {
+   "name": "github_create_branch",
+   "title": "Github create branch",
+   "description": "Create a branch from another branch, tag or commit (the default branch if omitted). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string"
+     },
+     "fromRef": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "branch"
+    ]
+   },
+   "annotations": {
+    "title": "Github create branch",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCreateBranch",
+    "document": "mutation GithubCreateBranch($repo: String!, $branch: String!, $fromRef: String) { githubCreateBranch(repo: $repo, branch: $branch, fromRef: $fromRef) { name sha protected } }",
+    "variables": [
+     "repo",
+     "branch",
+     "fromRef"
+    ]
+   }
+  },
+  {
+   "name": "github_create_issue",
+   "title": "Github create issue",
+   "description": "Open an issue. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "labels": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "assignees": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "title"
+    ]
+   },
+   "annotations": {
+    "title": "Github create issue",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCreateIssue",
+    "document": "mutation GithubCreateIssue($repo: String!, $title: String!, $body: String, $labels: [String!], $assignees: [String!]) { githubCreateIssue(repo: $repo, title: $title, body: $body, labels: $labels, assignees: $assignees) { number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } } }",
+    "variables": [
+     "repo",
+     "title",
+     "body",
+     "labels",
+     "assignees"
+    ]
+   }
+  },
+  {
+   "name": "github_create_pull_request",
+   "title": "Github create pull request",
+   "description": "Open a pull request from branch `head` into `base` (the default branch if omitted). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "head": {
+      "type": "string"
+     },
+     "base": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "draft": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "title",
+     "head"
+    ]
+   },
+   "annotations": {
+    "title": "Github create pull request",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCreatePullRequest",
+    "document": "mutation GithubCreatePullRequest($repo: String!, $title: String!, $head: String!, $base: String, $body: String, $draft: Boolean) { githubCreatePullRequest(repo: $repo, title: $title, head: $head, base: $base, body: $body, draft: $draft) { number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } } }",
+    "variables": [
+     "repo",
+     "title",
+     "head",
+     "base",
+     "body",
+     "draft"
+    ]
+   }
+  },
+  {
+   "name": "github_create_release",
+   "title": "Github create release",
+   "description": "Publish a release for a tag (created from `target` if it doesn't exist). Without a body, GitHub writes the release notes. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "tag": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "target": {
+      "type": "string"
+     },
+     "draft": {
+      "type": "boolean",
+      "default": false
+     },
+     "prerelease": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "tag"
+    ]
+   },
+   "annotations": {
+    "title": "Github create release",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCreateRelease",
+    "document": "mutation GithubCreateRelease($repo: String!, $tag: String!, $name: String, $body: String, $target: String, $draft: Boolean, $prerelease: Boolean) { githubCreateRelease(repo: $repo, tag: $tag, name: $name, body: $body, target: $target, draft: $draft, prerelease: $prerelease) { id tag htmlUrl name body draft prerelease publishedAt } }",
+    "variables": [
+     "repo",
+     "tag",
+     "name",
+     "body",
+     "target",
+     "draft",
+     "prerelease"
+    ]
+   }
+  },
+  {
+   "name": "github_create_repo",
+   "title": "Github create repo",
+   "description": "Create a repository (private unless private=false), under you or an organization. With ideaId, its README starts from that idea's title and note. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "private": {
+      "type": "boolean",
+      "default": true
+     },
+     "org": {
+      "type": "string"
+     },
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "name"
+    ]
+   },
+   "annotations": {
+    "title": "Github create repo",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubCreateRepo",
+    "document": "mutation GithubCreateRepo($name: String!, $description: String, $private: Boolean, $org: String, $ideaId: String) { githubCreateRepo(name: $name, description: $description, private: $private, org: $org, ideaId: $ideaId) { fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt } }",
+    "variables": [
+     "name",
+     "description",
+     "private",
+     "org",
+     "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "github_delete_branch",
+   "title": "Github delete branch",
+   "description": "Delete a branch. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "branch"
+    ]
+   },
+   "annotations": {
+    "title": "Github delete branch",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubDeleteBranch",
+    "document": "mutation GithubDeleteBranch($repo: String!, $branch: String!) { githubDeleteBranch(repo: $repo, branch: $branch) }",
+    "variables": [
+     "repo",
+     "branch"
+    ]
+   }
+  },
+  {
+   "name": "github_delete_file",
+   "title": "Github delete file",
+   "description": "Delete a file with one commit. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "path"
+    ]
+   },
+   "annotations": {
+    "title": "Github delete file",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubDeleteFile",
+    "document": "mutation GithubDeleteFile($repo: String!, $path: String!, $message: String, $branch: String) { githubDeleteFile(repo: $repo, path: $path, message: $message, branch: $branch) { path commitSha htmlUrl created } }",
+    "variables": [
+     "repo",
+     "path",
+     "message",
+     "branch"
+    ]
+   }
+  },
+  {
+   "name": "github_delete_repo",
+   "title": "Github delete repo",
+   "description": "Permanently delete a repository and everything in it (cannot be undone). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github delete repo",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubDeleteRepo",
+    "document": "mutation GithubDeleteRepo($repo: String!) { githubDeleteRepo(repo: $repo) }",
+    "variables": [
+     "repo"
+    ]
+   }
+  },
+  {
+   "name": "github_issue",
+   "title": "Github issue",
+   "description": "One issue or pull request conversation, with its comments.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "number": {
+      "type": "integer"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "number"
+    ]
+   },
+   "annotations": {
+    "title": "Github issue",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubIssue",
+    "document": "query GithubIssue($repo: String!, $number: Int!) { githubIssue(repo: $repo, number: $number) { number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } } }",
+    "variables": [
+     "repo",
+     "number"
+    ]
+   }
+  },
+  {
+   "name": "github_issues",
+   "title": "Github issues",
+   "description": "Issues in a repository (not pull requests). state: open, closed or all; labels: comma-separated; assignee: a login, `none` or `*`.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "state": {
+      "type": "string",
+      "default": "open"
+     },
+     "labels": {
+      "type": "string"
+     },
+     "assignee": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 30
+     },
+     "page": {
+      "type": "integer",
+      "default": 1
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github issues",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubIssues",
+    "document": "query GithubIssues($repo: String!, $state: String, $labels: String, $assignee: String, $limit: Int, $page: Int) { githubIssues(repo: $repo, state: $state, labels: $labels, assignee: $assignee, limit: $limit, page: $page) { number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } } }",
+    "variables": [
+     "repo",
+     "state",
+     "labels",
+     "assignee",
+     "limit",
+     "page"
+    ]
+   }
+  },
+  {
+   "name": "github_merge_pull_request",
+   "title": "Github merge pull request",
+   "description": "Merge a pull request. method: squash (default), merge or rebase. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "number": {
+      "type": "integer"
+     },
+     "method": {
+      "type": "string",
+      "default": "squash"
+     },
+     "commitTitle": {
+      "type": "string"
+     },
+     "commitMessage": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "number"
+    ]
+   },
+   "annotations": {
+    "title": "Github merge pull request",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubMergePullRequest",
+    "document": "mutation GithubMergePullRequest($repo: String!, $number: Int!, $method: String, $commitTitle: String, $commitMessage: String) { githubMergePullRequest(repo: $repo, number: $number, method: $method, commitTitle: $commitTitle, commitMessage: $commitMessage) { number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } } }",
+    "variables": [
+     "repo",
+     "number",
+     "method",
+     "commitTitle",
+     "commitMessage"
+    ]
+   }
+  },
+  {
+   "name": "github_pull_request",
+   "title": "Github pull request",
+   "description": "One pull request: whether it can merge, its size and the files it changes.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "number": {
+      "type": "integer"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "number"
+    ]
+   },
+   "annotations": {
+    "title": "Github pull request",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubPullRequest",
+    "document": "query GithubPullRequest($repo: String!, $number: Int!) { githubPullRequest(repo: $repo, number: $number) { number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } } }",
+    "variables": [
+     "repo",
+     "number"
+    ]
+   }
+  },
+  {
+   "name": "github_pull_requests",
+   "title": "Github pull requests",
+   "description": "Pull requests in a repository. state: open, closed or all.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "state": {
+      "type": "string",
+      "default": "open"
+     },
+     "base": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 30
+     },
+     "page": {
+      "type": "integer",
+      "default": 1
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github pull requests",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubPullRequests",
+    "document": "query GithubPullRequests($repo: String!, $state: String, $base: String, $limit: Int, $page: Int) { githubPullRequests(repo: $repo, state: $state, base: $base, limit: $limit, page: $page) { number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } } }",
+    "variables": [
+     "repo",
+     "state",
+     "base",
+     "limit",
+     "page"
+    ]
+   }
+  },
+  {
+   "name": "github_put_file",
+   "title": "Github put file",
+   "description": "Create or replace a text file with one commit (on `branch`, or the default branch). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "path",
+     "content"
+    ]
+   },
+   "annotations": {
+    "title": "Github put file",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubPutFile",
+    "document": "mutation GithubPutFile($repo: String!, $path: String!, $content: String!, $message: String, $branch: String) { githubPutFile(repo: $repo, path: $path, content: $content, message: $message, branch: $branch) { path commitSha htmlUrl created } }",
+    "variables": [
+     "repo",
+     "path",
+     "content",
+     "message",
+     "branch"
+    ]
+   }
+  },
+  {
+   "name": "github_releases",
+   "title": "Github releases",
+   "description": "Releases in a repository, newest first.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 10
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github releases",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubReleases",
+    "document": "query GithubReleases($repo: String!, $limit: Int) { githubReleases(repo: $repo, limit: $limit) { id tag htmlUrl name body draft prerelease publishedAt } }",
+    "variables": [
+     "repo",
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "github_repo",
+   "title": "Github repo",
+   "description": "One repository (`repo` is owner/name or its github.com URL).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github repo",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubRepo",
+    "document": "query GithubRepo($repo: String!) { githubRepo(repo: $repo) { fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt } }",
+    "variables": [
+     "repo"
+    ]
+   }
+  },
+  {
+   "name": "github_repos",
+   "title": "Github repos",
+   "description": "Your GitHub repositories, most recently updated first. `query` searches names; `owner` lists an organization's or user's repositories.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "owner": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 30
+     },
+     "page": {
+      "type": "integer",
+      "default": 1
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Github repos",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubRepos",
+    "document": "query GithubRepos($query: String, $owner: String, $limit: Int, $page: Int) { githubRepos(query: $query, owner: $owner, limit: $limit, page: $page) { fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt } }",
+    "variables": [
+     "query",
+     "owner",
+     "limit",
+     "page"
+    ]
+   }
+  },
+  {
+   "name": "github_rerun_workflow_run",
+   "title": "Github rerun workflow run",
+   "description": "Re-run an Actions run (or only its failed jobs). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "runId": {
+      "type": "string"
+     },
+     "failedOnly": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "runId"
+    ]
+   },
+   "annotations": {
+    "title": "Github rerun workflow run",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubRerunWorkflowRun",
+    "document": "mutation GithubRerunWorkflowRun($repo: String!, $runId: String!, $failedOnly: Boolean) { githubRerunWorkflowRun(repo: $repo, runId: $runId, failedOnly: $failedOnly) }",
+    "variables": [
+     "repo",
+     "runId",
+     "failedOnly"
+    ]
+   }
+  },
+  {
+   "name": "github_review_pull_request",
+   "title": "Github review pull request",
+   "description": "Review a pull request. event: APPROVE, REQUEST_CHANGES or COMMENT (needs a body). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "number": {
+      "type": "integer"
+     },
+     "event": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "number",
+     "event"
+    ]
+   },
+   "annotations": {
+    "title": "Github review pull request",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubReviewPullRequest",
+    "document": "mutation GithubReviewPullRequest($repo: String!, $number: Int!, $event: String!, $body: String) { githubReviewPullRequest(repo: $repo, number: $number, event: $event, body: $body) }",
+    "variables": [
+     "repo",
+     "number",
+     "event",
+     "body"
+    ]
+   }
+  },
+  {
+   "name": "github_run_workflow",
+   "title": "Github run workflow",
+   "description": "Start an Actions workflow that has a workflow_dispatch trigger (file name like deploy.yml, or its id). inputs: a JSON object of the workflow's inputs. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "workflow": {
+      "type": "string"
+     },
+     "ref": {
+      "type": "string"
+     },
+     "inputs": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "workflow"
+    ]
+   },
+   "annotations": {
+    "title": "Github run workflow",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubRunWorkflow",
+    "document": "mutation GithubRunWorkflow($repo: String!, $workflow: String!, $ref: String, $inputs: String) { githubRunWorkflow(repo: $repo, workflow: $workflow, ref: $ref, inputs: $inputs) }",
+    "variables": [
+     "repo",
+     "workflow",
+     "ref",
+     "inputs"
+    ]
+   }
+  },
+  {
+   "name": "github_update_issue",
+   "title": "Github update issue",
+   "description": "Edit, close (state=closed) or reopen (state=open) an issue or pull request, or set its labels and assignees. state_reason: completed, not_planned or reopened. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "number": {
+      "type": "integer"
+     },
+     "title": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "state": {
+      "type": "string"
+     },
+     "stateReason": {
+      "type": "string"
+     },
+     "labels": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "assignees": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo",
+     "number"
+    ]
+   },
+   "annotations": {
+    "title": "Github update issue",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubUpdateIssue",
+    "document": "mutation GithubUpdateIssue($repo: String!, $number: Int!, $title: String, $body: String, $state: String, $stateReason: String, $labels: [String!], $assignees: [String!]) { githubUpdateIssue(repo: $repo, number: $number, title: $title, body: $body, state: $state, stateReason: $stateReason, labels: $labels, assignees: $assignees) { number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } } }",
+    "variables": [
+     "repo",
+     "number",
+     "title",
+     "body",
+     "state",
+     "stateReason",
+     "labels",
+     "assignees"
+    ]
+   }
+  },
+  {
+   "name": "github_update_repo",
+   "title": "Github update repo",
+   "description": "Rename a repository, change its description, homepage, topics or default branch, make it public or private, or archive it. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "homepage": {
+      "type": "string"
+     },
+     "private": {
+      "type": "boolean"
+     },
+     "archived": {
+      "type": "boolean"
+     },
+     "defaultBranch": {
+      "type": "string"
+     },
+     "topics": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github update repo",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubUpdateRepo",
+    "document": "mutation GithubUpdateRepo($repo: String!, $name: String, $description: String, $homepage: String, $private: Boolean, $archived: Boolean, $defaultBranch: String, $topics: [String!]) { githubUpdateRepo(repo: $repo, name: $name, description: $description, homepage: $homepage, private: $private, archived: $archived, defaultBranch: $defaultBranch, topics: $topics) { fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt } }",
+    "variables": [
+     "repo",
+     "name",
+     "description",
+     "homepage",
+     "private",
+     "archived",
+     "defaultBranch",
+     "topics"
+    ]
+   }
+  },
+  {
+   "name": "github_workflow_runs",
+   "title": "Github workflow runs",
+   "description": "Recent GitHub Actions (CI) runs: which passed, failed or are still running (all workflows, or one by file name like ci.yml or id). status: queued, in_progress, completed, success, failure….",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     },
+     "workflow": {
+      "type": "string"
+     },
+     "branch": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 10
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github workflow runs",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubWorkflowRuns",
+    "document": "query GithubWorkflowRuns($repo: String!, $workflow: String, $branch: String, $status: String, $limit: Int) { githubWorkflowRuns(repo: $repo, workflow: $workflow, branch: $branch, status: $status, limit: $limit) { id name workflowId htmlUrl branch event status conclusion createdAt } }",
+    "variables": [
+     "repo",
+     "workflow",
+     "branch",
+     "status",
+     "limit"
+    ]
+   }
+  },
+  {
+   "name": "github_workflows",
+   "title": "Github workflows",
+   "description": "GitHub Actions workflows in a repository.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "repo": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "repo"
+    ]
+   },
+   "annotations": {
+    "title": "Github workflows",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "githubWorkflows",
+    "document": "query GithubWorkflows($repo: String!) { githubWorkflows(repo: $repo) { id name path state htmlUrl } }",
+    "variables": [
+     "repo"
+    ]
    }
   },
   {

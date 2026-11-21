@@ -1,8 +1,27 @@
-"""Unit tests for GitHub bootstrap helpers."""
+"""Unit tests for creating a GitHub repository from an idea."""
 
-from unittest.mock import MagicMock, patch
+import json
+from unittest.mock import MagicMock
 
-from app.services.integrations.github_bootstrap import _plain_text_from_html, _validate_repo_name, create_private_repo_for_idea
+import httpx
+from app.services.integrations import github_bootstrap
+from app.services.integrations.github_api import GitHubClient
+from app.services.integrations.github_bootstrap import (
+    _plain_text_from_html,
+    _validate_repo_name,
+    create_private_repo_for_idea,
+    idea_readme,
+)
+
+
+def _idea_db(idea):
+    db = MagicMock()
+    chain = MagicMock()
+    db.table.return_value.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.execute.return_value = MagicMock(data=idea)
+    return db
 
 
 def test_plain_text_from_html_strips_tags():
@@ -16,64 +35,52 @@ def test_validate_repo_name():
 
 
 def test_create_private_repo_for_idea_validation():
-    db = MagicMock()
-    url, detail, code = create_private_repo_for_idea(db, "u", "i", "bad repo!")
+    url, detail, code = create_private_repo_for_idea(MagicMock(), "u", "i", "bad repo!")
     assert url is None
     assert detail
     assert code == "validation"
 
 
-def test_create_private_repo_missing_token():
-    db = MagicMock()
-    t = MagicMock()
-    ch = MagicMock()
-    db.table.return_value = t
-    t.select.return_value = ch
-    ch.eq.return_value = ch
-    ch.limit.return_value = ch
-    ch.execute.return_value = MagicMock(data=[])
-
-    url, detail, code = create_private_repo_for_idea(db, "u", "idea-1", "repo-name")
+def test_create_private_repo_missing_token(monkeypatch):
+    monkeypatch.setattr(github_bootstrap, "load_github_token", lambda uid: None)
+    url, detail, code = create_private_repo_for_idea(MagicMock(), "u", "idea-1", "repo-name")
     assert url is None
     assert "Connect GitHub" in (detail or "")
     assert code == "github_auth"
 
 
-@patch("app.services.integrations.github_bootstrap.httpx.Client")
-def test_create_private_repo_success(mock_client_cls):
-    db = MagicMock()
+def test_idea_readme_needs_an_owned_idea():
+    assert idea_readme(_idea_db(None), "u", "idea-1") is None
+    readme = idea_readme(_idea_db({"title": "T", "description": "<p>Hi</p>"}), "u", "idea-1")
+    assert readme == "# T\n\nHi\n"
 
-    def _table(name):
-        t = MagicMock()
-        ch = MagicMock()
-        t.select.return_value = ch
-        ch.eq.return_value = ch
-        ch.limit.return_value = ch
-        ch.single.return_value = ch
-        if name == "integrations":
-            ch.execute.return_value = MagicMock(data=[{"access_token": "ghp_secret"}])
-        elif name == "ideas":
-            ch.execute.return_value = MagicMock(
-                data={"idea_id": "idea-1", "title": "T", "description": "<p>Hi</p>"}
+
+def test_create_private_repo_success(monkeypatch):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path, json.loads(request.content or b"{}")))
+        if request.url.path == "/user/repos":
+            return httpx.Response(
+                201,
+                json={
+                    "html_url": "https://github.com/me/r",
+                    "full_name": "me/r",
+                    "name": "r",
+                    "private": True,
+                },
             )
-        return t
+        return httpx.Response(201, json={"content": {}, "commit": {"sha": "abc"}})
 
-    db.table.side_effect = _table
+    transport = httpx.MockTransport(handler)
+    monkeypatch.setattr(github_bootstrap, "load_github_token", lambda uid: "ghp_" + "x" * 36)
+    monkeypatch.setattr(
+        github_bootstrap, "client_for", lambda uid: GitHubClient("t", transport=transport)
+    )
 
-    mock_http = MagicMock()
-    mock_client_cls.return_value.__enter__.return_value = mock_http
-
-    create_resp = MagicMock()
-    create_resp.status_code = 201
-    create_resp.json.return_value = {"html_url": "https://github.com/me/r", "full_name": "me/r"}
-
-    readme_resp = MagicMock()
-    readme_resp.status_code = 201
-
-    mock_http.post.return_value = create_resp
-    mock_http.put.return_value = readme_resp
-
+    db = _idea_db({"idea_id": "idea-1", "title": "T", "description": "<p>Hi</p>"})
     url, detail, code = create_private_repo_for_idea(db, "user-1", "idea-1", "r")
-    assert url == "https://github.com/me/r"
-    assert detail is None
-    assert code is None
+    assert (url, detail, code) == ("https://github.com/me/r", None, None)
+    assert calls[0][:2] == ("POST", "/user/repos")
+    assert calls[0][2]["private"] is True and calls[0][2]["auto_init"] is False
+    assert calls[1][:2] == ("PUT", "/repos/me/r/contents/README.md")

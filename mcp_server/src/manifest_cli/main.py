@@ -29,6 +29,7 @@ BUILTINS: dict[str, str] = {
     "voice": "Talk to Manifest out loud: it can do everything the CLI can.",
     "bridge": "Let the Manifest app use Claude Code or Codex on this computer (no OpenAI key).",
     "vault-folder": "Show or move this computer's vault folder: manifest vault-folder icloud.",
+    "github": "Connect your GitHub (manifest github connect), see it, or disconnect it.",
     "commands": "List every command (filter with --search).",
     "graphql": "Run any GraphQL document (escape hatch).",
     "api": "Call any REST endpoint: manifest api GET /api/keys/usage.",
@@ -634,6 +635,167 @@ def cmd_vault_folder(ctx: Context, argv: list[str]) -> int:
     return 0
 
 
+GITHUB_ACCOUNT_FIELDS = (
+    "connected oauthAvailable login name htmlUrl scopes method connectUrl message"
+)
+
+
+def _gh_cli_token() -> str | None:
+    """The GitHub CLI's token for github.com, when `gh` is installed and signed in."""
+    import shutil
+    import subprocess
+
+    if not shutil.which("gh"):
+        return None
+    try:
+        done = subprocess.run(
+            ["gh", "auth", "token", "--hostname", "github.com"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    token = done.stdout.strip()
+    return token if done.returncode == 0 and token else None
+
+
+# Where a GitHub login may already live on this computer, so nobody connects twice:
+# the GitHub CLI, then the variables the GitHub plugin / GitHub MCP server and other tools read.
+GITHUB_TOKEN_ENV = ("GH_TOKEN", "GITHUB_TOKEN", "GITHUB_PERSONAL_ACCESS_TOKEN")
+
+
+def _existing_github_login() -> tuple[str, str] | None:
+    """(token, where it came from) for a GitHub login already on this computer."""
+    import os
+
+    token = _gh_cli_token()
+    if token:
+        return token, "the GitHub CLI's login"
+    for name in GITHUB_TOKEN_ENV:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value, f"${name}"
+    return None
+
+
+def _github_token(ctx: Context, ns: argparse.Namespace) -> tuple[str, str]:
+    """The token to connect with, and where it came from ("gh" or "token")."""
+    if ns.token_stdin:
+        return ctx.stdin.read().strip(), ""
+    if not ns.no_gh:
+        found = _existing_github_login()
+        if found:
+            return found
+    if not ctx.stdin.isatty():
+        raise CliError(
+            "No GitHub login found on this computer. Sign in to the GitHub CLI "
+            "(`gh auth login`) and run this again, or pipe a token in with --token-stdin."
+        )
+    import getpass
+
+    ctx.err.write(
+        "Create a token at https://github.com/settings/tokens (classic: repo, workflow,\n"
+        "read:org, delete_repo scopes; or fine-grained with the access you want).\n"
+    )
+    return getpass.getpass("GitHub token (hidden): ").strip(), ""
+
+
+def _github_connected_text(account: dict[str, Any], source: str) -> str:
+    how = f" using {source}" if source else ""
+    text = (
+        f"Connected GitHub as {account.get('login')}{how}. The app, your agent's Manifest "
+        "plugin and voice now use this connection too.\n"
+    )
+    scopes = account.get("scopes") or []
+    if scopes and not {"repo", "workflow"} <= set(scopes):
+        text += (
+            f"Its scopes are {', '.join(scopes)}. For full control add repo and workflow "
+            "(`gh auth refresh -s repo,workflow,delete_repo`), then connect again.\n"
+        )
+    return text
+
+
+def _github_status_text(account: dict[str, Any]) -> str:
+    text = f"{account.get('message')}\n"
+    if account.get("connected") and account.get("scopes"):
+        text += f"Scopes: {', '.join(account['scopes'])}\n"
+    if not account.get("connected"):
+        text += "Run `manifest github connect`.\n"
+    return text
+
+
+def _ask_yes(ctx: Context, question: str) -> bool:
+    if not ctx.stdin.isatty():
+        raise CliError("Add --yes to do this without a prompt.")
+    ctx.err.write(f"{question} [y/N] ")
+    ctx.err.flush()
+    return ctx.stdin.readline().strip().lower() in {"y", "yes"}
+
+
+def cmd_github(ctx: Context, argv: list[str]) -> int:
+    parser = _sub(
+        "github",
+        BUILTINS["github"],
+        epilog="connect links the GitHub login already on this computer (the GitHub CLI, or\n"
+        "$GH_TOKEN / $GITHUB_TOKEN / $GITHUB_PERSONAL_ACCESS_TOKEN used by the GitHub plugin),\n"
+        "otherwise asks for a token without showing it. It is checked with GitHub, stored\n"
+        "encrypted in your account, and shared by the app, your agent's plugin and voice.\n"
+        "Then every github-* command works: manifest github-repos · manifest github-issues\n"
+        "--repo you/app · manifest github-create-pull-request --repo you/app --title ... --head\n"
+        "feature. See them all with: manifest commands --search github",
+    )
+    parser.add_argument(
+        "action", nargs="?", choices=["status", "connect", "disconnect"], default="status"
+    )
+    parser.add_argument(
+        "--token-stdin", action="store_true", help="read the token from stdin (for scripts)"
+    )
+    parser.add_argument(
+        "--no-gh",
+        action="store_true",
+        help="don't reuse a GitHub login found on this computer; ask for a token",
+    )
+    parser.add_argument("--yes", "-y", action="store_true", help="don't ask before disconnecting")
+    ns = parser.parse_args(argv)
+    if not config.token(ns.token):
+        raise CliError("Not signed in. Run `manifest login` first.")
+
+    def run(document: str, variables: dict[str, Any] | None, field: str) -> dict[str, Any]:
+        body = _run(_graphql(ctx, ns, document, variables))
+        errors = body.get("errors") or []
+        if errors:
+            raise CliError("; ".join(str(e.get("message")) for e in errors))
+        return (body.get("data") or {}).get(field) or {}
+
+    fields = GITHUB_ACCOUNT_FIELDS
+    if ns.action == "connect":
+        token, source = _github_token(ctx, ns)
+        if not token:
+            raise CliError("No token given.")
+        account = run(
+            f"mutation ($token: String!) {{ connectGithub(token: $token) {{ {fields} }} }}",
+            {"token": token},
+            "connectGithub",
+        )
+        text = _github_connected_text(account, source)
+    elif ns.action == "disconnect":
+        if not ns.yes and not _ask_yes(ctx, "Disconnect GitHub from Manifest?"):
+            ctx.err.write("Nothing changed.\n")
+            return 1
+        account = run(f"mutation {{ disconnectGithub {{ {fields} }} }}", None, "disconnectGithub")
+        text = "GitHub is disconnected. Revoke the token on GitHub too if you no longer use it.\n"
+    else:
+        account = run(f"query {{ githubAccount {{ {fields} }} }}", None, "githubAccount")
+        text = _github_status_text(account)
+    if ns.json:
+        output.emit(account, as_json=True, out=ctx.out)
+    else:
+        ctx.out.write(text)
+    return 0
+
+
 def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     from manifest_cli import bridge
     from manifest_cli.agents import make_agent, missing_agent
@@ -739,6 +901,7 @@ def dispatch(ctx: Context, argv: list[str]) -> int:
         "voice": cmd_voice,
         "bridge": cmd_bridge,
         "vault-folder": cmd_vault_folder,
+        "github": cmd_github,
         "commands": cmd_commands,
         "graphql": cmd_graphql,
         "api": cmd_api,
