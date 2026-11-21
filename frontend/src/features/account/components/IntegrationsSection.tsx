@@ -77,54 +77,46 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({
   const IconComponent = integration.icon;
   
   return (
-    <div className="manifest-card group relative flex h-full min-w-0 flex-col p-4">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div 
-            className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white"
-            style={{ backgroundColor: integration.brandColor }}
-          >
-            {IconComponent ? (
-              React.createElement(IconComponent as React.ComponentType<{ className?: string }>, {
-                className: "w-6 h-6",
-              })
-            ) : (
-              <PlaceholderIcon className="text-lg font-bold" letter={integration.name.charAt(0)} />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-theme-primary text-base truncate">
-              {integration.name}
-            </h4>
-            {integration.connected && (
-              <div className="flex items-center gap-1 mt-1">
-                <CheckIcon className="w-4 h-4 text-green-700 dark:text-green-400" />
-                <span className="text-xs text-green-700 dark:text-green-400 font-medium">
-                  {integration.linked ? 'Linked' : 'Added as partner'}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="manifest-card group relative flex h-full min-w-0 items-center gap-3 px-3.5 py-3">
+      <div
+        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
+        style={{ backgroundColor: integration.brandColor }}
+      >
+        {IconComponent ? (
+          React.createElement(IconComponent as React.ComponentType<{ className?: string }>, {
+            className: "w-5 h-5",
+          })
+        ) : (
+          <PlaceholderIcon className="text-base font-bold" letter={integration.name.charAt(0)} />
+        )}
       </div>
-      
-      <p className="text-sm text-theme-secondary mb-4 flex-1 leading-relaxed">
-        {integration.description}
-      </p>
-      
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h4 className="truncate text-sm font-semibold text-theme-primary">{integration.name}</h4>
+          {integration.connected && (
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+              <CheckIcon className="h-3.5 w-3.5" />
+              {integration.linked ? 'Linked' : 'Added as partner'}
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-theme-secondary">{integration.description}</p>
+      </div>
+
       {integration.availability === 'coming_soon' && !integration.connected ? (
-        <div
-          className="w-full py-2.5 px-4 rounded-lg text-sm font-medium border border-dashed border-theme-primary bg-theme-tertiary text-theme-secondary text-center select-none"
+        <span
+          className="shrink-0 rounded-full border border-dashed border-theme-primary px-2.5 py-1 text-xs font-medium text-theme-secondary select-none"
           aria-label={`${integration.name} integration coming soon`}
           data-testid={`integration-coming-soon-${integration.id}`}
         >
           Coming soon
-        </div>
+        </span>
       ) : (
         <button
           onClick={() => onToggle(integration.id, integration.connected)}
           disabled={isConnecting}
-          className={`manifest-control w-full ${integration.connected ? 'manifest-control-secondary' : 'manifest-control-primary'}`}
+          aria-label={`${integration.connected ? 'Disconnect' : 'Connect'} ${integration.name}`}
+          className="manifest-control manifest-control-secondary shrink-0 !min-h-[32px] rounded-full !px-3 !py-1 text-xs font-semibold"
         >
           {isConnecting
             ? 'Connecting...'
@@ -138,7 +130,7 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({
   );
 };
 
-const IntegrationsSection: React.FC = () => {
+const IntegrationsSection: React.FC<{ showHeader?: boolean }> = ({ showHeader = true }) => {
   const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -351,13 +343,19 @@ const IntegrationsSection: React.FC = () => {
     }
   };
 
-  const groupedIntegrations = filteredIntegrations.reduce((acc, integration) => {
-    if (!acc[integration.category]) {
-      acc[integration.category] = [];
-    }
-    acc[integration.category].push(integration);
-    return acc;
-  }, {} as Record<string, Integration[]>);
+  // Connected apps come first so people can see and manage what they use.
+  const connectedFirst = filteredIntegrations.filter((integration) => integration.connected);
+  const groupedIntegrations = filteredIntegrations.reduce(
+    (acc, integration) => {
+      const group = integration.connected ? 'Connected' : integration.category;
+      if (!acc[group]) {
+        acc[group] = [];
+      }
+      acc[group].push(integration);
+      return acc;
+    },
+    (connectedFirst.length > 0 ? { Connected: [] } : {}) as Record<string, Integration[]>,
+  );
 
   useEffect(() => {
     if (!focusIntegrationId) {
@@ -376,14 +374,16 @@ const IntegrationsSection: React.FC = () => {
 
   return (
     <section className="manifest-panel p-4 sm:p-5">
-      <div className="mb-5">
-        <h2 className="text-xl font-semibold mb-2 text-theme-primary tracking-tight">
-          Integrations
-        </h2>
-        <p className="text-sm text-theme-secondary leading-relaxed">
-          Connect the tools and companies you work with. Connected partners show under Key Partners on every canvas.
-        </p>
-      </div>
+      {showHeader ? (
+        <div className="mb-5">
+          <h2 className="text-xl font-semibold mb-2 text-theme-primary tracking-tight">
+            Integrations
+          </h2>
+          <p className="text-sm text-theme-secondary leading-relaxed">
+            Connect the tools and companies you work with. Connected partners show under Key Partners on every canvas.
+          </p>
+        </div>
+      ) : null}
 
       <div ref={(node) => { integrationRefs.current.other = node; }}>
         <OtherPartners autoFocus={focusIntegrationId === 'other'} />
@@ -420,8 +420,8 @@ const IntegrationsSection: React.FC = () => {
       <div className="space-y-8">
         {Object.entries(groupedIntegrations).map(([category, categoryIntegrations]) => (
           <div key={category}>
-            <h3 className="text-lg font-semibold mb-4 text-theme-primary">{category}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-theme-secondary">{category}</h3>
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
               {categoryIntegrations.map((integration) => (
                 <div
                   key={integration.id}
