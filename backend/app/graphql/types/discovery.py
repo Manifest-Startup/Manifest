@@ -30,6 +30,14 @@ class DiscoveryCapability:
     hint: str | None = None
 
 
+@strawberry.type
+class ApolloKeyStatus:
+    """Whether you saved your own Apollo.io key (never the key itself)."""
+
+    connected: bool
+    last4: str | None = None
+
+
 def map_discovery(idea_id: str, view: dict[str, Any]) -> CustomerDiscovery:
     return CustomerDiscovery(
         idea_id=idea_id,

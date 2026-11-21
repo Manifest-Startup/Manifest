@@ -3,7 +3,11 @@ import type { TypedDocumentNode } from '@apollo/client';
 
 import type {
   GetAiKeyStatusData,
+  GetApolloKeyStatusData,
+  RemoveApolloApiKeyData,
   RemoveOpenaiApiKeyData,
+  SaveApolloApiKeyData,
+  SaveApolloApiKeyVariables,
   SaveOpenaiApiKeyData,
   SaveOpenaiApiKeyVariables,
   CalculateSweatEquityData,
@@ -1495,6 +1499,24 @@ export const SAVE_OPENAI_API_KEY: TypedDocumentNode<SaveOpenaiApiKeyData, SaveOp
 export const REMOVE_OPENAI_API_KEY: TypedDocumentNode<RemoveOpenaiApiKeyData, Record<string, never>> = gql`
   mutation RemoveOpenaiApiKey {
     removeOpenaiApiKey { ${AI_KEY_STATUS_FIELDS} }
+  }
+`;
+
+export const GET_APOLLO_KEY_STATUS: TypedDocumentNode<GetApolloKeyStatusData, Record<string, never>> = gql`
+  query GetApolloKeyStatus {
+    apolloKeyStatus { connected last4 }
+  }
+`;
+
+export const SAVE_APOLLO_API_KEY: TypedDocumentNode<SaveApolloApiKeyData, SaveApolloApiKeyVariables> = gql`
+  mutation SaveApolloApiKey($apiKey: String!) {
+    saveApolloApiKey(apiKey: $apiKey) { connected last4 }
+  }
+`;
+
+export const REMOVE_APOLLO_API_KEY: TypedDocumentNode<RemoveApolloApiKeyData, Record<string, never>> = gql`
+  mutation RemoveApolloApiKey {
+    removeApolloApiKey { connected last4 }
   }
 `;
 

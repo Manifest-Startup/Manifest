@@ -1,11 +1,12 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "906d6569458cc258e1ac8d831a2e2cb27181bfd6538ea3d6859ae0b4cb389f1e",
+ "catalog_sha256": "7055e54b373a33c85e38cb9b02d631392bd0445ad1ca5ac439cf66f628f405e8",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
   "openMediaRealtimeToken": "Returns a live Open Media credential for the web app's realtime socket; agents never hold credentials.",
   "saveOpenaiApiKey": "Secret keys never go through chat. Add your OpenAI key in Account → AI settings.",
+  "saveApolloApiKey": "Secret keys never go through chat. Add your Apollo.io key in Account → AI settings.",
   "connectIntegration": "Takes raw OAuth tokens. Connect integrations from Account → Integrations in the app, where the provider's sign-in runs.",
   "runBackgroundTasks": "Superseded by enqueue_background_tasks, which is durable and deduplicated.",
   "rest:upload-profile-picture": "Needs a file upload (multipart). Change your picture in Account → Profile."
@@ -366,6 +367,29 @@
     "via": "graphql",
     "field": "aiKeyStatus",
     "document": "query AiKeyStatus { aiKeyStatus { configured source last4 } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "apollo_key_status",
+   "title": "Apollo key status",
+   "description": "Whether you saved your own Apollo.io key for finding prospects (never the key).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Apollo key status",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "apolloKeyStatus",
+    "document": "query ApolloKeyStatus { apolloKeyStatus { connected last4 } }",
     "variables": []
    }
   },
@@ -4802,6 +4826,34 @@
      "ideaId",
      "sectionName"
     ]
+   }
+  },
+  {
+   "name": "remove_apollo_api_key",
+   "title": "Remove apollo api key",
+   "description": "Remove your saved Apollo.io key; prospects then come from web search only. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Remove apollo api key",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "removeApolloApiKey",
+    "document": "mutation RemoveApolloApiKey { removeApolloApiKey { connected last4 } }",
+    "variables": []
    }
   },
   {

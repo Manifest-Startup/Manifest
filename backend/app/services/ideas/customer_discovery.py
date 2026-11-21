@@ -611,29 +611,78 @@ def _merge(
     return out
 
 
-def _apollo_seeds(icp: dict[str, Any] | None, limit: int) -> tuple[list[dict[str, Any]], list[str]]:
-    if not icp or connectors.apollo_key() is None:
+def _apollo_seeds(
+    key: str | None, icp: dict[str, Any] | None, segment: str, limit: int
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Companies (and a likely buyer at each) from the person's own Apollo.io account."""
+    if not key:
         return [], []
+    icp = icp or {}
+    keywords = icp.get("keywords") or [segment]
     try:
         orgs = connectors.apollo_search_organizations(
-            keywords=icp.get("keywords") or [],
+            key=key,
+            keywords=keywords,
             locations=[icp["geography"]] if icp.get("geography") else [],
             employee_ranges=icp.get("employee_ranges") or [],
             per_page=limit * 2,
         )
     except (connectors.ProviderError, connectors.ConnectorUnavailable) as exc:
         return [], [f"Apollo.io search failed ({exc}); used web search instead."]
-    for org in orgs[: limit * 2]:
+    titles = icp.get("buyer_titles") or ["Founder", "CEO", "Owner", "Managing Director"]
+    for org in orgs[:limit]:  # one people search per company we are likely to keep
         try:
             maker = connectors.apollo_find_decision_maker(
-                domain=org.get("domain") or _domain(org.get("website")),
-                titles=icp.get("buyer_titles") or [],
+                key=key, domain=org.get("domain") or _domain(org.get("website")), titles=titles
             )
-        except connectors.ProviderError:
+        except (connectors.ProviderError, connectors.ConnectorUnavailable):
             maker = None
         if maker:
-            org["decision_maker"] = {**maker, "source": maker.get("linkedin_url")}
+            org["decision_maker"] = maker
     return orgs, []
+
+
+def _apollo_only(seeds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Prospects straight from Apollo when there is no web research: real companies that match
+    the filters, with no evidence of need yet (so it scores zero and says so)."""
+    out = []
+    for org in seeds:
+        entry = {
+            **org,
+            "why_fit": "Matches the customer profile filters in Apollo.io.",
+            "sources": [u for u in (org.get("website"), org.get("linkedin_url")) if u],
+            "scores": {
+                "problem_relevance": 2,
+                "profile_fit": 3,
+                "need_evidence": 0,
+                "purchasing": 2,
+            },
+        }
+        prospect = normalize_prospect(entry, "apollo")
+        if prospect:
+            out.append(prospect)
+    return out
+
+
+def _finish_apollo_only(
+    db: Any,
+    user_id: str,
+    idea: dict[str, Any],
+    state: dict[str, Any],
+    seeds: list[dict[str, Any]],
+    count: int,
+    limitations: list[str],
+) -> dict[str, Any]:
+    found = _apollo_only(seeds)
+    found.sort(key=lambda p: (-p["score"], p["name"].lower()))
+    fresh = _merge(state["prospects"], found, state["excluded"])[len(state["prospects"]) :][:count]
+    state["prospects"] = state["prospects"] + fresh
+    limitations.append(
+        "Found with Apollo.io only: real companies matching the profile, but no evidence of need "
+        "yet. Add your OpenAI key, or have your agent research them, to check each one."
+    )
+    state["path"] = save_state(db, user_id, idea, state)
+    return {"state": state, "new": [p["id"] for p in fresh], "limitations": limitations}
 
 
 def find_prospects(
@@ -673,8 +722,13 @@ def find_prospects(
     target = state.get("segment") or research.get("recommended_segment") or "the most likely buyers"
     limitations: list[str] = []
 
-    seeds, notes = _apollo_seeds(state.get("icp"), count)
+    seeds, notes = _apollo_seeds(
+        connectors.apollo_key_for(user_id), state.get("icp"), target, count
+    )
     limitations += notes
+    router = getattr(ai_layer, "router", None)
+    if seeds and (router is None or not router.is_available()):
+        return _finish_apollo_only(db, user_id, idea, state, seeds, count, limitations)
     known = [p["name"] for p in state["prospects"]] + state["excluded"]
     seed_text = ""
     if seeds:

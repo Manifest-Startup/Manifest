@@ -1,6 +1,6 @@
-"""Bring-your-own-key storage for customers' OpenAI API keys.
+"""Bring-your-own-key storage for customers' API keys (OpenAI, and Apollo.io for prospects).
 
-Keys live in ``integrations`` (service_id ``openai``) and are always encrypted
+Keys live in ``integrations`` (service_id ``openai`` or ``apollo``) and are always encrypted
 with the user's tenant data key: the plaintext ``access_token`` column stays
 NULL. Only the last four characters are kept in clear (``metadata``) so the
 UI can show which key is connected.
@@ -31,8 +31,8 @@ def _column(row: object, name: str) -> object:
     return row[name] if isinstance(row, dict) else row[0]  # type: ignore[index]
 
 
-def _aad(user_id: str) -> bytes:
-    return f"integrations:{user_id}:{SERVICE_ID}".encode()
+def _aad(user_id: str, service_id: str = SERVICE_ID) -> bytes:
+    return f"integrations:{user_id}:{service_id}".encode()
 
 
 def mask(key: str) -> str:
@@ -58,10 +58,16 @@ def validate_key(api_key: str) -> str:
 
 
 def save_user_key(user_id: str, api_key: str) -> str:
-    """Validate, encrypt and store the key. Returns its last four characters."""
-    key = validate_key(api_key)
+    """Validate, encrypt and store the OpenAI key. Returns its last four characters."""
+    return store_key(user_id, validate_key(api_key))
+
+
+def store_key(
+    user_id: str, key: str, *, service_id: str = SERVICE_ID, service_name: str = SERVICE_NAME
+) -> str:
+    """Encrypt and store an already-validated key for one service. Returns its last four."""
     dek = get_or_create_tenant_dek(_TENANT_KIND, str(user_id))
-    ciphertext = encrypt_field(key, dek, aad=_aad(str(user_id)))
+    ciphertext = encrypt_field(key, dek, aad=_aad(str(user_id), service_id))
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
@@ -79,8 +85,8 @@ def save_user_key(user_id: str, api_key: str) -> str:
             """,
             (
                 user_id,
-                SERVICE_ID,
-                SERVICE_NAME,
+                service_id,
+                service_name,
                 ciphertext,
                 get_active_kek_version(),
                 json.dumps({"last4": mask(key)}),
@@ -90,26 +96,26 @@ def save_user_key(user_id: str, api_key: str) -> str:
     return mask(key)
 
 
-def load_user_key(user_id: str) -> str | None:
+def load_user_key(user_id: str, service_id: str = SERVICE_ID) -> str | None:
     """Decrypted key for ``user_id``, or None when they have not added one."""
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT access_token_ciphertext FROM integrations WHERE user_id = %s AND service_id = %s",
-            (user_id, SERVICE_ID),
+            (user_id, service_id),
         )
         row = cur.fetchone()
     blob = _column(row, "access_token_ciphertext")
     if blob is None:
         return None
     dek = get_or_create_tenant_dek(_TENANT_KIND, str(user_id))
-    return decrypt_field(bytes(blob), dek, aad=_aad(str(user_id)))
+    return decrypt_field(bytes(blob), dek, aad=_aad(str(user_id), service_id))
 
 
-def key_last4(user_id: str) -> str | None:
+def key_last4(user_id: str, service_id: str = SERVICE_ID) -> str | None:
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT metadata FROM integrations WHERE user_id = %s AND service_id = %s",
-            (user_id, SERVICE_ID),
+            (user_id, service_id),
         )
         row = cur.fetchone()
     try:
@@ -118,10 +124,10 @@ def key_last4(user_id: str) -> str | None:
         return None
 
 
-def delete_user_key(user_id: str) -> None:
+def delete_user_key(user_id: str, service_id: str = SERVICE_ID) -> None:
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             "DELETE FROM integrations WHERE user_id = %s AND service_id = %s",
-            (user_id, SERVICE_ID),
+            (user_id, service_id),
         )
         conn.commit()

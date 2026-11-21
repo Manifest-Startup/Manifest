@@ -53,7 +53,7 @@ Scripts can still use an API key (`Authorization: Bearer manifest_sk_…`), whic
 
 ## What's inside
 
-- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **174 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
+- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **176 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
 - **11 skills**: `manifest` (start here), `manifest-ideas`, `manifest-documents`, `manifest-customers`, `manifest-vault`, `manifest-github`, `manifest-network`, `manifest-investing`, `manifest-team`, `manifest-account` and `manifest-admin`.
 - **12 slash commands**: `new-idea`, `note`, `ideas`, `plan`, `customers`, `write-docs`, `vault`, `github`, `pitch`, `messages`, `portfolio` and `account`.
 

@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "223d8aeff40459ae46511b173ecea7d632e329b8a300bafd5a52f5c56ee4d571",
+ "schema_sha256": "4b6852fad74d54ba74c520543df4c4c57858607748086028c93601700a608190",
  "operations": [
   {
    "name": "me",
@@ -1426,6 +1426,16 @@
      "description": ""
     }
    ]
+  },
+  {
+   "name": "apolloKeyStatus",
+   "command": "apollo-key-status",
+   "kind": "query",
+   "description": "Whether you saved your own Apollo.io key for finding prospects (never the key).",
+   "destructive": false,
+   "returns": "ApolloKeyStatus!",
+   "selection": "{ connected last4 }",
+   "args": []
   },
   {
    "name": "customerDiscovery",
@@ -4042,6 +4052,36 @@
      "description": ""
     }
    ]
+  },
+  {
+   "name": "saveApolloApiKey",
+   "command": "save-apollo-api-key",
+   "kind": "mutation",
+   "description": "Save your own Apollo.io API key (verified with Apollo, encrypted at rest). Prospect searches then use your Apollo account and credits. Never ask for it in chat: the person adds it in Account → AI settings.",
+   "destructive": false,
+   "returns": "ApolloKeyStatus!",
+   "selection": "{ connected last4 }",
+   "args": [
+    {
+     "name": "apiKey",
+     "flag": "--api-key",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "removeApolloApiKey",
+   "command": "remove-apollo-api-key",
+   "kind": "mutation",
+   "description": "Remove your saved Apollo.io key; prospects then come from web search only.",
+   "destructive": true,
+   "returns": "ApolloKeyStatus!",
+   "selection": "{ connected last4 }",
+   "args": []
   },
   {
    "name": "researchMarket",

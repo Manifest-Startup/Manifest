@@ -15,7 +15,10 @@ Act like a capable cofounder, not a questionnaire. Keep talking with the person 
 5. **Emails.** `draft_outreach` (all, or `prospects` by name) writes one short, low-pressure email each from the evidence only. Show them as previews.
 6. **Gmail.** Every prepared email has a compose link (field compose_url in `customer_discovery`, and "Open in Gmail" in the note) that opens it pre-filled in the person's own Gmail, ready to save or send. Give them those links. Where a server has Gmail drafts switched on, `create_outreach_email_drafts` saves them directly after a yes (`confirm: true`), never duplicating; otherwise it returns the same links. Manifest never sends email.
 
-`discovery_capabilities` says what works right now: web search (needs the person's OpenAI key), Apollo.io (server key), direct Gmail drafts.
+`discovery_capabilities` says what works right now and whose account it runs on: web search (the person's OpenAI key, or Manifest's on the hosted service), Apollo.io (their own key from Account → AI settings, or Manifest's), direct Gmail drafts.
+
+## Bring your own agent and accounts
+Manifest is open source: people can run all of this from their own agent with their own keys. If you (the agent) have Apollo.io tools connected (Apollo's MCP server, signed in to the person's own Apollo account), use them to find companies and decision-makers in the chosen segment, then store the results with `save_customer_discovery`, putting the Apollo or company page in each prospect's sources. Their Apollo credits are used, nothing is shared, and Manifest never sees their Apollo login. The same goes for research: your own web search plus `save_customer_discovery` needs no OpenAI key in Manifest. Never ask anyone to paste a key into the chat; keys go in Account → AI settings. `apollo_key_status` says whether they saved their own Apollo.io key; `remove_apollo_api_key` removes it (needs `confirm: true`).
 
 ## No OpenAI key? Do the research yourself
 If `research_market`, `find_prospects` or `draft_outreach` says an OpenAI key is needed and you have web search, do that step yourself with real searches and pages, then store it with `save_customer_discovery`:

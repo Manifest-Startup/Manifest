@@ -16,6 +16,7 @@ import SurveyInsightsPanel from "features/feedback/SurveyInsightsPanel";
 
 import ApiAccessSection from "./ApiAccessSection";
 import AiKeySection from "./AiKeySection";
+import ApolloKeySection from "./ApolloKeySection";
 import { StorageSection } from "features/vault/StorageSection";
 import GitHubSection, { type GithubAccount } from "./GitHubSection";
 import IntegrationsSection from "./IntegrationsSection";
@@ -483,6 +484,7 @@ const AccountPage: React.FC = () => {
         : null,
       items: [
         { anchor: "ai-key", label: "OpenAI API key", keywords: "ai key openai byok generation gpt model" },
+        { anchor: "apollo-key", label: "Apollo.io API key", keywords: "apollo prospects customers leads contacts key" },
         { anchor: "open-media", label: "Open Media sign-in", keywords: "login account passkey password two-step 2fa messages pitch shorts" },
       ],
       content: (
@@ -493,6 +495,13 @@ const AccountPage: React.FC = () => {
             description="Manifest runs on your own OpenAI account, so you only pay OpenAI for what you generate. The key is verified, encrypted and never shown again."
           >
             <AiKeySection />
+          </SettingsCard>
+          <SettingsCard
+            id="apollo-key"
+            title="Apollo.io key (optional)"
+            description="Find potential customers with your own Apollo.io account and credits. The key is verified, encrypted and never shown again."
+          >
+            <ApolloKeySection />
           </SettingsCard>
           <SettingsCard
             id="open-media"
