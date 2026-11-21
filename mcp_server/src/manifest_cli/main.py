@@ -849,6 +849,12 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     )
     parser.add_argument("--uninstall", action="store_true", help="stop starting it at login")
     parser.add_argument(
+        "--cartesia-key",
+        action="store_true",
+        help="speak in Cartesia's voice (as in Pipecat's demos): asks for your Cartesia API key "
+        "and keeps it in the macOS Keychain",
+    )
+    parser.add_argument(
         "--voice",
         metavar="NAME",
         help="Kokoro voice for natural local speech (default af_heart), or 'browser' for the browser's own voice",
@@ -856,6 +862,8 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     ns = parser.parse_args(argv)
     if ns.uninstall:
         return bridge.uninstall(out=ctx.out)
+    if ns.cartesia_key:
+        return bridge.set_cartesia_key(out=ctx.out)
     agent = make_agent(
         ns.agent,
         extra_args=ns.agent_arg,

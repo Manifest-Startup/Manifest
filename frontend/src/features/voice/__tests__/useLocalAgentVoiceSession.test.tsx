@@ -94,7 +94,8 @@ describe('useLocalAgentVoiceSession', () => {
     act(() => rec.onresult(result('What ideas do I have?', true)));
     await waitFor(() => expect(speaking.map(u => u.text)).toEqual(['Two ideas.']));
     expect(turns()).toEqual(['What ideas do I have?']);
-    expect(JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body)).toMatchObject({ context: { idea_id: 'abc' } });
+    const turnCall = (global.fetch as jest.Mock).mock.calls.find(([url]) => String(url).endsWith('/turn'));
+    expect(JSON.parse(turnCall[1].body)).toMatchObject({ context: { idea_id: 'abc' } });
     expect(rec.abort).not.toHaveBeenCalled(); // the mic stays open while it talks
     await act(async () => {
       speaking[0].onend?.();
@@ -136,5 +137,21 @@ describe('useLocalAgentVoiceSession', () => {
     act(() => session.current.interrupt?.());
     expect(cancel).toHaveBeenCalled();
     expect(session.current.state.phase).toBe('listening');
+  });
+
+  it("doesn't answer the late echo of its own voice after it stops", async () => {
+    answer = 'A cap table lists who owns what in your company.';
+    await started();
+    const rec = recognitions[0];
+    act(() => rec.onresult(result('what is a cap table', true)));
+    await waitFor(() => expect(speaking).toHaveLength(1));
+    await act(async () => {
+      speaking[0].onend?.(); // it finished speaking…
+    });
+    act(() => rec.onresult(result('a cap table lists who owns what', true))); // …and its echo arrives late
+    await new Promise(resolve => setTimeout(resolve, 600));
+    expect(turns()).toEqual(['what is a cap table']); // it didn't answer itself
+    act(() => rec.onresult(result('great, and dilution?', true))); // the person can still talk
+    await waitFor(() => expect(turns()).toEqual(['what is a cap table', 'great, and dilution?']), { timeout: 2000 });
   });
 });

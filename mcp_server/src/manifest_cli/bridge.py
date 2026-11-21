@@ -1,6 +1,7 @@
 """`manifest bridge`: let the Manifest web app talk to the agent on this computer.
 
     Manifest web app / installed Chrome app ── http://127.0.0.1:47821 ──▶ Claude Code / Codex
+                                     (Safari) ── https://127.0.0.1:47823 (bridge_tls.py)
 
 Voice in the app needs no OpenAI key this way: the browser listens and speaks with its own
 speech recognition and voices, and each turn goes to the agent you already use (with its
@@ -299,8 +300,21 @@ async def serve(
         # Whisper + Kokoro on a small Mac swap and answer in seconds.
         missing = "the browser's speech is faster on this Mac"
     voice_url = None if missing else f"ws://127.0.0.1:{local_voice.VOICE_PORT}"
-    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url, speech=natural)
+    # With a Cartesia key: the voice of Pipecat's own demos, Kokoro as its fallback.
+    key = speech.cartesia_key() if voice != "browser" else None
+    chosen = voice if voice and len(voice) == 36 and voice.count("-") == 4 else speech.PIPECAT_VOICE
+    spoken = speech.CartesiaVoice(key, chosen, fallback=natural) if key else natural
+    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url, speech=spoken)
     server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
+    # HTTPS too, for Safari (it won't call http://127.0.0.1 from a secure page).
+    from manifest_cli import bridge_tls
+
+    tls = bridge_tls.server_context()
+    secure = (
+        await asyncio.start_server(bridge.handle, "127.0.0.1", bridge_tls.HTTPS_PORT, ssl=tls)
+        if tls
+        else None
+    )
     warm = getattr(agent, "start", None)
     if warm is not None:
         await warm()  # Claude Code: start once now, so the first turn is quick
@@ -315,11 +329,18 @@ async def serve(
     out.write(
         f"Manifest can now talk to {agent.name} on this computer (http://127.0.0.1:{port}).\n"
         + (
-            f"Natural voice: Kokoro ({natural.voice}) on the Apple GPU, loading now.\n"
+            "Voice: Cartesia (Pipecat's voice), with Kokoro as the fallback.\n"
+            if key
+            else f"Natural voice: Kokoro ({natural.voice}) on the Apple GPU, loading now.\n"
             if natural
             else f"Natural voice (Pipecat, local Whisper + Kokoro) on {voice_url}.\n"
             if voice_url
             else f"Browser voice only ({no_speech}; {missing}).\n"
+        )
+        + (
+            f"Safari too: https://127.0.0.1:{bridge_tls.HTTPS_PORT}.\n"
+            if secure
+            else "Safari needs `manifest bridge --install` (HTTPS); Chrome works as is.\n"
         )
         + "Open Manifest and tap the voice button; no OpenAI key needed. Ctrl-C to stop.\n"
     )
@@ -330,6 +351,8 @@ async def serve(
         finally:
             if voice_task:
                 voice_task.cancel()
+            if secure:
+                secure.close()
             agent.stop()
 
 
@@ -394,6 +417,12 @@ def install(args: list[str], *, out: TextIO) -> int:
     log.parent.mkdir(parents=True, exist_ok=True)
     plist = launch_agent_path()
     plist.parent.mkdir(parents=True, exist_ok=True)
+    from manifest_cli import bridge_tls
+
+    out.write("Safari needs the bridge on HTTPS: macOS may ask for your password once.\n")
+    out.flush()
+    if not bridge_tls.ensure(ask_to_trust=True):
+        out.write("HTTPS isn't set up, so Safari can't reach the bridge (Chrome can).\n")
     domain = f"gui/{os.getuid()}"
     subprocess.run(["launchctl", "bootout", f"{domain}/{LAUNCH_LABEL}"], capture_output=True)
     from manifest_cli import macos_app
@@ -412,6 +441,27 @@ def install(args: list[str], *, out: TextIO) -> int:
         "The Manifest bridge now starts when you log in and stays running.\n"
         f"Voice in Manifest talks to your agent with no key. Log: {log}\n"
         "Undo with: manifest bridge --uninstall\n"
+    )
+    return 0
+
+
+def set_cartesia_key(*, out: TextIO) -> int:
+    """Ask for a Cartesia API key (hidden), keep it in the Keychain, restart the bridge."""
+    import getpass
+
+    key = getpass.getpass("Cartesia API key (from play.cartesia.ai, input hidden): ").strip()
+    if not key:
+        out.write("No key entered; nothing changed.\n")
+        return 1
+    if not speech.save_cartesia_key(key):
+        out.write("Couldn't save it in the Keychain.\n")
+        return 1
+    subprocess.run(
+        ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{LAUNCH_LABEL}"], capture_output=True
+    )
+    out.write(
+        "Saved in your Keychain. Manifest voice now speaks with Cartesia (the voice from "
+        "Pipecat's demos); the answers' text is sent to Cartesia to be spoken.\n"
     )
     return 0
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { isBargeIn, pickVoice, VOICE_SETUP_COMMAND } from '../localAgent';
+import { isBargeIn, isEcho, pickVoice, startRecognition, VOICE_SETUP_COMMAND } from '../localAgent';
 import { isFatalVoiceError } from '../usePipecatVoiceSession';
 import VoiceSetup from '../VoiceSetup';
 
@@ -59,4 +59,28 @@ it('setup shows one command and connects by itself once the Mac answers', async 
   });
   expect(onReady).toHaveBeenCalledWith({ agent: 'Codex', voice: null, interrupt: true, speech: null });
   jest.useRealTimers();
+});
+
+it('the late tail of its own voice is echo; new words are not', () => {
+  const said = 'A cap table lists who owns what in your company.';
+  expect(isEcho('who owns what in your company', said)).toBe(true);
+  expect(isEcho('and what about dilution', said)).toBe(false);
+});
+
+it('hears through the echo-cancelled mic when the browser can, and its own mic otherwise', () => {
+  const calls: unknown[][] = [];
+  let takesTrack = true;
+  (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition = class {
+    start(...args: unknown[]) {
+      if (args.length && !takesTrack) throw new TypeError('not a MediaStreamTrack');
+      calls.push(args);
+    }
+    abort() {}
+  };
+  const track = { readyState: 'live' } as MediaStreamTrack;
+  startRecognition({ onText: () => undefined, onError: () => undefined }, track);
+  expect(calls[0]).toEqual([track]);
+  takesTrack = false;
+  startRecognition({ onText: () => undefined, onError: () => undefined }, track);
+  expect(calls[1]).toEqual([]); // fell back to the browser's own mic
 });
