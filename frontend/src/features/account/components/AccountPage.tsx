@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useApolloClient, useMutation, useQuery, useReactiveVar } from "@apollo/client/react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -7,7 +7,7 @@ import Button from "features/common-ui/Button";
 import { useFormState, useInputHandlers } from "features/common-ui/hooks/formHooks";
 import Input from "features/common-ui/Input";
 import { accountVar, userVar } from "features/core/apollo/localState";
-import { GET_ACCOUNT, GET_MY_PORTFOLIO, UPDATE_ACCOUNT } from "features/core/apollo/queries";
+import { GET_ACCOUNT, GET_AI_KEY_STATUS, GET_INTEGRATIONS, GET_MY_PORTFOLIO, UPDATE_ACCOUNT } from "features/core/apollo/queries";
 import { createLogger } from "features/core/logError";
 import { useSafeQuery } from "features/common-ui/api/useSafeQuery";
 import ImportExportModal from "features/ideas/components/ImportExportModal";
@@ -21,6 +21,8 @@ import IntegrationsSection from "./IntegrationsSection";
 import OpenMediaSection from "./OpenMediaSection";
 import PrivacyControlsPanel from "./PrivacyControlsPanel";
 import SecuritySettingsPanel from "./SecuritySettingsPanel";
+import SettingsView, { SettingsCard, type SettingsSection } from "./SettingsView";
+import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 import { uploadProfilePicture } from "../api/uploadProfilePicture";
 import { getAvatarUrl, isPersistedProfilePictureUrl, normalizeGravatarInput } from "../utils/gravatar";
 import { SkillsPicker } from "features/common-ui/SkillsPicker";
@@ -44,6 +46,42 @@ export interface Account {
 
 const logger = createLogger("AccountPage");
 
+const SETTINGS_SECTION_IDS = ["profile", "appearance", "connections", "integrations", "developer", "data", "privacy", "feedback"];
+const HASH_TO_SECTION: Record<string, string> = {
+  "ai-key": "connections",
+  "open-media": "connections",
+  integrations: "integrations",
+  "api-access": "developer",
+  storage: "data",
+  "import-export": "data",
+  sessions: "privacy",
+  "privacy-controls": "privacy",
+  "delete-account": "privacy",
+};
+
+const THEME_OPTIONS = [
+  { key: "light", label: "Light" },
+  { key: "dark", label: "Dark" },
+  { key: "system", label: "Match system" },
+] as const;
+
+const MockUi: React.FC<{ mode: "light" | "dark"; half?: boolean }> = ({ mode, half }) => (
+  <div className={`mock-ui ${mode} ${half ? "half" : ""}`} aria-hidden="true">
+    <div className="mock-side">
+      <div className="mock-line strong" style={{ width: "70%" }} />
+      <div className="mock-line" />
+      <div className="mock-line" style={{ width: "80%" }} />
+      <div className="mock-line" style={{ width: "60%" }} />
+    </div>
+    <div className="mock-main">
+      <div className="mock-line strong" style={{ width: "45%" }} />
+      <div className="mock-line" />
+      <div className="mock-line" style={{ width: "90%" }} />
+      <div className="mock-line" style={{ width: "75%" }} />
+    </div>
+  </div>
+);
+
 const SectionCard: React.FC<{
   eyebrow: string;
   title: string;
@@ -54,7 +92,7 @@ const SectionCard: React.FC<{
   <section className={`manifest-panel p-4 sm:p-5 ${className}`}>
     <p className="text-[0.72rem] font-medium text-gray500 dark:text-gray400">{eyebrow}</p>
     <h2 className="mt-3 text-[1.35rem] font-semibold tracking-[-0.03em] text-neutral900 dark:text-white">{title}</h2>
-    {description ? <p className="mt-2 break-all text-sm leading-6 text-gray500 dark:text-gray400">{description}</p> : null}
+    {description ? <p className="mt-2 break-words text-sm leading-6 text-gray500 dark:text-gray400">{description}</p> : null}
     <div className="mt-5">{children}</div>
   </section>
 );
@@ -78,12 +116,30 @@ const AccountPage: React.FC = () => {
   const client = useApolloClient();
   const { theme, setTheme } = useTheme();
   const { data: skillsData } = useSafeQuery(GET_AVAILABLE_SKILLS);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const focusIntegrationId = searchParams.get("focusIntegration");
+  const sectionParam = searchParams.get("section");
+  const { data: aiKeyData } = useQuery(GET_AI_KEY_STATUS, { skip: !isLoggedIn });
+  const openMedia = useOpenMediaLink();
+  const { data: integrationsData } = useQuery(GET_INTEGRATIONS, { skip: !isLoggedIn });
+  const connectedIntegrations = integrationsData?.integrations?.length ?? 0;
 
   const [activeTab, setActiveTab] = useState<"portfolio" | "settings">(
-    focusIntegrationId ? "settings" : "portfolio",
+    focusIntegrationId || sectionParam ? "settings" : "portfolio",
   );
+  const activeSection = sectionParam && SETTINGS_SECTION_IDS.includes(sectionParam) ? sectionParam : focusIntegrationId ? "integrations" : "profile";
+  const [focusAnchor, setFocusAnchor] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const selectSection = useCallback(
+    (id: string) => {
+      const next = new URLSearchParams(searchParams);
+      next.set("section", id);
+      next.delete("focusIntegration");
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+  const clearFocusAnchor = useCallback(() => setFocusAnchor(null), []);
   const [gravatarInput, setGravatarInput] = useState("");
   const [localProfilePreviewUrl, setLocalProfilePreviewUrl] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState("");
@@ -107,14 +163,17 @@ const AccountPage: React.FC = () => {
     }
   }, [focusIntegrationId]);
 
-  // "/account#ai-key" (from the "Add your key" banner) opens the AI key card.
+  // Old deep links ("/account#ai-key" from the "Add your key" banner, "#storage",
+  // "#open-media") still land on the right card.
   useEffect(() => {
-    if (window.location.hash !== "#ai-key") return;
+    const anchor = window.location.hash.slice(1);
+    const section = HASH_TO_SECTION[anchor];
+    if (!section) return;
     setActiveTab("settings");
-    const timer = window.setTimeout(() => {
-      document.getElementById("ai-key")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-    return () => window.clearTimeout(timer);
+    selectSection(section);
+    setFocusAnchor(anchor);
+    // Only on first load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -183,6 +242,7 @@ const AccountPage: React.FC = () => {
   };
 
   const handleSaveDetails = async () => {
+    setSaveState("saving");
     try {
       const normalizedGravatar = normalizeGravatarInput(gravatarInput);
       const { data: updatedData } = await updateAccount({
@@ -202,8 +262,10 @@ const AccountPage: React.FC = () => {
         setGravatarInput(updatedData.updateAccount.gravatarHash || normalizedGravatar);
         setUploadMessage("");
       }
+      setSaveState("saved");
     } catch (saveError) {
       logger.error("Failed to update account details", saveError);
+      setSaveState("error");
     }
   };
 
@@ -268,6 +330,279 @@ const AccountPage: React.FC = () => {
       size: 120,
     });
 
+  const savedSkills = userDetails.skills ?? [];
+  const profileDirty =
+    formData.email !== (userDetails.email ?? "") ||
+    formData.firstName !== (userDetails.firstName ?? "") ||
+    formData.lastName !== (userDetails.lastName ?? "") ||
+    (gravatarInput || "") !== (userDetails.gravatarHash ?? "") ||
+    skills.length !== savedSkills.length ||
+    skills.some((skill, index) => skill !== savedSkills[index]);
+
+  const aiKey = aiKeyData?.aiKeyStatus;
+  const openMediaStatus = openMedia.status;
+  const themeLabel = THEME_OPTIONS.find((option) => option.key === theme)?.label ?? "Match system";
+
+  const settingsSections: SettingsSection[] = [
+    {
+      id: "profile",
+      label: "Profile",
+      summary: "How you appear to collaborators, founders and investors across Manifest.",
+      icon: "user",
+      items: [
+        { anchor: "profile-photo", label: "Profile photo", keywords: "picture avatar image upload gravatar" },
+        { anchor: "profile-details", label: "Name", keywords: "first last full name" },
+        { anchor: "profile-details", label: "Email address", keywords: "email contact" },
+        { anchor: "profile-details", label: "Skills", keywords: "expertise tags roles" },
+      ],
+      content: (
+        <>
+          <SettingsCard id="profile-photo" title="Photo" description="Shown on your ideas, comments and messages.">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className="settings-avatar-button"
+                onClick={handleUploadButtonClick}
+                disabled={profilePictureUploading}
+                aria-label="Change profile photo"
+              >
+                <img src={avatarSrc} alt="" />
+                <span>{profilePictureUploading ? "Uploading…" : "Change"}</span>
+              </button>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={handleUploadButtonClick} disabled={profilePictureUploading}>
+                    {profilePictureUploading ? "Uploading…" : "Upload photo"}
+                  </Button>
+                </div>
+                <p className="text-xs text-theme-secondary">JPG, PNG or GIF. A square image works best.</p>
+                {uploadMessage ? <p className="text-sm text-theme-secondary" role="status">{uploadMessage}</p> : null}
+                <details className="group text-sm">
+                  <summary className="cursor-pointer select-none text-theme-secondary hover:text-theme-primary">Use a Gravatar instead</summary>
+                  <div className="mt-3 max-w-md">
+                    <Input
+                      type="text"
+                      label="Gravatar URL or hash"
+                      value={gravatarInput}
+                      onChange={handleGravatarChange}
+                      placeholder="Paste a Gravatar URL or raw hash"
+                    />
+                  </div>
+                </details>
+              </div>
+              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleProfilePictureUpload} className="hidden" />
+            </div>
+          </SettingsCard>
+
+          <SettingsCard id="profile-details" title="Details" description="Your name and skills help the right people find and team up with you.">
+            <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input id="firstName" label="First name" type="text" value={formData.firstName} name="firstName" onChange={handleInputChange} autoComplete="given-name" />
+                <Input id="lastName" label="Last name" type="text" value={formData.lastName} name="lastName" onChange={handleInputChange} autoComplete="family-name" />
+              </div>
+              <Input id="email" label="Email" type="email" value={formData.email} name="email" onChange={handleInputChange} autoComplete="email" />
+              <SkillsPicker
+                availableSkills={skillsData?.availableSkills ?? []}
+                label="Skills"
+                onChange={setSkills}
+                placeholder="Search your skills…"
+                value={skills}
+              />
+            </div>
+            <div className="settings-savebar">
+              <p className="mr-auto text-sm text-theme-secondary" role="status" aria-live="polite">
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "error"
+                    ? "Couldn't save. Try again."
+                    : profileDirty
+                      ? "You have unsaved changes"
+                      : saveState === "saved"
+                        ? "Saved"
+                        : ""}
+              </p>
+              <Button type="button" variant="primary" onClick={handleSaveDetails} disabled={!profileDirty || saveState === "saving"}>
+                Save changes
+              </Button>
+            </div>
+          </SettingsCard>
+        </>
+      ),
+    },
+    {
+      id: "appearance",
+      label: "Appearance",
+      summary: "Choose how Manifest looks on this device.",
+      icon: "palette",
+      status: { text: themeLabel, tone: "neutral" },
+      items: [{ anchor: "appearance-theme", label: "Theme", keywords: "dark mode light mode system colors appearance" }],
+      content: (
+        <SettingsCard id="appearance-theme" title="Theme" description="Match system follows your device's light or dark setting.">
+          <div className="settings-theme-grid" role="radiogroup" aria-label="Theme">
+            {THEME_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                role="radio"
+                aria-checked={theme === option.key}
+                className="settings-theme-option"
+                onClick={() => setTheme(option.key)}
+              >
+                <span className="settings-theme-preview">
+                  {option.key === "system" ? (
+                    <>
+                      <MockUi mode="light" />
+                      <MockUi mode="dark" half />
+                    </>
+                  ) : (
+                    <MockUi mode={option.key} />
+                  )}
+                </span>
+                <span className="settings-theme-label">
+                  <span className="settings-radio" aria-hidden="true" />
+                  {option.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </SettingsCard>
+      ),
+    },
+    {
+      id: "connections",
+      label: "AI & sign-in",
+      summary: "The OpenAI key Manifest uses for generation, and the account you sign in with.",
+      icon: "sparkles",
+      status: aiKey
+        ? aiKey.source === "user"
+          ? { text: `OpenAI key ••${aiKey.last4 ?? ""}`, tone: "ok" }
+          : { text: "Add your OpenAI key", tone: "warn" }
+        : null,
+      items: [
+        { anchor: "ai-key", label: "OpenAI API key", keywords: "ai key openai byok generation gpt model" },
+        { anchor: "open-media", label: "Open Media sign-in", keywords: "login account passkey password two-step 2fa messages pitch shorts" },
+      ],
+      content: (
+        <>
+          <SettingsCard
+            id="ai-key"
+            title="OpenAI key"
+            description="Manifest runs on your own OpenAI account, so you only pay OpenAI for what you generate. The key is verified, encrypted and never shown again."
+          >
+            <AiKeySection />
+          </SettingsCard>
+          <SettingsCard
+            id="open-media"
+            title="Sign-in"
+            description="One Open Media account signs you in to Manifest and also runs Messages and Pitch Shorts."
+          >
+            <OpenMediaSection />
+          </SettingsCard>
+        </>
+      ),
+    },
+    {
+      id: "integrations",
+      label: "Integrations",
+      summary: "Connect the tools and companies you work with. Connected partners show under Key Partners on every canvas.",
+      icon: "puzzle",
+      status: connectedIntegrations > 0 ? { text: `${connectedIntegrations} connected`, tone: "ok" } : null,
+      items: [
+        { anchor: "integrations", label: "Connected apps", keywords: "integrations connect apps tools google notion slack github figma stripe" },
+        { anchor: "integrations", label: "Key partners", keywords: "partners suppliers agencies distributors canvas" },
+      ],
+      content: (
+        <div id="integrations">
+          <IntegrationsSection showHeader={false} />
+        </div>
+      ),
+    },
+    {
+      id: "developer",
+      label: "Developer",
+      summary: "API keys for the Manifest GraphQL API, scripts and agents.",
+      icon: "code",
+      items: [{ anchor: "api-access", label: "API keys", keywords: "developer graphql token automation api access docs" }],
+      content: (
+        <div id="api-access">
+          <ApiAccessSection />
+        </div>
+      ),
+    },
+    {
+      id: "data",
+      label: "Data & storage",
+      summary: "Where your ideas live, and moving them in or out of Manifest.",
+      icon: "database",
+      items: [
+        { anchor: "storage", label: "Vault folder", keywords: "storage icloud dropbox markdown files offline sync obsidian" },
+        { anchor: "import-export", label: "Import and export ideas", keywords: "backup download apple notes google keep" },
+      ],
+      content: (
+        <>
+          <StorageSection />
+          <SettingsCard
+            id="import-export"
+            title="Import and export"
+            description="Bring ideas in from Apple Notes or Google Keep, or download your workspace as a backup."
+          >
+            <Button type="button" variant="secondary" onClick={() => setIsImportExportOpen(true)} data-testid="import-export-button">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Import / Export Ideas
+            </Button>
+          </SettingsCard>
+        </>
+      ),
+    },
+    {
+      id: "privacy",
+      label: "Privacy & security",
+      summary: "Where you're signed in, how long data is kept, and deleting your account.",
+      icon: "shield",
+      status: openMediaStatus?.linked && openMediaStatus.needsReconnect ? { text: "Reconnect Open Media", tone: "warn" } : null,
+      items: [
+        { anchor: "sessions", label: "Signed-in devices", keywords: "sessions log out sign out revoke security" },
+        { anchor: "privacy-controls", label: "Privacy choices", keywords: "consent analytics cookies tracking outreach" },
+        { anchor: "privacy-controls", label: "Data retention", keywords: "keep retention gdpr export data" },
+        { anchor: "delete-account", label: "Delete account", keywords: "remove close erase account deletion" },
+      ],
+      content: (
+        <>
+          <SettingsCard
+            id="sessions"
+            title="Signed-in devices"
+            description="Sign out of devices you don't recognise. Passkeys, passwords and two-step verification are managed in Open Media."
+          >
+            <SecuritySettingsPanel />
+          </SettingsCard>
+          <SettingsCard id="privacy-controls" title="Privacy choices" description="What Manifest may collect beyond the essentials, and how long data is kept.">
+            <PrivacyControlsPanel accountEmail={userDetails.email} parts={["consent", "retention"]} embedded />
+          </SettingsCard>
+          <SettingsCard id="delete-account" title="Delete account" tone="danger">
+            <PrivacyControlsPanel accountEmail={userDetails.email} parts={["deletion"]} embedded />
+          </SettingsCard>
+        </>
+      ),
+    },
+    {
+      id: "feedback",
+      label: "Feedback",
+      summary: "Tell us how Manifest is working for you.",
+      icon: "chat",
+      items: [{ anchor: "feedback-survey", label: "Product feedback survey", keywords: "survey feedback nps help" }],
+      content: (
+        <>
+          <div id="feedback-survey">
+            <ProductFeedbackSurveyCard variant="desktop" />
+          </div>
+          <SurveyInsightsPanel variant="desktop" />
+        </>
+      ),
+    },
+  ];
+
   return (
     <div className="manifest-page">
       <div className="manifest-page-shell">
@@ -280,9 +615,9 @@ const AccountPage: React.FC = () => {
                 className="h-14 w-14 shrink-0 rounded-lg border border-stone200 object-cover shadow-none dark:border-neutral700"
               />
               <div className="min-w-0">
-                <p className="text-[0.72rem] font-medium text-gray500 dark:text-gray400">Account Workspace</p>
+                <p className="text-[0.72rem] font-medium text-gray500 dark:text-gray400">Account</p>
                 <h1 className="mt-2 manifest-page-title text-neutral900 dark:text-white">{displayName}</h1>
-                <p className="mt-2 break-all text-sm leading-6 text-gray500 dark:text-gray400">{userDetails.email}</p>
+                <p className="mt-2 break-words text-sm leading-6 text-gray500 dark:text-gray400">{userDetails.email}</p>
                 {isRefreshingAccount ? (
                   <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray400 dark:text-gray500">
                     Refreshing account data...
@@ -292,6 +627,7 @@ const AccountPage: React.FC = () => {
               </div>
             </div>
 
+            {activeTab === "portfolio" ? (
             <div className="grid gap-3 grid-cols-3">
               <div className="manifest-card px-4 py-4">
                 <p className="text-[0.68rem] font-medium text-gray500 dark:text-gray400">Investments</p>
@@ -306,6 +642,7 @@ const AccountPage: React.FC = () => {
                 <p className="mt-2 text-2xl font-semibold text-neutral900 dark:text-white">{totalEquity.toFixed(2)}%</p>
               </div>
             </div>
+            ) : null}
           </div>
         </section>
 
@@ -365,7 +702,7 @@ const AccountPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4" />
                   </svg>
                   <h2 className="mt-4 text-xl font-semibold text-neutral900 dark:text-white">No investments yet</h2>
-                  <p className="mt-2 break-all text-sm leading-6 text-gray500 dark:text-gray400">Start investing in ideas to build your founder portfolio.</p>
+                  <p className="mt-2 break-words text-sm leading-6 text-gray500 dark:text-gray400">Start investing in ideas to build your founder portfolio.</p>
                   <Link
                     to="/pitch-reels"
                     className="mt-5 inline-flex items-center rounded-2xl bg-neutral900 px-5 py-3 text-sm font-semibold text-white shadow-none hover:bg-stone50 dark:hover:bg-neutral800 dark:bg-white dark:text-neutral900"
@@ -492,176 +829,13 @@ const AccountPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <div className="space-y-6">
-              <SectionCard
-                eyebrow="Appearance"
-                title="Visual preferences"
-                description="Choose how Manifest looks to you. Select a theme or sync with your system settings."
-              >
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { key: "light", label: "Light", icon: "sun" },
-                    { key: "dark", label: "Dark", icon: "moon" },
-                    { key: "system", label: "System", icon: "desktop" },
-                  ].map((option) => {
-                    const selected = theme === option.key;
-                    return (
-                      <button
-                        key={option.key}
-                        aria-pressed={selected}
-                        type="button"
-                        onClick={() => setTheme(option.key as "light" | "dark" | "system")}
-                        className={`manifest-card flex flex-col items-center gap-2 px-3 py-3 ${
-                          selected ? "border-accent-200 bg-accent-50/80 dark:border-accent-800 dark:bg-accent-900/20" : ""
-                        }`}
-                      >
-                        {option.icon === "sun" ? (
-                          <svg className="h-6 w-6 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0Zm10.334-5.834a.75.75 0 0 0-1.06-1.06l-1.59 1.59a.75.75 0 0 0 1.06 1.061l1.59-1.59ZM21.75 12A.75.75 0 0 1 21 12.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.304 16.243a.75.75 0 1 0-1.06 1.06l1.59 1.591a.75.75 0 0 0 1.061-1.06l-1.59-1.59ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.757 17.303a.75.75 0 0 0-1.06-1.06l-1.59 1.59a.75.75 0 1 0 1.06 1.061l1.59-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06L6.167 5.106a.75.75 0 1 0-1.061 1.06l1.591 1.591Z" />
-                          </svg>
-                        ) : option.icon === "moon" ? (
-                          <svg className="h-6 w-6 text-indigo-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 0 1-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 0 1 .818.162Z" />
-                          </svg>
-                        ) : (
-                          <svg className="h-6 w-6 text-gray500 dark:text-gray400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V6.75A2.25 2.25 0 0 0 18.75 4.5H5.25A2.25 2.25 0 0 0 3 6.75V15a2.25 2.25 0 0 0 2.25 2.25H9l-1.5 2.25h9L15 17.25h3.75A2.25 2.25 0 0 0 21 15V12Z" />
-                          </svg>
-                        )}
-                        <span className={`text-sm font-semibold ${selected ? "text-accent-600 dark:text-accent-200" : "text-neutral900 dark:text-white"}`}>
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                eyebrow="Identity"
-                title="Profile image and public presence"
-                description="Choose the image used across founder workspaces and collaboration surfaces."
-              >
-                <div className="flex flex-col gap-6 lg:flex-row">
-                  <img
-                    src={avatarSrc}
-                    alt="Profile"
-                    className="h-28 w-28 rounded-lg border border-stone200 object-cover shadow-none dark:border-neutral700"
-                  />
-                  <div className="flex-1 space-y-4">
-                    <Input
-                      type="text"
-                      label="Gravatar URL Or Hash"
-                      value={gravatarInput}
-                      onChange={handleGravatarChange}
-                      placeholder="Paste a Gravatar URL or raw hash"
-                    />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      ref={fileInputRef}
-                      onChange={handleProfilePictureUpload}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleUploadButtonClick}
-                      disabled={profilePictureUploading}
-                    >
-                      {profilePictureUploading ? "Uploading…" : "Upload profile picture"}
-                    </Button>
-                    {uploadMessage ? <p className="text-sm leading-6 text-gray500 dark:text-gray400">{uploadMessage}</p> : null}
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                eyebrow="User Details"
-                title="Account identity"
-                description="Keep your founder profile accurate for collaboration, messaging, and investor review."
-              >
-                <div className="grid gap-4">
-                  <Input id="email" label="Email" type="email" value={formData.email} name="email" onChange={handleInputChange} />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Input id="firstName" label="First Name" type="text" value={formData.firstName} name="firstName" onChange={handleInputChange} />
-                    <Input id="lastName" label="Last Name" type="text" value={formData.lastName} name="lastName" onChange={handleInputChange} />
-                  </div>
-                  <SkillsPicker
-                    availableSkills={skillsData?.availableSkills ?? []}
-                    label="Your skills"
-                    onChange={setSkills}
-                    placeholder="Search your skills…"
-                    value={skills}
-                  />
-                  <Button type="button" variant="primary" onClick={handleSaveDetails}>
-                    Save Changes
-                  </Button>
-                </div>
-              </SectionCard>
-            </div>
-
-            <div className="space-y-6">
-              <StorageSection />
-              <div id="ai-key">
-                <SectionCard
-                  eyebrow="AI"
-                  title="Your OpenAI key"
-                  description="Manifest runs on your own OpenAI account, so you only pay OpenAI for what you generate. The key is verified, encrypted, and never shown again."
-                >
-                  <AiKeySection />
-                </SectionCard>
-              </div>
-              <div id="open-media">
-                <SectionCard
-                  eyebrow="Sign-in"
-                  title="Signed in with Open Media"
-                  description="One account for Manifest and Open Media. Messages and Pitch Shorts run on it too, and your pitch shorts appear in Open Media's clips feed."
-                >
-                  <OpenMediaSection />
-                </SectionCard>
-              </div>
-              <SurveyInsightsPanel variant="desktop" />
-              <ProductFeedbackSurveyCard variant="desktop" />
-              <SectionCard
-                eyebrow="Security"
-                title="Sessions"
-                description="Review where you are signed in to Manifest and revoke sessions you no longer trust. Passkeys, passwords and two-step verification are managed in Open Media."
-              >
-                <SecuritySettingsPanel />
-              </SectionCard>
-
-              <IntegrationsSection />
-              <ApiAccessSection />
-
-              <SectionCard
-                eyebrow="Data Management"
-                title="Import and export"
-                description="Bring startup ideas in from Apple Notes or Google Keep, or export your workspace for backup."
-              >
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsImportExportOpen(true)}
-                  data-testid="import-export-button"
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  Import / Export Ideas
-                </Button>
-              </SectionCard>
-
-              <SectionCard
-                eyebrow="Privacy"
-                title="Retention and account deletion"
-                description="Review retention windows, confirm deletion requests, and keep your workspace data lifecycle explicit."
-              >
-                <PrivacyControlsPanel accountEmail={userDetails.email} />
-              </SectionCard>
-            </div>
-          </div>
+          <SettingsView
+            sections={settingsSections}
+            activeId={activeSection}
+            onSelect={selectSection}
+            focusAnchor={focusAnchor}
+            onFocusHandled={clearFocusAnchor}
+          />
         )}
       </div>
 

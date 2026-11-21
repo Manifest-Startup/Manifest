@@ -131,4 +131,30 @@ describe("PrivacyControlsPanel", () => {
     });
     expect(mockSetMessage).toHaveBeenCalledWith("Privacy choices updated.", "success");
   });
+
+  it("keeps deletion locked until the account email is typed", async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
+    const user = userEvent.setup();
+
+    renderPanel(
+      <PrivacyConsentProvider>
+        <PrivacyControlsPanel accountEmail="hello@manifeststartup.com" parts={["deletion"]} embedded />
+      </PrivacyConsentProvider>
+    );
+
+    const button = screen.getByRole("button", { name: /Request account deletion/i });
+    const field = screen.getByLabelText(/Confirm account email/i);
+    expect(field).toHaveValue("");
+    expect(button).toBeDisabled();
+    expect(screen.queryByText(/Tracking and outreach/i)).not.toBeInTheDocument();
+
+    await user.type(field, "someone@else.com");
+    expect(button).toBeDisabled();
+
+    await user.clear(field);
+    await user.type(field, "Hello@ManifestStartup.com");
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(mockRequestDeletion).toHaveBeenCalledWith({ variables: { confirmEmail: "Hello@ManifestStartup.com" } });
+  });
 });
