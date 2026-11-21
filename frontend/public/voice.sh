@@ -39,6 +39,11 @@ uv tool install --force --quiet --python 3.12 \
 PATH="$(uv tool dir --bin):$PATH"
 export PATH
 
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+  # Download and try the natural voice now, so the first conversation doesn't wait for it.
+  manifest bridge --check-voice || say "The natural voice didn't load; the browser's voice will speak. Run this again to retry."
+fi
+
 if [ "$(uname -s)" = "Darwin" ]; then
   say "Connecting Manifest voice to ${agent}…"
   manifest bridge --install

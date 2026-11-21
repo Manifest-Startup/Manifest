@@ -43,26 +43,87 @@ def supported() -> str | None:
     return None
 
 
-class Voice:
-    """Kokoro on MLX, loaded once in the background; one sentence at a time."""
+# Waits between attempts to load the voice (a download can fail; the network comes back).
+RETRY_SECONDS = (30, 120, 600, 1800)
 
-    def __init__(self, voice: str = DEFAULT_VOICE) -> None:
+
+def text_model_problem() -> str | None:
+    """Kokoro's English needs spaCy's small English model. misaki would download it on the
+    fly and *exit the process* when that fails (it did in a uv tool install), so check first
+    and never let it try: the model ships with the `natural-voice` extra."""
+    try:
+        import en_core_web_sm  # noqa: F401
+    except BaseException:
+        return (
+            "the English text model is missing: run the setup again "
+            "(curl -fsSL https://manifeststartup.com/voice.sh | sh)"
+        )
+    return None
+
+
+class Voice:
+    """Kokoro on MLX, loaded in the background; one sentence at a time.
+
+    Loading never takes the bridge down and never fails silently: every problem (even one
+    that calls `exit`) is kept in `problem`, reported to `log`, and retried with backoff.
+    """
+
+    def __init__(self, voice: str = DEFAULT_VOICE, log: Any = None) -> None:
         self.voice = voice
         self.ready = False
+        self.loading = False
         self.problem: str | None = None
+        self.seconds_per_sentence: float | None = None
         self._model: Any = None
         self._lock = threading.Lock()  # MLX runs one synthesis at a time
+        self._log = log or (lambda _line: None)
 
-    def load(self) -> None:
+    @property
+    def status(self) -> str:
+        """ "ready", "loading", or what's wrong (for /health and the log)."""
+        if self.ready:
+            return "ready"
+        return self.problem or "loading"
+
+    def load(self) -> bool:
         """Download (first time, ~330 MB) and load the model, then speak once to warm it."""
+        import time
+
+        self.loading = True
         try:
+            missing = text_model_problem()
+            if missing:
+                raise RuntimeError(missing)
             from mlx_audio.tts.utils import load_model
 
             self._model = load_model(MODEL)  # type: ignore[arg-type]  # a Hugging Face repo id
-            self._pcm("Hi.")
-            self.ready = True
-        except Exception as exc:  # the app keeps the browser's voice
-            self.problem = f"{type(exc).__name__}: {exc}"
+            if not self._pcm("Hi."):  # the first sentence also compiles the GPU kernels
+                raise RuntimeError("the voice made no sound")
+            started = time.monotonic()
+            self._pcm("Hi, I'm here.")
+            self.seconds_per_sentence = round(time.monotonic() - started, 2)
+            self.ready, self.problem = True, None
+            self._log(
+                f"Natural voice ready: Kokoro {self.voice} ({self.seconds_per_sentence} s a sentence)."
+            )
+        except BaseException as exc:  # noqa: BLE001  (misaki can raise SystemExit)
+            self.ready = False
+            self.problem = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+            self._log(f"Natural voice unavailable ({self.problem}); the browser's voice speaks.")
+        finally:
+            self.loading = False
+        return self.ready
+
+    def load_forever(self) -> None:
+        """Load, and if that fails, try again later (for the bridge's background thread)."""
+        import time
+
+        for wait in (0, *RETRY_SECONDS):
+            time.sleep(wait)
+            if self.load():
+                return
+            if self.problem and "text model is missing" in self.problem:
+                return  # only a reinstall fixes this; it is reported in /health
 
     def _pcm(self, text: str) -> bytes:
         import numpy as np
@@ -134,6 +195,7 @@ class CartesiaVoice:
         self.voice = "cartesia"
         self.ready = True
         self.problem: str | None = None
+        self.status = "ready"
         self._client: Any = None
 
     def _http(self) -> Any:

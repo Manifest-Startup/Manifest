@@ -40,6 +40,8 @@ local-voice = [
 natural-voice = [
     "mlx-audio>=0.6.7; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "misaki[en]>=0.9; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    # misaki downloads this at runtime and exits when it can't (uv tool installs): ship it.
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 dev = [
     "pytest>=7.0.0",
@@ -60,3 +62,7 @@ packages = ["src/manifest_mcp", "src/manifest_cli"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.hatch.metadata]
+# The natural-voice extra ships spaCy's English model from its GitHub release (not on PyPI).
+allow-direct-references = true

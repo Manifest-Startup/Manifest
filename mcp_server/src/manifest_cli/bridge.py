@@ -144,6 +144,10 @@ class Bridge:
                     "interrupt": True,  # a hung-up /turn stops the agent's answer
                     # The natural voice (POST /speak), once its model has loaded.
                     "speech": self.speech.voice if self.speech and self.speech.ready else None,
+                    # "ready", "loading", or what's wrong; the app upgrades once it's ready.
+                    "speech_status": getattr(self.speech, "status", "ready")
+                    if self.speech
+                    else "off",
                 }
             ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
@@ -290,9 +294,14 @@ async def serve(
 
     # The natural voice: the browser hears, Kokoro on the Apple GPU speaks (POST /speak).
     no_speech = speech.supported() if voice != "browser" else "browser voice chosen"
-    natural = None if no_speech else Voice(voice or speech.DEFAULT_VOICE)
+
+    def log(line: str) -> None:
+        out.write(line + "\n")
+        out.flush()
+
+    natural = None if no_speech else Voice(voice or speech.DEFAULT_VOICE, log=log)
     if natural:
-        threading.Thread(target=natural.load, daemon=True).start()  # ready in a few seconds
+        threading.Thread(target=natural.load_forever, daemon=True).start()  # a few seconds
     missing = local_voice.available() if voice != "browser" else "browser voice chosen"
     if not missing and natural:
         missing = "the natural voice (browser hearing, Kokoro on the GPU) is faster"
@@ -443,6 +452,19 @@ def install(args: list[str], *, out: TextIO) -> int:
         "Undo with: manifest bridge --uninstall\n"
     )
     return 0
+
+
+def check_voice(*, out: TextIO) -> int:
+    """Load the natural voice in the foreground: the first time it downloads the model, so
+    setup does that (not the first conversation), and any problem shows here."""
+    problem = speech.supported()
+    if problem:
+        out.write(f"Natural voice: not on this computer ({problem}). The browser's voice speaks.\n")
+        return 0
+    out.write("Natural voice: loading Kokoro (the first time downloads about 330 MB)…\n")
+    out.flush()
+    voice = Voice(log=lambda line: (out.write(line + "\n"), out.flush()))
+    return 0 if voice.load() else 1
 
 
 def set_cartesia_key(*, out: TextIO) -> int:

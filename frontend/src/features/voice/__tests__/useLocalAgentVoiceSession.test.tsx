@@ -154,4 +154,61 @@ describe('useLocalAgentVoiceSession', () => {
     act(() => rec.onresult(result('great, and dilution?', true))); // the person can still talk
     await waitFor(() => expect(turns()).toEqual(['what is a cap table', 'great, and dilution?']), { timeout: 2000 });
   });
+
+  it('switches to the natural voice as soon as it finishes loading, mid-conversation', async () => {
+    let voiceReady = false;
+    const speakCalls: string[] = [];
+    class FakeContext {
+      state = 'running';
+      destination = {};
+      createAnalyser = () => ({ fftSize: 0, connect: jest.fn(), getFloatTimeDomainData: jest.fn() });
+      createBuffer = (_c: number, length: number) => ({ length, getChannelData: () => new Float32Array(length) });
+      createBufferSource = () => ({ connect: jest.fn(), start: jest.fn(), stop: jest.fn(), onended: null });
+      resume = jest.fn();
+    }
+    (window as unknown as { AudioContext: unknown }).AudioContext = FakeContext;
+    const answerOnce = global.fetch as jest.Mock;
+    global.fetch = jest.fn(async (url: string, init?: { body?: string; signal?: AbortSignal }) => {
+      if (url.endsWith('/health')) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            agent: 'Claude Code',
+            speech: voiceReady ? 'af_heart' : null,
+            speech_status: voiceReady ? 'ready' : 'loading',
+          }),
+        };
+      }
+      if (url.endsWith('/speak')) {
+        speakCalls.push(JSON.parse(init?.body ?? '{}').text);
+        return { ok: true, headers: new Headers(), arrayBuffer: async () => new Int16Array(8).buffer };
+      }
+      return answerOnce(url, init);
+    }) as unknown as typeof fetch;
+
+    jest.useFakeTimers();
+    try {
+      const hook = renderHook(() => useLocalAgentVoiceSession(), { wrapper });
+      await act(async () => {
+        await hook.result.current.start();
+      });
+      voiceReady = true; // the bridge finished loading Kokoro
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(4100);
+      });
+      act(() => recognitions[0].onresult(result('hello there', true)));
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(400);
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(50);
+      });
+      expect(speakCalls).toEqual(['Two ideas.']); // the natural voice, not the browser's
+      expect(speaking).toHaveLength(0);
+    } finally {
+      jest.useRealTimers();
+      delete (window as unknown as { AudioContext?: unknown }).AudioContext;
+    }
+  });
 });

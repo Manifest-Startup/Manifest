@@ -284,7 +284,7 @@ def test_local_speech_models_only_on_a_computer_with_room(monkeypatch):
 
 def test_bridge_speaks_a_sentence_in_the_natural_voice():
     class FakeVoice:
-        voice, ready, warmed = "af_heart", True, 0
+        voice, ready, warmed, status = "af_heart", True, 0, "ready"
 
         async def speak(self, text):
             return b"\x01\x00" * len(text)
@@ -388,3 +388,23 @@ def test_cartesia_key_comes_from_the_environment_first(monkeypatch):
 
     monkeypatch.setenv("CARTESIA_API_KEY", " sk_car_env ")
     assert speech.cartesia_key() == "sk_car_env"
+
+
+def test_a_voice_that_fails_to_load_says_why_and_never_exits(monkeypatch):
+    from manifest_cli import speech
+
+    lines: list[str] = []
+    voice = speech.Voice(log=lines.append)
+    monkeypatch.setattr(speech, "text_model_problem", lambda: None)
+
+    utils = pytest.importorskip("mlx_audio.tts.utils")  # Apple silicon extra
+
+    def exits(_model):
+        raise SystemExit(2)  # what misaki does when its download fails
+
+    monkeypatch.setattr(utils, "load_model", exits)
+    assert voice.load() is False  # no SystemExit escapes
+    assert voice.status.startswith("SystemExit") and "unavailable" in lines[-1]
+
+    monkeypatch.setattr(speech, "text_model_problem", lambda: "the English text model is missing")
+    assert voice.load() is False and "text model" in voice.status

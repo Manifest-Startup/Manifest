@@ -849,6 +849,11 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     )
     parser.add_argument("--uninstall", action="store_true", help="stop starting it at login")
     parser.add_argument(
+        "--check-voice",
+        action="store_true",
+        help="load the natural voice now (downloads it the first time) and say if it works",
+    )
+    parser.add_argument(
         "--cartesia-key",
         action="store_true",
         help="speak in Cartesia's voice (as in Pipecat's demos): asks for your Cartesia API key "
@@ -864,6 +869,8 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         return bridge.uninstall(out=ctx.out)
     if ns.cartesia_key:
         return bridge.set_cartesia_key(out=ctx.out)
+    if ns.check_voice:
+        return bridge.check_voice(out=ctx.out)
     agent = make_agent(
         ns.agent,
         extra_args=ns.agent_arg,
