@@ -322,6 +322,18 @@ def gmail_create_draft(conn: GmailConnection, *, to: str | None, subject: str, b
     return str(draft_id)
 
 
+def gmail_compose_url(*, to: str | None, subject: str, body: str) -> str:
+    """A link that opens Gmail's compose window, pre-filled, in whoever's Gmail opens it.
+
+    Needs no Google sign-in setup or scope: the person saves or sends it themselves."""
+    from urllib.parse import urlencode
+
+    query = {"view": "cm", "fs": "1", "su": subject, "body": body}
+    if to:
+        query["to"] = to
+    return "https://mail.google.com/mail/?" + urlencode(query)
+
+
 def gmail_get_draft(conn: GmailConnection, draft_id: str) -> dict[str, Any] | None:
     try:
         return _gmail_call(
@@ -344,7 +356,10 @@ def capability_status(db: Any, user_id: str, ai_layer: Any) -> dict[str, dict[st
     except Exception as exc:  # decryption or lookup failure: report, don't crash
         logger.warning("[discovery] gmail lookup failed: %s", exc)
         has_gmail = False
-    gmail_hint = "Connect Gmail in Account → Integrations (drafts only; Manifest never sends)."
+    gmail_hint = (
+        "Each prepared email has an Open in Gmail link (a pre-filled compose window); "
+        "saving drafts straight into Gmail isn't switched on for this server."
+    )
     return {
         "web.search": {
             "available": has_ai,
@@ -353,11 +368,12 @@ def capability_status(db: Any, user_id: str, ai_layer: Any) -> dict[str, dict[st
         },
         "web.read": {"available": True, "provider": "safe-http", "hint": None},
         "prospects.search": {
-            "available": True,
+            # Without Apollo, prospects come from web search, which needs the OpenAI key.
+            "available": has_apollo or has_ai,
             "provider": "apollo" if has_apollo else "web-search",
             "hint": None
-            if has_apollo
-            else "Apollo.io is not set up; prospects come from web search.",
+            if has_apollo or has_ai
+            else "Add your OpenAI key in Account → AI settings (or set up Apollo.io).",
         },
         "prospects.enrich": {
             "available": has_apollo,

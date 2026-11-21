@@ -18,7 +18,6 @@ import {
   SiFigma,
   SiGithub,
   SiGitlab,
-  SiGmail,
   SiGoogle,
   SiGoogleanalytics,
   SiHubspot,
@@ -94,14 +93,6 @@ export const integrationCatalog: IntegrationCatalogEntry[] = [
     icon: SiGoogle,
     category: 'Productivity',
     brandColor: '#4285F4',
-  },
-  {
-    id: 'gmail',
-    name: 'Gmail',
-    description: 'Save customer outreach as Gmail drafts. Manifest never sends email',
-    icon: SiGmail,
-    category: 'Productivity',
-    brandColor: '#EA4335',
   },
   {
     id: 'apple',

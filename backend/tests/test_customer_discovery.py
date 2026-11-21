@@ -238,8 +238,11 @@ def test_outreach_only_addresses_verified_emails(db):
 
 def test_gmail_drafts_need_a_connection_and_are_never_duplicated(db, monkeypatch):
     test_outreach_only_addresses_verified_emails(db)
-    with pytest.raises(connectors.ConnectorUnavailable):
-        cd.create_gmail_drafts(db=db, user_id=USER, idea=IDEA)
+    # No Gmail connection (the usual case): nothing is saved, compose links come back instead.
+    unconnected = cd.create_gmail_drafts(db=db, user_id=USER, idea=IDEA)
+    assert unconnected["created"] == [] and "Open in Gmail" in unconnected["limitations"][0]
+    links = [o["compose_url"] for o in cd.view(unconnected["state"])["data"]["outreach"]]
+    assert all(u.startswith("https://mail.google.com/mail/?view=cm") for u in links)
 
     created = []
     monkeypatch.setattr(
@@ -382,3 +385,36 @@ def test_website_check_counts_bot_walls_and_big_pages_but_not_missing_sites(monk
 
     monkeypatch.setattr(safe_http, "safe_request", fake)
     assert [REAL_WEBSITE_RESOLVES(u) for u in answers] == [True, True, False, False, False]
+
+
+def test_compose_links_prefill_the_email_and_only_verified_recipients():
+    from urllib.parse import parse_qs, urlparse
+
+    url = connectors.gmail_compose_url(to="a@b.co", subject="Hi & bye", body="Line 1\nLine 2")
+    query = parse_qs(urlparse(url).query)
+    assert query == {
+        "view": ["cm"],
+        "fs": ["1"],
+        "su": ["Hi & bye"],
+        "body": ["Line 1\nLine 2"],
+        "to": ["a@b.co"],
+    }
+    assert "to" not in parse_qs(
+        urlparse(connectors.gmail_compose_url(to=None, subject="s", body="b")).query
+    )
+    note = cd.render_markdown(
+        {
+            **cd.empty_state(IDEA),
+            "outreach": [
+                {"prospect_id": "p", "prospect_name": "X", "to": None, "subject": "s", "body": "b"}
+            ],
+        }
+    )
+    assert "[Open in Gmail](https://mail.google.com/mail/?" in note
+
+
+def test_prospect_search_is_unavailable_without_a_key_or_apollo(db):
+    layer = SimpleNamespace(router=SimpleNamespace(is_available=lambda: False))
+    status = connectors.capability_status(db, USER, layer)
+    assert status["prospects.search"]["available"] is False
+    assert status["web.read"]["available"] is True
