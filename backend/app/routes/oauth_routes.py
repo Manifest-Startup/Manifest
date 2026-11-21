@@ -23,6 +23,7 @@ import urllib.parse
 from datetime import datetime, timedelta
 
 from app.db.database import get_db_connection
+from app.services.integrations.github_account import OAUTH_SCOPES as GITHUB_OAUTH_SCOPES
 from app.utils.logger import logger
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -207,7 +208,7 @@ OAUTH_PROVIDERS = {
     "github": {
         "auth_url": "https://github.com/login/oauth/authorize",
         "token_url": "https://github.com/login/oauth/access_token",
-        "scopes": ["read:user", "user:email", "repo"],
+        "scopes": GITHUB_OAUTH_SCOPES,
         "client_id_env": "GITHUB_CLIENT_ID",
         "client_secret_env": "GITHUB_CLIENT_SECRET",
     },
@@ -417,6 +418,26 @@ async def oauth_callback(request: Request, provider: str):  # noqa: C901
 
     access_token = tokens.get("access_token")
     refresh_token = tokens.get("refresh_token")
+
+    if provider == "github":
+        # GitHub answers 200 with {"error": ...} when the code is bad or reused.
+        from app.services.integrations.github_account import (
+            GitHubConnectError,
+            save_github_token,
+        )
+
+        if not access_token:
+            logger.error("GitHub token exchange returned no token: %s", tokens.get("error"))
+            return _render_callback_page(
+                success=False, error="GitHub did not return a token", provider=provider
+            )
+        try:
+            import asyncio
+
+            await asyncio.to_thread(save_github_token, user_id, access_token, method="oauth")
+        except GitHubConnectError as exc:
+            return _render_callback_page(success=False, error=str(exc), provider=provider)
+        return _render_callback_page(success=True, provider=provider)
     expires_in = tokens.get("expires_in")
 
     expires_at = None
@@ -473,6 +494,20 @@ def _render_callback_page(success: bool, provider: str, error: str | None = None
         else (error or "Connection failed")
     )
 
+    import html as _html
+
+    display = "GitHub" if provider == "github" else provider.capitalize()
+    if success:
+        message = f"Successfully connected to {display}"
+    html_message = _html.escape(message)
+    result_json = json.dumps({"status": status, "provider": provider, "message": message}).replace(
+        "<", "\\u003c"
+    )
+    redirect_json = json.dumps(
+        f"/account?oauth={status}&provider={urllib.parse.quote(provider)}"
+        + ("&focusIntegration=github" if provider == "github" else "")
+    ).replace("<", "\\u003c")
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -515,21 +550,17 @@ def _render_callback_page(success: bool, provider: str, error: str | None = None
         <div class="container">
             <div class="icon">{'✓' if success else '✗'}</div>
             <h1>{'Connected!' if success else 'Connection Failed'}</h1>
-            <p>{message}</p>
+            <p>{html_message}</p>
         </div>
         <script>
-            const result = {{
-                status: '{status}',
-                provider: '{provider}',
-                message: '{message}'
-            }};
+            const result = {result_json};
             
             if (window.opener) {{
-                window.opener.postMessage({{ type: 'oauth_callback', ...result }}, '*');
+                window.opener.postMessage({{ type: 'oauth_callback', ...result }}, window.location.origin);
                 setTimeout(() => window.close(), 1500);
             }} else {{
                 setTimeout(() => {{
-                    window.location.href = '/account?oauth={status}&provider={provider}';
+                    window.location.href = {redirect_json};
                 }}, 1500);
             }}
         </script>

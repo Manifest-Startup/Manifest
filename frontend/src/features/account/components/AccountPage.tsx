@@ -7,7 +7,7 @@ import Button from "features/common-ui/Button";
 import { useFormState, useInputHandlers } from "features/common-ui/hooks/formHooks";
 import Input from "features/common-ui/Input";
 import { accountVar, userVar } from "features/core/apollo/localState";
-import { GET_ACCOUNT, GET_AI_KEY_STATUS, GET_INTEGRATIONS, GET_MY_PORTFOLIO, UPDATE_ACCOUNT } from "features/core/apollo/queries";
+import { GET_ACCOUNT, GET_AI_KEY_STATUS, GET_GITHUB_ACCOUNT, GET_INTEGRATIONS, GET_MY_PORTFOLIO, UPDATE_ACCOUNT } from "features/core/apollo/queries";
 import { createLogger } from "features/core/logError";
 import { useSafeQuery } from "features/common-ui/api/useSafeQuery";
 import ImportExportModal from "features/ideas/components/ImportExportModal";
@@ -17,6 +17,7 @@ import SurveyInsightsPanel from "features/feedback/SurveyInsightsPanel";
 import ApiAccessSection from "./ApiAccessSection";
 import AiKeySection from "./AiKeySection";
 import { StorageSection } from "features/vault/StorageSection";
+import GitHubSection, { type GithubAccount } from "./GitHubSection";
 import IntegrationsSection from "./IntegrationsSection";
 import OpenMediaSection from "./OpenMediaSection";
 import PrivacyControlsPanel from "./PrivacyControlsPanel";
@@ -123,6 +124,8 @@ const AccountPage: React.FC = () => {
   const openMedia = useOpenMediaLink();
   const { data: integrationsData } = useQuery(GET_INTEGRATIONS, { skip: !isLoggedIn });
   const connectedIntegrations = integrationsData?.integrations?.length ?? 0;
+  const { data: githubData } = useQuery<{ githubAccount: GithubAccount }>(GET_GITHUB_ACCOUNT, { skip: !isLoggedIn });
+  const github = githubData?.githubAccount;
 
   const [activeTab, setActiveTab] = useState<"portfolio" | "settings">(
     focusIntegrationId || sectionParam ? "settings" : "portfolio",
@@ -506,15 +509,31 @@ const AccountPage: React.FC = () => {
       label: "Integrations",
       summary: "Connect the tools and companies you work with. Connected partners show under Key Partners on every canvas.",
       icon: "puzzle",
-      status: connectedIntegrations > 0 ? { text: `${connectedIntegrations} connected`, tone: "ok" } : null,
+      status: github?.connected
+        ? { text: `GitHub @${github.login ?? ""}`, tone: "ok" }
+        : connectedIntegrations > 0
+          ? { text: `${connectedIntegrations} connected`, tone: "ok" }
+          : null,
       items: [
-        { anchor: "integrations", label: "Connected apps", keywords: "integrations connect apps tools google notion slack github figma stripe" },
+        { anchor: "github", label: "GitHub", keywords: "github git code connect gh cli plugin" },
+        { anchor: "github", label: "Repositories", keywords: "repository repositories repo repos pull requests issues actions ci releases" },
+        { anchor: "github", label: "GitHub token", keywords: "token access token personal access token pat oauth sign in with github" },
+        { anchor: "integrations", label: "Connected apps", keywords: "integrations connect apps tools google notion slack figma stripe" },
         { anchor: "integrations", label: "Key partners", keywords: "partners suppliers agencies distributors canvas" },
       ],
       content: (
-        <div id="integrations">
-          <IntegrationsSection showHeader={false} />
-        </div>
+        <>
+          <SettingsCard
+            id="github"
+            title="GitHub"
+            description="One connection for everything: the app, ideas turned into repositories, the manifest CLI, your agent's Manifest plugin and voice. Manifest always asks before merging or deleting."
+          >
+            <GitHubSection />
+          </SettingsCard>
+          <div id="integrations">
+            <IntegrationsSection showHeader={false} />
+          </div>
+        </>
       ),
     },
     {

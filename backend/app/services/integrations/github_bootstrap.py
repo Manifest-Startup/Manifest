@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-import base64
 import re
 from html import unescape
 from typing import Any
 
-import httpx
+from app.services.integrations.github_account import load_github_token
+from app.services.integrations.github_api import (
+    NOT_CONNECTED,
+    GitHubError,
+    client_for,
+    create_repo,
+)
 from app.utils.logger import logger
-
-_GITHUB_API = "https://api.github.com"
-_PLACEHOLDER_TOKENS = frozenset({"", "***", "null", "none"})
 
 
 def _plain_text_from_html(html: str, max_len: int = 4000) -> str:
@@ -25,32 +27,6 @@ def _plain_text_from_html(html: str, max_len: int = 4000) -> str:
     if len(text) > max_len:
         return text[: max_len - 1].rstrip() + "…"
     return text
-
-
-def _load_github_token(db, user_id: str) -> str | None:
-    try:
-        res = (
-            db.table("integrations")
-            .select("access_token")
-            .eq("user_id", user_id)
-            .eq("service_id", "github")
-            .limit(1)
-            .execute()
-        )
-    except Exception as exc:  # pragma: no cover - network/db
-        logger.warning("[GitHubBootstrap] integration lookup failed: %s", exc)
-        return None
-
-    rows = res.data or []
-    if not rows:
-        return None
-    token = rows[0].get("access_token")
-    if not token or not isinstance(token, str):
-        return None
-    cleaned = token.strip()
-    if cleaned.lower() in _PLACEHOLDER_TOKENS or cleaned == "***":
-        return None
-    return cleaned
 
 
 def _fetch_owned_idea(db, user_id: str, idea_id: str) -> dict[str, Any] | None:
@@ -75,16 +51,26 @@ def _validate_repo_name(name: str) -> bool:
     return bool(re.match(r"^[A-Za-z0-9._-]+$", name))
 
 
+def idea_readme(db, user_id: str, idea_id: str) -> str | None:
+    """README text seeded from an idea the person owns, or None when it isn't theirs."""
+    idea = _fetch_owned_idea(db, user_id, idea_id)
+    if not idea:
+        return None
+    title = (idea.get("title") or "Manifest idea").strip()
+    body_text = _plain_text_from_html(idea.get("description") or "")
+    return f"# {title}\n\n{body_text}\n" if body_text else f"# {title}\n\n_Seeded from Manifest._\n"
+
+
 def create_private_repo_for_idea(
     db,
     user_id: str,
     idea_id: str,
     repo_name: str,
-    timeout: float = 30.0,
 ) -> tuple[str | None, str | None, str | None]:
-    """
-    Returns (html_url, error_detail, error_code) where error_code is an HTTP status or 'validation'.
-    On success, error fields are None.
+    """Create a private repository seeded from an idea.
+
+    Returns (html_url, error_detail, error_code); error_code is 'validation',
+    'github_auth', 'not_found', 'upstream' or GitHub's HTTP status.
     """
     if not _validate_repo_name(repo_name):
         return (
@@ -92,73 +78,24 @@ def create_private_repo_for_idea(
             "Repository name must be 1-100 characters: letters, numbers, dots, hyphens, underscores.",
             "validation",
         )
+    if not load_github_token(user_id):
+        return None, NOT_CONNECTED, "github_auth"
 
-    token = _load_github_token(db, user_id)
-    if not token:
-        return None, "Connect GitHub under Account → integrations, then try again.", "github_auth"
-
-    idea = _fetch_owned_idea(db, user_id, idea_id)
-    if not idea:
+    readme = idea_readme(db, user_id, idea_id)
+    if readme is None:
         return None, "Idea not found or you do not have access.", "not_found"
-
-    title = (idea.get("title") or "Manifest idea").strip()
-    body_text = _plain_text_from_html(idea.get("description") or "")
-    readme_body = (
-        f"# {title}\n\n{body_text}\n" if body_text else f"# {title}\n\n_Seeded from Manifest._\n"
-    )
-
-    payload = {
-        "name": repo_name,
-        "private": True,
-        "description": f"Manifest idea: {title}"[:350],
-        "auto_init": False,
-    }
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
+    title = readme.splitlines()[0].lstrip("# ").strip()
 
     try:
-        with httpx.Client(timeout=timeout) as client:
-            create_resp = client.post(f"{_GITHUB_API}/user/repos", json=payload, headers=headers)
-            if create_resp.status_code not in (200, 201):
-                detail = "GitHub rejected the request."
-                try:
-                    err_json = create_resp.json()
-                    if isinstance(err_json, dict) and err_json.get("message"):
-                        detail = str(err_json["message"])
-                except Exception:
-                    pass
-                logger.warning(
-                    "[GitHubBootstrap] create repo failed status=%s body=%s",
-                    create_resp.status_code,
-                    create_resp.text[:500],
-                )
-                return None, detail, str(create_resp.status_code)
-
-            repo_data = create_resp.json()
-            html_url = repo_data.get("html_url") if isinstance(repo_data, dict) else None
-            full_name = repo_data.get("full_name") if isinstance(repo_data, dict) else None
-            if not full_name:
-                return html_url, None, None
-
-            readme_resp = client.put(
-                f"{_GITHUB_API}/repos/{full_name}/contents/README.md",
-                headers=headers,
-                json={
-                    "message": "Seed README from Manifest",
-                    "content": base64.b64encode(readme_body.encode("utf-8")).decode("ascii"),
-                },
+        with client_for(user_id) as gh:
+            repo = create_repo(
+                gh,
+                name=repo_name,
+                description=f"Manifest idea: {title}",
+                private=True,
+                readme=readme,
             )
-            if readme_resp.status_code not in (200, 201):
-                logger.warning(
-                    "[GitHubBootstrap] README update failed status=%s — repo may be empty",
-                    readme_resp.status_code,
-                )
-
-            return html_url, None, None
-    except httpx.HTTPError as exc:
-        logger.error("[GitHubBootstrap] HTTP error: %s", exc)
-        return None, "Could not reach GitHub. Try again later.", "upstream"
+    except GitHubError as exc:
+        logger.warning("[GitHubBootstrap] create repo failed status=%s", exc.status)
+        return None, str(exc), str(exc.status) if exc.status else "upstream"
+    return repo["html_url"], None, None

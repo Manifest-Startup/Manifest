@@ -53,9 +53,9 @@ Scripts can still use an API key (`Authorization: Bearer manifest_sk_…`), whic
 
 ## What's inside
 
-- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **132 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
-- **9 skills**: `manifest` (start here), `manifest-ideas`, `manifest-documents`, `manifest-vault`, `manifest-network`, `manifest-investing`, `manifest-team`, `manifest-account` and `manifest-admin`.
-- **10 slash commands**: `new-idea`, `note`, `ideas`, `plan`, `write-docs`, `vault`, `pitch`, `messages`, `portfolio` and `account`.
+- **1 MCP server**, `manifest` at `https://manifeststartup.com/mcp`, with **166 tools**: every GraphQL query and mutation and every account REST feature, generated from the schema (see [TOOLS.md](TOOLS.md)). The few operations that stay in the app are listed there with the reason.
+- **10 skills**: `manifest` (start here), `manifest-ideas`, `manifest-documents`, `manifest-vault`, `manifest-github`, `manifest-network`, `manifest-investing`, `manifest-team`, `manifest-account` and `manifest-admin`.
+- **11 slash commands**: `new-idea`, `note`, `ideas`, `plan`, `write-docs`, `vault`, `github`, `pitch`, `messages`, `portfolio` and `account`.
 
 Pair it with the [Open Media plugin](https://github.com/Manifest-Startup/open-media) for the rest of your Open Media inbox and feed; Manifest's messages and pitch shorts run on the same account.
 

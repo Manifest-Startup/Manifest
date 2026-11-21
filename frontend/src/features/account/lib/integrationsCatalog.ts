@@ -261,6 +261,8 @@ export const integrationCatalog: IntegrationCatalogEntry[] = [
     icon: SiGithub,
     category: 'Development',
     brandColor: '#181717',
+    // One GitHub connection, managed by its own card (GitHubSection) above the catalog.
+    managedElsewhere: true,
   },
   {
     id: 'gitlab',

@@ -29,8 +29,8 @@ VOICE_COMMAND_CAPABILITIES: list[dict[str, Any]] = [
     {
         "id": "integrations-github",
         "category": "account",
-        "title": "Integrations and GitHub bootstrap",
-        "description": "Open Account integrations to connect GitHub, or create a private repo from the current idea when GitHub is connected.",
+        "title": "GitHub and integrations",
+        "description": "Connect your GitHub in Account, create a private repo from the current idea, and (with the voice agent) work in your repositories: issues, pull requests, branches, files, Actions and releases.",
         "examples": [
             "Open integrations",
             "Open GitHub integration",
