@@ -2,7 +2,7 @@
   "name": "manifest",
   "displayName": "Manifest",
   "description": "Manifest for AI agents: turn a rough startup idea into an investable plan. Create and qualify ideas; generate Business Model Canvas, pitch deck, PRD and provisional patent drafts; browse pitch shorts and message founders; track investments and cap tables; manage collaborators, privacy and your account. Everything you can do in Manifest, with every destructive change confirmed first.",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "logo": "./assets/icon.png",
   "suggestedPrompts": [
     "Turn my idea for a solar-powered cold storage startup into a Manifest idea",

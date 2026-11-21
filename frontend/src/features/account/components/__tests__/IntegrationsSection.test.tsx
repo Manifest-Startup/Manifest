@@ -49,8 +49,8 @@ const twoConnectedIntegrations = {
     {
       integrationId: "2",
       userId: "user-1",
-      serviceName: "GitHub",
-      serviceId: "github",
+      serviceName: "GitLab",
+      serviceId: "gitlab",
       connectedAt: "2024-01-02T00:00:00Z",
       metadata: null,
       linked: false,
@@ -98,6 +98,12 @@ describe("IntegrationsSection", () => {
     expect(searchInput).toBeInTheDocument();
   });
 
+  it("leaves GitHub to its own card above the catalog", async () => {
+    renderSection();
+    expect(await screen.findByText("Google")).toBeInTheDocument();
+    expect(screen.queryByText("GitHub")).not.toBeInTheDocument();
+  });
+
   it("filters integrations by search query", async () => {
     queryState.data = { ...twoConnectedIntegrations };
     renderSection();
@@ -105,11 +111,11 @@ describe("IntegrationsSection", () => {
     expect(await screen.findByText("Google")).toBeInTheDocument();
 
     const searchInput = screen.getByPlaceholderText("Search integrations...");
-    fireEvent.change(searchInput, { target: { value: "GitHub" } });
+    fireEvent.change(searchInput, { target: { value: "GitLab" } });
 
     await waitFor(() => {
       expect(screen.queryByText("Google")).not.toBeInTheDocument();
-      expect(screen.getByText("GitHub")).toBeInTheDocument();
+      expect(screen.getByText("GitLab")).toBeInTheDocument();
     });
   });
 
@@ -134,7 +140,7 @@ describe("IntegrationsSection", () => {
     renderSection();
 
     await waitFor(() => {
-      expect(screen.getByText("GitHub")).toBeInTheDocument();
+      expect(screen.getByText("GitLab")).toBeInTheDocument();
     });
 
     const developmentButtons = screen.getAllByText("Development");
@@ -146,7 +152,7 @@ describe("IntegrationsSection", () => {
     }
 
     await waitFor(() => {
-      expect(screen.getByText("GitHub")).toBeInTheDocument();
+      expect(screen.getByText("GitLab")).toBeInTheDocument();
     });
   });
 
@@ -161,8 +167,8 @@ describe("IntegrationsSection", () => {
     // Linked = the partner's own sign-in completed; otherwise it was added by name.
     const googleCard = screen.getByText("Google").closest(".group");
     expect(googleCard).toHaveTextContent("Linked");
-    const githubCard = screen.getByText("GitHub").closest(".group");
-    expect(githubCard).toHaveTextContent("Added as partner");
+    const gitlabCard = screen.getByText("GitLab").closest(".group");
+    expect(gitlabCard).toHaveTextContent("Added as partner");
   });
 
   it("calls connect mutation when connecting an integration", async () => {

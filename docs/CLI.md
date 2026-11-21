@@ -69,6 +69,22 @@ manifest vault-folder icloud               # move it to iCloud Drive (or documen
 
 Moving keeps every file (it refuses a place that isn't empty), restarts background sync on the new folder, gives it the Manifest folder icon and saves the choice in `~/.config/manifest/vault.json` for the plugin, the app and voice. It runs the vault script from the Manifest plugin (`manifest_vault.py move`). The running bridge exposes the same thing to Settings → Storage (`GET`/`POST /vault/folder`), and Claude Code may run this one command during voice without asking, so "move my vault to iCloud Drive" works out loud.
 
+### Your GitHub: `manifest github`
+
+```bash
+manifest github connect                    # links the GitHub login on this computer (gh, or the GitHub plugin's token)
+manifest github                            # connected as whom, with which scopes
+manifest github-repos --query api          # then every github-* command works
+manifest github-issues --repo you/app --state all
+manifest github-create-pull-request --repo you/app --title "Add login" --head feature/login
+manifest github-merge-pull-request --repo you/app --number 12        # asks first (--yes to skip)
+manifest github-workflow-runs --repo you/app                         # is CI green?
+manifest github-api --path /notifications                            # anything else (GET)
+manifest commands --search github                                    # all 33
+```
+
+It's one connection: checked with GitHub, stored encrypted in your account, and shared by the app (Settings → Integrations → GitHub), the agent plugin (`manifest-github` skill) and voice. Connecting or disconnecting anywhere shows everywhere. `--token-stdin` reads a token from a pipe for scripts; `manifest github disconnect` forgets it.
+
 ### Your own agent, out loud
 
 ```bash

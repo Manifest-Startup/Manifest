@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "3a2fc3cf8af2d488c2f0fbe4ab92124a3ad8eaed81c11f27d7010aded8ac499d",
+ "schema_sha256": "ca46af12f5ddccdc9685cfad897e848f2884d50650de2f8492334bc2d07839b8",
  "operations": [
   {
    "name": "me",
@@ -284,6 +284,501 @@
     {
      "name": "serviceId",
      "flag": "--service-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubAccount",
+   "command": "github-account",
+   "kind": "query",
+   "description": "Whether your GitHub is connected, as whom and with which scopes; when it isn't, connectUrl and message say how to connect it.",
+   "destructive": false,
+   "returns": "GithubAccount!",
+   "selection": "{ connected oauthAvailable login name avatarUrl htmlUrl scopes method connectedAt connectUrl message }",
+   "args": []
+  },
+  {
+   "name": "githubRepos",
+   "command": "github-repos",
+   "kind": "query",
+   "description": "Your GitHub repositories, most recently updated first. `query` searches names; `owner` lists an organization's or user's repositories.",
+   "destructive": false,
+   "returns": "[GithubRepo!]!",
+   "selection": "{ fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt }",
+   "args": [
+    {
+     "name": "query",
+     "flag": "--query",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "owner",
+     "flag": "--owner",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 30,
+     "description": ""
+    },
+    {
+     "name": "page",
+     "flag": "--page",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 1,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubRepo",
+   "command": "github-repo",
+   "kind": "query",
+   "description": "One repository (`repo` is owner/name or its github.com URL).",
+   "destructive": false,
+   "returns": "GithubRepo!",
+   "selection": "{ fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubIssues",
+   "command": "github-issues",
+   "kind": "query",
+   "description": "Issues in a repository (not pull requests). state: open, closed or all; labels: comma-separated; assignee: a login, `none` or `*`.",
+   "destructive": false,
+   "returns": "[GithubIssue!]!",
+   "selection": "{ number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "state",
+     "flag": "--state",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": "open",
+     "description": ""
+    },
+    {
+     "name": "labels",
+     "flag": "--labels",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "assignee",
+     "flag": "--assignee",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 30,
+     "description": ""
+    },
+    {
+     "name": "page",
+     "flag": "--page",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 1,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubIssue",
+   "command": "github-issue",
+   "kind": "query",
+   "description": "One issue or pull request conversation, with its comments.",
+   "destructive": false,
+   "returns": "GithubIssue!",
+   "selection": "{ number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "number",
+     "flag": "--number",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubPullRequests",
+   "command": "github-pull-requests",
+   "kind": "query",
+   "description": "Pull requests in a repository. state: open, closed or all.",
+   "destructive": false,
+   "returns": "[GithubPullRequest!]!",
+   "selection": "{ number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "state",
+     "flag": "--state",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": "open",
+     "description": ""
+    },
+    {
+     "name": "base",
+     "flag": "--base",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 30,
+     "description": ""
+    },
+    {
+     "name": "page",
+     "flag": "--page",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 1,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubPullRequest",
+   "command": "github-pull-request",
+   "kind": "query",
+   "description": "One pull request: whether it can merge, its size and the files it changes.",
+   "destructive": false,
+   "returns": "GithubPullRequest!",
+   "selection": "{ number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "number",
+     "flag": "--number",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubBranches",
+   "command": "github-branches",
+   "kind": "query",
+   "description": "Branches in a repository.",
+   "destructive": false,
+   "returns": "[GithubBranch!]!",
+   "selection": "{ name sha protected }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 100,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubCommits",
+   "command": "github-commits",
+   "kind": "query",
+   "description": "Recent commits on a branch (default branch if omitted), optionally for one path.",
+   "destructive": false,
+   "returns": "[GithubCommit!]!",
+   "selection": "{ sha message htmlUrl author date }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "branch",
+     "flag": "--branch",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "path",
+     "flag": "--path",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 20,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubContents",
+   "command": "github-contents",
+   "kind": "query",
+   "description": "Read a file (its text) or list a folder (entries). Empty path = the repository root.",
+   "destructive": false,
+   "returns": "GithubContent!",
+   "selection": "{ type path htmlUrl sha size text note entries { name path type size } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "path",
+     "flag": "--path",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ref",
+     "flag": "--ref",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubWorkflows",
+   "command": "github-workflows",
+   "kind": "query",
+   "description": "GitHub Actions workflows in a repository.",
+   "destructive": false,
+   "returns": "[GithubWorkflow!]!",
+   "selection": "{ id name path state htmlUrl }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubWorkflowRuns",
+   "command": "github-workflow-runs",
+   "kind": "query",
+   "description": "Recent GitHub Actions (CI) runs: which passed, failed or are still running (all workflows, or one by file name like ci.yml or id). status: queued, in_progress, completed, success, failure…",
+   "destructive": false,
+   "returns": "[GithubWorkflowRun!]!",
+   "selection": "{ id name workflowId htmlUrl branch event status conclusion createdAt }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "workflow",
+     "flag": "--workflow",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "branch",
+     "flag": "--branch",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "status",
+     "flag": "--status",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 10,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubReleases",
+   "command": "github-releases",
+   "kind": "query",
+   "description": "Releases in a repository, newest first.",
+   "destructive": false,
+   "returns": "[GithubRelease!]!",
+   "selection": "{ id tag htmlUrl name body draft prerelease publishedAt }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int",
+     "kind": "scalar",
+     "required": false,
+     "default": 10,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubApi",
+   "command": "github-api",
+   "kind": "query",
+   "description": "Read anything else from GitHub's REST API with your token (GET only), for example /repos/owner/name/labels or /notifications. Use githubApiRequest to change things.",
+   "destructive": false,
+   "returns": "GithubApiResponse!",
+   "selection": "{ status ok body truncated }",
+   "args": [
+    {
+     "name": "path",
+     "flag": "--path",
      "type": "String!",
      "kind": "scalar",
      "required": true,
@@ -1465,6 +1960,936 @@
      "type": "String!",
      "kind": "scalar",
      "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "connectGithub",
+   "command": "connect-github",
+   "kind": "mutation",
+   "description": "Connect your GitHub with a personal access token (classic with repo + workflow scopes, or fine-grained). It is checked with GitHub and stored encrypted. Prefer `manifest github connect` or the app; never paste a token into a chat.",
+   "destructive": false,
+   "returns": "GithubAccount!",
+   "selection": "{ connected oauthAvailable login name avatarUrl htmlUrl scopes method connectedAt connectUrl message }",
+   "args": [
+    {
+     "name": "token",
+     "flag": "--token",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "disconnectGithub",
+   "command": "disconnect-github",
+   "kind": "mutation",
+   "description": "Forget your GitHub token in Manifest. Also revoke it on GitHub if you no longer use it.",
+   "destructive": true,
+   "returns": "GithubAccount!",
+   "selection": "{ connected oauthAvailable login name avatarUrl htmlUrl scopes method connectedAt connectUrl message }",
+   "args": []
+  },
+  {
+   "name": "githubCreateRepo",
+   "command": "github-create-repo",
+   "kind": "mutation",
+   "description": "Create a repository (private unless private=false), under you or an organization. With ideaId, its README starts from that idea's title and note.",
+   "destructive": false,
+   "returns": "GithubRepo!",
+   "selection": "{ fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt }",
+   "args": [
+    {
+     "name": "name",
+     "flag": "--name",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "private",
+     "flag": "--private",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": true,
+     "description": ""
+    },
+    {
+     "name": "org",
+     "flag": "--org",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubUpdateRepo",
+   "command": "github-update-repo",
+   "kind": "mutation",
+   "description": "Rename a repository, change its description, homepage, topics or default branch, make it public or private, or archive it.",
+   "destructive": true,
+   "returns": "GithubRepo!",
+   "selection": "{ fullName name owner private htmlUrl description defaultBranch language stars forks openIssues archived fork homepage topics pushedAt updatedAt }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "name",
+     "flag": "--name",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "description",
+     "flag": "--description",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "homepage",
+     "flag": "--homepage",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "private",
+     "flag": "--private",
+     "type": "Boolean",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "archived",
+     "flag": "--archived",
+     "type": "Boolean",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "defaultBranch",
+     "flag": "--default-branch",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "topics",
+     "flag": "--topics",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubDeleteRepo",
+   "command": "github-delete-repo",
+   "kind": "mutation",
+   "description": "Permanently delete a repository and everything in it (cannot be undone).",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubCreateIssue",
+   "command": "github-create-issue",
+   "kind": "mutation",
+   "description": "Open an issue.",
+   "destructive": false,
+   "returns": "GithubIssue!",
+   "selection": "{ number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "labels",
+     "flag": "--labels",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "assignees",
+     "flag": "--assignees",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubUpdateIssue",
+   "command": "github-update-issue",
+   "kind": "mutation",
+   "description": "Edit, close (state=closed) or reopen (state=open) an issue or pull request, or set its labels and assignees. state_reason: completed, not_planned or reopened.",
+   "destructive": false,
+   "returns": "GithubIssue!",
+   "selection": "{ number title state htmlUrl body author labels assignees commentsCount isPullRequest createdAt updatedAt closedAt comments { id body htmlUrl author createdAt } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "number",
+     "flag": "--number",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "state",
+     "flag": "--state",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "stateReason",
+     "flag": "--state-reason",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "labels",
+     "flag": "--labels",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "assignees",
+     "flag": "--assignees",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubComment",
+   "command": "github-comment",
+   "kind": "mutation",
+   "description": "Comment on an issue or pull request.",
+   "destructive": false,
+   "returns": "GithubComment!",
+   "selection": "{ id body htmlUrl author createdAt }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "number",
+     "flag": "--number",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubCreatePullRequest",
+   "command": "github-create-pull-request",
+   "kind": "mutation",
+   "description": "Open a pull request from branch `head` into `base` (the default branch if omitted).",
+   "destructive": false,
+   "returns": "GithubPullRequest!",
+   "selection": "{ number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "head",
+     "flag": "--head",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "base",
+     "flag": "--base",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "draft",
+     "flag": "--draft",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubMergePullRequest",
+   "command": "github-merge-pull-request",
+   "kind": "mutation",
+   "description": "Merge a pull request. method: squash (default), merge or rebase.",
+   "destructive": true,
+   "returns": "GithubPullRequest!",
+   "selection": "{ number title state head base htmlUrl body author draft merged mergeable mergeableState additions deletions changedFiles createdAt updatedAt files { filename status additions deletions } }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "number",
+     "flag": "--number",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "method",
+     "flag": "--method",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": "squash",
+     "description": ""
+    },
+    {
+     "name": "commitTitle",
+     "flag": "--commit-title",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "commitMessage",
+     "flag": "--commit-message",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubReviewPullRequest",
+   "command": "github-review-pull-request",
+   "kind": "mutation",
+   "description": "Review a pull request. event: APPROVE, REQUEST_CHANGES or COMMENT (needs a body).",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "number",
+     "flag": "--number",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "event",
+     "flag": "--event",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubCreateBranch",
+   "command": "github-create-branch",
+   "kind": "mutation",
+   "description": "Create a branch from another branch, tag or commit (the default branch if omitted).",
+   "destructive": false,
+   "returns": "GithubBranch!",
+   "selection": "{ name sha protected }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "branch",
+     "flag": "--branch",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "fromRef",
+     "flag": "--from-ref",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubDeleteBranch",
+   "command": "github-delete-branch",
+   "kind": "mutation",
+   "description": "Delete a branch.",
+   "destructive": true,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "branch",
+     "flag": "--branch",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubPutFile",
+   "command": "github-put-file",
+   "kind": "mutation",
+   "description": "Create or replace a text file with one commit (on `branch`, or the default branch).",
+   "destructive": false,
+   "returns": "GithubFileCommit!",
+   "selection": "{ path commitSha htmlUrl created }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "path",
+     "flag": "--path",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "content",
+     "flag": "--content",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "message",
+     "flag": "--message",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "branch",
+     "flag": "--branch",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubDeleteFile",
+   "command": "github-delete-file",
+   "kind": "mutation",
+   "description": "Delete a file with one commit.",
+   "destructive": true,
+   "returns": "GithubFileCommit!",
+   "selection": "{ path commitSha htmlUrl created }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "path",
+     "flag": "--path",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "message",
+     "flag": "--message",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "branch",
+     "flag": "--branch",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubRunWorkflow",
+   "command": "github-run-workflow",
+   "kind": "mutation",
+   "description": "Start an Actions workflow that has a workflow_dispatch trigger (file name like deploy.yml, or its id). inputs: a JSON object of the workflow's inputs.",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "workflow",
+     "flag": "--workflow",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ref",
+     "flag": "--ref",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "inputs",
+     "flag": "--inputs",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubRerunWorkflowRun",
+   "command": "github-rerun-workflow-run",
+   "kind": "mutation",
+   "description": "Re-run an Actions run (or only its failed jobs).",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "runId",
+     "flag": "--run-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "failedOnly",
+     "flag": "--failed-only",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubCancelWorkflowRun",
+   "command": "github-cancel-workflow-run",
+   "kind": "mutation",
+   "description": "Cancel an Actions run that is queued or in progress.",
+   "destructive": false,
+   "returns": "Boolean!",
+   "selection": "",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "runId",
+     "flag": "--run-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubCreateRelease",
+   "command": "github-create-release",
+   "kind": "mutation",
+   "description": "Publish a release for a tag (created from `target` if it doesn't exist). Without a body, GitHub writes the release notes.",
+   "destructive": false,
+   "returns": "GithubRelease!",
+   "selection": "{ id tag htmlUrl name body draft prerelease publishedAt }",
+   "args": [
+    {
+     "name": "repo",
+     "flag": "--repo",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "tag",
+     "flag": "--tag",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "name",
+     "flag": "--name",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "target",
+     "flag": "--target",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "draft",
+     "flag": "--draft",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    },
+    {
+     "name": "prerelease",
+     "flag": "--prerelease",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "githubApiRequest",
+   "command": "github-api-request",
+   "kind": "mutation",
+   "description": "Do anything else in GitHub's REST API with your token: labels, milestones, collaborators, stars, gists, notifications, branch protection… method: GET, POST, PUT, PATCH or DELETE; path on api.github.com; body: JSON.",
+   "destructive": true,
+   "returns": "GithubApiResponse!",
+   "selection": "{ status ok body truncated }",
+   "args": [
+    {
+     "name": "method",
+     "flag": "--method",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "path",
+     "flag": "--path",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
      "default": null,
      "description": ""
     }

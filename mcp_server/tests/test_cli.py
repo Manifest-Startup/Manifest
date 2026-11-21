@@ -10,7 +10,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
-from manifest_cli import auth, catalog, completion, config, main as cli, rest
+from manifest_cli import auth, catalog, completion, config, rest
+from manifest_cli import main as cli
 
 
 class FakeStdin(io.StringIO):
@@ -456,3 +457,84 @@ def test_logout_with_an_override_token_keeps_the_saved_login(override, monkeypat
     assert backend.requests[0].headers["authorization"] == "Bearer other-token"
     assert config.load()["token"] == "saved-token"
     assert "left in place" in err
+
+
+# -- github ------------------------------------------------------------------------
+
+
+def test_github_connect_reuses_the_github_cli_login(monkeypatch):
+    monkeypatch.setenv("MANIFEST_API_TOKEN", "mf_test")
+    monkeypatch.setattr(cli, "_gh_cli_token", lambda: "gho_" + "z" * 36)
+    backend = Backend(
+        {"connectGithub": {"connected": True, "login": "octo", "scopes": ["repo", "workflow"]}}
+    )
+    code, out, _ = run("github", "connect", backend=backend)
+    assert code == 0
+    assert "Connected GitHub as octo using the GitHub CLI's login" in out
+    assert "plugin and voice now use this connection" in out
+    body = backend.graphql_body()
+    assert "connectGithub" in body["query"] and body["variables"] == {"token": "gho_" + "z" * 36}
+    assert "gho_" not in out  # the token is never echoed
+
+
+def test_github_connect_from_stdin_and_scope_hint(monkeypatch):
+    monkeypatch.setenv("MANIFEST_API_TOKEN", "mf_test")
+    monkeypatch.setattr(cli, "_gh_cli_token", lambda: pytest.fail("--token-stdin must not use gh"))
+    backend = Backend(
+        {"connectGithub": {"connected": True, "login": "octo", "scopes": ["read:user"]}}
+    )
+    code, out, _ = run(
+        "github",
+        "connect",
+        "--token-stdin",
+        backend=backend,
+        stdin=FakeStdin("ghp_" + "y" * 36 + "\n"),
+    )
+    assert code == 0 and "gh auth refresh -s repo,workflow" in out
+    assert backend.graphql_body()["variables"] == {"token": "ghp_" + "y" * 36}
+
+
+def test_github_connect_links_the_github_plugin_token(monkeypatch):
+    monkeypatch.setenv("MANIFEST_API_TOKEN", "mf_test")
+    monkeypatch.setattr(cli, "_gh_cli_token", lambda: None)
+    for name in cli.GITHUB_TOKEN_ENV:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "github_pat_" + "q" * 30)
+    backend = Backend({"connectGithub": {"connected": True, "login": "octo", "scopes": []}})
+    code, out, _ = run("github", "connect", backend=backend)
+    assert code == 0 and "using $GITHUB_PERSONAL_ACCESS_TOKEN" in out
+    assert backend.graphql_body()["variables"] == {"token": "github_pat_" + "q" * 30}
+
+
+def test_github_connect_without_gh_or_tty_explains(monkeypatch):
+    monkeypatch.setenv("MANIFEST_API_TOKEN", "mf_test")
+    monkeypatch.setattr(cli, "_gh_cli_token", lambda: None)
+    for name in cli.GITHUB_TOKEN_ENV:
+        monkeypatch.delenv(name, raising=False)
+    code, _, err = run("github", "connect")
+    assert code == 1 and "gh auth login" in err
+
+
+def test_github_status_and_disconnect(monkeypatch):
+    monkeypatch.setenv("MANIFEST_API_TOKEN", "mf_test")
+    backend = Backend({"githubAccount": {"connected": False, "message": "GitHub isn't connected."}})
+    code, out, _ = run("github", backend=backend)
+    assert code == 0 and "isn't connected" in out and "manifest github connect" in out
+    code, _, err = run("github", "disconnect", backend=Backend({}))
+    assert code == 1 and "--yes" in err
+    backend = Backend({"disconnectGithub": {"connected": False}})
+    code, out, _ = run("github", "disconnect", "--yes", backend=backend)
+    assert code == 0 and "disconnected" in out
+
+
+def test_github_commands_are_in_the_catalog():
+    names = {op["command"] for op in catalog.operations()}
+    for command in (
+        "github-repos",
+        "github-create-issue",
+        "github-merge-pull-request",
+        "github-put-file",
+        "github-run-workflow",
+        "github-api-request",
+    ):
+        assert command in names

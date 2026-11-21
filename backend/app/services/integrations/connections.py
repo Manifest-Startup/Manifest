@@ -16,6 +16,7 @@ from typing import Any
 from urllib.parse import quote
 
 OPEN_MEDIA_SERVICE_ID = "open_media"
+GITHUB_SERVICE_ID = "github"
 _SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 # Managed elsewhere: the OpenAI key lives in AI settings, never here.
 _RESERVED = {"openai"}
@@ -50,10 +51,16 @@ def display_name(service_id: str, name: str | None = None) -> str:
         return cleaned[:80]
     if service_id == OPEN_MEDIA_SERVICE_ID:
         return "Open Media"
+    if service_id == GITHUB_SERVICE_ID:
+        return "GitHub"
     return " ".join(part.capitalize() for part in re.split(r"[-_]", service_id) if part)
 
 
 def _is_connected(db: Any, user_id: str, service_id: str) -> bool:
+    if service_id == GITHUB_SERVICE_ID:
+        from app.services.integrations.github_account import github_identity
+
+        return github_identity(user_id) is not None
     rows = (
         db.table("integrations")
         .select("integration_id")
@@ -89,6 +96,17 @@ def start_connection(
             STATUS_NEEDS_BROWSER,
             "Open Media links when you sign in with it. Open the link to continue with Open Media.",
             f"{origin}/api/auth/open-media/start?next=/account",
+        )
+
+    if service_id == GITHUB_SERVICE_ID:
+        # GitHub is only useful with a real token, so it is never recorded without one.
+        return ConnectionResult(
+            service_id,
+            STATUS_NEEDS_BROWSER,
+            "Open the link and choose Connect GitHub, or run `manifest github connect` on a "
+            "computer already signed in to GitHub. It's one connection for the app, the CLI, "
+            "agents and voice.",
+            f"{origin}/account?focusIntegration=github",
         )
 
     if oauth_ready:
