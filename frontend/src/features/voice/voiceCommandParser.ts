@@ -125,7 +125,9 @@ export const parseVoiceCommand = (spokenText: string): VoiceCommandIntent | null
     return { kind: 'rename_idea', title: renameIdeaTitle };
   }
 
-  if (/\b(delete|remove)(?: this| current)? idea\b/i.test(normalized)) {
+  // Only the whole sentence "delete this idea" (or "please remove the idea"), never a mention
+  // inside a longer one such as "don't delete this idea": deleting must be asked for.
+  if (/^(?:please |ok(?:ay)?,? )?(?:delete|remove)(?: this| the| current| my)? idea(?: please)?$/i.test(normalized)) {
     return { kind: 'delete_idea' };
   }
 

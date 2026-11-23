@@ -1,5 +1,5 @@
 import { useMutation, useReactiveVar } from '@apollo/client/react';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -92,6 +92,10 @@ const routePathForDestination = (destination: keyof typeof ROUTE_LABELS) => {
   return '/ideas';
 };
 
+/** How long a spoken "yes, delete it" counts for the delete just asked about. */
+export const DELETE_CONFIRM_MS = 30_000;
+const CONFIRM_DELETE = /^(?:yes|yeah|yep|confirm)(?: please)?(?:,? ?(?:delete|remove)(?: it| the idea| this idea)?)?(?: please)?$/;
+
 export function useVoiceAppCommands() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,6 +104,8 @@ export function useVoiceAppCommands() {
   const { isLoggedIn, isGuest } = useReactiveVar(userVar);
   const routeIdeaId = location.pathname.match(/^\/ideas\/([^/]+)/)?.[1] || null;
   const activeIdeaId = routeIdeaId || sidebarState.currentIdeaId || null;
+  // A spoken delete waits for a clear yes for the same idea (never deleted on one phrase).
+  const pendingDeleteRef = useRef<{ ideaId: string; until: number } | null>(null);
 
   const [createIdea] = useMutation(CREATE_IDEA, {
     refetchQueries: [{ query: GET_IDEAS }],
@@ -143,6 +149,26 @@ export function useVoiceAppCommands() {
       spokenText: string,
       options: { ideaDescriptionHtml?: string | null } = {},
     ): Promise<VoiceCommandExecution | null> => {
+      const pending = pendingDeleteRef.current;
+      pendingDeleteRef.current = null;
+      if (pending && Date.now() < pending.until && pending.ideaId === activeIdeaId) {
+        const answer = spokenText.trim().toLowerCase().replace(/[.!,]/g, '');
+        if (CONFIRM_DELETE.test(answer)) {
+          await deleteIdea({ variables: { ideaId: pending.ideaId } });
+          const current = sidebarVar();
+          sidebarVar({
+            ...current,
+            currentIdeaId: null,
+            allIdeaIds: current.allIdeaIds.filter((ideaId) => ideaId !== pending.ideaId),
+          });
+          safeNavigate(navigate, setMessage, '/ideas');
+          return { response: 'Deleted the idea and returned to ideas.' };
+        }
+        if (/^(?:no|nope|cancel|don'?t|stop|keep it)\b/.test(answer)) {
+          return { response: "Okay, I won't delete it." };
+        }
+      }
+
       const command = parseVoiceCommand(spokenText);
       if (!command) {
         return null;
@@ -360,15 +386,8 @@ export function useVoiceAppCommands() {
           return { response: 'There is no current idea to delete.' };
         }
 
-        await deleteIdea({ variables: { ideaId: activeIdeaId } });
-        const current = sidebarVar();
-        sidebarVar({
-          ...current,
-          currentIdeaId: null,
-          allIdeaIds: current.allIdeaIds.filter((ideaId) => ideaId !== activeIdeaId),
-        });
-        safeNavigate(navigate, setMessage, '/ideas');
-        return { response: 'Deleted the current idea and returned to ideas.' };
+        pendingDeleteRef.current = { ideaId: activeIdeaId, until: Date.now() + DELETE_CONFIRM_MS };
+        return { response: 'Delete this idea? Say "yes, delete it" to confirm, or "no" to keep it.' };
       }
 
       if (command.kind === 'toggle_publish') {
