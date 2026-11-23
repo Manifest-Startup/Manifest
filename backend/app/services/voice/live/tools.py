@@ -52,6 +52,7 @@ CORE_TOOLS: tuple[str, ...] = (
     "research_market",
     "find_prospects",
     "draft_outreach",
+    "report_feedback",
 )
 
 # Answers longer than this are cut before they reach the model (speech needs gist, not dumps).

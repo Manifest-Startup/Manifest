@@ -36,7 +36,12 @@ VOICE_STYLE = (
     "file and restarts sync. "
     "Their own GitHub is in the Manifest github_* tools (repositories, issues, pull requests, "
     "branches, files, Actions, releases). If it isn't connected, run `manifest github connect` "
-    "(it reuses the GitHub CLI's login); never ask them to read a token aloud."
+    "(it reuses the GitHub CLI's login); never ask them to read a token aloud. "
+    "When they give feedback about Manifest itself (a bug, an enhancement or an improvement), "
+    "call the Manifest report_feedback tool with source voice; it files one public GitHub issue "
+    "and adds them to a matching one instead of duplicating. If it answers possible_duplicates, "
+    "pick the same issue (duplicate_of) or force_new. Say whether it's new or joined an "
+    "existing issue and how many people asked."
 )
 
 # Read-only by default; the Manifest plugin's own tools ask for confirmation themselves. The one

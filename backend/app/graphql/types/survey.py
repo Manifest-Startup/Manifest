@@ -182,3 +182,53 @@ def _build_survey_insights(summary: dict[str, Any]) -> SurveyInsights:
         top_product_tasks=_build_survey_distribution_items(summary.get("top_product_tasks") or []),
         top_action_themes=_build_survey_theme_summaries(summary.get("top_action_themes") or []),
     )
+
+
+@strawberry.input
+class ReportFeedbackInput:
+    """A bug, enhancement, improvement or general feedback about Manifest itself."""
+
+    kind: str = strawberry.field(
+        description="bug, enhancement, improvement or feedback (about Manifest, not the person's idea)."
+    )
+    title: str = strawberry.field(
+        description="A short issue title in plain words, e.g. 'Pitch deck export fails on Safari'."
+    )
+    details: str = strawberry.field(
+        default="",
+        description="What happened or what they want, in the person's words. Posted publicly; "
+        "no names, emails or private details.",
+    )
+    source: str = strawberry.field(
+        default="agent", description="Where it came from: voice, app, agent or cli."
+    )
+    duplicate_of: int | None = strawberry.field(
+        default=None,
+        description="Issue number this is the same as (from an earlier possible_duplicates answer).",
+    )
+    force_new: bool = strawberry.field(
+        default=False,
+        description="True when none of the possible duplicates is the same thing.",
+    )
+
+
+@strawberry.type
+class FeedbackCandidate:
+    number: int
+    title: str
+    url: str
+    score: float
+
+
+@strawberry.type
+class FeedbackReport:
+    """created, added (another person on an existing issue), already_reported, or
+    possible_duplicates (nothing filed yet; pick one with duplicateOf or say forceNew)."""
+
+    status: str
+    message: str
+    issue_number: int | None = None
+    issue_url: str | None = None
+    issue_title: str | None = None
+    reporters: int = 0
+    candidates: list[FeedbackCandidate] = strawberry.field(default_factory=list)

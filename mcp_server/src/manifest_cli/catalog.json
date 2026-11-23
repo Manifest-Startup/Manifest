@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "054b43933c4798be410c091c57993b63fd5b27fd902fcf623c784dda2087ad8f",
+ "schema_sha256": "4020c8814513f5eb02548b741ba3b7bb7e4a8c642790986dfce1153dddf7fdaf",
  "operations": [
   {
    "name": "me",
@@ -3055,6 +3055,26 @@
    ]
   },
   {
+   "name": "reportFeedback",
+   "command": "report-feedback",
+   "kind": "mutation",
+   "description": "File a bug, enhancement, improvement or feedback about Manifest as a GitHub issue in Manifest's public repository. Never duplicates: a matching open issue gets this person added (counted once) with their words as a comment; partial matches come back as possible_duplicates for you to choose from. Tell the person it's posted publicly.",
+   "destructive": false,
+   "returns": "FeedbackReport!",
+   "selection": "{ status message issueNumber issueUrl issueTitle reporters candidates { number title url score } }",
+   "args": [
+    {
+     "name": "input",
+     "flag": "--input",
+     "type": "ReportFeedbackInput!",
+     "kind": "input",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
    "name": "submitSurvey",
    "command": "submit-survey",
    "kind": "mutation",
@@ -4665,6 +4685,47 @@
      "type": "String!",
      "required": false,
      "description": ""
+    }
+   ]
+  },
+  "ReportFeedbackInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "kind",
+     "type": "String!",
+     "required": true,
+     "description": "bug, enhancement, improvement or feedback (about Manifest, not the person's idea)."
+    },
+    {
+     "name": "title",
+     "type": "String!",
+     "required": true,
+     "description": "A short issue title in plain words, e.g. 'Pitch deck export fails on Safari'."
+    },
+    {
+     "name": "details",
+     "type": "String!",
+     "required": false,
+     "description": "What happened or what they want, in the person's words. Posted publicly; no names, emails or private details."
+    },
+    {
+     "name": "source",
+     "type": "String!",
+     "required": false,
+     "description": "Where it came from: voice, app, agent or cli."
+    },
+    {
+     "name": "duplicateOf",
+     "type": "Int",
+     "required": false,
+     "description": "Issue number this is the same as (from an earlier possible_duplicates answer)."
+    },
+    {
+     "name": "forceNew",
+     "type": "Boolean!",
+     "required": false,
+     "description": "True when none of the possible duplicates is the same thing."
     }
    ]
   },

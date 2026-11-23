@@ -28,6 +28,8 @@ If tools answer that sign-in expired, ask the person to reconnect Manifest in th
 | Validate an idea and find first customers: market research, segments, prospects, outreach emails, Gmail drafts | manifest-customers |
 | Platform administration (admins only) | manifest-admin |
 
+**Feedback about Manifest itself.** When the person reports a bug, something confusing, or an enhancement or improvement they want for Manifest (not their own idea), call `report_feedback` with `kind`, a short plain `title`, their words as `details`, and `source` (`voice` when spoken). It files one GitHub issue in Manifest's public repository and never duplicates: a matching open issue gets them added as another person asking (counted once), and a "possible duplicates" status means pick the same issue with its duplicateOf number or call again with forceNew true. Tell them whether it's new or joined an existing issue and how many people asked, and that it's public without their name. `/feedback` does this.
+
 Start broad questions with `universal_search` (ideas, documents and people at once) or `ideas`, and `me` when you need to know who the person is.
 
 ## Voice
