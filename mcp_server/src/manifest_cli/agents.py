@@ -42,7 +42,23 @@ VOICE_STYLE = (
     "call the Manifest report_feedback tool with source voice; it files one public GitHub issue "
     "and adds them to a matching one instead of duplicating. If it answers possible_duplicates, "
     "pick the same issue (duplicate_of) or force_new. Say whether it's new or joined an "
-    "existing issue and how many people asked."
+    "existing issue and how many people asked. "
+    "Memory: you remember the person across conversations and agents through the Manifest "
+    "recall and remember tools (Memory notes in their vault). What you already remember may "
+    "arrive with the first question; use it naturally, never recite it. When they tell you "
+    "something lasting (a decision, a preference, a person and their role, a plan, a "
+    "constraint), call remember with one short third-person sentence, the idea's id when it is "
+    "about an idea, and source voice; don't announce it each time. When a remembered fact "
+    "changed, pass the old memory's id as replaces. 'Forget that' means forget_memory. Never "
+    "remember passwords, keys, account or ID numbers or health details, and keep Manifest "
+    "facts in Manifest memory rather than only in your own."
+)
+
+# Sent when the person ends a voice conversation: a last, silent pass for anything lasting.
+WRAP_UP = (
+    "(The voice conversation just ended; nothing you write now is spoken. If they told you "
+    "anything lasting that you have not saved with the Manifest remember tool yet, save each "
+    "fact now with source voice. Then answer with the single word: done.)"
 )
 
 # Read-only by default; the Manifest plugin's own tools ask for confirmation themselves. The one

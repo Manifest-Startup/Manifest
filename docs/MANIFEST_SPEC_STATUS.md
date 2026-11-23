@@ -25,6 +25,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Voice pipeline, streaming STT/TTS, interruptions | Implemented | `services/voice/live/bot.py` (Pipecat, OpenAI realtime STT + TTS, server VAD). Providers switch only among OpenAI-compatible endpoints (`VOICE_*` env). |
 | Conversation modes / intent classification | Partial | Voice prompt rules separate exploring from committing. No classifier and no stored `UserIntent`. |
 | Goals as durable entities | **Implemented (slice)** | `goals` table, `services/goals/engine.py`, ADR 0020. |
+| One memory for every agent | **Implemented** | `Memory/` and `Conversations/` vault files, `services/memory/store.py`, `recall`/`remember` everywhere (voice, `/mcp`, CLI, plugin skills), Account → Memory, ADR 0021. |
 | Projects | Implemented | Ideas are the project entity (`ideas`, collaborators, versions). Goals can point at an idea. |
 | Task decomposition with statuses, deps, verification, risk | **Implemented (slice)** | `goal_tasks` with the spec's statuses, `depends_on`, tier, verification, retries. Plans come from agents or templates; no server-side LLM planner. |
 | Durable workflows: retries, waits, checkpoints, resume | **Partial (slice)** | Idempotent `advance` with CAS, bounded retries, crash recovery, webhook and sweep resume. Scheduled triggers and timeouts only for reply waits. |

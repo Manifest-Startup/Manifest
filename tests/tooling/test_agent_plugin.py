@@ -175,3 +175,20 @@ def test_arguments_with_defaults_can_be_left_out():
                     tool["name"],
                     arg["name"],
                 )
+
+
+def test_every_agent_is_told_to_use_manifest_memory():
+    """ADR 0021: memory works whichever agent the person uses, so each channel an agent reads
+    carries the rule: skills (Claude Code, Codex, Cursor…), Gemini's context, the /mcp server
+    instructions every MCP client gets, and both voice agents."""
+    codex = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
+    assert (PLUGIN / codex["skills"] / "manifest-memory" / "SKILL.md").is_file()
+    channels = {
+        "manifest skill": skills()["manifest"],
+        "Gemini context": (PLUGIN / "CONTEXT.md").read_text(),
+        "/mcp instructions": (ROOT / "deploy" / "cloudflare" / "src" / "mcp-account.mjs").read_text(),
+        "local voice": (ROOT / "mcp_server" / "src" / "manifest_cli" / "agents.py").read_text(),
+        "hosted voice": (ROOT / "backend" / "app" / "services" / "voice" / "live" / "bot.py").read_text(),
+    }
+    for name, text in channels.items():
+        assert "recall" in text and "remember" in text, name

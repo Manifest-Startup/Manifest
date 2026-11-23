@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "ca37e96cb62d94ed5a852db8b7cc8231f49947cd7d4a75798fccf475909a1f7d",
+ "schema_sha256": "354efe3e5339c093b58450b363e07b6caf21c6d2656f257c8771555b3e254802",
  "operations": [
   {
    "name": "me",
@@ -1771,6 +1771,64 @@
     {
      "name": "sinceUpdatedAt",
      "flag": "--since-updated-at",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "recall",
+   "command": "recall",
+   "kind": "query",
+   "description": "What you remember about the person and their ideas: decisions, preferences, people, plans. Call it at the start of Manifest work (with the idea's id) and whenever earlier context would help; query narrows it by words. Memories are Markdown files in the person's vault (Memory/), the same for every agent.",
+   "destructive": false,
+   "returns": "[Memory!]!",
+   "selection": "{ id text kind ideaId ideaTitle source conversation createdAt updatedAt path }",
+   "args": [
+    {
+     "name": "query",
+     "flag": "--query",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "",
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "limit",
+     "flag": "--limit",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 8,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "memories",
+   "command": "memories",
+   "kind": "query",
+   "description": "Every memory, newest first (only this idea's with ideaId), for reviewing them.",
+   "destructive": false,
+   "returns": "[Memory!]!",
+   "selection": "{ id text kind ideaId ideaTitle source conversation createdAt updatedAt path }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
      "type": "String",
      "kind": "scalar",
      "required": false,
@@ -4815,6 +4873,167 @@
      "description": ""
     }
    ]
+  },
+  {
+   "name": "remember",
+   "command": "remember",
+   "kind": "mutation",
+   "description": "Remember one lasting fact the person told you, in one short sentence: a decision, preference, person and their role, plan or open question (kind: fact, decision, preference, person, plan, question). Use ideaId when it is about an idea. Saying the same thing again only refreshes it; when a fact changed, pass the old memory's id as replaces. Never store passwords, keys, account or ID numbers or health details. source names who is remembering (voice, claude-code, codex…).",
+   "destructive": false,
+   "returns": "RememberResult!",
+   "selection": "{ status memory { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } }",
+   "args": [
+    {
+     "name": "text",
+     "flag": "--text",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "kind",
+     "flag": "--kind",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "fact",
+     "description": ""
+    },
+    {
+     "name": "source",
+     "flag": "--source",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "replaces",
+     "flag": "--replaces",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "updateMemory",
+   "command": "update-memory",
+   "kind": "mutation",
+   "description": "Correct a memory's wording.",
+   "destructive": false,
+   "returns": "Memory!",
+   "selection": "{ id text kind ideaId ideaTitle source conversation createdAt updatedAt path }",
+   "args": [
+    {
+     "name": "memoryId",
+     "flag": "--memory-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "text",
+     "flag": "--text",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "forgetMemory",
+   "command": "forget-memory",
+   "kind": "mutation",
+   "description": "Forget one memory when the person asks (\"forget that\"). Its file moves to the vault's .trash, so it can still be recovered there.",
+   "destructive": false,
+   "returns": "Memory!",
+   "selection": "{ id text kind ideaId ideaTitle source conversation createdAt updatedAt path }",
+   "args": [
+    {
+     "name": "memoryId",
+     "flag": "--memory-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "saveVoiceConversation",
+   "command": "save-voice-conversation",
+   "kind": "mutation",
+   "description": "Save a finished voice conversation to the vault (Conversations/) and link what was remembered during it. With extract and the person's OpenAI key, lasting facts the agent didn't save yet are remembered too. The app calls this when voice ends.",
+   "destructive": false,
+   "returns": "SavedConversation!",
+   "selection": "{ path turns memories { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } }",
+   "args": [
+    {
+     "name": "turns",
+     "flag": "--turns",
+     "type": "[ConversationTurnInput!]!",
+     "kind": "list",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "startedAt",
+     "flag": "--started-at",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "agent",
+     "flag": "--agent",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "extract",
+     "flag": "--extract",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": true,
+     "description": ""
+    }
+   ]
   }
  ],
  "inputs": {
@@ -4988,6 +5207,23 @@
     },
     {
      "name": "message",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    }
+   ]
+  },
+  "ConversationTurnInput": {
+   "description": "",
+   "fields": [
+    {
+     "name": "role",
+     "type": "String!",
+     "required": true,
+     "description": ""
+    },
+    {
+     "name": "text",
      "type": "String!",
      "required": true,
      "description": ""

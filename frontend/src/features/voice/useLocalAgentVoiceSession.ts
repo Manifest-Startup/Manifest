@@ -18,9 +18,11 @@ import {
   VOICE_SETUP_COMMAND,
   voiceAudioContext,
   warmBridgeSpeech,
+  type BridgeMemory,
   type RecognitionHandle,
   type Speaker,
 } from './localAgent';
+import { recallForVoice } from './voiceMemory';
 import { contextFromPath, withIdeaTitle, type LiveVoiceLevels, type PipecatVoiceSessionApi } from './usePipecatVoiceSession';
 
 const log = createLogger('useLocalAgentVoiceSession');
@@ -30,6 +32,8 @@ export const FINAL_SETTLE_MS = 350;
 /** …or after the words in progress stop changing this long (faster than waiting for final). */
 export const INTERIM_SETTLE_MS = 700;
 const NUDGE_AFTER_MS = 3000;
+/** The first question waits at most this long for what Manifest remembers. */
+export const MEMORY_WAIT_MS = 1200;
 /** While the natural voice is still loading, look again this often (and switch to it). */
 /** For this long after it stops talking, words that repeat what it said are its own echo. */
 export const ECHO_TAIL_MS = 1500;
@@ -79,6 +83,25 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const micRef = useRef<MediaStream | null>(null);
   const quietSinceRef = useRef(0); // when it last stopped talking
   const warmedRef = useRef(false); // woke the voice for this question already
+  const agentRef = useRef<string | null>(null); // the bridge's agent, named in the saved conversation
+  // What Manifest remembers (ADR 0021), sent with the first question about each idea.
+  const memoryRef = useRef<{ key: string | null; items: Promise<BridgeMemory[]>; sent: boolean }>({
+    key: null,
+    items: Promise.resolve([]),
+    sent: true,
+  });
+
+  /** Fetch what's remembered for this idea once (also called early, while the mic opens). */
+  const memoryFor = useCallback(
+    (ideaId: string | null | undefined) => {
+      const key = ideaId ?? '';
+      if (memoryRef.current.key !== key) {
+        memoryRef.current = { key, items: recallForVoice(apollo, ideaId), sent: false };
+      }
+      return memoryRef.current;
+    },
+    [apollo],
+  );
 
   const clearSettle = () => {
     if (settleRef.current !== null) window.clearTimeout(settleRef.current);
@@ -110,6 +133,19 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       const nudge = window.setTimeout(() => {
         if (!spoke && current()) speakerRef.current?.say('One moment.');
       }, NUDGE_AFTER_MS);
+      const remembered = memoryFor(contextRef.current.ideaId);
+      let memory: BridgeMemory[] | undefined;
+      if (!remembered.sent) {
+        remembered.sent = true;
+        memory = await Promise.race([
+          remembered.items,
+          new Promise<BridgeMemory[]>(resolve => window.setTimeout(() => resolve([]), MEMORY_WAIT_MS)),
+        ]);
+        if (!current()) {
+          window.clearTimeout(nudge);
+          return;
+        }
+      }
       try {
         await runBridgeTurn(
           trimmed,
@@ -128,6 +164,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
             }
           },
           controller.signal,
+          memory,
         );
       } catch (error) {
         if (!controller.signal.aborted && current()) {
@@ -150,7 +187,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
         void apollo.refetchQueries({ include: 'active' }).catch(() => undefined);
       }
     },
-    [apollo, interrupt],
+    [apollo, interrupt, memoryFor],
   );
 
   /** The person paused: send what they said (and let the browser forget its pending copy). */
@@ -224,6 +261,9 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       return;
     }
     activeRef.current = true;
+    agentRef.current = bridge.agent ?? 'Your agent';
+    memoryRef.current = { key: null, items: Promise.resolve([]), sent: true }; // a new conversation
+    memoryFor(contextRef.current.ideaId); // fetched while the mic opens
     const onSpeaking = (speaking: boolean) => {
       if (!speaking) quietSinceRef.current = Date.now();
       levelsRef.current.bot = speaking ? 0.6 : 0;
@@ -271,7 +311,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     }
     // No spoken greeting: it listens at once, like a phone call that's already connected.
     dispatch({ type: 'ready' });
-  }, [end, onHeard]);
+  }, [end, memoryFor, onHeard]);
 
   const toggleMute = useCallback(() => {
     const muted = !mutedRef.current;
@@ -289,5 +329,6 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
 
   useEffect(() => () => void end(), [end]);
 
-  return { state, levelsRef, context, start, end, toggleMute, sendText, interrupt };
+  const agentName = useCallback(() => agentRef.current, []);
+  return { state, levelsRef, context, start, end, toggleMute, sendText, interrupt, agentName };
 }

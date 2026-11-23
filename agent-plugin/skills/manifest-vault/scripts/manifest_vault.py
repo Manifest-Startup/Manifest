@@ -140,6 +140,8 @@ shows how everything connects.
 - `Manifest/` is written by Manifest: ideas, documents, interviews and skills. Write freely
   outside the marked block in any file; the block itself is refreshed on every sync.
 - `Notes/` is yours: notes your agent saved while you talked, linked to ideas with [[wiki-links]].
+- `Memory/` is what Manifest remembers (one fact per file) and `Conversations/` holds voice
+  conversations; voice and every agent you use read and add to them.
 
 It syncs with your Manifest account like iCloud Drive or OneDrive: your notes and your writing go
 to every computer you sign in on. Set it up once with `manifest_vault.py login` and

@@ -57,6 +57,9 @@ CORE_TOOLS: tuple[str, ...] = (
     "start_outreach_goal",
     "decide_approval",
     "report_feedback",
+    "recall",
+    "remember",
+    "forget_memory",
 )
 
 # Tools whose answers carry what other people wrote (messages, emails, comments). Those text
@@ -86,6 +89,7 @@ APP_PAGES: dict[str, str] = {
     "new_idea": "/ideas/qualify",
     "account": "/account",
     "ai_settings": "/account#ai-key",
+    "memory": "/account#memory",
     "billing": "/account/billing",
     "messages": "/messages",
     "pitch_reels": "/pitch-reels",

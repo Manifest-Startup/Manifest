@@ -17,6 +17,7 @@ import SurveyInsightsPanel from "features/feedback/SurveyInsightsPanel";
 import ApiAccessSection from "./ApiAccessSection";
 import AiKeySection from "./AiKeySection";
 import ApolloKeySection from "./ApolloKeySection";
+import { MemorySection } from "features/memory/MemorySection";
 import { StorageSection } from "features/vault/StorageSection";
 import GitHubSection, { type GithubAccount } from "./GitHubSection";
 import IntegrationsSection from "./IntegrationsSection";
@@ -560,15 +561,17 @@ const AccountPage: React.FC = () => {
     {
       id: "data",
       label: "Data & storage",
-      summary: "Where your ideas live, and moving them in or out of Manifest.",
+      summary: "Where your ideas live, what Manifest remembers, and moving them in or out.",
       icon: "database",
       items: [
         { anchor: "storage", label: "Vault folder", keywords: "storage icloud dropbox markdown files offline sync obsidian" },
+        { anchor: "memory", label: "Memory", keywords: "memory remember forget conversations voice transcripts agents codex claude" },
         { anchor: "import-export", label: "Import and export ideas", keywords: "backup download apple notes google keep" },
       ],
       content: (
         <>
           <StorageSection />
+          <MemorySection />
           <SettingsCard
             id="import-export"
             title="Import and export"

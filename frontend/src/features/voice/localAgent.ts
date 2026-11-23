@@ -91,18 +91,57 @@ export async function probeBridge(timeoutMs = 20000): Promise<BridgeInfo | null>
 }
 
 /** Send one turn; `onEvent` gets each spoken sentence and action as the agent works. */
+/** Memories sent with a turn (ADR 0021): what Manifest remembers, for the agent's context. */
+export interface BridgeMemory {
+  id: string;
+  text: string;
+}
+
+/** The longest the app waits for the agent's last pass for memories after voice ends. */
+export const WRAP_UP_TIMEOUT_MS = 50_000;
+
+/**
+ * Voice ended: the agent gets one silent turn to remember what it hasn't yet. Resolves with
+ * how many it saved; 0 when the bridge is older, offline or slow (the transcript still saves).
+ */
+export async function wrapUpBridge(timeoutMs = WRAP_UP_TIMEOUT_MS): Promise<number> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${bridgeBase}/voice/wrap-up`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+      signal: controller.signal,
+    });
+    if (!response.ok) return 0;
+    const body = (await response.json()) as { remembered?: number };
+    return typeof body.remembered === 'number' ? body.remembered : 0;
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function runBridgeTurn(
   text: string,
   context: LiveVoiceContext,
   onEvent: (event: BridgeEvent) => void,
   signal?: AbortSignal,
+  memory?: BridgeMemory[],
 ): Promise<void> {
   const response = await fetch(`${bridgeBase}/turn`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       text,
-      context: { path: context.path, idea_id: context.ideaId ?? null, idea_title: context.ideaTitle ?? null },
+      context: {
+        path: context.path,
+        idea_id: context.ideaId ?? null,
+        idea_title: context.ideaTitle ?? null,
+        ...(memory && memory.length ? { memory: memory.map(m => ({ id: m.id, text: m.text })) } : {}),
+      },
     }),
     signal,
   });

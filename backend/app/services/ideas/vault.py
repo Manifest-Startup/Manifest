@@ -553,6 +553,8 @@ def _all_files(
         "",
         "## Notes",
         "Your own notes live in `Notes/` and link to ideas with [[wiki-links]].",
+        "What Manifest remembers about you and your ideas is in `Memory/`, and voice "
+        "conversations are in `Conversations/`; every agent you use reads the same files.",
     ]
     files.append(
         _file(

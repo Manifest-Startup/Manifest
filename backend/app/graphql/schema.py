@@ -42,6 +42,7 @@ from app.graphql.resolvers.integrations import (  # noqa: F401
     _visible_integrations,
 )
 from app.graphql.resolvers.investments import InvestmentsMutation, InvestmentsQuery
+from app.graphql.resolvers.memory import MemoryMutation, MemoryQuery
 from app.graphql.resolvers.messaging import MessagingMutation, MessagingQuery
 from app.graphql.resolvers.pitch_reels import PitchReelsMutation, PitchReelsQuery
 from app.graphql.resolvers.qualification import QualificationMutation, QualificationQuery
@@ -94,6 +95,7 @@ class Query(
     VoiceQuery,
     VaultQuery,
     VaultSyncQuery,
+    MemoryQuery,
 ):
     pass
 
@@ -119,6 +121,7 @@ class Mutation(
     GoalsMutation,
     VoiceMutation,
     VaultSyncMutation,
+    MemoryMutation,
 ):
     pass
 
@@ -186,6 +189,16 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "vaultFiles": "ideas.read",
         "put_vault_file": "ideas.write",
         "putVaultFile": "ideas.write",
+        # --- Memory (ADR 0021): the person's own Memory/ and Conversations/ vault files ---
+        "recall": "ideas.read",
+        "memories": "ideas.read",
+        "remember": "ideas.write",
+        "update_memory": "ideas.write",
+        "updateMemory": "ideas.write",
+        "forget_memory": "ideas.write",
+        "forgetMemory": "ideas.write",
+        "save_voice_conversation": "ideas.write",
+        "saveVoiceConversation": "ideas.write",
         # --- Customer discovery (research, prospects, outreach drafts) ---
         "customer_discovery": "ideas.read",
         "customerDiscovery": "ideas.read",
