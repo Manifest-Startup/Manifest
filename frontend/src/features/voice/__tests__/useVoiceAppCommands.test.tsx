@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import { accountVar, sidebarVar, userVar } from '../../core/apollo/localState';
 import {
+  DELETE_IDEA,
   GENERATE_PITCH_DECK,
   GET_IDEA,
   GET_IDEAS,
@@ -74,6 +75,29 @@ const renderHarness = (
       </MemoryRouter>
     </MockedProvider>,
   );
+
+/** Says several things in a row to the same hook (a spoken delete needs a follow-up yes). */
+const VoiceConversationHarness: React.FC<{ lines: string[] }> = ({ lines }) => {
+  const { executeCommand } = useVoiceAppCommands();
+  const [responses, setResponses] = useState<string[]>([]);
+  return (
+    <div>
+      {lines.map((line, index) => (
+        <button
+          key={index}
+          type="button"
+          onClick={async () => {
+            const result = await executeCommand(line);
+            setResponses((all) => [...all, result?.response || '(passed to the agent)']);
+          }}
+        >
+          {`say ${index}`}
+        </button>
+      ))}
+      <div data-testid="voice-conversation">{responses.join(' | ')}</div>
+    </div>
+  );
+};
 
 describe('useVoiceAppCommands', () => {
   beforeEach(() => {
@@ -298,6 +322,44 @@ describe('useVoiceAppCommands', () => {
       expect(screen.getByTestId('voice-command-response')).toHaveTextContent(
         'Published the current idea to discovery.',
       );
+    });
+  });
+
+  describe('deleting by voice', () => {
+    const deleteMock = { request: { query: DELETE_IDEA, variables: { ideaId: 'idea-1' } }, result: { data: { deleteIdea: true } } };
+    const wentToIdeas = () =>
+      (safeNavigate as jest.Mock).mock.calls.some(([, , path]) => path === '/ideas');
+    const talk = async (lines: string[]) => {
+      render(
+        <MockedProvider addTypename={false} mocks={[deleteMock]}>
+          <MemoryRouter initialEntries={['/ideas/idea-1/description']}>
+            <Routes>
+              <Route path="*" element={<VoiceConversationHarness lines={lines} />} />
+            </Routes>
+          </MemoryRouter>
+        </MockedProvider>,
+      );
+      for (let index = 0; index < lines.length; index++) {
+        fireEvent.click(screen.getByRole('button', { name: `say ${index}` }));
+        await waitFor(() =>
+          expect(screen.getByTestId('voice-conversation').textContent?.split(' | ')).toHaveLength(index + 1),
+        );
+      }
+      return screen.getByTestId('voice-conversation').textContent;
+    };
+
+    test('asks first and deletes only after a clear yes', async () => {
+      const said = await talk(['delete this idea', 'yes, delete it']);
+      expect(said).toContain('Say "yes, delete it" to confirm');
+      expect(said).toContain('Deleted the idea'); // only after the mutation succeeded
+      expect(wentToIdeas()).toBe(true);
+    });
+
+    test('keeps the idea on no, or when delete is only mentioned', async () => {
+      const said = await talk(['delete this idea', 'no', "please don't delete this idea", 'yes']);
+      expect(said).toContain("Okay, I won't delete it.");
+      expect(said).not.toContain('Deleted the idea');
+      expect(wentToIdeas()).toBe(false);
     });
   });
 });
