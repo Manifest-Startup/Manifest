@@ -13,6 +13,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Pulling down at the top syncs the notes (PullToRefresh) instead of the browser reloading
+   the whole page. */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;

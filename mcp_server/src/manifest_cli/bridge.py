@@ -22,6 +22,7 @@ default here; see ``agents.py``).
     GET  /vault/folder   where this computer keeps the vault (see ``vault_folder.where``)
     POST /vault/folder   {"place": "icloud" | "documents" | "home" | "/full/path"} → moves it;
                          {"on_delete": "delete" | "keep"} → what a note deleted in Manifest does here
+    POST /vault/sync     sync this computer's vault with the account now (pull to refresh)
 """
 
 from __future__ import annotations
@@ -152,9 +153,13 @@ class Bridge:
                 }
             ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
-        elif path == "/vault/folder" and method in ("GET", "POST"):
+        elif path in ("/vault/folder", "/vault/sync") and method in ("GET", "POST"):
             length = int(headers.get("content-length") or 0)
-            status, body = await self._vault_folder(method, reader, length)
+            status, body = await (
+                self._vault_sync(method)
+                if path == "/vault/sync"
+                else self._vault_folder(method, reader, length)
+            )
             send(status, [*cors, "Content-Type: application/json"], json.dumps(body).encode())
         elif method == "POST" and path in ("/speak", "/speak/warm"):
             length = int(headers.get("content-length") or 0)
@@ -188,6 +193,17 @@ class Bridge:
         audio = await self.speech.speak(text)
         head = ["Content-Type: application/octet-stream", f"X-Sample-Rate: {speech.SAMPLE_RATE}"]
         return "200 OK", head, audio
+
+    async def _vault_sync(self, method: str) -> tuple[str, dict[str, Any]]:
+        """Pull to refresh in the app: sync this computer's vault with the account now."""
+        from manifest_cli import vault_folder
+
+        if method != "POST":
+            return "405 Method Not Allowed", {"error": "POST to sync."}
+        try:
+            return "200 OK", await asyncio.to_thread(vault_folder.sync_now)
+        except vault_folder.VaultFolderError as exc:
+            return "409 Conflict", {"error": str(exc)}
 
     async def _vault_folder(
         self, method: str, reader: asyncio.StreamReader, length: int

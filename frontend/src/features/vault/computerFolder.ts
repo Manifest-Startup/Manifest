@@ -38,11 +38,11 @@ export async function localNetworkGranted(): Promise<boolean> {
   }
 }
 
-async function call<T>(init?: RequestInit, timeoutMs = 20000): Promise<T> {
+async function call<T>(init?: RequestInit, timeoutMs = 20000, path = '/vault/folder'): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${bridgeUrl()}/vault/folder`, { ...init, signal: controller.signal });
+    const response = await fetch(`${bridgeUrl()}${path}`, { ...init, signal: controller.signal });
     const body = (await response.json().catch(() => ({}))) as T & { error?: string };
     if (!response.ok) throw new Error(body.error || "Couldn't reach the vault on this computer.");
     return body;
@@ -72,6 +72,11 @@ export function moveComputerVault(place: string): Promise<MoveResult> {
     },
     150000, // a big vault leaving iCloud can take a while
   );
+}
+
+/** Sync this computer's vault with the account now (background sync, through the bridge). */
+export function syncComputerVault(): Promise<{ ok: boolean }> {
+  return call<{ ok: boolean }>({ method: 'POST' }, 60000, '/vault/sync');
 }
 
 /** Choose what a note deleted in Manifest does in this computer's vault. */

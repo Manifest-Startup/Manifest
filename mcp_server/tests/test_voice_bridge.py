@@ -447,3 +447,36 @@ def test_set_on_delete_checks_the_choice(tmp_path, monkeypatch):
     assert vault_folder.set_on_delete("Keep") == {"args": ["where", "--json"]}
     with pytest.raises(vault_folder.VaultFolderError):
         vault_folder.set_on_delete("shred")
+
+
+def test_bridge_syncs_the_vault_now_for_pull_to_refresh(monkeypatch):
+    from manifest_cli import vault_folder
+
+    calls = []
+    monkeypatch.setattr(
+        vault_folder, "sync_now", lambda: calls.append(1) or {"ok": True, "report": []}
+    )
+
+    async def run():
+        b = bridge.Bridge(
+            agents.make_agent("cat"), origins=bridge.DEFAULT_ORIGINS, out=io.StringIO()
+        )
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            ok = await _request(port, _post("/vault/sync", {}))
+            evil = await _request(port, _post("/vault/sync", {}, origin="https://evil.example"))
+        return ok, evil
+
+    ok, evil = asyncio.run(run())
+    assert ok[0].endswith("200 OK") and json.loads(ok[2])["ok"] is True
+    assert evil[0].endswith("403 Forbidden") and calls == [1]
+
+
+def test_sync_now_reports_offline_without_failing(tmp_path, monkeypatch):
+    from manifest_cli import vault_folder
+
+    script = tmp_path / "s.py"
+    script.write_text("import sys\ndef cmd_move(): pass\nprint('offline')\nsys.exit(3)\n")
+    monkeypatch.setattr(vault_folder, "_candidates", lambda: [script])
+    assert vault_folder.sync_now()["offline"] is True
