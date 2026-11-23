@@ -336,8 +336,8 @@ export const NATURAL_VOICE_WAIT_MS = 30000;
 /**
  * The natural voice: each sentence is made by Kokoro on this Mac's GPU (the bridge's
  * POST /speak, about 0.5 s) and played here. A sentence is requested the moment it arrives,
- * so the next one is ready while the current one plays. Any sentence that fails or is slow
- * is spoken by the browser's voice instead, so it never goes silent.
+ * so the next one is ready while the current one plays. A slow or failed sentence waits and
+ * retries; the browser's flat voice is never used.
  */
 let sharedAudio: AudioContext | null = null;
 
