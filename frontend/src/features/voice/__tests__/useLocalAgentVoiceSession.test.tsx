@@ -20,6 +20,7 @@ describe('useLocalAgentVoiceSession', () => {
   const signals: AbortSignal[] = [];
   let answer = 'Two ideas.';
   let keepOpen = false;
+  let speakFetch: (text: string) => Promise<unknown> = async () => ({ ok: false });
 
   beforeEach(() => {
     recognitions.length = 0;
@@ -35,18 +36,40 @@ describe('useLocalAgentVoiceSession', () => {
         recognitions.push(this as unknown as Rec);
       }
     };
-    (global as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = class {
-      onend: (() => void) | null = null;
-      constructor(public text: string) {}
+    // The natural voice: each answer piece is fetched from the bridge's /speak and played as
+    // an audio buffer; it stays "playing" until a test ends it, so barge-in can be tried.
+    const queued: string[] = [];
+    class FakeContext {
+      state = 'running';
+      destination = {};
+      createAnalyser = () => ({ fftSize: 0, connect: jest.fn(), getFloatTimeDomainData: jest.fn() });
+      createBuffer = (_c: number, length: number) => ({ length, getChannelData: () => new Float32Array(length) });
+      createBufferSource = () => {
+        const source = {
+          buffer: null,
+          onended: null as (() => void) | null,
+          connect: jest.fn(),
+          start: () => speaking.push({ text: queued.shift() ?? '', onend: () => source.onended?.() }),
+          stop: () => cancel(),
+        };
+        return source;
+      };
+      resume = jest.fn();
+    }
+    (window as unknown as { AudioContext: unknown }).AudioContext = FakeContext;
+    speakFetch = async (text: string) => {
+      queued.push(text);
+      return { ok: true, headers: new Headers({ 'x-sample-rate': '24000' }), arrayBuffer: async () => new Int16Array(8).buffer };
     };
-    // Speech stays "in progress" until a test finishes it, so barge-in can be tried.
-    Object.defineProperty(window, 'speechSynthesis', {
-      configurable: true,
-      value: { getVoices: () => [], cancel, speak: (u: Utterance) => speaking.push(u) },
-    });
     const encoder = new TextEncoder();
-    global.fetch = jest.fn(async (url: string, init?: { signal?: AbortSignal }) => {
-      if (url.endsWith('/health')) return { ok: true, json: async () => ({ ok: true, agent: 'Claude Code', interrupt: true }) };
+    global.fetch = jest.fn(async (url: string, init?: { body?: string; signal?: AbortSignal }) => {
+      if (url.endsWith('/health')) {
+        return {
+          ok: true,
+          json: async () => ({ ok: true, agent: 'Claude Code', interrupt: true, speech: 'af_heart', speech_status: 'ready' }),
+        };
+      }
+      if (url.endsWith('/speak')) return speakFetch(JSON.parse(init?.body ?? '{}').text);
       if (init?.signal) signals.push(init.signal);
       let step = 0;
       return {
@@ -174,10 +197,11 @@ describe('useLocalAgentVoiceSession', () => {
     const { result: session } = await started();
     const note = session.current.state.activity.find(item => item.id === 'natural-voice-missing');
     expect(note?.label).toContain('voice.sh');
+    expect(note?.label).toContain('as text'); // not the flat browser voice
     expect(session.current.state.phase).toBe('listening'); // the conversation still works
   });
 
-  it('switches to the natural voice as soon as it finishes loading, mid-conversation', async () => {
+  it('uses the natural voice even while it is still loading, never the browser voice', async () => {
     let voiceReady = false;
     const speakCalls: string[] = [];
     class FakeContext {
@@ -227,7 +251,7 @@ describe('useLocalAgentVoiceSession', () => {
         await jest.advanceTimersByTimeAsync(50);
       });
       expect(speakCalls).toEqual(['Two ideas.']); // the natural voice, not the browser's
-      expect(speaking).toHaveLength(0);
+      expect(speaking).toHaveLength(1); // played as natural audio
     } finally {
       jest.useRealTimers();
       delete (window as unknown as { AudioContext?: unknown }).AudioContext;

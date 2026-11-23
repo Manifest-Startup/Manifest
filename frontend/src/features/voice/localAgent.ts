@@ -27,7 +27,7 @@ export function naturalVoiceMissing(speechStatus?: string): boolean {
   return Boolean(speechStatus?.startsWith('natural voice not installed'));
 }
 
-export const NATURAL_VOICE_MISSING_NOTE = `The natural voice isn't installed on this Mac, so the browser's voice is speaking. To fix it, run: ${VOICE_SETUP_COMMAND}`;
+export const NATURAL_VOICE_MISSING_NOTE = `The natural voice isn't on this Mac yet, so answers appear as text. To turn it on, run: ${VOICE_SETUP_COMMAND}`;
 
 export interface BridgeInfo {
   agent: string;
@@ -137,8 +137,9 @@ export function browserRecognition(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/** The browser can hear the person (its own speech recognition); answers use the natural voice. */
 export function browserSpeechAvailable(): boolean {
-  return Boolean(browserRecognition()) && typeof window !== 'undefined' && 'speechSynthesis' in window;
+  return Boolean(browserRecognition());
 }
 
 export interface RecognitionHandle {
@@ -250,20 +251,6 @@ export function startRecognition(
   };
 }
 
-/** The most natural local voice for this language: Premium/Enhanced first (no network). */
-export function pickVoice(voices: SpeechSynthesisVoice[], language: string): SpeechSynthesisVoice | null {
-  const lang = language.slice(0, 2) || 'en';
-  const mine = voices.filter(v => v.lang.toLowerCase().startsWith(lang));
-  const local = mine.filter(v => v.localService);
-  return (
-    local.find(v => /Premium|Enhanced|Siri/i.test(v.name)) ??
-    local.find(v => /Samantha|Ava|Zoe|Allison|Natural/i.test(v.name)) ??
-    local.find(v => v.default) ??
-    local[0] ??
-    mine[0] ??
-    null
-  );
-}
 
 export interface Speaker {
   /** Queue one sentence; it is spoken after the ones before it. */
@@ -274,50 +261,6 @@ export interface Speaker {
   cancel: () => void;
   /** How loud it is right now (0–1), for the orb; absent when unknown. */
   level?: () => number;
-}
-
-/**
- * Speak sentences in order with the browser's own voice. `onSpeaking` flips when speech
- * starts and when everything queued has been said; `onWord` pulses on each spoken word.
- */
-export function createSpeaker(onSpeaking: (speaking: boolean) => void, onWord?: () => void): Speaker {
-  let pending = 0;
-  let recent: string[] = [];
-  let generation = 0;
-  return {
-    say(text: string) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      const chosen = pickVoice(window.speechSynthesis.getVoices(), navigator.language || 'en');
-      if (chosen) utterance.voice = chosen;
-      utterance.rate = 1.08;
-      const mine = generation;
-      const done = () => {
-        if (mine !== generation) return; // cancelled
-        pending = Math.max(0, pending - 1);
-        if (pending === 0) onSpeaking(false);
-      };
-      utterance.onend = done;
-      utterance.onerror = done;
-      if (onWord) utterance.onboundary = () => onWord();
-      recent = [...recent, text].slice(-3);
-      pending += 1;
-      if (pending === 1) onSpeaking(true);
-      window.speechSynthesis.speak(utterance);
-    },
-    get speaking() {
-      return pending > 0;
-    },
-    get recent() {
-      return recent.join(' ');
-    },
-    cancel() {
-      generation += 1;
-      const was = pending > 0;
-      pending = 0;
-      window.speechSynthesis.cancel();
-      if (was) onSpeaking(false);
-    },
-  };
 }
 
 const words = (text: string) =>
@@ -387,13 +330,14 @@ export function speechPieces(text: string, min = 4): string[] {
 }
 
 /** Once a piece is due to play, wait no longer than this; then the browser says it. */
-export const BRIDGE_SPEECH_TIMEOUT_MS = 4000;
+/** How long one piece may wait for the natural voice (loading, busy) before it is skipped. */
+export const NATURAL_VOICE_WAIT_MS = 30000;
 
 /**
  * The natural voice: each sentence is made by Kokoro on this Mac's GPU (the bridge's
  * POST /speak, about 0.5 s) and played here. A sentence is requested the moment it arrives,
- * so the next one is ready while the current one plays. Any sentence that fails or is slow
- * is spoken by the browser's voice instead, so it never goes silent.
+ * so the next one is ready while the current one plays. A slow or failed sentence waits and
+ * retries; the browser's flat voice is never used.
  */
 let sharedAudio: AudioContext | null = null;
 
@@ -418,13 +362,32 @@ export function primeVoiceAudio(): void {
   }
 }
 
+/**
+ * No voice at all, only the words on screen: used when the natural voice can't run here,
+ * because the browser's flat voice is never used for answers.
+ */
+export function createSilentSpeaker(): Speaker {
+  let recent: string[] = [];
+  return {
+    say(text: string) {
+      recent = [...recent, text].slice(-3);
+    },
+    speaking: false,
+    get recent() {
+      return recent.join(' ');
+    },
+    cancel() {
+      // Nothing is playing.
+    },
+  };
+}
+
 export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Speaker {
   const context = voiceAudioContext() as AudioContext;
   const analyser = context.createAnalyser();
   analyser.fftSize = 512;
   analyser.connect(context.destination);
   const samples = new Float32Array(analyser.fftSize);
-  const fallback = createSpeaker(() => undefined);
 
   type Item = { text: string; audio: Promise<AudioBuffer | null>; abort: AbortController };
   let queue: Item[] = [];
@@ -433,7 +396,7 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
   let generation = 0;
   let recent: string[] = [];
 
-  const fetchAudio = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
+  const fetchOnce = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
     try {
       const response = await fetch(`${bridgeBase}/speak`, {
         method: 'POST',
@@ -454,17 +417,21 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
     }
   };
 
-  /** The piece's audio, or null if it isn't ready this long after it's due to play. */
-  const due = (item: Item): Promise<AudioBuffer | null> =>
-    Promise.race([
-      item.audio,
-      new Promise<null>(resolve =>
-        setTimeout(() => {
-          item.abort.abort();
-          resolve(null);
-        }, BRIDGE_SPEECH_TIMEOUT_MS),
-      ),
-    ]);
+  /**
+   * The natural voice, always: while it is still loading, busy or briefly unreachable, wait
+   * and ask again rather than switch to the browser's flat voice. Only after a long wait is
+   * the piece left unspoken (its words are on screen).
+   */
+  const fetchAudio = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
+    const deadline = Date.now() + NATURAL_VOICE_WAIT_MS;
+    for (let attempt = 0; ; attempt++) {
+      const buffer = await fetchOnce(text, abort);
+      if (buffer || abort.signal.aborted || Date.now() >= deadline) return buffer;
+      await new Promise(resolve => setTimeout(resolve, Math.min(2000, 250 * 2 ** attempt)));
+    }
+  };
+
+  const due = (item: Item): Promise<AudioBuffer | null> => item.audio;
 
   const finish = () => {
     playing = false;
@@ -479,15 +446,7 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
     if (mine !== generation) return;
     queue = queue.slice(1);
     if (!buffer) {
-      // The natural voice couldn't say this one in time: the browser says it.
-      await new Promise<void>(resolve => {
-        const utterance = new SpeechSynthesisUtterance(item.text);
-        const chosen = pickVoice(window.speechSynthesis.getVoices(), navigator.language || 'en');
-        if (chosen) utterance.voice = chosen;
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        window.speechSynthesis.speak(utterance);
-      });
+      // Never the browser's voice: the words are on screen, and the next piece goes on.
       if (mine === generation) void playNext(mine);
       return;
     }
@@ -537,7 +496,6 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
       } catch {
         // Already stopped.
       }
-      fallback.cancel();
       if (playing) finish();
     },
   };
