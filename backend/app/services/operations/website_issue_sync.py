@@ -320,7 +320,7 @@ Rules:
         path = parsed.path or "/"
         if path.startswith("/api") or path.startswith("/graphql"):
             return False
-        return not path.endswith((".xml", ".json", ".txt", ".pdf"))
+        return not path.endswith((".xml", ".json", ".txt", ".pdf", ".md", ".jsonl"))
 
     async def _crawl_pages(self, client: httpx.AsyncClient, urls: list[str]) -> list[CrawledPage]:
         return await asyncio.gather(*(self._crawl_page(client, url) for url in urls))
@@ -517,6 +517,11 @@ Rules:
                         ),
                     )
                 )
+
+            if page.html_signature is None:
+                # Not an HTML page (Markdown for agents, JSON, text): HTML title, meta
+                # description and <h1> checks don't apply (issues #3-#5 were false positives).
+                continue
 
             if not page.title:
                 candidates.append(

@@ -317,6 +317,27 @@ def test_bridge_speaks_a_sentence_in_the_natural_voice():
     assert evil[0].endswith("403 Forbidden")
 
 
+def test_missing_natural_voice_is_reported_not_silent():
+    """Issue #108: a reinstall without the natural-voice extra must show up in /health."""
+
+    async def run(problem):
+        b = bridge.Bridge(
+            agents.make_agent("cat"),
+            origins=bridge.DEFAULT_ORIGINS,
+            out=io.StringIO(),
+            speech_problem=problem,
+        )
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            health = await _request(port, f"GET /health HTTP/1.1\r\nOrigin: {APP}\r\n\r\n".encode())
+        return json.loads(health[2])
+
+    broken = asyncio.run(run("natural voice not installed: install it with: pip install x"))
+    assert broken["speech"] is None and broken["speech_status"].startswith("natural voice not installed")
+    assert asyncio.run(run(None))["speech_status"] == "off"
+
+
 def test_natural_voice_only_where_it_can_run(monkeypatch):
     from manifest_cli import speech
 

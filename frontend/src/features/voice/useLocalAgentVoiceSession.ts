@@ -10,6 +10,8 @@ import {
   createSilentSpeaker,
   isBargeIn,
   isEcho,
+  NATURAL_VOICE_MISSING_NOTE,
+  naturalVoiceMissing,
   probeBridge,
   runBridgeTurn,
   startRecognition,
@@ -231,14 +233,20 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     // browser's flat one. While it is still loading, the first answers wait for it. If this
     // Mac can't run it at all, answers show as words, and the person is told how to fix it.
     const canPlay = voiceAudioContext() !== null;
-    naturalRef.current = canPlay && (Boolean(bridge.speech) || bridge.speechStatus !== 'off');
+    const missing = naturalVoiceMissing(bridge.speechStatus);
+    naturalRef.current =
+      canPlay && !missing && (Boolean(bridge.speech) || (bridge.speechStatus ?? 'off') !== 'off');
     speakerRef.current = naturalRef.current ? createBridgeSpeaker(onSpeaking) : createSilentSpeaker();
     if (!naturalRef.current) {
       dispatch({
-        type: 'botOutput',
-        text: canPlay
-          ? `The natural voice is off on this Mac, so answers appear as text. Turn it on with: ${VOICE_SETUP_COMMAND}`
-          : "This browser can't play the natural voice, so answers appear as text. Try Safari or Chrome.",
+        type: 'tool',
+        activity: {
+          id: 'natural-voice-missing',
+          label: canPlay
+            ? NATURAL_VOICE_MISSING_NOTE
+            : "This browser can't play the natural voice, so answers appear as text. Try Safari or Chrome.",
+          status: 'failed',
+        },
       });
     }
     decayRef.current = window.setInterval(() => {

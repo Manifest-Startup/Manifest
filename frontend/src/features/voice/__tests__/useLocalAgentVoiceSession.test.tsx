@@ -178,6 +178,29 @@ describe('useLocalAgentVoiceSession', () => {
     await waitFor(() => expect(turns()).toEqual(['what is a cap table', 'great, and dilution?']), { timeout: 2000 });
   });
 
+  it('says so, with the fix, when the natural voice is missing from the install (#108)', async () => {
+    const answerOnce = global.fetch as jest.Mock;
+    global.fetch = jest.fn(async (url: string, init?: unknown) => {
+      if (url.endsWith('/health')) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            agent: 'Claude Code',
+            speech: null,
+            speech_status: "natural voice not installed: install it with: pip install 'manifest-mcp[natural-voice]'",
+          }),
+        };
+      }
+      return answerOnce(url, init);
+    }) as unknown as typeof fetch;
+    const { result: session } = await started();
+    const note = session.current.state.activity.find(item => item.id === 'natural-voice-missing');
+    expect(note?.label).toContain('voice.sh');
+    expect(note?.label).toContain('as text'); // not the flat browser voice
+    expect(session.current.state.phase).toBe('listening'); // the conversation still works
+  });
+
   it('uses the natural voice even while it is still loading, never the browser voice', async () => {
     let voiceReady = false;
     const speakCalls: string[] = [];
