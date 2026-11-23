@@ -123,6 +123,29 @@ describe("a folder of ideas answers the app's GraphQL", () => {
     expect(trashed.some((p) => p.endsWith("/Pitch Deck.md"))).toBe(true);
   });
 
+  it("leaves no empty document folder behind when an idea is deleted or renamed", async () => {
+    const fs = new MemoryVaultFs();
+    const store = new VaultStore(fs);
+    const made = await run(store, CREATE_IDEA, { title: "TideLine", description: "<p>Flood warnings.</p>" });
+    const id = (made.data!.createIdea as { ideaId: string }).ideaId;
+    await fs.write("Manifest/Documents/TideLine/Pitch Deck.md", "# Problem");
+    await fs.write("Manifest/Documents/TideLine/README.md", "# TideLine\n\nPart of your Manifest vault.");
+
+    await run(store, UPDATE_IDEA, { ideaId: id, title: "TideLine flood alerts", description: "<p>Flood warnings.</p>" });
+    expect(await fs.read("Manifest/Documents/TideLine/README.md")).toBeNull(); // old folder gone
+    expect(await fs.read("Manifest/Documents/TideLine flood alerts/Pitch Deck.md")).toBe("# Problem");
+
+    await fs.write("Manifest/Documents/TideLine flood alerts/README.md", "# generated");
+    await fs.write("Manifest/Documents/TideLine flood alerts/My sketch.md", "mine");
+    await run(store, DELETE_IDEA, { ideaId: id });
+    // A note of the person's own keeps the folder (and its README) in place.
+    expect(await fs.read("Manifest/Documents/TideLine flood alerts/My sketch.md")).toBe("mine");
+    expect(await fs.read("Manifest/Documents/TideLine flood alerts/README.md")).toBe("# generated");
+    const trashed = [...fs.files.keys()].filter((p) => p.startsWith("Manifest/.trash/"));
+    expect(trashed.some((p) => p.includes("TideLine README"))).toBe(true); // the rename's README
+    expect(trashed.some((p) => p.endsWith("/Pitch Deck.md"))).toBe(true);
+  });
+
   it("notices edits made on another computer", async () => {
     const fs = new MemoryVaultFs();
     const store = new VaultStore(fs);
