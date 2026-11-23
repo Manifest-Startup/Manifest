@@ -441,6 +441,26 @@ export interface GoalSummary {
   report: GoalReport | null;
 }
 
+export interface GoalTimelineEvent {
+  type: string;
+  summary: string;
+  createdAt: string | null;
+}
+
+export interface GoalFact {
+  id: string;
+  subject: string;
+  predicate: string;
+  value: string;
+  kind: string;
+  confidence: number;
+  status: string;
+}
+
+export interface GetGoalTimelineData {
+  goal: { id: string; timeline: GoalTimelineEvent[]; facts: GoalFact[] };
+}
+
 export interface GetGoalsData {
   goals: GoalSummary[];
 }

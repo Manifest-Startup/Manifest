@@ -5,6 +5,7 @@ import { MockedProvider } from "@apollo/client/testing/react";
 import GoalsPanel from "../GoalsPanel";
 import {
   DECIDE_APPROVAL,
+  GET_GOAL_TIMELINE,
   GET_GOALS,
   GET_STANDING_AUTHORIZATIONS,
   REVOKE_STANDING_AUTHORIZATION,
@@ -130,4 +131,40 @@ test("standing approvals are listed and can be stopped", async () => {
   expect(await screen.findByText("@ana · 1 of 3 this week")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Stop" }));
   await waitFor(() => expect(screen.queryByText("@ana · 1 of 3 this week")).not.toBeInTheDocument());
+});
+
+test("'What happened' shows the timeline and what was learned, labelled by how sure it is", async () => {
+  render(
+    <MockedProvider
+      mocks={[
+        goalsMock([goal({ approvals: [] })]),
+        standing([]),
+        {
+          request: { query: GET_GOAL_TIMELINE, variables: { goalId: "g1" } },
+          result: {
+            data: {
+              goal: {
+                __typename: "Goal",
+                id: "g1",
+                timeline: [
+                  { __typename: "GoalEvent", type: "goal.created", summary: "Goal: Hear back from @ana (5 steps)", createdAt: null },
+                  { __typename: "GoalEvent", type: "task.completed", summary: "Done: Send the message", createdAt: null },
+                ],
+                facts: [
+                  { __typename: "KnowledgeFact", id: "f1", subject: "@ana", predicate: "needs", value: "support for our internal chat", kind: "inferred", confidence: 0.3, status: "current" },
+                  { __typename: "KnowledgeFact", id: "f2", subject: "@ana", predicate: "relationship", value: "customer", kind: "inferred", confidence: 0.3, status: "superseded" },
+                ],
+              },
+            },
+          },
+        },
+      ]}
+    >
+      <GoalsPanel />
+    </MockedProvider>,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "What happened" }));
+  expect(await screen.findByText("Done: Send the message")).toBeInTheDocument();
+  expect(screen.getByText(/support for our internal chat/)).toHaveTextContent("(unconfirmed)");
+  expect(screen.queryByText(/customer/)).not.toBeInTheDocument(); // superseded facts aren't shown
 });
