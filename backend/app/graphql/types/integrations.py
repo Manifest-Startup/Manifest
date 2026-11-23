@@ -48,3 +48,15 @@ class IntegrationConnection:
     status: str
     message: str
     connect_url: str | None = None
+
+
+@strawberry.type
+class IntegrationHealth:
+    """Whether a connection works right now: verified (just used), connected (stored, not
+    checked live), authentication_required, degraded or disconnected. Say ``detail``."""
+
+    service: str
+    name: str
+    state: str
+    detail: str
+    checked_at: str

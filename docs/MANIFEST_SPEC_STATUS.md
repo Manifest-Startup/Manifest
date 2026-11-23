@@ -32,7 +32,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Risk tiers 0–3 | **Implemented (slice)** | Declared per capability in `services/goals/capabilities.py`, enforced in `policy.py`. |
 | Tool registry with risk/idempotency metadata | Partial | Generated catalog (`readOnly`/`destructive` by name regex) plus `goalCapabilities` (tiers) for goal steps. |
 | Service discovery and evaluation engine | Missing | No `ServiceEvaluation` records. ADRs and this file are the manual equivalent. |
-| Integration lifecycle states | Partial | `integrations` table has no status column. `connections.py` returns transient states. No health checks except Open Media reconnect. |
+| Integration lifecycle states | Partial | `integrationHealth` (`services/integrations/health.py`) reports verified / connected / authentication_required / degraded / disconnected per connection; Open Media is checked live, others from stored expiry and refresh tokens. No stored status column or history. |
 | Secrets | Implemented | BYOK keys encrypted (`token_crypto`, `tenant_keys`); Infisical for dev; keys never in chat (catalog exclusions). |
 | Open Media messaging, inbox, webhooks | Implemented | `services/integrations/open_media/`. Webhooks now also wake waiting goals. |
 | Open Media drafts / delivery status | Missing | Not in Open Media's API. Prepared messages live in the goal step. Needs an open-media change. |
@@ -60,5 +60,5 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 3. Inbound extraction for the general inbox (goal replies are done).
 4. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
 5. Retention policy for `goal_events` and superseded `knowledge_facts`.
-6. Integration status and health checks (`integrations.status`, last verified).
+6. Store integration health over time (last verified, alerts when a connection a goal needs breaks).
 7. Send the CSRF header from every app call, then require it as well as the Origin check.

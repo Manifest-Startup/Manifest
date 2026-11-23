@@ -10,6 +10,7 @@ from app.graphql.types.integrations import (
     ConnectIntegrationInput,
     Integration,
     IntegrationConnection,
+    IntegrationHealth,
 )
 from app.utils.logger import logger
 
@@ -49,6 +50,25 @@ class IntegrationsQuery:
         """Whether you have your own OpenAI key saved (never the key itself)."""
         user_id = get_current_user_id(info.context["request"])
         return await asyncio.to_thread(_ai_key_status, str(user_id))
+
+    @strawberry.field
+    async def integration_health(self, info: strawberry.Info) -> list[IntegrationHealth]:
+        """Is each connection working right now? Open Media is checked live (goals send
+        through it); others are judged from what is stored. Credentials are never returned."""
+        from app.services.integrations import health
+
+        user_id = str(get_current_user_id(info.context["request"]))
+        rows = await asyncio.to_thread(health.check, info.context["db"], user_id)
+        return [
+            IntegrationHealth(
+                service=r["service"],
+                name=r["name"],
+                state=r["state"],
+                detail=r["detail"],
+                checked_at=r["checked_at"],
+            )
+            for r in rows
+        ]
 
     @strawberry.field
     async def integrations(self, info: strawberry.Info) -> list[Integration]:

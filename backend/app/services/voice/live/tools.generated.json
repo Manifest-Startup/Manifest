@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "a3754232d655822a7cc6e7737b1918c9014fb28f0705a84f9eed791b5162e35e",
+ "catalog_sha256": "d5548a897f78167ba1066924cbece5e6f04271b72a52612f11e668965e54cdcc",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -3907,6 +3907,29 @@
     "variables": [
      "serviceId"
     ]
+   }
+  },
+  {
+   "name": "integration_health",
+   "title": "Integration health",
+   "description": "Is each connection working right now? Open Media is checked live (goals send through it); others are judged from what is stored. Credentials are never returned.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Integration health",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "integrationHealth",
+    "document": "query IntegrationHealth { integrationHealth { service name state detail checkedAt } }",
+    "variables": []
    }
   },
   {

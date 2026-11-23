@@ -478,6 +478,8 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "grantStandingAuthorization": "account.write",
         "revoke_standing_authorization": "account.write",
         "revokeStandingAuthorization": "account.write",
+        "integration_health": "account.read",
+        "integrationHealth": "account.read",
         # --- Open Media account link (messages and pitch shorts) ---
         "open_media_link": "account.read",
         "openMediaLink": "account.read",

@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "970a2aaa603750d60938f2e5f02399b873e741864cc0804ad43c25e95bc54f39",
+ "schema_sha256": "aedf9496f14af85f38be360549392f7af780d92ea9d67db7a857b42594f8026a",
  "operations": [
   {
    "name": "me",
@@ -260,6 +260,16 @@
    "destructive": false,
    "returns": "AiKeyStatus!",
    "selection": "{ configured source last4 }",
+   "args": []
+  },
+  {
+   "name": "integrationHealth",
+   "command": "integration-health",
+   "kind": "query",
+   "description": "Is each connection working right now? Open Media is checked live (goals send through it); others are judged from what is stored. Credentials are never returned.",
+   "destructive": false,
+   "returns": "[IntegrationHealth!]!",
+   "selection": "{ service name state detail checkedAt }",
    "args": []
   },
   {
