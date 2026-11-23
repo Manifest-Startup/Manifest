@@ -27,6 +27,7 @@ else:
 from app.graphql.schema import schema
 from app.middleware import RequestIDMiddleware
 from app.middleware.metrics import setup_metrics
+from app.middleware.origin_check import OriginCheckMiddleware
 from app.routes.customer_routes import track_visitors_middleware
 from app.routes.live_notes_socket import register_live_note_events
 from app.security.config import frontend_origins_from_env
@@ -177,6 +178,9 @@ if _IS_NON_PROD:
     _cors_kwargs["allow_origin_regex"] = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
+# CSRF: cookie-signed-in GraphQL writes must come from Manifest's own origin (CORS alone
+# doesn't stop a forged request from being sent with the cookie).
+app.add_middleware(OriginCheckMiddleware, allowed_origins=cors_origins)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # SEC-002: baseline security headers + nonce-based CSP (report-only by

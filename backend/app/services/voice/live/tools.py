@@ -28,6 +28,7 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
+from app.security.ai_safety import wrap_untrusted
 
 CATALOG_PATH = Path(__file__).with_name("tools.generated.json")
 
@@ -57,6 +58,21 @@ CORE_TOOLS: tuple[str, ...] = (
     "decide_approval",
     "report_feedback",
 )
+
+# Tools whose answers carry what other people wrote (messages, emails, comments). Those text
+# fields reach the model fenced as untrusted data, so instructions inside them are just text.
+OTHER_PEOPLES_TEXT: dict[str, frozenset[str]] = {
+    name: frozenset(
+        {"preview", "subject", "content", "body", "lastMessagePreview", "text", "title"}
+    )
+    for name in (
+        "myInbox",
+        "inboxConversation",
+        "conversationMessages",
+        "myConversations",
+        "pitchReelComments",
+    )
+}
 
 # Answers longer than this are cut before they reach the model (speech needs gist, not dumps).
 MAX_RESULT_CHARS = 10000
@@ -197,6 +213,20 @@ def _clip(value: Any) -> Any:
     return {"truncated": True, "preview": text[:MAX_RESULT_CHARS]}
 
 
+def fence_text(value: Any, keys: frozenset[str]) -> Any:
+    """Wrap the named text fields (at any depth) in untrusted-data markers."""
+    if isinstance(value, list):
+        return [fence_text(v, keys) for v in value]
+    if isinstance(value, dict):
+        return {
+            k: wrap_untrusted(v, label="message")
+            if k in keys and isinstance(v, str) and v
+            else fence_text(v, keys)
+            for k, v in value.items()
+        }
+    return value
+
+
 class AuthExpired(Exception):
     """The person's session stopped working mid-conversation."""
 
@@ -300,7 +330,11 @@ def _interpret(call: dict[str, Any], response: httpx.Response) -> dict[str, Any]
                 raise AuthExpired()
             return {"error": messages or f"HTTP {response.status_code}"}
         data = (payload or {}).get("data") or {}
-        return {call["field"]: _clip(data.get(call["field"]))}
+        value = data.get(call["field"])
+        keys = OTHER_PEOPLES_TEXT.get(call["field"])
+        if keys:
+            value = fence_text(value, keys)
+        return {call["field"]: _clip(value)}
     if response.status_code >= 400:
         return {"status": response.status_code, "error": _clip(payload)}
     return _clip(payload) if isinstance(payload, dict) else {"result": _clip(payload)}

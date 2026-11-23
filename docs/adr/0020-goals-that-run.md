@@ -23,4 +23,5 @@ Manifest could research, draft and talk, but nothing it did outlived a request. 
 - The migration must be applied before the fields work in production. Until then they fail with a missing-table error. The migration is additive.
 - On Render's free plan the in-process sweep runs only while the service is awake. Webhooks wake it for replies, and the 10-minute edge keep-alive keeps it mostly warm. Long waits are checked when it next runs.
 - Voice sees `goals`, `start_outreach_goal` and `decide_approval` on every turn (27 per-turn tools, up from 24).
+- When no step can move any more, the goal settles. A blocked or failed step makes it `blocked`, and `retryGoalStep` reopens it. If every unfinished step was cancelled by a decline, the goal is `cancelled` (`goal.closed`).
 - Not yet: standing authorizations, intent classification beyond the voice prompt, meeting scheduling, Open Media drafts and delivery status, email as a channel, a Goals view in the web app, and retention or data-export controls for `knowledge_facts`. Account erasure (`compliance/tenant_purge.py`) deletes all five tables.

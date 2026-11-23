@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "f5d253d0bd9ed291e5f16c03810dcf6bc6d25b6b3e57811e5e02bb4c9862d5ac",
+ "catalog_sha256": "30f63b64f51bbb343ae6a9c53d7cb6b773cc7ea649005688921cf786fb18401f",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -5330,7 +5330,7 @@
   {
    "name": "reply_in_inbox",
    "title": "Reply in inbox",
-   "description": "Reply in an inbox conversation: Open Media sends a chat message, or a threaded email to the right people from the mailbox that received it (`clientId` makes retries land once). Changes the person's Manifest account; say what you will do before calling.",
+   "description": "Reply in an inbox conversation: Open Media sends a chat message, or a threaded email to the right people from the mailbox that received it (`clientId` makes retries land once). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -5345,6 +5345,10 @@
      },
      "clientId": {
       "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
      }
     },
     "additionalProperties": false,
@@ -5356,7 +5360,7 @@
    "annotations": {
     "title": "Reply in inbox",
     "readOnlyHint": false,
-    "destructiveHint": false,
+    "destructiveHint": true,
     "idempotentHint": false,
     "openWorldHint": false
    },
@@ -5890,7 +5894,7 @@
   {
    "name": "send_message",
    "title": "Send message",
-   "description": "Send a message in an Open Media conversation (`clientId` makes retries land once). Changes the person's Manifest account; say what you will do before calling.",
+   "description": "Send a message in an Open Media conversation (`clientId` makes retries land once). Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -5902,6 +5906,10 @@
      },
      "clientId": {
       "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
      }
     },
     "additionalProperties": false,
@@ -5913,7 +5921,7 @@
    "annotations": {
     "title": "Send message",
     "readOnlyHint": false,
-    "destructiveHint": false,
+    "destructiveHint": true,
     "idempotentHint": false,
     "openWorldHint": true
    },

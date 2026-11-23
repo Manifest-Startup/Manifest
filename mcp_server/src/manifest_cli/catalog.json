@@ -3634,7 +3634,7 @@
    "command": "send-message",
    "kind": "mutation",
    "description": "Send a message in an Open Media conversation (``clientId`` makes retries land once).",
-   "destructive": false,
+   "destructive": true,
    "returns": "Message!",
    "selection": "{ messageId conversationId senderId content createdAt isMine }",
    "args": [
@@ -3672,7 +3672,7 @@
    "command": "reply-in-inbox",
    "kind": "mutation",
    "description": "Reply in an inbox conversation: Open Media sends a chat message, or a threaded email to the right people from the mailbox that received it (``clientId`` makes retries land once).",
-   "destructive": false,
+   "destructive": true,
    "returns": "Boolean!",
    "selection": "",
    "args": [

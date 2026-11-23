@@ -30,6 +30,8 @@ STALE_RUNNING = timedelta(minutes=5)
 DONE = "completed"
 OPEN = ("proposed", "ready")
 FINISHED = ("completed", "cancelled")
+# Steps that can still move on their own (or with an approval).
+LIVE = ("proposed", "ready", "running", "waiting_external", "awaiting_authorization")
 _KEY = re.compile(r"^[a-z][a-z0-9_]{0,59}$")
 
 
@@ -117,7 +119,12 @@ def _validate_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _same_goal(db: Any, user_id: str, title: str, idea_id: str | None) -> dict[str, Any] | None:
     wanted = " ".join(title.casefold().split())
-    for goal in store.select(db, store.GOALS, user_id=user_id, status="active"):
+    open_goals = [
+        g
+        for g in store.select(db, store.GOALS, user_id=user_id)
+        if g["status"] in ("active", "blocked")
+    ]
+    for goal in open_goals:
         if " ".join(str(goal.get("title") or "").casefold().split()) == wanted and (
             goal.get("idea_id") or None
         ) == (idea_id or None):
@@ -366,6 +373,28 @@ def _settle(db: Any, user_id: str, goal: dict[str, Any], tasks: list[dict[str, A
             f"Achieved: {goal['title']} (every step verified)",
             dedupe_key=f"outcome.verified:{goal['id']}",
         )
+        return
+    if any(t["status"] in LIVE for t in tasks):
+        return
+    # Nothing left that can run. A blocked or failed step waits for the person (retry_step
+    # reopens the goal); if every unfinished step was cancelled (a declined approval), the
+    # goal is closed rather than left looking active.
+    stuck = [t for t in tasks if t["status"] in ("blocked", "failed")]
+    status = "blocked" if stuck else "cancelled"
+    if store.cas_update(db, store.GOALS, goal["id"], {"status": "active"}, {"status": status}):
+        summary = (
+            f"Blocked: {stuck[0]['title']} needs you"
+            if stuck
+            else f"Closed: {goal['title']} (nothing left to do after the decline)"
+        )
+        store.record_event(
+            db,
+            user_id,
+            goal["id"],
+            "goal.blocked" if stuck else "goal.closed",
+            summary,
+            dedupe_key=f"goal.settled:{goal['id']}:{status}",
+        )
 
 
 def advance(db: Any, user_id: str, goal_id: str, *, force_check: bool = False) -> dict[str, Any]:
@@ -438,7 +467,9 @@ def cancel_goal(db: Any, user_id: str, goal_id: str) -> dict[str, Any]:
 
 def retry_step(db: Any, user_id: str, goal_id: str, step_key: str) -> dict[str, Any]:
     """The person fixed what blocked a step (linked Open Media, waited longer): try it again."""
-    _goal(db, user_id, goal_id)
+    goal = _goal(db, user_id, goal_id)
+    if goal["status"] == "blocked":
+        store.cas_update(db, store.GOALS, goal_id, {"status": "blocked"}, {"status": "active"})
     task = next((t for t in _tasks(db, goal_id) if t["step_key"] == step_key), None)
     if task is None or task["status"] not in ("blocked", "failed"):
         raise GoalError("Only a blocked or failed step can be retried.")

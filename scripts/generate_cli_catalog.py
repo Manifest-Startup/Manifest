@@ -49,6 +49,10 @@ _DESTRUCTIVE_EXTRA = {
     # stops their goal. The server also checks the approved scope hash.
     "decide_approval",
     "cancel_goal",
+    # Messages reach another person and can't be unsent: an agent reads them back first.
+    # (The web app's composer is the person typing, so it calls GraphQL directly.)
+    "send_message",
+    "reply_in_inbox",
 }
 # Commands the CLI itself owns; a schema field with one of these names would be shadowed.
 RESERVED_COMMANDS = {
