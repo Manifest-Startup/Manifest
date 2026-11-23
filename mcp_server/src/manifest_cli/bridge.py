@@ -63,8 +63,16 @@ def describe_context(context: Any) -> str:
     idea = str(context.get("idea_id") or "").strip()[:80]
     path = str(context.get("path") or "").strip()[:200]
     if idea:
-        named = f' "{title}"' if title else ""
-        return f"(In the Manifest app, the person is looking at the idea{named}, id {idea}.)"
+        # The id is for tools only: people never see ids in the app (issue #114).
+        if title:
+            return (
+                f'(In the Manifest app, the person is looking at the idea "{title}"; '
+                f"its id for tools is {idea}. Call it by its title, never by the id.)"
+            )
+        return (
+            f"(In the Manifest app, the person is looking at an idea whose id for tools is "
+            f"{idea}. Look up its title before you name it; never say the id.)"
+        )
     return f"(In the Manifest app, the person is on {path}.)" if path else ""
 
 

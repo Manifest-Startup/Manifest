@@ -3,6 +3,9 @@ import { useApolloClient } from '@apollo/client/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { PipecatClient } from '@pipecat-ai/client-js';
 
+import type { ApolloCache } from '@apollo/client';
+
+import { VOICE_IDEA_SUMMARY_TITLE_FRAGMENT, VOICE_IDEA_TITLE_FRAGMENT } from '../core/apollo/queries';
 import { createLogger } from '../core/logError';
 import {
   buildLiveVoiceUrl,
@@ -50,6 +53,31 @@ const REFRESH_DEBOUNCE_MS = 600;
 export function contextFromPath(pathname: string): LiveVoiceContext {
   const ideaId = pathname.match(/^\/ideas\/([A-Za-z0-9_-]+)(?:\/|$)/)?.[1];
   return { path: pathname, ideaId: ideaId && ideaId !== 'qualify' ? ideaId : null };
+}
+
+type TitleCache = Pick<ApolloCache, 'identify' | 'readFragment'>;
+
+/**
+ * The context with the idea's title from the Apollo cache, so the voice can name the idea
+ * instead of reading out an id the person never sees (issue #114). Read at send time: the
+ * idea may load after the voice starts.
+ */
+export function withIdeaTitle(context: LiveVoiceContext, cache: TitleCache): LiveVoiceContext {
+  if (!context.ideaId || context.ideaTitle) return context;
+  const sources = [
+    ['Idea', VOICE_IDEA_TITLE_FRAGMENT],
+    ['IdeaSummary', VOICE_IDEA_SUMMARY_TITLE_FRAGMENT],
+  ] as const;
+  for (const [typename, fragment] of sources) {
+    try {
+      const id = cache.identify({ __typename: typename, ideaId: context.ideaId });
+      const title = id ? cache.readFragment<{ title?: string | null }>({ id, fragment })?.title?.trim() : '';
+      if (title) return { ...context, ideaTitle: title };
+    } catch {
+      // Not in the cache in this shape; try the next.
+    }
+  }
+  return context;
 }
 
 /**
@@ -124,10 +152,11 @@ export function usePipecatVoiceSession(wsUrl?: string): PipecatVoiceSessionApi {
             // A local voice has no URL to read the page from: tell it what the person sees.
             if (wsUrl) {
               try {
+                const now = withIdeaTitle(contextRef.current, apollo.cache);
                 client.sendClientMessage('manifest.context', {
-                  path: contextRef.current.path,
-                  idea_id: contextRef.current.ideaId ?? null,
-                  idea_title: contextRef.current.ideaTitle ?? null,
+                  path: now.path,
+                  idea_id: now.ideaId ?? null,
+                  idea_title: now.ideaTitle ?? null,
                 });
               } catch (error) {
                 log.warn('context failed', error);
@@ -184,7 +213,9 @@ export function usePipecatVoiceSession(wsUrl?: string): PipecatVoiceSessionApi {
         },
       });
       clientRef.current = client;
-      await client.connect({ wsUrl: wsUrl ?? buildLiveVoiceUrl(window.location, contextRef.current) });
+      await client.connect({
+        wsUrl: wsUrl ?? buildLiveVoiceUrl(window.location, withIdeaTitle(contextRef.current, apollo.cache)),
+      });
     } catch (error) {
       log.warn('connect failed', error);
       await disconnect();
@@ -220,10 +251,11 @@ export function usePipecatVoiceSession(wsUrl?: string): PipecatVoiceSessionApi {
     const client = clientRef.current;
     if (!client || state.phase === 'connecting' || state.phase === 'idle') return;
     try {
+      const now = withIdeaTitle(context, apollo.cache);
       client.sendClientMessage('manifest.context', {
-        path: context.path,
-        idea_id: context.ideaId ?? null,
-        idea_title: context.ideaTitle ?? null,
+        path: now.path,
+        idea_id: now.ideaId ?? null,
+        idea_title: now.ideaTitle ?? null,
       });
     } catch (error) {
       log.warn('context update failed', error);

@@ -83,6 +83,9 @@ def test_context_line():
         == "(In the Manifest app, the person is on /ideas.)"
     )
     assert bridge.describe_context(None) == ""
+    # Issue #114: the id is for tools; the agent names the idea and never says the id.
+    no_title = bridge.describe_context({"idea_id": "a1", "path": "/ideas/a1"})
+    assert "Look up its title" in no_title and "never say the id" in no_title
 
 
 def test_install_writes_a_login_item_that_keeps_the_bridge_running(tmp_path):
@@ -118,7 +121,8 @@ def test_local_voice_helpers():
         == "open it"
     )
     assert local_voice.context_line({"idea_id": "a1", "idea_title": "Solar"}) == (
-        '(In the Manifest app, the person is looking at the idea "Solar", id a1.)'
+        '(In the Manifest app, the person is looking at the idea "Solar"; its id for tools '
+        "is a1. Call it by its title, never by the id.)"
     )
     assert local_voice.context_line(None) == ""
 
@@ -334,7 +338,9 @@ def test_missing_natural_voice_is_reported_not_silent():
         return json.loads(health[2])
 
     broken = asyncio.run(run("natural voice not installed: install it with: pip install x"))
-    assert broken["speech"] is None and broken["speech_status"].startswith("natural voice not installed")
+    assert broken["speech"] is None and broken["speech_status"].startswith(
+        "natural voice not installed"
+    )
     assert asyncio.run(run(None))["speech_status"] == "off"
 
 

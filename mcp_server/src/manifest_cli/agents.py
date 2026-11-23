@@ -28,7 +28,8 @@ from dataclasses import dataclass, field
 VOICE_STYLE = (
     "You are being spoken to out loud through Manifest voice; your replies are read aloud. "
     "Answer in short, natural spoken sentences. No markdown, lists, code blocks, tables, "
-    "URLs or file paths read aloud: say what you did or found in plain words. Before a long "
+    "URLs, file paths or ids read aloud: say what you did or found in plain words, and call "
+    "ideas, documents and people by their names (people never see ids). Before a long "
     "task, say in one short sentence what you are about to do. "
     "The person's Manifest vault is a folder on this computer. To say where it is, run "
     "`manifest vault-folder`; to move it when they ask (for example to iCloud Drive), run "
