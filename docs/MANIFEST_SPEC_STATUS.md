@@ -49,7 +49,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 
 ## Security baseline (2026-11-22)
 
-- **CSRF.** Fixed. `middleware/origin_check.py` refuses cookie-signed-in `POST /graphql` requests whose `Origin` (or `Referer`) isn't Manifest's own. Bearer clients are unaffected. The `manifest_csrf_token` double-submit header is still not required, because several app calls don't send it yet.
+- **CSRF.** `middleware/origin_check.py` refuses cookie-signed-in `POST /graphql` unless it comes from Manifest's own origin and, when the browser holds `manifest_csrf_token` (issued with every sign-in), echoes it in `X-CSRF-Token` (double submit; the Apollo client already does). Bearer clients are unaffected. REST routes rely on SameSite=Lax and CORS.
 - **Sends.** Goal sends need a server-checked approval. Direct sends are confirm-first for agents. An agent that ignores the handshake and calls GraphQL directly with the person's token can still send; that is the person's own delegated access.
 - **Model-side confirm.** Outside goals, `confirm: true` is still a tool-wrapper convention, not a server record.
 
@@ -61,4 +61,4 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 4. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
 5. Retention policy for `goal_events` and superseded `knowledge_facts`.
 6. Store integration health over time (last verified, alerts when a connection a goal needs breaks).
-7. Send the CSRF header from every app call, then require it as well as the Origin check.
+7. Extend the CSRF check to cookie-authenticated REST writes (GraphQL is done).
