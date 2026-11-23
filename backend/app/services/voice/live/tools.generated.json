@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "02584fcb8d8170bdc8791dba01139799f8fa9c0398244c2c4dc1dc5bdef06884",
+ "catalog_sha256": "4740a3b23383d574e4b9413b9d5b0aecbabbe8eedf2cd66ca36d7f67a34be2cf",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -5003,6 +5003,69 @@
      "content",
      "replyToMessageId",
      "clientId"
+    ]
+   }
+  },
+  {
+   "name": "report_feedback",
+   "title": "Report feedback",
+   "description": "File a bug, enhancement, improvement or feedback about Manifest as a GitHub issue in Manifest's public repository. Never duplicates: a matching open issue gets this person added (counted once) with their words as a comment; partial matches come back as possible_duplicates for you to choose from. Tell the person it's posted publicly. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "input": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string",
+        "description": "bug, enhancement, improvement or feedback (about Manifest, not the person's idea)."
+       },
+       "title": {
+        "type": "string",
+        "description": "A short issue title in plain words, e.g. 'Pitch deck export fails on Safari'."
+       },
+       "details": {
+        "type": "string",
+        "description": "What happened or what they want, in the person's words. Posted publicly; no names, emails or private details."
+       },
+       "source": {
+        "type": "string",
+        "description": "Where it came from: voice, app, agent or cli."
+       },
+       "duplicateOf": {
+        "type": "integer",
+        "description": "Issue number this is the same as (from an earlier possible_duplicates answer)."
+       },
+       "forceNew": {
+        "type": "boolean",
+        "description": "True when none of the possible duplicates is the same thing."
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "kind",
+       "title"
+      ]
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ]
+   },
+   "annotations": {
+    "title": "Report feedback",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "reportFeedback",
+    "document": "mutation ReportFeedback($input: ReportFeedbackInput!) { reportFeedback(input: $input) { status message issueNumber issueUrl issueTitle reporters candidates { number title url score } } }",
+    "variables": [
+     "input"
     ]
    }
   },

@@ -11,11 +11,15 @@ from app.auth.current_user import (
 )
 from app.graphql.types.survey import (
     ContactFormInput,
+    FeedbackCandidate,
+    FeedbackReport,
+    ReportFeedbackInput,
     SubmitSurveyInput,
     SurveyInsights,
     _build_survey_insights,
 )
 from app.services.operations.survey_ops import survey_ops_service
+from app.services.operations.user_feedback import FeedbackError, user_feedback_service
 from app.utils.logger import logger
 
 
@@ -44,6 +48,37 @@ class SurveyMutation:
         }
         info.context["db"].table("customers").insert(data).execute()
         return True
+
+    @strawberry.mutation
+    async def report_feedback(
+        self, info: strawberry.Info, input: ReportFeedbackInput
+    ) -> FeedbackReport:
+        """File a bug, enhancement, improvement or feedback about Manifest as a GitHub issue in
+        Manifest's public repository. Never duplicates: a matching open issue gets this person
+        added (counted once) with their words as a comment; partial matches come back as
+        possible_duplicates for you to choose from. Tell the person it's posted publicly."""
+        user_id = get_current_user_id(info.context["request"])
+        try:
+            result = await user_feedback_service.report(
+                user_id=str(user_id),
+                kind=input.kind,
+                title=input.title,
+                details=input.details,
+                source=input.source,
+                duplicate_of=input.duplicate_of,
+                force_new=input.force_new,
+            )
+        except FeedbackError as exc:
+            raise Exception(str(exc)) from exc
+        return FeedbackReport(
+            status=result.status,
+            message=result.message,
+            issue_number=result.issue_number,
+            issue_url=result.issue_url,
+            issue_title=result.issue_title,
+            reporters=result.reporters,
+            candidates=[FeedbackCandidate(**c) for c in result.candidates],
+        )
 
     @strawberry.mutation
     async def submit_survey(self, info: strawberry.Info, input: SubmitSurveyInput) -> bool:

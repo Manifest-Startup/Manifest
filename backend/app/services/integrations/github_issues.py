@@ -39,7 +39,18 @@ LABEL_COLORS = {
     "severity:p0": "b60205",
     "severity:p1": "d93f0b",
     "severity:p2": "fbca04",
+    "user-feedback": "c2e0c6",
+    "enhancement": "a2eeef",
+    "source:voice": "ededed",
+    "source:app": "ededed",
+    "source:agent": "ededed",
+    "source:cli": "ededed",
 }
+
+
+def github_token() -> str | None:
+    """Manifest's own server token for filing issues (never a person's GitHub connection)."""
+    return os.getenv("MANIFEST_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
 
 
 class GitHubIssueConfigurationError(RuntimeError):
@@ -69,8 +80,8 @@ class GitHubIssueService:
         issue_drafts: Iterable[GitHubIssueDraft],
         extra_labels: Iterable[str] | None = None,
     ) -> dict[str, Any]:
-        github_token = os.getenv("MANIFEST_GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
-        if not github_token:
+        token = github_token()
+        if not token:
             raise GitHubIssueConfigurationError(
                 "GitHub issue sync requires MANIFEST_GITHUB_TOKEN or GITHUB_TOKEN."
             )
@@ -78,17 +89,13 @@ class GitHubIssueService:
         drafts = list(issue_drafts)
         extra_labels_list = [label for label in (extra_labels or []) if label]
 
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {github_token}",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
+        headers = self.headers(token)
 
         existing_titles = await self._fetch_existing_issue_titles(client, repo, headers=headers)
         all_labels = set()
         for draft in drafts:
             all_labels.update(self._merge_labels(draft.labels, extra_labels_list))
-        await self._ensure_labels(client, repo, headers=headers, labels=sorted(all_labels))
+        await self.ensure_labels(client, repo, headers=headers, labels=sorted(all_labels))
 
         created_issues = []
         skipped_issues = []
@@ -150,7 +157,16 @@ class GitHubIssueService:
             if not issue.get("pull_request")
         }
 
-    async def _ensure_labels(
+    @staticmethod
+    def headers(token: str) -> dict[str, str]:
+        return {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Manifest/1.0",
+        }
+
+    async def ensure_labels(
         self,
         client: httpx.AsyncClient,
         repo: str,

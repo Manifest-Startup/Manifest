@@ -264,6 +264,9 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "userSocialStats": "account.read",
         "my_sessions": "sessions.manage",
         "mySessions": "sessions.manage",
+        # Feedback about Manifest: any signed-in person, viewers included (rate-limited per user).
+        "report_feedback": "account.read",
+        "reportFeedback": "account.read",
         "update_account": "account.write",
         "updateAccount": "account.write",
         "save_openai_api_key": "account.write",
