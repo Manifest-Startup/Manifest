@@ -111,3 +111,16 @@
 .om-send:disabled { opacity: 0.28; transform: scale(0.86); }
 .om-composer-hint { margin: 6px 4px 0; font-size: 11px; color: var(--om-text-tertiary); }
 .om-composer-error { margin: 6px 4px 0; font-size: 12px; color: var(--om-danger); }
+
+/* Goals Manifest is working on (GoalsPanel): approvals first, in the inbox's own style. */
+.om-goals { display: flex; flex-direction: column; gap: 8px; padding: 0 8px 10px; }
+.om-goal { padding: 12px; border-radius: 14px; background: var(--om-chrome); }
+.om-goal-title { font-size: 15px; font-weight: 700; }
+.om-goal-summary { font-size: 14px; font-weight: 600; margin-top: 8px; overflow-wrap: anywhere; }
+.om-goal-note { font-size: 13px; color: var(--om-text-secondary); margin-top: 3px; }
+.om-goal-error { font-size: 13px; color: var(--om-danger); margin-top: 6px; }
+.om-goal-actions { display: flex; gap: 8px; margin-top: 10px; }
+.om-goal-primary, .om-goal-secondary { min-height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+.om-goal-primary { background: var(--om-text); color: var(--om-surface); }
+.om-goal-secondary { background: var(--om-surface); color: var(--om-text); border: 1px solid var(--om-border); }
+.om-goal-primary:disabled, .om-goal-secondary:disabled { opacity: 0.4; }

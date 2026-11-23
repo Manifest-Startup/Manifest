@@ -386,6 +386,47 @@ export interface ReplyInInboxVariables {
   clientId?: string | null;
 }
 
+/** Goals that run (ADR 0020): steps, approvals waiting for the person, and a progress report. */
+export interface GoalApproval {
+  id: string;
+  goalId: string;
+  summary: string;
+  consequences: string;
+  riskTier: number;
+  scopeSha256: string;
+  status: string;
+}
+
+export interface GoalReport {
+  completed: string[];
+  inProgress: string[];
+  waiting: string[];
+  needsYou: string[];
+  next: string[];
+}
+
+export interface GoalSummary {
+  id: string;
+  title: string;
+  status: string;
+  approvals: GoalApproval[];
+  report: GoalReport | null;
+}
+
+export interface GetGoalsData {
+  goals: GoalSummary[];
+}
+
+export interface DecideApprovalVariables {
+  approvalId: string;
+  approve: boolean;
+  scopeSha256: string;
+}
+
+export interface DecideApprovalData {
+  decideApproval: GoalSummary;
+}
+
 export interface MarkInboxReadData {
   markInboxRead: boolean;
 }

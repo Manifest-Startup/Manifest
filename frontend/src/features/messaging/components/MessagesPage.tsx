@@ -8,6 +8,7 @@ import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 import type { InboxConversation } from "features/core/apollo/operationTypes";
 
 import { MESSAGES_FALLBACK_POLL_MS, useLiveMessages } from "../hooks/useLiveMessages";
+import GoalsPanel from "./GoalsPanel";
 import InboxList from "./InboxList";
 import InboxThread from "./InboxThread";
 import "../inbox.css";
@@ -67,6 +68,7 @@ const MessagesPage: React.FC = () => {
           <div className="om-heading">
             <h1 className="om-title">Messages</h1>
           </div>
+          <GoalsPanel />
           <InboxList
             conversations={conversations}
             loading={loading}
