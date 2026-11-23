@@ -1,4 +1,4 @@
-import { createBridgeSpeaker, createSpeaker, isBargeIn } from '../localAgent';
+import { createBridgeSpeaker, isBargeIn } from '../localAgent';
 
 describe('the natural voice player', () => {
   const played: number[] = [];
@@ -58,25 +58,29 @@ describe('the natural voice player', () => {
 
   const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-  it('asks for every sentence at once and plays them in order, the browser covering a failed one', async () => {
-    const speaking: boolean[] = [];
-    const speaker = createBridgeSpeaker(s => speaking.push(s));
-    speaker.say('First.');
-    speaker.say('this will fail');
-    speaker.say('Third one.');
-    expect(global.fetch).toHaveBeenCalledTimes(3); // all requested up front
-    await flush();
-    expect(played).toEqual(['First.'.length]);
-    sources[0].onended?.();
-    await flush();
-    await flush();
-    expect(browserSaid).toEqual(['this will fail']);
-    await flush();
-    expect(played).toEqual(['First.'.length, 'Third one.'.length]);
-    sources[1].onended?.();
-    await flush();
-    expect(speaking).toEqual([true, false]);
-    expect(speaker.speaking).toBe(false);
+  it('asks for every sentence at once and plays them in order; one it cannot make is skipped, never read by the browser', async () => {
+    jest.useFakeTimers();
+    try {
+      const speaking: boolean[] = [];
+      const speaker = createBridgeSpeaker(s => speaking.push(s));
+      speaker.say('First.');
+      speaker.say('this will fail');
+      speaker.say('Third one.');
+      expect(global.fetch).toHaveBeenCalledTimes(3); // all requested up front
+      await jest.advanceTimersByTimeAsync(0);
+      expect(played).toEqual(['First.'.length]);
+      sources[0].onended?.();
+      // It keeps asking for the failing one for a while, then moves on.
+      for (let i = 0; i < 20; i++) await jest.advanceTimersByTimeAsync(2000);
+      expect(browserSaid).toEqual([]);
+      expect(played).toEqual(['First.'.length, 'Third one.'.length]);
+      sources[1].onended?.();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(speaking).toEqual([true, false]);
+      expect(speaker.speaking).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('stops at once when interrupted', async () => {
@@ -113,12 +117,6 @@ describe('the natural voice player', () => {
     expect(isBargeIn('actually open my pitch deck', speaker.recent)).toBe(true);
   });
 
-  it('the browser voice does the same', () => {
-    const speaker = createSpeaker(() => undefined);
-    for (const sentence of answer) speaker.say(sentence);
-    expect(isBargeIn('so I need two things', speaker.recent)).toBe(false);
-    expect(isBargeIn("I've loaded the feedback tool", speaker.recent)).toBe(false);
-  });
 
 });
 

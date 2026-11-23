@@ -497,7 +497,9 @@ def check_voice(*, out: TextIO) -> int:
     setup does that (not the first conversation), and any problem shows here."""
     problem = speech.supported()
     if problem:
-        out.write(f"Natural voice: not on this computer ({problem}). The browser's voice speaks.\n")
+        out.write(
+            f"Natural voice: not on this computer ({problem}). Answers show as text; install it with: curl -fsSL https://manifeststartup.com/voice.sh | sh\n"
+        )
         return 0
     out.write("Natural voice: loading Kokoro (the first time downloads about 330 MB)…\n")
     out.flush()

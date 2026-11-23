@@ -2,7 +2,7 @@ import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { isBargeIn, isEcho, pickVoice, startRecognition, VOICE_SETUP_COMMAND } from '../localAgent';
+import { isBargeIn, isEcho, startRecognition, VOICE_SETUP_COMMAND } from '../localAgent';
 import { isFatalVoiceError } from '../usePipecatVoiceSession';
 import VoiceSetup from '../VoiceSetup';
 
@@ -19,13 +19,6 @@ describe('telling the person from the voice’s own echo', () => {
     expect(isBargeIn('open the coffee one', said)).toBe(true);
     expect(isBargeIn('hmm', said)).toBe(false); // one stray word isn't enough
   });
-});
-
-it('prefers a natural local voice and never a remote one first', () => {
-  const v = (name: string, localService = true, lang = 'en-US') => ({ name, lang, localService, default: false }) as SpeechSynthesisVoice;
-  expect(pickVoice([v('Google US English', false), v('Albert'), v('Samantha')], 'en-US')?.name).toBe('Samantha');
-  expect(pickVoice([v('Samantha'), v('Ava (Premium)')], 'en-GB')?.name).toBe('Ava (Premium)');
-  expect(pickVoice([v('Thomas', true, 'fr-FR')], 'en-US')).toBeNull();
 });
 
 it('only a fatal Pipecat error ends the conversation (no red orb after a hiccup)', () => {
