@@ -2,7 +2,7 @@
 
 Status of the "conversational intelligence, autonomous execution, communication orchestration and living knowledge" spec (pasted 2026-11-22) against the actual code. Verified by reading the code, not the docs. Update this file when a row changes; decisions go in `docs/adr/`.
 
-Last verified: 2026-11-22, `main` at `34b01bb` plus the goals slice (ADR 0020).
+Last verified: 2026-11-22: goals slice live (PR #111, migration applied), plus the follow-ups below.
 
 ## Architecture as built
 
@@ -36,33 +36,31 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Secrets | Implemented | BYOK keys encrypted (`token_crypto`, `tenant_keys`); Infisical for dev; keys never in chat (catalog exclusions). |
 | Open Media messaging, inbox, webhooks | Implemented | `services/integrations/open_media/`. Webhooks now also wake waiting goals. |
 | Open Media drafts / delivery status | Missing | Not in Open Media's API. Prepared messages live in the goal step. Needs an open-media change. |
-| Outbound only with authorization | **Partial** | Goal sends need an exact-scope approval. `sendMessage` / `replyInInbox` are still ungated (destructive=false); they're direct person-initiated tools. |
+| Outbound only with authorization | Implemented | Goal sends need an exact-scope approval checked by the server. Direct `sendMessage` / `replyInInbox` are confirm-first in voice, `/mcp` and the CLI (the web composer is the person typing). |
 | Inbound processing (requests, commitments) | Partial | Replies to a goal's message are recorded as `external_claim` facts. No extraction of requests or commitments from the general inbox. |
 | Meeting coordination | Missing | No calendar integration. |
 | Knowledge graph, idea concepts | Implemented | `services/ideas/knowledge_graph.py`: derived on read, cited passages, no confidence. |
 | Knowledge facts with provenance, confidence, corrections | **Implemented (slice)** | `knowledge_facts` + `services/goals/knowledge.py`. Entity resolution is by normalised handle only. |
 | Event model | **Partial (slice)** | `goal_events` (deduped) for goals. No app-wide outbox or bus. |
-| Prompt-injection defences | Partial | `<untrusted>` fencing in discovery and goal replies, injection heuristic + event. Inbox and message text reach the voice model unfenced. |
+| Prompt-injection defences | Partial | Fencing for discovery, goal replies and every voice tool result carrying other people's text (inbox, conversations, comments); injection heuristic + event. MCP agents get raw text (their own harness decides). |
 | Project timeline and progress reports | **Implemented (slice)** | `goal.timeline`, `goal.report` (completed / in progress / waiting / needs you / next), `report.spoken`. No web UI. |
 | Privacy: erasure | Implemented | `compliance/tenant_purge.py` now includes the five goal tables. Export of goal data: missing. |
 | Observability | Partial | JSON logs with OpenTelemetry field names. No traces or metrics pipeline. |
 
 ## Security baseline (2026-11-22)
 
-- **CSRF.** `manifest_csrf_token` is set but never compared server-side. Current protection: SameSite=Lax cookies, the CORS allowlist and JSON-only GraphQL. Plan: validate the double-submit header for cookie-authenticated mutations. Low risk today, open item.
-- **Ungated sends.** `sendMessage` and `replyInInbox` run without confirmation through any agent holding the person's token. Plan: mark them destructive in the catalog, or route agent-initiated sends through goal approvals.
-- **Model-side confirm.** `confirm: true` is a tool-wrapper convention. For goals the server checks an approval record and scope hash; elsewhere it doesn't.
-- **Unfenced tool results.** Voice gets inbox text unfenced. Plan: fence `my_inbox` / `inbox_conversation` bodies with `wrap_untrusted`.
+- **CSRF.** Fixed. `middleware/origin_check.py` refuses cookie-signed-in `POST /graphql` requests whose `Origin` (or `Referer`) isn't Manifest's own. Bearer clients are unaffected. The `manifest_csrf_token` double-submit header is still not required, because several app calls don't send it yet.
+- **Sends.** Goal sends need a server-checked approval. Direct sends are confirm-first for agents. An agent that ignores the handshake and calls GraphQL directly with the person's token can still send; that is the person's own delegated access.
+- **Model-side confirm.** Outside goals, `confirm: true` is still a tool-wrapper convention, not a server record.
 
 ## Backlog (in order: risk, then value)
 
-1. Apply migration `20261122120000_goals_tasks_approvals.sql` in production and deploy the goals slice (owner approval).
-2. Gate agent-initiated `sendMessage` / `replyInInbox` (destructive in the catalog), and fence inbox text for voice.
-3. Server-side CSRF check for cookie-authenticated mutations.
-4. Standing authorizations: scoped, expiring, revocable grants (for example "follow-ups to people I've already approved, up to 3 a week") checked in `policy.is_authorized`.
-5. A Goals panel in the web app (approvals inbox, timeline). Voice, MCP and the CLI already have it.
-6. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
-7. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
-8. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
-9. Data export of goals and facts in the data-subject access request flow; retention policy for `goal_events`.
-10. Integration status and health checks (`integrations.status`, last verified).
+1. First live outreach send, to a recipient the owner names.
+2. Standing authorizations: scoped, expiring, revocable grants (for example "follow-ups to people I've already approved, up to 3 a week") checked in `policy.is_authorized`.
+3. A Goals panel in the web app (approvals inbox, timeline). Voice, MCP and the CLI already have it.
+4. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
+5. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
+6. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
+7. Data export of goals and facts in the data-subject access request flow; retention policy for `goal_events`.
+8. Integration status and health checks (`integrations.status`, last verified).
+9. Send the CSRF header from every app call, then require it as well as the Origin check.

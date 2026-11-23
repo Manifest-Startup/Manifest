@@ -220,6 +220,8 @@ def test_declining_cancels_the_send_and_what_depends_on_it(db, om):
     assert om.sends == []
     assert _status(view)["send"] == "cancelled"
     assert _status(view)["reply"] == "cancelled" and _status(view)["learn"] == "cancelled"
+    assert view["goal"]["status"] == "cancelled"  # closed, not left looking active
+    assert "goal.closed" in [e["type"] for e in view["events"]]
     with pytest.raises(policy.ApprovalError):
         engine.decide_approval(
             db,
@@ -298,7 +300,7 @@ def test_open_media_outage_retries_then_fails_visibly(db, om, monkeypatch):
     send = next(t for t in view["tasks"] if t["step_key"] == "send")
     assert send["status"] == "failed" and send["attempts"] == engine.MAX_ATTEMPTS
     assert any("Send the message" in item for item in view["report"]["needs_you"])
-    assert view["goal"]["status"] == "active"
+    assert view["goal"]["status"] == "active"  # the later steps can still run after a retry
 
     om.fail_times = 0
     view = engine.retry_step(db, USER, view["goal"]["id"], "send")
@@ -320,6 +322,7 @@ def test_unknown_handle_blocks_before_anything_is_drafted(db, om):
     view = engine.create_goal(db, USER, title="Reach Zed", steps=engine.outreach_plan("zed", "Hi"))
     assert _status(view)["find"] == "blocked"
     assert _status(view)["draft"] == "proposed"
+    assert view["goal"]["status"] == "active"  # later steps are still proposed
     assert "no one called @zed" in view["report"]["needs_you"][0]
 
 
@@ -498,3 +501,17 @@ def test_graphql_outreach_approve_and_report(db, om):
 def test_graphql_goal_fields_require_sign_in(db):
     result = _gql("query { goals { id } }", db, user=None)
     assert result.errors and "Authentication required" in result.errors[0].message
+
+
+def test_a_stuck_last_step_blocks_the_goal_and_retry_reopens_it(db, om):
+    steps = [{"key": "find", "capability": "contact.resolve", "input": {"handle": "zed"}}]
+    view = engine.create_goal(db, USER, title="Check Zed", steps=steps)
+    assert view["goal"]["status"] == "blocked"
+    assert "goal.blocked" in [e["type"] for e in view["events"]]
+    assert [g["id"] for g in engine.list_goals(db, USER)] == [view["goal"]["id"]]
+    again = engine.create_goal(db, USER, title="Check Zed", steps=steps)
+    assert again["existing"] is True  # a blocked goal is still the same goal
+
+    om.profiles["zed"] = {"id": "om-zed", "handle": "zed", "display_name": "Zed"}
+    view = engine.retry_step(db, USER, view["goal"]["id"], "find")
+    assert view["goal"]["status"] == "achieved"
