@@ -4,7 +4,7 @@ The browser hears (fast, no local models) and the person's agent answers; this m
 each sentence of the answer into speech. On Apple silicon, Kokoro on MLX takes about 0.5 s
 for a sentence (3–5× faster than real time on an 8 GB M1), so the voice sounds natural
 without the wait. The CPU (ONNX) build ran at about real time there. The app plays the
-audio itself and falls back to the browser's voice if this isn't available.
+audio itself; the app never uses the browser's flat voice for answers (they show as text until this is available).
 
     POST /speak       {"text": "One sentence."} → raw 16-bit mono PCM at 24 kHz
     POST /speak/warm  pages the model back in while the person is still talking
@@ -109,7 +109,9 @@ class Voice:
         except BaseException as exc:  # noqa: BLE001  (misaki can raise SystemExit)
             self.ready = False
             self.problem = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
-            self._log(f"Natural voice unavailable ({self.problem}); the browser's voice speaks.")
+            self._log(
+                f"Natural voice unavailable ({self.problem}); retrying. Answers show as text until it loads."
+            )
         finally:
             self.loading = False
         return self.ready

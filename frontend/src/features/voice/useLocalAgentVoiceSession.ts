@@ -7,7 +7,7 @@ import { INITIAL_LIVE_VOICE_STATE, liveVoiceReducer } from './liveVoice';
 import {
   browserSpeechAvailable,
   createBridgeSpeaker,
-  createSpeaker,
+  createSilentSpeaker,
   isBargeIn,
   isEcho,
   probeBridge,
@@ -29,8 +29,6 @@ export const FINAL_SETTLE_MS = 350;
 export const INTERIM_SETTLE_MS = 700;
 const NUDGE_AFTER_MS = 3000;
 /** While the natural voice is still loading, look again this often (and switch to it). */
-export const NATURAL_VOICE_POLL_MS = 4000;
-const NATURAL_VOICE_POLL_LIMIT = 75; // about five minutes
 /** For this long after it stops talking, words that repeat what it said are its own echo. */
 export const ECHO_TAIL_MS = 1500;
 
@@ -77,7 +75,6 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const decayRef = useRef<number | null>(null);
   const naturalRef = useRef(false); // the bridge speaks in the natural voice
   const micRef = useRef<MediaStream | null>(null);
-  const upgradeRef = useRef<number | null>(null);
   const quietSinceRef = useRef(0); // when it last stopped talking
   const warmedRef = useRef(false); // woke the voice for this question already
 
@@ -202,8 +199,6 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     speakerRef.current = null;
     if (decayRef.current !== null) window.clearInterval(decayRef.current);
     decayRef.current = null;
-    if (upgradeRef.current !== null) window.clearTimeout(upgradeRef.current);
-    upgradeRef.current = null;
     levelsRef.current = { mic: 0, bot: 0 };
     dispatch({ type: 'disconnected' });
   }, [interrupt]);
@@ -232,30 +227,19 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       levelsRef.current.bot = speaking ? 0.6 : 0;
       dispatch({ type: speaking ? 'botStarted' : 'botStopped' });
     };
-    // The natural voice (Kokoro on this Mac's GPU) when the bridge has it; else the browser's.
-    naturalRef.current = Boolean(bridge.speech) && voiceAudioContext() !== null;
-    speakerRef.current = naturalRef.current
-      ? createBridgeSpeaker(onSpeaking)
-      : createSpeaker(onSpeaking, () => {
-          levelsRef.current.bot = 0.95; // a pulse on each spoken word; decays below
-        });
-    // The natural voice is still loading (or retrying): keep looking, and switch to it the
-    // moment it's ready, between answers. No reload needed.
-    if (!naturalRef.current && bridge.speechStatus && bridge.speechStatus !== 'off' && voiceAudioContext()) {
-      let tries = 0;
-      const look = async () => {
-        upgradeRef.current = null;
-        if (!activeRef.current || tries++ >= NATURAL_VOICE_POLL_LIMIT) return;
-        const now = await probeBridge(3000);
-        if (!activeRef.current) return;
-        if (now?.speech && !speakerRef.current?.speaking) {
-          naturalRef.current = true;
-          speakerRef.current = createBridgeSpeaker(onSpeaking);
-          return;
-        }
-        upgradeRef.current = window.setTimeout(() => void look(), NATURAL_VOICE_POLL_MS);
-      };
-      upgradeRef.current = window.setTimeout(() => void look(), NATURAL_VOICE_POLL_MS);
+    // Always the natural voice (Kokoro on this Mac's GPU, or Cartesia with a key), never the
+    // browser's flat one. While it is still loading, the first answers wait for it. If this
+    // Mac can't run it at all, answers show as words, and the person is told how to fix it.
+    const canPlay = voiceAudioContext() !== null;
+    naturalRef.current = canPlay && (Boolean(bridge.speech) || bridge.speechStatus !== 'off');
+    speakerRef.current = naturalRef.current ? createBridgeSpeaker(onSpeaking) : createSilentSpeaker();
+    if (!naturalRef.current) {
+      dispatch({
+        type: 'botOutput',
+        text: canPlay
+          ? `The natural voice is off on this Mac, so answers appear as text. Turn it on with: ${VOICE_SETUP_COMMAND}`
+          : "This browser can't play the natural voice, so answers appear as text. Try Safari or Chrome.",
+      });
     }
     decayRef.current = window.setInterval(() => {
       const levels = levelsRef.current;
