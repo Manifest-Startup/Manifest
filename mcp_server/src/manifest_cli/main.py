@@ -616,9 +616,19 @@ def cmd_vault_folder(ctx: Context, argv: list[str]) -> int:
         "~/Dropbox/Notes",
     )
     parser.add_argument("place", nargs="?", help="icloud, documents, home, or a full path")
+    parser.add_argument(
+        "--on-delete",
+        choices=vault_folder.ON_DELETE,
+        help="when a note is deleted in Manifest: delete it here too (default) or keep a copy",
+    )
     ns = parser.parse_args(argv)
     try:
-        result = vault_folder.move(ns.place) if ns.place else vault_folder.where()
+        if ns.on_delete:
+            result = vault_folder.set_on_delete(ns.on_delete)
+            if ns.place:
+                result = vault_folder.move(ns.place)
+        else:
+            result = vault_folder.move(ns.place) if ns.place else vault_folder.where()
     except vault_folder.VaultFolderError as exc:
         raise CliError(str(exc)) from exc
     if ns.json:
@@ -632,6 +642,12 @@ def cmd_vault_folder(ctx: Context, argv: list[str]) -> int:
         ctx.out.write(f"{result['folder']}\n")
         if result.get("icloud"):
             ctx.out.write("It's in iCloud Drive, so it's on your other Apple devices too.\n")
+    if not ns.json and result.get("on_delete"):
+        ctx.out.write(
+            "Notes deleted in Manifest are deleted here too.\n"
+            if result["on_delete"] == "delete"
+            else "Notes deleted in Manifest stay here as your copies.\n"
+        )
     return 0
 
 

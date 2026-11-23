@@ -59,4 +59,28 @@ describe("this computer's vault folder", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ place: 'icloud' });
     expect(screen.queryByRole('button', { name: 'Move to iCloud Drive' })).toBeNull();
   });
+
+  it('lets people choose whether notes deleted in Manifest leave this vault', async () => {
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: async () => ({ state: 'granted' }) },
+    });
+    const here = `${places.icloud}/Manifest Vault`;
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(json({ ...vault(here, true), on_delete: 'delete' }))
+      .mockResolvedValueOnce(json({ ...vault(here, true), on_delete: 'keep' }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    render(<ComputerVaultPanel />);
+    const remove = await screen.findByRole('radio', { name: /Delete it from this vault too/ });
+    expect(remove).toBeChecked();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'Keep my copy in this vault' }));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('stay in this vault as your copies'),
+    );
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ on_delete: 'keep' });
+    expect(screen.getByRole('radio', { name: 'Keep my copy in this vault' })).toBeChecked();
+  });
 });

@@ -66,9 +66,12 @@ Keep it running and use voice in the web app or the installed app. With no OpenA
 ```bash
 manifest vault-folder                      # where the vault is on this computer
 manifest vault-folder icloud               # move it to iCloud Drive (or documents, home, or a full path)
+manifest vault-folder --on-delete keep     # keep copies of notes deleted in Manifest (default: delete)
 ```
 
 Moving keeps every file (it refuses a place that isn't empty), restarts background sync on the new folder, gives it the Manifest folder icon and saves the choice in `~/.config/manifest/vault.json` for the plugin, the app and voice. It runs the vault script from the Manifest plugin (`manifest_vault.py move`). The running bridge exposes the same thing to Settings → Storage (`GET`/`POST /vault/folder`), and Claude Code may run this one command during voice without asking, so "move my vault to iCloud Drive" works out loud.
+
+A note deleted in Manifest is deleted from the vault too by default (within about 30 s; anything you wrote in it goes to the vault's `.trash/`). `--on-delete keep` keeps your copies instead; it is saved in the same `vault.json` (`on_delete`), shown by `manifest vault-folder` and in Settings → Storage.
 
 ### Your GitHub: `manifest github`
 

@@ -19,7 +19,12 @@ class VaultExport:
     paths: list[str] = strawberry.field(
         default_factory=list,
         description="Every file under Manifest/ right now, even ones not sent; a vault removes "
-        "Manifest's own files that are no longer listed (renamed or deleted ideas).",
+        "Manifest's own files that are no longer listed (renamed or deleted ideas). Empty "
+        "when nothing changed since the fingerprint you passed.",
+    )
+    fingerprint: str | None = strawberry.field(
+        default=None,
+        description="Pass it back next time: when nothing changed, the export is empty.",
     )
 
 

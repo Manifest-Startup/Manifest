@@ -14,7 +14,9 @@ import {
   getComputerVault,
   localNetworkGranted,
   moveComputerVault,
+  setComputerVaultOnDelete,
   type ComputerVault,
+  type OnDelete,
 } from "./computerFolder";
 import { BRIDGE_INSTALL_COMMAND } from "features/voice/localAgent";
 
@@ -169,6 +171,25 @@ export const ComputerVaultPanel: React.FC = () => {
     }
   };
 
+  const chooseOnDelete = async (onDelete: OnDelete) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      setVault(await setComputerVaultOnDelete(onDelete));
+      setMessage({
+        tone: "ok",
+        text:
+          onDelete === "delete"
+            ? "Notes you delete in Manifest are deleted from this vault too."
+            : "Notes you delete in Manifest stay in this vault as your copies.",
+      });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Couldn't change that." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="manifest-sync-panel" aria-labelledby="computer-vault-title">
       <h3 id="computer-vault-title">Vault folder on this computer</h3>
@@ -214,6 +235,31 @@ export const ComputerVaultPanel: React.FC = () => {
               </button>
             ) : null}
           </div>
+          {vault.on_delete ? (
+            <fieldset className="mt-4" disabled={busy}>
+              <legend className="text-sm font-medium">When you delete a note in Manifest</legend>
+              <label className="mt-2 flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="vault-on-delete"
+                  checked={vault.on_delete === "delete"}
+                  onChange={() => void chooseOnDelete("delete")}
+                />
+                <span>
+                  Delete it from this vault too <span className="text-gray500">(anything you wrote in it goes to the vault's .trash)</span>
+                </span>
+              </label>
+              <label className="mt-1 flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="vault-on-delete"
+                  checked={vault.on_delete === "keep"}
+                  onChange={() => void chooseOnDelete("keep")}
+                />
+                <span>Keep my copy in this vault</span>
+              </label>
+            </fieldset>
+          ) : null}
           <form
             className="mt-4 flex flex-wrap gap-3"
             onSubmit={(event) => {

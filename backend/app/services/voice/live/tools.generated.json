@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "c4196c3078d6bba3872143f223787cf627dbb1421762ba3fa4a4ced44b280ab9",
+ "catalog_sha256": "02584fcb8d8170bdc8791dba01139799f8fa9c0398244c2c4dc1dc5bdef06884",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -6328,11 +6328,14 @@
   {
    "name": "vault_export",
    "title": "Vault export",
-   "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt to get only ideas changed since then.",
+   "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt and the last fingerprint to get nothing when nothing changed (deletions included).",
    "inputSchema": {
     "type": "object",
     "properties": {
      "sinceUpdatedAt": {
+      "type": "string"
+     },
+     "fingerprint": {
       "type": "string"
      }
     },
@@ -6348,9 +6351,10 @@
    "_call": {
     "via": "graphql",
     "field": "vaultExport",
-    "document": "query VaultExport($sinceUpdatedAt: String) { vaultExport(sinceUpdatedAt: $sinceUpdatedAt) { generatedAt root ideaCount files { path content updatedAt } paths } }",
+    "document": "query VaultExport($sinceUpdatedAt: String, $fingerprint: String) { vaultExport(sinceUpdatedAt: $sinceUpdatedAt, fingerprint: $fingerprint) { generatedAt root ideaCount files { path content updatedAt } paths fingerprint } }",
     "variables": [
-     "sinceUpdatedAt"
+     "sinceUpdatedAt",
+     "fingerprint"
     ]
    }
   },

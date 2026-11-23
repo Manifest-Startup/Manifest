@@ -22,6 +22,7 @@ block, so anything the person writes outside it survives every sync.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import UTC, datetime
@@ -564,7 +565,25 @@ def _all_files(
     return files
 
 
-def build_vault(db: Any, user_id: str, since: str | None = None) -> dict[str, Any]:
+def fingerprint(
+    ideas: list[dict[str, Any]],
+    sections: dict[str, list[dict[str, Any]]],
+    interviews: list[dict[str, Any]],
+) -> str:
+    """Changes whenever an idea, canvas section or interview is added, edited or deleted."""
+    parts = [f"i:{i['idea_id']}:{_iso(i.get('updated_at'))}" for i in ideas]
+    parts += [
+        f"s:{iid}:{r.get('section_name')}:{_iso(r.get('updated_at'))}"
+        for iid, rows in sections.items()
+        for r in rows
+    ]
+    parts += [f"q:{s.get('id')}:{_iso(s.get('updated_at'))}" for s in interviews]
+    return hashlib.sha256("\n".join(sorted(parts)).encode()).hexdigest()[:32]
+
+
+def build_vault(
+    db: Any, user_id: str, since: str | None = None, known_fingerprint: str | None = None
+) -> dict[str, Any]:
     """Load the person's own ideas, canvas sections and interviews, and build the files."""
     ideas = (
         db.table("ideas")
@@ -604,9 +623,22 @@ def build_vault(db: Any, user_id: str, since: str | None = None) -> dict[str, An
         idea["idea_id"] = str(idea["idea_id"])
     for session in interviews:
         session["idea_id"] = str(session["idea_id"]) if session.get("idea_id") else None
+    stamp = fingerprint(ideas, sections, interviews)
+    if since and known_fingerprint and known_fingerprint == stamp:
+        # Nothing was added, changed or deleted: skip building the graph entirely.
+        return {
+            "generated_at": datetime.now(UTC).isoformat(),
+            "root": ROOT,
+            "idea_count": len(ideas),
+            "files": [],
+            "paths": [],
+            "fingerprint": stamp,
+        }
     everything = _all_files(ideas, sections, interviews, "https://manifeststartup.com")
     files = everything
-    if since and not _changed_since(ideas, sections, interviews, since):
+    # A known fingerprint that differs means something changed, a deletion included (which
+    # leaves no timestamp behind), so everything is sent.
+    if since and not known_fingerprint and not _changed_since(ideas, sections, interviews, since):
         files = [f for f in everything if not str(f["path"]).startswith(_PER_IDEA)]
     return {
         "generated_at": datetime.now(UTC).isoformat(),
@@ -616,6 +648,7 @@ def build_vault(db: Any, user_id: str, since: str | None = None) -> dict[str, An
         # Every Manifest/ file that exists now, so a vault can tidy away notes for ideas
         # that were renamed or deleted (and the concepts only they mentioned).
         "paths": all_paths(everything),
+        "fingerprint": stamp,
     }
 
 

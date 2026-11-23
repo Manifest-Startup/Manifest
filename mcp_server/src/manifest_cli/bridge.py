@@ -20,7 +20,8 @@ default here; see ``agents.py``).
     POST /speak    {"text": "One sentence."} → 16-bit mono PCM, 24 kHz (Kokoro; see speech.py)
     POST /speak/warm   page the voice model in while the person is still talking
     GET  /vault/folder   where this computer keeps the vault (see ``vault_folder.where``)
-    POST /vault/folder   {"place": "icloud" | "documents" | "home" | "/full/path"} → moves it
+    POST /vault/folder   {"place": "icloud" | "documents" | "home" | "/full/path"} → moves it;
+                         {"on_delete": "delete" | "keep"} → what a note deleted in Manifest does here
 """
 
 from __future__ import annotations
@@ -199,7 +200,15 @@ class Bridge:
             if length <= 0 or length > MAX_BODY:
                 return "413 Payload Too Large", {"error": 'Send {"place": ...}.'}
             payload = json.loads(await reader.readexactly(length))
-            place = str(payload.get("place") or "") if isinstance(payload, dict) else ""
+            payload = payload if isinstance(payload, dict) else {}
+            if payload.get("on_delete") is not None and not payload.get("place"):
+                result = await asyncio.to_thread(
+                    vault_folder.set_on_delete, str(payload["on_delete"])
+                )
+                self.out.write(f"vault  on delete: {result.get('on_delete')}\n")
+                self.out.flush()
+                return "200 OK", result
+            place = str(payload.get("place") or "")
             result = await asyncio.to_thread(vault_folder.move, place)
             self.out.write(f"vault  moved to {result.get('folder')}\n")
             self.out.flush()
