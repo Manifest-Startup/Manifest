@@ -46,6 +46,16 @@ export interface IdeaRecord {
 const nameOf = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "");
 const now = () => new Date().toISOString();
 
+/**
+ * Files in the Ideas folder that are not ideas: its README, and the copies Manifest's
+ * background sync makes beside a note (`… (Manifest)`, conflicted copies).
+ */
+export function isSyncCopy(name: string): boolean {
+  return (
+    /^readme$/i.test(name) || /\s\(Manifest\)$/.test(name) || /\(conflicted copy\b/.test(name)
+  );
+}
+
 export class VaultStore {
   private entries = new Map<string, Entry>();
   /** The folder as last read; null forces a re-read (an empty folder reads as ""). */
@@ -84,17 +94,26 @@ export class VaultStore {
     if (signature === this.signature) return false;
     const byPath = new Map([...this.entries.values()].map((e) => [e.path, e]));
     const next = new Map<string, Entry>();
-    for (const { path, modified } of files) {
+    // Plain names first, so a sync tool's copy of a note never displaces the note itself.
+    const ordered = files
+      .filter(({ path }) => !isSyncCopy(nameOf(path)))
+      .sort((a, b) => nameOf(a.path).length - nameOf(b.path).length || a.path.localeCompare(b.path));
+    for (const { path, modified } of ordered) {
       const known = byPath.get(path);
-      if (known && known.modified === modified) {
+      if (known && known.modified === modified && !next.has(known.file.id!)) {
         next.set(known.file.id!, known);
         continue;
       }
       const text = await this.fs.read(path);
       if (text === null) continue;
       const file = parseIdeaFile(text, nameOf(path));
-      if (!file.id || next.has(file.id)) {
-        // A note written outside Manifest (or a copied file): give it its own id.
+      if (file.id && next.has(file.id)) {
+        // A second file with the same idea's id is a copy (a sync tool, Finder, iCloud),
+        // not a new idea: turning it into one would create a duplicate in the account.
+        continue;
+      }
+      if (!file.id) {
+        // A note written outside Manifest: give it its own id.
         file.id = newIdeaId();
         file.created = file.created ?? new Date(modified || Date.now()).toISOString();
         await this.fs.write(path, serializeIdeaFile(file));

@@ -421,3 +421,77 @@ def test_keep_mode_keeps_a_note_deleted_in_the_account_without_reuploading(
     (vault / rel).write_text("hello again")
     mv.sync_online(vault, acct)
     assert mine(acct) == [(rel, "hello again")]  # edited: it syncs again
+
+
+APP_NOTE = "---\nmanifest_id: abc\ntype: idea\nupdated: {updated}\n---\n\n# Open Media\n\nWritten in the app.\n"
+
+
+def _export_note(updated):
+    return (
+        f'---\nmanifest_id: "abc"\ntype: "idea"\nupdated: "{updated}"\n---\n{BEGIN}\n'
+        f"# Open Media\n\nFrom the account.\n{END}\n"
+    )
+
+
+def test_an_app_written_note_never_gets_a_manifest_copy(mv, tmp_path):
+    """The app's vault mode writes plain notes; a "(Manifest)" copy beside one used to be read
+    by the app as a new idea, and every sync made another duplicate in the account."""
+    vault = tmp_path / "vault"
+    rel = "Manifest/Ideas/Open Media.md"
+    (vault / "Manifest/Ideas").mkdir(parents=True)
+    (vault / rel).write_text(APP_NOTE.format(updated="2026-11-23T04:00:00Z"))
+    # The account's version is newer: it replaces the app's copy, in place.
+    assert mv.write_file(vault, rel, _export_note("2026-11-23T05:00:00+00:00"), False) == "updated"
+    assert "From the account." in (vault / rel).read_text()
+    # Edited here more recently: kept, and still no copy.
+    (vault / rel).write_text(APP_NOTE.format(updated="2026-11-23T06:00:00Z"))
+    assert (
+        mv.write_file(vault, rel, _export_note("2026-11-23T05:00:00+00:00"), False) == "unchanged"
+    )
+    assert "Written in the app." in (vault / rel).read_text()
+    assert not list((vault / "Manifest/Ideas").glob("*(Manifest)*"))
+
+
+def test_app_written_notes_are_not_uploaded_as_loose_files(mv, tmp_path):
+    vault = tmp_path / "vault"
+    (vault / "Manifest/Ideas").mkdir(parents=True)
+    (vault / "Manifest/Ideas/Open Media.md").write_text(APP_NOTE.format(updated="x"))
+    (vault / "Manifest/Ideas/README.md").write_text("# Ideas\n")
+    (vault / "Notes").mkdir()
+    (vault / "Notes/Mine.md").write_text("mine")
+    assert set(mv.local_files(vault)) == {"Notes/Mine.md"}
+
+
+def test_background_sync_leaves_ideas_to_the_app_while_it_syncs(mv, tmp_path, monkeypatch):
+    vault = tmp_path / "vault"
+    (vault / "Manifest/.sync").mkdir(parents=True)
+    monkeypatch.setattr(mv, "load_config", lambda: {"user": {"user_id": "u1"}})
+    now = mv.datetime.now(mv.timezone.utc)
+    (vault / "Manifest/.sync/u1.json").write_text(json.dumps({"lastSync": now.isoformat()}))
+    data = {
+        "files": [
+            {"path": "Manifest/Ideas/Open Media.md", "content": _export_note("2026-11-23")},
+            {"path": "Manifest/Home.md", "content": generated("home", "home")},
+        ],
+        "paths": ["Manifest/Home.md", "Manifest/Ideas/Open Media.md"],
+    }
+    counts = mv.apply_export(vault, data, readmes=False)
+    assert counts["left to the app"] == 1
+    assert not (vault / "Manifest/Ideas/Open Media.md").exists()
+    assert (vault / "Manifest/Home.md").exists()
+    # The app closed a while ago: background sync writes ideas again.
+    old = (now - mv.timedelta(minutes=10)).isoformat()
+    (vault / "Manifest/.sync/u1.json").write_text(json.dumps({"lastSync": old}))
+    mv.apply_export(vault, data, readmes=False)
+    assert (vault / "Manifest/Ideas/Open Media.md").exists()
+
+
+def test_stray_app_note_files_in_the_account_are_ignored(mv, tmp_path):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    acct = FakeAccount(
+        {}, [{"path": "Manifest/Ideas/Open Media.md", "content": "# Open Media", "sha256": "x"}]
+    )
+    state = {"synced": {}}
+    mv.pull_files(vault, acct, state, [])
+    assert not (vault / "Manifest/Ideas/Open Media.md").exists()
