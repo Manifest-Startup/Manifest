@@ -22,6 +22,13 @@ export const BRIDGE_INSTALL_COMMAND = 'manifest bridge --install';
  */
 export const VOICE_SETUP_COMMAND = 'curl -fsSL https://manifeststartup.com/voice.sh | sh';
 
+/** The bridge could speak naturally here but its install lacks the voice (issue #108). */
+export function naturalVoiceMissing(speechStatus?: string): boolean {
+  return Boolean(speechStatus?.startsWith('natural voice not installed'));
+}
+
+export const NATURAL_VOICE_MISSING_NOTE = `The natural voice isn't installed on this Mac, so the browser's voice is speaking. To fix it, run: ${VOICE_SETUP_COMMAND}`;
+
 export interface BridgeInfo {
   agent: string;
   /** The bridge's own Pipecat voice (local Whisper + Kokoro), when it runs one. */
