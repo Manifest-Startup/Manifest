@@ -351,6 +351,23 @@ export class VaultStore {
       await this.fs.write(`${toDir}/${file}.md`, text);
       await this.fs.remove(from);
     }
+    // Don't leave an empty folder behind (only its generated README): the README goes along
+    // and the folder is removed. A folder with anything else in it stays (and removing a
+    // folder that isn't empty never happens: the file system refuses it).
+    const folder = `${DOCUMENTS_DIR}/${fromName}`;
+    const left = await this.fs.list(folder);
+    if (left.every((f) => f.path === `${folder}/README.md`)) {
+      const readme = left.length ? await this.fs.read(`${folder}/README.md`) : null;
+      if (readme !== null) {
+        // Into the trash with the documents; on a rename, the new folder keeps its own.
+        const keep = toDir.startsWith(TRASH_DIR)
+          ? `${toDir}/README.md`
+          : `${TRASH_DIR}/${fromName} README ${now().replace(/[:.]/g, "-")}.md`;
+        await this.fs.write(keep, readme);
+        await this.fs.remove(`${folder}/README.md`);
+      }
+      await this.fs.remove(folder);
+    }
   }
 
   /**
