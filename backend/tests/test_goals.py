@@ -521,7 +521,7 @@ def test_a_stuck_last_step_blocks_the_goal_and_retry_reopens_it(db, om):
     assert view["goal"]["status"] == "achieved"
 
 
-# --- standing authorizations (ADR 0021) -----------------------------------------------------
+# --- standing authorizations (ADR 0022) -----------------------------------------------------
 
 
 def _grant(db, **kw):

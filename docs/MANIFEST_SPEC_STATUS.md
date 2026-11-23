@@ -28,7 +28,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Projects | Implemented | Ideas are the project entity (`ideas`, collaborators, versions). Goals can point at an idea. |
 | Task decomposition with statuses, deps, verification, risk | **Implemented (slice)** | `goal_tasks` with the spec's statuses, `depends_on`, tier, verification, retries. Plans come from agents or templates; no server-side LLM planner. |
 | Durable workflows: retries, waits, checkpoints, resume | **Partial (slice)** | Idempotent `advance` with CAS, bounded retries, crash recovery, webhook and sweep resume. Scheduled triggers and timeouts only for reply waits. |
-| Human approval as a workflow state | **Implemented (slice)** | `approval_requests`: scope hash checked at run time, expiry, deny cascades. Standing approvals (ADR 0021): named people, weekly cap, expiry, granted only by the person in the app. |
+| Human approval as a workflow state | **Implemented (slice)** | `approval_requests`: scope hash checked at run time, expiry, deny cascades. Standing approvals (ADR 0022): named people, weekly cap, expiry, granted only by the person in the app. |
 | Risk tiers 0–3 | **Implemented (slice)** | Declared per capability in `services/goals/capabilities.py`, enforced in `policy.py`. |
 | Tool registry with risk/idempotency metadata | Partial | Generated catalog (`readOnly`/`destructive` by name regex) plus `goalCapabilities` (tiers) for goal steps. |
 | Service discovery and evaluation engine | Missing | No `ServiceEvaluation` records. ADRs and this file are the manual equivalent. |

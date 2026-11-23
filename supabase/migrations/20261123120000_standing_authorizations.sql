@@ -1,4 +1,4 @@
--- Standing authorizations (ADR 0021): the person lets Manifest take one kind of tier 2 action
+-- Standing authorizations (ADR 0022): the person lets Manifest take one kind of tier 2 action
 -- (today only message.send) for named recipients without asking each time, within a weekly
 -- cap and an expiry, until they revoke it. Each use is still recorded as an approval row
 -- (decided_via = 'standing:<id>'). Additive: one table, one index. Backend-only (RLS on).

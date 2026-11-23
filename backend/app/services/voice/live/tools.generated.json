@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "95d43f75a6105ba67045b07b75339831eee76b59dec8e1507ae538b4a97ade42",
+ "catalog_sha256": "a3754232d655822a7cc6e7737b1918c9014fb28f0705a84f9eed791b5162e35e",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -9,7 +9,7 @@
   "saveApolloApiKey": "Secret keys never go through chat. Add your Apollo.io key in Account → AI settings.",
   "connectIntegration": "Takes raw OAuth tokens. Connect integrations from Account → Integrations in the app, where the provider's sign-in runs.",
   "runBackgroundTasks": "Superseded by enqueue_background_tasks, which is durable and deduplicated.",
-  "grantStandingAuthorization": "Only the person can give Manifest standing permission, in the Manifest app (Messages); agents can't grant themselves permission (ADR 0021).",
+  "grantStandingAuthorization": "Only the person can give Manifest standing permission, in the Manifest app (Messages); agents can't grant themselves permission (ADR 0022).",
   "rest:upload-profile-picture": "Needs a file upload (multipart). Change your picture in Account → Profile."
  },
  "tools": [
@@ -6009,7 +6009,7 @@
   {
    "name": "standing_authorizations",
    "title": "Standing authorizations",
-   "description": "What Manifest may do without asking each time (ADR 0021), with this week's uses.",
+   "description": "What Manifest may do without asking each time (ADR 0022), with this week's uses.",
    "inputSchema": {
     "type": "object",
     "properties": {

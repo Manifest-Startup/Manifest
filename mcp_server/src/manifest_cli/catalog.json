@@ -1569,7 +1569,7 @@
    "name": "standingAuthorizations",
    "command": "standing-authorizations",
    "kind": "query",
-   "description": "What Manifest may do without asking each time (ADR 0021), with this week's uses.",
+   "description": "What Manifest may do without asking each time (ADR 0022), with this week's uses.",
    "destructive": false,
    "returns": "[StandingAuthorization!]!",
    "selection": "{ id action recipients maxPerWeek usedThisWeek note status expiresAt createdAt }",

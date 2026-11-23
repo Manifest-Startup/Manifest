@@ -136,7 +136,7 @@ class GoalsQuery:
     async def standing_authorizations(
         self, info: strawberry.Info, include_inactive: bool = False
     ) -> list[StandingAuthorization]:
-        """What Manifest may do without asking each time (ADR 0021), with this week's uses."""
+        """What Manifest may do without asking each time (ADR 0022), with this week's uses."""
         db, uid = info.context["db"], _uid(info)
         rows = await _call(policy.grants, db, uid, include_inactive=include_inactive)
         return [_grant(r, policy._uses_this_week(db, uid, r["id"])) for r in rows]

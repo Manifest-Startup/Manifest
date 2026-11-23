@@ -7,7 +7,7 @@ what will happen. The scope is hashed; the person approves that hash, and the st
 again right before it runs, so nothing (a later edit, a model, text in a reply) can change
 the message, the recipient or the channel after the person said yes.
 
-Standing authorizations (ADR 0021) let the person pre-approve one narrow kind of tier 2
+Standing authorizations (ADR 0022) let the person pre-approve one narrow kind of tier 2
 action: today, sending messages to named Open Media handles, at most N a week, until an
 expiry or until they revoke it. Tier 3 is never covered. Each use is written as an approved
 approval row (``decided_via = "standing:<id>"``) with the exact scope, so the audit trail is

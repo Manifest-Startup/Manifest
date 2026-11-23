@@ -1,4 +1,4 @@
-# 0021. Standing approvals: the person can say "don't ask again" for a few people
+# 0022. Standing approvals: the person can say "don't ask again" for a few people
 
 - Status: Proposed (2026-11-23).
 - Code: `backend/app/services/goals/policy.py` (`grant`, `revoke`, `grants`, `use_standing`), `engine._run`, `backend/app/graphql/resolvers/goals.py` (`standingAuthorizations`, `grantStandingAuthorization`, `revokeStandingAuthorization`); schema `supabase/migrations/20261123120000_standing_authorizations.sql`; web `frontend/src/features/messaging/components/GoalsPanel.tsx`; tests `backend/tests/test_goals.py`, `GoalsPanel.test.tsx`.
