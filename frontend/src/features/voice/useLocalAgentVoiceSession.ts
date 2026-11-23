@@ -21,7 +21,7 @@ import {
   type RecognitionHandle,
   type Speaker,
 } from './localAgent';
-import { contextFromPath, type LiveVoiceLevels, type PipecatVoiceSessionApi } from './usePipecatVoiceSession';
+import { contextFromPath, withIdeaTitle, type LiveVoiceLevels, type PipecatVoiceSessionApi } from './usePipecatVoiceSession';
 
 const log = createLogger('useLocalAgentVoiceSession');
 
@@ -113,7 +113,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       try {
         await runBridgeTurn(
           trimmed,
-          contextRef.current,
+          withIdeaTitle(contextRef.current, apollo.cache),
           event => {
             if (!current()) return;
             if (event.kind === 'say' || event.kind === 'error') {

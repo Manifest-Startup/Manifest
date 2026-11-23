@@ -75,14 +75,10 @@ def last_user_text(messages: list[Any]) -> str:
 
 
 def context_line(data: Any) -> str:
-    if not isinstance(data, dict):
-        return ""
-    idea, title = str(data.get("idea_id") or "")[:80], str(data.get("idea_title") or "")[:200]
-    if idea:
-        named = f' "{title}"' if title else ""
-        return f"(In the Manifest app, the person is looking at the idea{named}, id {idea}.)"
-    path = str(data.get("path") or "")[:200]
-    return f"(In the Manifest app, the person is on {path}.)" if path else ""
+    """Same line as the bridge's text turns: the idea by title, its id only for tools."""
+    from manifest_cli.bridge import describe_context
+
+    return describe_context(data)
 
 
 def brain_class() -> type:  # noqa: C901 (one class, built lazily so Pipecat loads only for voice)

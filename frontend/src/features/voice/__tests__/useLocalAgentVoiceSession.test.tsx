@@ -126,6 +126,20 @@ describe('useLocalAgentVoiceSession', () => {
     expect(session.current.state.phase).toBe('listening');
   });
 
+  it('names the idea the person is looking at, not just its id (#114)', async () => {
+    const { withIdeaTitle } = await import('../usePipecatVoiceSession');
+    const { InMemoryCache } = await import('@apollo/client');
+    const { VOICE_IDEA_TITLE_FRAGMENT } = await import('../../core/apollo/queries');
+    const cache = new InMemoryCache({ typePolicies: { Idea: { keyFields: ['ideaId'] } } });
+    cache.writeFragment({
+      id: cache.identify({ __typename: 'Idea', ideaId: 'abc' }),
+      fragment: VOICE_IDEA_TITLE_FRAGMENT,
+      data: { __typename: 'Idea', ideaId: 'abc', title: 'TideLine' },
+    });
+    expect(withIdeaTitle({ path: '/ideas/abc/description', ideaId: 'abc' }, cache)).toMatchObject({ ideaTitle: 'TideLine' });
+    expect(withIdeaTitle({ path: '/ideas/zzz', ideaId: 'zzz' }, cache).ideaTitle).toBeUndefined();
+  });
+
   it("doesn't wait for the browser's final result once the words stop changing", async () => {
     await started();
     const rec = recognitions[0];

@@ -112,6 +112,18 @@ export const IDEA_DOCUMENT_FIELDS = gql`
   }
 `;
 
+/** Read from the cache only: voice names the idea the person is looking at (issue #114). */
+export const VOICE_IDEA_TITLE_FRAGMENT = gql`
+  fragment VoiceIdeaTitle on Idea {
+    title
+  }
+`;
+export const VOICE_IDEA_SUMMARY_TITLE_FRAGMENT = gql`
+  fragment VoiceIdeaSummaryTitle on IdeaSummary {
+    title
+  }
+`;
+
 /** Workspace list only — matches GraphQL IdeaSummary (small payload). */
 export const IDEA_SUMMARY_FIELDS = gql`
   fragment IdeaSummaryFields on IdeaSummary {

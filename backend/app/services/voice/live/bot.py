@@ -187,7 +187,10 @@ class VoiceSessionContext:
             parts.append(f"The person's first name is {self.first_name}.")
         if self.idea_id:
             title = f' "{self.idea_title}"' if self.idea_title else ""
-            parts.append(f"They are looking at the idea{title} (idea id {self.idea_id}).")
+            parts.append(
+                f"They are looking at the idea{title} (its id, for tools only, is "
+                f"{self.idea_id}; never say ids aloud, call ideas by their titles)."
+            )
         elif self.path:
             parts.append(f"They are on the app page {self.path}.")
         return " ".join(parts)
