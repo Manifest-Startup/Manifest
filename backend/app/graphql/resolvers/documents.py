@@ -1,6 +1,7 @@
 """GraphQL resolvers for generated documents (pitch deck, PRD, provisional patent) and generation jobs."""
 
 import asyncio
+import threading
 
 import strawberry
 from app.auth.current_user import get_current_user_id
@@ -30,12 +31,45 @@ def _generate_documents_for_idea(idea_id: str, description: str):
     generate_background_tasks(description, idea_id)
 
 
+# Latest edit wins: one generation runs per idea at a time, and saves made while it runs
+# collapse into a single follow-up run with the newest description. Without this, every
+# autosave started its own run and an older description could finish last and overwrite
+# the documents with stale content.
+_generation_lock = threading.Lock()
+_pending_generation: dict[str, str] = {}
+_running_generation: set[str] = set()
+
+
+def _drain_generation(idea_id: str) -> None:
+    while True:
+        with _generation_lock:
+            description = _pending_generation.pop(idea_id, None)
+            if description is None:
+                _running_generation.discard(idea_id)
+                return
+        try:
+            _generate_documents_for_idea(idea_id, description)
+        except Exception as exc:  # noqa: BLE001 — keep draining newer edits
+            logger.error(f"[documents] generation failed for idea {idea_id}: {exc}")
+
+
 def _start_background_generation(idea_id: str, description: str | None) -> bool:
-    """Start fire-and-forget document generation when a description is present."""
+    """Regenerate an idea's documents in the background when a description is present."""
     if not description or not description.strip():
         return False
 
-    start_thread_with_current_key(_generate_documents_for_idea, idea_id, description)
+    with _generation_lock:
+        _pending_generation[idea_id] = description
+        if idea_id in _running_generation:
+            return True
+        _running_generation.add(idea_id)
+    try:
+        start_thread_with_current_key(_drain_generation, idea_id)
+    except Exception:
+        with _generation_lock:
+            _running_generation.discard(idea_id)
+            _pending_generation.pop(idea_id, None)
+        raise
     return True
 
 

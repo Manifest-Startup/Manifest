@@ -411,7 +411,65 @@ def apply_export(root: Path, data: dict, readmes: bool, out=sys.stdout) -> dict[
         counts[key] = counts.get(key, 0) + 1
         if result.startswith("kept"):
             print(f"  {item['path']}: {result}", file=out)
+    if "Manifest/Home.md" in (data.get("paths") or ()):  # a complete listing only
+        removed = prune_generated(root, set(data["paths"]), out)
+        if removed:
+            counts["removed"] = removed
     return counts
+
+
+# Folders under Manifest/ whose files are one per idea, document, interview, skill or concept.
+PRUNABLE = (
+    "Manifest/Ideas/",
+    "Manifest/Documents/",
+    "Manifest/Interviews/",
+    "Manifest/Skills/",
+    "Manifest/Concepts/",
+)
+
+
+def prune_generated(root: Path, current: set[str], out=sys.stdout) -> int:
+    """Remove Manifest's own files that Manifest no longer has (a renamed or deleted idea, a
+    concept nothing mentions any more), so links and Graph view stay true. A file you wrote in,
+    outside the generated block, is never removed."""
+    removed = 0
+    base = root / "Manifest"
+    if not base.is_dir():
+        return 0
+    for path in sorted(base.rglob("*.md")):
+        rel = path.relative_to(root).as_posix()
+        if not rel.startswith(PRUNABLE) or any(p.startswith(".") for p in path.parts):
+            continue
+        original = (
+            rel.removesuffix(" (Manifest).md") + ".md" if rel.endswith(" (Manifest).md") else rel
+        )
+        if rel in current or original in current:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        overlay = overlay_of(text)
+        if overlay is None or not trivial_overlay(overlay):
+            if overlay is not None:
+                print(f"  {rel}: kept (you wrote in it; Manifest no longer has it)", file=out)
+            continue
+        path.unlink()
+        removed += 1
+    for folder in sorted((p for p in base.rglob("*") if p.is_dir()), reverse=True):
+        rel = folder.relative_to(root).as_posix() + "/"
+        if not rel.startswith(PRUNABLE) or rel in PRUNABLE:
+            continue
+        children = list(folder.iterdir())
+        readme = folder / "README.md"
+        ours = not readme.exists() or readme.read_text(
+            encoding="utf-8", errors="replace"
+        ).startswith(f"# {folder.name}\n\nPart of your Manifest vault")
+        if ours and all(c.name in (".DS_Store", "README.md") for c in children):
+            for c in children:
+                c.unlink()
+            folder.rmdir()
+    return removed
 
 
 # -- what syncs ----------------------------------------------------------------------------
@@ -618,8 +676,13 @@ class Account:
         return body.get("data") or {}
 
     def export(self, since: str | None) -> dict:
-        q = "query($s:String){vaultExport(sinceUpdatedAt:$s){generatedAt files{path content}}}"
-        return self.graphql(q, {"s": since})["vaultExport"]
+        q = "query($s:String){vaultExport(sinceUpdatedAt:$s){generatedAt paths files{path content}}}"
+        try:
+            return self.graphql(q, {"s": since})["vaultExport"]
+        except SystemExit as exc:  # an older Manifest without `paths`: sync, just don't tidy
+            if "paths" not in str(exc):
+                raise
+            return self.graphql(q.replace(" paths", ""), {"s": since})["vaultExport"]
 
     def files(self, since: str | None) -> dict:
         q = (

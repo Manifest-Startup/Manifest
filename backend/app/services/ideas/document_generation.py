@@ -217,6 +217,54 @@ def _build_patent_coversheet_field_data(title, owner_profile):
     }
 
 
+def _authored_documents(idea_id, columns):
+    """The ``columns`` whose stored document someone wrote (not a template), so keep it."""
+    if not columns:
+        return set()
+    from app.services.documents.demo_documents import is_template
+
+    wanted = sorted(columns)
+    try:
+        rows = (
+            create_database_client()
+            .table("ideas")
+            .select(", ".join(wanted))
+            .eq("idea_id", idea_id)
+            .limit(1)
+            .execute()
+            .data
+        )
+    except Exception as exc:  # noqa: BLE001 — unknown means "nothing to protect"
+        logger.info(f"Could not read stored documents for idea_id {idea_id}: {exc}")
+        return set()
+    row = (rows[0] if isinstance(rows, list) and rows else rows) or {}
+    if not isinstance(row, dict):
+        return set()
+    return {c for c in wanted if not is_template(c, row.get(c))}
+
+
+def _with_saved_sections(idea_id, canvas):
+    """A template canvas with every section someone saved on its own laid over it."""
+    from app.services.canvas.orchestrator import merge_section_into_canvas
+
+    try:
+        rows = (
+            create_database_client()
+            .table("business_model_canvas_sections")
+            .select("section_name, content")
+            .eq("idea_id", idea_id)
+            .execute()
+            .data
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.info(f"Could not read canvas sections for idea_id {idea_id}: {exc}")
+        return canvas
+    for row in rows if isinstance(rows, list) else []:
+        if isinstance(row, dict) and row.get("section_name") and (row.get("content") or "").strip():
+            canvas = merge_section_into_canvas(canvas, row["section_name"], row["content"])
+    return canvas
+
+
 def _update_idea_documents(idea_id, update_data):
     document_fields = {
         key: value for key, value in update_data.items() if key not in ("idea_id", "user_id")
@@ -476,16 +524,34 @@ def generate_background_tasks(  # noqa: C901
 
             logger.info(f"[Lock] Releasing lock for idea_id {idea_id}")
 
-        if not similar_ideas_markdown:
+        # A template only fills a gap: it never replaces a document the person's own agent
+        # (or the person) wrote, so keyless edits stop reverting real writing to the template.
+        templated = {
+            column
+            for column, value in (
+                ("similar_ideas", similar_ideas_markdown),
+                ("business_model_canvas", bmc_markdown),
+                ("pitch_deck", pitch_deck),
+                ("product_requirements_document", prd),
+                ("provisional_patent", patent_draft),
+            )
+            if not value
+        }
+        keep = _authored_documents(idea_id, templated)
+        if not similar_ideas_markdown and "similar_ideas" not in keep:
             similar_ideas_markdown = demo_documents.similar_ideas
-        if not bmc_markdown:
-            bmc_markdown = demo_documents.business_model_canvas
-        if not pitch_deck:
+        if not bmc_markdown and "business_model_canvas" not in keep:
+            bmc_markdown = _with_saved_sections(idea_id, demo_documents.business_model_canvas)
+        if not pitch_deck and "pitch_deck" not in keep:
             pitch_deck = demo_documents.pitch_deck
-        if not prd:
+        if not prd and "product_requirements_document" not in keep:
             prd = demo_documents.product_requirements_document
-        if not patent_draft:
+        if not patent_draft and "provisional_patent" not in keep:
             patent_draft = demo_documents.provisional_patent
+        if keep:
+            logger.info(
+                f"Kept written documents for idea_id {idea_id} instead of templates: {sorted(keep)}"
+            )
 
         # Fetch user_id for the idea (outside lock - database operations don't need serialization)
         user_id = (

@@ -358,6 +358,12 @@ async def update_idea(
             except Exception as ver_exc:
                 logger.warning(f"Auto-version after REST PATCH failed for {idea_id}: {ver_exc}")
 
+        if idea.description is not None:
+            # Same as the app: a new description refreshes the documents and canvas.
+            from app.graphql.resolvers.documents import _start_background_generation
+
+            _start_background_generation(idea_id, idea.description)
+
         _record_usage(
             auth_info, endpoint="PATCH /ideas/{id}", response_code=200, start_time=start_time
         )
