@@ -224,6 +224,45 @@ def _collect_subject_data(user_id: str) -> dict[str, Any]:
             errors=errors,
             label="vault_files",
         ),
+        # Goals that run (ADR 0020): what the person asked Manifest to do, what it sent with
+        # their approval, and what it learned (including what other people replied).
+        "goals": _fetchall_safe(
+            "SELECT id, idea_id, title, desired_outcome, success_criteria, status, source, "
+            "created_at, updated_at FROM goals WHERE user_id = %s ORDER BY created_at",
+            (user_id,),
+            errors=errors,
+            label="goals",
+        ),
+        "goal_steps": _fetchall_safe(
+            "SELECT goal_id, step_key, title, capability, risk_tier, status, input, result, "
+            "verification, attempts, last_error, created_at, updated_at "
+            "FROM goal_tasks WHERE user_id = %s ORDER BY goal_id, position",
+            (user_id,),
+            errors=errors,
+            label="goal_steps",
+        ),
+        "approvals": _fetchall_safe(
+            "SELECT id, goal_id, action, summary, scope, status, decided_via, decided_at, "
+            "expires_at, created_at FROM approval_requests WHERE user_id = %s ORDER BY created_at",
+            (user_id,),
+            errors=errors,
+            label="approvals",
+        ),
+        "knowledge_facts": _fetchall_safe(
+            "SELECT id, goal_id, subject_type, subject_key, predicate, object_value, kind, "
+            "confidence, source_type, source_ref, source_at, status, superseded_by, created_at "
+            "FROM knowledge_facts WHERE user_id = %s ORDER BY created_at",
+            (user_id,),
+            errors=errors,
+            label="knowledge_facts",
+        ),
+        "goal_events": _fetchall_safe(
+            "SELECT goal_id, type, summary, payload, created_at "
+            "FROM goal_events WHERE user_id = %s ORDER BY created_at",
+            (user_id,),
+            errors=errors,
+            label="goal_events",
+        ),
     }
     return {
         "schema_version": "1.0",
