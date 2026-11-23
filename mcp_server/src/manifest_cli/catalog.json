@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "4020c8814513f5eb02548b741ba3b7bb7e4a8c642790986dfce1153dddf7fdaf",
+ "schema_sha256": "ca37e96cb62d94ed5a852db8b7cc8231f49947cd7d4a75798fccf475909a1f7d",
  "operations": [
   {
    "name": "me",
@@ -1466,6 +1466,104 @@
    "returns": "[DiscoveryCapability!]!",
    "selection": "{ name available provider hint }",
    "args": []
+  },
+  {
+   "name": "goals",
+   "command": "goals",
+   "kind": "query",
+   "description": "Your goals, most recently active first (closed ones with includeClosed), each with its steps, approvals waiting for you and a progress report (``report.spoken``).",
+   "destructive": false,
+   "returns": "[Goal!]!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "includeClosed",
+     "flag": "--include-closed",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "goal",
+   "command": "goal",
+   "kind": "query",
+   "description": "One goal with its steps, approvals, timeline, facts and a progress report to say aloud (``report.spoken``). Reading it doesn't run anything; use advanceGoal for that.",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "pendingApprovals",
+   "command": "pending-approvals",
+   "kind": "query",
+   "description": "Everything waiting for your yes or no, across goals.",
+   "destructive": false,
+   "returns": "[ApprovalRequest!]!",
+   "selection": "{ id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt }",
+   "args": []
+  },
+  {
+   "name": "goalCapabilities",
+   "command": "goal-capabilities",
+   "kind": "query",
+   "description": "The steps a goal's plan can use, with their risk tier. Tier 2 and up always wait for the person's approval of exactly what will happen.",
+   "destructive": false,
+   "returns": "[GoalCapability!]!",
+   "selection": "{ name title riskTier needsApproval description requiredInputs }",
+   "args": []
+  },
+  {
+   "name": "knowledgeFacts",
+   "command": "knowledge-facts",
+   "kind": "query",
+   "description": "What Manifest knows about a person (an Open Media handle) or other subject, with each fact's source, kind and confidence. Corrected facts appear only with includeHistory.",
+   "destructive": false,
+   "returns": "[KnowledgeFact!]!",
+   "selection": "{ id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt }",
+   "args": [
+    {
+     "name": "subject",
+     "flag": "--subject",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "subjectType",
+     "flag": "--subject-type",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "person",
+     "description": ""
+    },
+    {
+     "name": "includeHistory",
+     "flag": "--include-history",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
   },
   {
    "name": "adminCostOverview",
@@ -4334,6 +4432,290 @@
      "flag": "--prospects",
      "type": "[String!]",
      "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "createGoal",
+   "command": "create-goal",
+   "kind": "mutation",
+   "description": "Save a goal the person committed to, with a plan: steps = [{key, capability, input, depends_on}] (see goalCapabilities; reference an earlier step's result as \"$steps.<key>\" or \"$steps.<key>.<field>\"). Runs what it can at once; tier 2+ steps wait for approval. Only for real commitments, not ideas being explored. An active goal with the same title is returned instead of a duplicate (existing: true).",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "steps",
+     "flag": "--steps",
+     "type": "JSON!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "desiredOutcome",
+     "flag": "--desired-outcome",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "",
+     "description": ""
+    },
+    {
+     "name": "successCriteria",
+     "flag": "--success-criteria",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "startOutreachGoal",
+   "command": "start-outreach-goal",
+   "kind": "mutation",
+   "description": "Reach out to someone on Open Media and hear back: checks the handle, prepares the message, asks the person to approve exactly that message (pendingApprovals), sends it, waits for the reply and records it as knowledge. Nothing is sent before approval.",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "handle",
+     "flag": "--handle",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "message",
+     "flag": "--message",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "purpose",
+     "flag": "--purpose",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "",
+     "description": ""
+    },
+    {
+     "name": "title",
+     "flag": "--title",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "waitDays",
+     "flag": "--wait-days",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 7,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "advanceGoal",
+   "command": "advance-goal",
+   "kind": "mutation",
+   "description": "Run every step that can run now (and check for replies), then report progress.",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "decideApproval",
+   "command": "decide-approval",
+   "kind": "mutation",
+   "description": "Approve or decline one request. Only after the person clearly said yes or no to this exact request (its summary and consequences); pass its scopeSha256 unchanged. Approving runs the step at once.",
+   "destructive": true,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "approvalId",
+     "flag": "--approval-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "approve",
+     "flag": "--approve",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "scopeSha256",
+     "flag": "--scope-sha256",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "cancelGoal",
+   "command": "cancel-goal",
+   "kind": "mutation",
+   "description": "Stop a goal: open steps and pending approvals are cancelled; history stays.",
+   "destructive": true,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "retryGoalStep",
+   "command": "retry-goal-step",
+   "kind": "mutation",
+   "description": "Try a blocked or failed step again after the person fixed what blocked it.",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "args": [
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "stepKey",
+     "flag": "--step-key",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "correctKnowledge",
+   "command": "correct-knowledge",
+   "kind": "mutation",
+   "description": "The person corrects what Manifest knows (\"@ana is our technology partner, not a customer\": subject @ana, predicate relationship, value technology partner). Earlier facts are kept as superseded, never repeated as current.",
+   "destructive": false,
+   "returns": "KnowledgeFact!",
+   "selection": "{ id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt }",
+   "args": [
+    {
+     "name": "subject",
+     "flag": "--subject",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "predicate",
+     "flag": "--predicate",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "value",
+     "flag": "--value",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "subjectType",
+     "flag": "--subject-type",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "person",
+     "description": ""
+    },
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String",
+     "kind": "scalar",
      "required": false,
      "default": null,
      "description": ""

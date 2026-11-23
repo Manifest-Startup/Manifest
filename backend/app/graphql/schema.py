@@ -34,6 +34,7 @@ from app.graphql.resolvers.documents import (  # noqa: F401
     _start_background_generation,
 )
 from app.graphql.resolvers.github import GithubMutation, GithubQuery
+from app.graphql.resolvers.goals import GoalsMutation, GoalsQuery
 from app.graphql.resolvers.ideas import IdeasMutation, IdeasQuery
 from app.graphql.resolvers.integrations import (  # noqa: F401
     IntegrationsMutation,
@@ -88,6 +89,7 @@ class Query(
     CostsQuery,
     CanvasQuery,
     DiscoveryQuery,
+    GoalsQuery,
     AdminQuery,
     VoiceQuery,
     VaultQuery,
@@ -114,6 +116,7 @@ class Mutation(
     CostsMutation,
     CanvasMutation,
     DiscoveryMutation,
+    GoalsMutation,
     VoiceMutation,
     VaultSyncMutation,
 ):
@@ -446,6 +449,29 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "startConversation": "account.write",
         "mark_conversation_read": "account.write",
         "markConversationRead": "account.write",
+        # --- Goals that run (ADR 0020): plans, approvals, knowledge ---
+        "goals": "account.read",
+        "goal": "account.read",
+        "pending_approvals": "account.read",
+        "pendingApprovals": "account.read",
+        "goal_capabilities": "account.read",
+        "goalCapabilities": "account.read",
+        "knowledge_facts": "account.read",
+        "knowledgeFacts": "account.read",
+        "create_goal": "account.write",
+        "createGoal": "account.write",
+        "start_outreach_goal": "account.write",
+        "startOutreachGoal": "account.write",
+        "advance_goal": "account.write",
+        "advanceGoal": "account.write",
+        "decide_approval": "account.write",
+        "decideApproval": "account.write",
+        "cancel_goal": "account.write",
+        "cancelGoal": "account.write",
+        "retry_goal_step": "account.write",
+        "retryGoalStep": "account.write",
+        "correct_knowledge": "account.write",
+        "correctKnowledge": "account.write",
         # --- Open Media account link (messages and pitch shorts) ---
         "open_media_link": "account.read",
         "openMediaLink": "account.read",
