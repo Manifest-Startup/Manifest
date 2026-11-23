@@ -234,3 +234,30 @@ async def test_audit_website_requires_github_token_when_creating(monkeypatch):
             create_github_issues=True,
             dry_run=False,
         )
+
+
+def test_markdown_pages_are_not_checked_for_html_tags():
+    """Issues #3-#5: /index.md is Markdown for agents; it has no <title>/<h1> by design."""
+    from app.services.operations.website_issue_sync import CrawledPage
+
+    service = WebsiteIssueSyncService()
+    markdown = CrawledPage(
+        url="https://manifeststartup.com/index.md",
+        status_code=200,
+        response_time_ms=10,
+        content_type="text/markdown; charset=utf-8",
+        html_size_bytes=100,
+        title=None,
+        meta_description=None,
+        canonical_url=None,
+        h1_text=None,
+        text_excerpt="",
+        internal_links=[],
+        js_required_banner=False,
+        error=None,
+        html_signature=None,
+    )
+    assert service._build_heuristic_candidates([markdown]) == []
+    assert not service._should_include_url(
+        "https://manifeststartup.com/index.md", "https://manifeststartup.com"
+    )

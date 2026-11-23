@@ -105,3 +105,54 @@ export function rewriteLocation(response, originUrl, publicUrl) {
   rewritten.headers.set("location", loc.toString());
   return rewritten;
 }
+
+// Each public route gets its own title, description, canonical URL and first heading in the
+// pre-hydration shell, so crawlers, link previews and screen readers see the page they asked
+// for instead of the home page (issue #6). Signed-in app routes are marked noindex.
+const SITE = "https://manifeststartup.com";
+export const ROUTE_SHELLS = {
+  "/about": ["About Manifest", "Manifest is an ideas-to-reality platform for founders: it drafts the business model, pitch deck, product requirements and early patent paperwork from the founder's own description of the idea."],
+  "/contact": ["Contact Manifest", "How to reach the Manifest team with product and general questions."],
+  "/docs": ["Manifest documentation", "Guides for founders, the REST and GraphQL API, the MCP server and the agent plugin."],
+  "/docs/guide": ["Manifest founder guide", "How to go from a rough startup idea to a business model canvas, pitch deck, product requirements and a provisional patent draft in Manifest."],
+  "/legal/terms": ["Manifest Terms of Service", "The terms that apply when you use Manifest."],
+  "/legal/privacy": ["Manifest Privacy Policy", "What Manifest collects, why, how long it keeps it and how to exercise your rights."],
+  "/privacy": ["Manifest privacy", "Your privacy controls, consent and data requests in Manifest."],
+  "/developers": ["Build with Manifest", "API keys, the REST and GraphQL API, the MCP server and the agent plugin for building on Manifest."],
+  "/research": ["Founder research survey", "Tell us how you take a startup idea forward; it shapes what Manifest builds next."],
+  "/feedback/survey": ["Manifest product feedback", "Tell the Manifest team what works and what doesn't."],
+  "/learn-more": ["How Manifest works", "From a rough idea to an investable plan: qualification, business model canvas, pitch deck, product requirements and patent drafts in one workspace."],
+  "/pitch-reels": ["Pitch shorts on Manifest", "Short video pitches from founders building on Manifest."],
+  "/pitch-shorts": ["Pitch shorts on Manifest", "Short video pitches from founders building on Manifest."],
+  "/shorts": ["Pitch shorts on Manifest", "Short video pitches from founders building on Manifest."],
+  "/discover": ["Discover startup ideas on Manifest", "Published startup ideas and pitch shorts from founders on Manifest."],
+  "/auth": ["Sign in to Manifest", "Sign in to Manifest with Open Media to work on your startup ideas."],
+  "/login": ["Sign in to Manifest", "Sign in to Manifest with Open Media to work on your startup ideas."],
+  "/signup": ["Create your Manifest account", "Start turning your startup idea into a plan."],
+};
+const PRIVATE_SHELL_ROUTES = /^\/(ideas|account|messages|portfolio|admin|home)(\/|$)/;
+
+function escapeHtml(value) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export function shellForRoute(html, pathname) {
+  const meta = ROUTE_SHELLS[pathname];
+  if (!meta) {
+    if (!PRIVATE_SHELL_ROUTES.test(pathname)) return html;
+    return html.replace("</head>", '    <meta name="robots" content="noindex" />\n  </head>');
+  }
+  const [title, description] = meta.map(escapeHtml);
+  const url = `${SITE}${pathname}`;
+  return html
+    .replace(/<title>[^<]*<\/title>/, `<title>${title} · Manifest</title>`)
+    .replace(/(<meta name="description" content=")[^"]*/, `$1${description}`)
+    .replace(/(<meta property="og:title" content=")[^"]*/, `$1${title}`)
+    .replace(/(<meta property="og:description" content=")[^"]*/, `$1${description}`)
+    .replace(/(<meta property="og:url" content=")[^"]*/, `$1${url}`)
+    .replace(/(<link rel="canonical" href=")[^"]*/, `$1${url}`)
+    .replace(
+      /(<main id="manifest-static-shell"[^>]*>\s*)<h1>[^<]*<\/h1>\s*<p>[^<]*<\/p>/,
+      `$1<h1>${title}</h1>\n        <p>${description}</p>`
+    );
+}

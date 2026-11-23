@@ -10,6 +10,8 @@ import {
   createSpeaker,
   isBargeIn,
   isEcho,
+  NATURAL_VOICE_MISSING_NOTE,
+  naturalVoiceMissing,
   probeBridge,
   runBridgeTurn,
   startRecognition,
@@ -241,7 +243,13 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
         });
     // The natural voice is still loading (or retrying): keep looking, and switch to it the
     // moment it's ready, between answers. No reload needed.
-    if (!naturalRef.current && bridge.speechStatus && bridge.speechStatus !== 'off' && voiceAudioContext()) {
+    if (!naturalRef.current && naturalVoiceMissing(bridge.speechStatus)) {
+      // Never fall back silently: say why the voice sounds different and how to fix it.
+      dispatch({
+        type: 'tool',
+        activity: { id: 'natural-voice-missing', label: NATURAL_VOICE_MISSING_NOTE, status: 'failed' },
+      });
+    } else if (!naturalRef.current && bridge.speechStatus && bridge.speechStatus !== 'off' && voiceAudioContext()) {
       let tries = 0;
       const look = async () => {
         upgradeRef.current = null;

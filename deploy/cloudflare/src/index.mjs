@@ -4,7 +4,8 @@ import {
   isBackendPath,
   legacyFileUrl,
   requireOrigin,
-  rewriteLocation
+  rewriteLocation,
+  shellForRoute
 } from "./edge.mjs";
 import { handleManifestMcpRequest } from "./mcp.mjs";
 import { handleManifestDocsMcpRequest } from "./mcp-docs.mjs";
@@ -112,6 +113,12 @@ async function handleRequest(request, env, ctx) {
       let response;
       if (knownSpaRoutes.has(pathname) || isIdeaRoute || isMessageRoute) {
         response = await env.ASSETS.fetch(new Request(new URL("/", request.url), request));
+        if (pathname !== "/" && response.ok && (response.headers.get("content-type") || "").includes("text/html")) {
+          const headers = new Headers(response.headers);
+          headers.delete("content-length");
+          headers.delete("etag");
+          return new Response(shellForRoute(await response.text(), pathname), { status: response.status, headers });
+        }
       } else {
         response = await env.ASSETS.fetch(request);
         if (response.status === 404 && !hasAssetExtension) {

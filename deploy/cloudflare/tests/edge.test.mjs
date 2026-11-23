@@ -6,8 +6,11 @@ import {
   isBackendPath,
   legacyFileUrl,
   requireOrigin,
-  rewriteLocation
+  rewriteLocation,
+  shellForRoute,
+  ROUTE_SHELLS
 } from "../src/edge.mjs";
+import { readFileSync } from "node:fs";
 
 test("routes backend paths to origin and everything else to static assets", () => {
   for (const p of ["/graphql", "/graphql/", "/socket.io/?EIO=4", "/api/v1/ideas", "/auth/login",
@@ -90,4 +93,20 @@ test("live voice can be routed to its own origin; everything else stays on the b
   assert.equal(originFor("/api/voice-agent/live/status", env), "https://voice.example.com");
   assert.equal(originFor("/api/voice-agent/tts", env), "https://api.example.com");
   assert.equal(originFor("/api/voice-agent/live", { BACKEND_ORIGIN: "https://api.example.com" }), "https://api.example.com");
+});
+
+test("public routes get their own title, description, canonical and h1 in the shell (#6)", () => {
+  const shell = readFileSync(new URL("../../../frontend/index.html", import.meta.url), "utf8");
+  const about = shellForRoute(shell, "/about");
+  assert.match(about, /<title>About Manifest · Manifest<\/title>/);
+  assert.match(about, /<link rel="canonical" href="https:\/\/manifeststartup.com\/about"/);
+  assert.match(about, /<meta property="og:url" content="https:\/\/manifeststartup.com\/about"/);
+  assert.match(about, /<h1>About Manifest<\/h1>/);
+  assert.match(about, /<meta name="description" content="Manifest is an ideas-to-reality/);
+  assert.equal((about.match(/<h1>/g) || []).length, 1);
+  const pages = Object.keys(ROUTE_SHELLS).map((route) => shellForRoute(shell, route));
+  assert.equal(new Set(pages).size, pages.length);
+  assert.ok(pages.every((page) => page !== shell));
+  assert.equal(shellForRoute(shell, "/"), shell);
+  assert.match(shellForRoute(shell, "/ideas/abc"), /<meta name="robots" content="noindex" \/>/);
 });

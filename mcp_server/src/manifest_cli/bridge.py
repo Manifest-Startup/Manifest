@@ -77,10 +77,14 @@ class Bridge:
         out: TextIO,
         voice_url: str | None = None,
         speech: Voice | None = None,
+        speech_problem: str | None = None,
     ) -> None:
         self.agent, self.origins, self.out = agent, origins, out
         self.voice_url = voice_url  # the local Pipecat voice, when it runs here
         self.speech = speech  # Kokoro on the Apple GPU, for /speak
+        # Why there's no natural voice on a Mac that could have one (a reinstall without the
+        # natural-voice extra, issue #108); None when it's off on purpose or not possible.
+        self.speech_problem = speech_problem
         self.lock = asyncio.Lock()
 
     def _cors(self, origin: str) -> list[str]:
@@ -149,7 +153,7 @@ class Bridge:
                     # "ready", "loading", or what's wrong; the app upgrades once it's ready.
                     "speech_status": getattr(self.speech, "status", "ready")
                     if self.speech
-                    else "off",
+                    else (self.speech_problem or "off"),
                 }
             ).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
@@ -338,7 +342,16 @@ async def serve(
     key = speech.cartesia_key() if voice != "browser" else None
     chosen = voice if voice and len(voice) == 36 and voice.count("-") == 4 else speech.PIPECAT_VOICE
     spoken = speech.CartesiaVoice(key, chosen, fallback=natural) if key else natural
-    bridge = Bridge(agent, origins=origins, out=out, voice_url=voice_url, speech=spoken)
+    # Missing packages on Apple silicon is a broken install, not a choice: say so to the app.
+    fixable = bool(no_speech) and no_speech.startswith("install")
+    bridge = Bridge(
+        agent,
+        origins=origins,
+        out=out,
+        voice_url=voice_url,
+        speech=spoken,
+        speech_problem=f"natural voice not installed: {no_speech}" if fixable else None,
+    )
     server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
     # HTTPS too, for Safari (it won't call http://127.0.0.1 from a secure page).
     from manifest_cli import bridge_tls
