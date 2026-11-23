@@ -43,7 +43,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Knowledge facts with provenance, confidence, corrections | **Implemented (slice)** | `knowledge_facts` + `services/goals/knowledge.py`. Entity resolution is by normalised handle only. |
 | Event model | **Partial (slice)** | `goal_events` (deduped) for goals. No app-wide outbox or bus. |
 | Prompt-injection defences | Partial | Fencing for discovery, goal replies and every voice tool result carrying other people's text (inbox, conversations, comments); injection heuristic + event. MCP agents get raw text (their own harness decides). |
-| Project timeline and progress reports | **Implemented (slice)** | `goal.timeline`, `goal.report` (completed / in progress / waiting / needs you / next), `report.spoken`. No web UI. |
+| Project timeline and progress reports | **Implemented (slice)** | `goal.timeline`, `goal.report` (completed / in progress / waiting / needs you / next), `report.spoken`. Web: the Messages page lists goals with pending approvals (Send / Don't send) and status (`GoalsPanel.tsx`). The full timeline is in the API only. |
 | Privacy: erasure | Implemented | `compliance/tenant_purge.py` now includes the five goal tables. Export of goal data: missing. |
 | Observability | Partial | JSON logs with OpenTelemetry field names. No traces or metrics pipeline. |
 
@@ -57,7 +57,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 
 1. First live outreach send, to a recipient the owner names.
 2. Standing authorizations: scoped, expiring, revocable grants (for example "follow-ups to people I've already approved, up to 3 a week") checked in `policy.is_authorized`.
-3. A Goals panel in the web app (approvals inbox, timeline). Voice, MCP and the CLI already have it.
+3. Goal timeline and facts in the web app (the approvals and status are on the Messages page).
 4. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
 5. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
 6. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.

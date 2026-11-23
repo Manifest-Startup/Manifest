@@ -32,6 +32,9 @@ import type {
   StartIntegrationConnectionVars,
   GetMyCollaborationInvitationsData,
   GetMyInboxData,
+  GetGoalsData,
+  DecideApprovalData,
+  DecideApprovalVariables,
   GetMyInboxVariables,
   GetInboxConversationData,
   GetInboxConversationVariables,
@@ -932,6 +935,44 @@ export const GET_INBOX_CONVERSATION: TypedDocumentNode<GetInboxConversationData,
 export const REPLY_IN_INBOX: TypedDocumentNode<ReplyInInboxData, ReplyInInboxVariables> = gql`
   mutation ReplyInInbox($conversationId: String!, $content: String!, $replyToMessageId: String, $clientId: String) {
     replyInInbox(conversationId: $conversationId, content: $content, replyToMessageId: $replyToMessageId, clientId: $clientId)
+  }
+`;
+
+const GOAL_SUMMARY_FIELDS = `
+  id
+  title
+  status
+  approvals {
+    id
+    goalId
+    summary
+    consequences
+    riskTier
+    scopeSha256
+    status
+  }
+  report {
+    completed
+    inProgress
+    waiting
+    needsYou
+    next
+  }
+`;
+
+export const GET_GOALS: TypedDocumentNode<GetGoalsData, NoVariables> = gql`
+  query GetGoals {
+    goals {
+      ${GOAL_SUMMARY_FIELDS}
+    }
+  }
+`;
+
+export const DECIDE_APPROVAL: TypedDocumentNode<DecideApprovalData, DecideApprovalVariables> = gql`
+  mutation DecideApproval($approvalId: String!, $approve: Boolean!, $scopeSha256: String!) {
+    decideApproval(approvalId: $approvalId, approve: $approve, scopeSha256: $scopeSha256) {
+      ${GOAL_SUMMARY_FIELDS}
+    }
   }
 `;
 
