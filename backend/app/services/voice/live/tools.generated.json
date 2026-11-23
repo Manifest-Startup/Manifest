@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "7055e54b373a33c85e38cb9b02d631392bd0445ad1ca5ac439cf66f628f405e8",
+ "catalog_sha256": "c4196c3078d6bba3872143f223787cf627dbb1421762ba3fa4a4ced44b280ab9",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -6348,7 +6348,7 @@
    "_call": {
     "via": "graphql",
     "field": "vaultExport",
-    "document": "query VaultExport($sinceUpdatedAt: String) { vaultExport(sinceUpdatedAt: $sinceUpdatedAt) { generatedAt root ideaCount files { path content updatedAt } } }",
+    "document": "query VaultExport($sinceUpdatedAt: String) { vaultExport(sinceUpdatedAt: $sinceUpdatedAt) { generatedAt root ideaCount files { path content updatedAt } paths } }",
     "variables": [
      "sinceUpdatedAt"
     ]

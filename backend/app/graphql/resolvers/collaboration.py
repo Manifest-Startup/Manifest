@@ -318,4 +318,8 @@ class CollaborationMutation:
         await _announce_to_live_note(
             info.context["request"], idea_id, user_id, row.get("description")
         )
+        # The restored text is the idea now, so its documents follow it.
+        from app.graphql.resolvers.documents import _start_background_generation
+
+        _start_background_generation(idea_id, row.get("description"))
         return True

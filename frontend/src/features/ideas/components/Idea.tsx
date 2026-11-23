@@ -154,7 +154,13 @@ const documentSignature = (value?: string | null) => {
     return null;
   }
 
-  return trimmed.length > 280 ? trimmed.slice(0, 280) : trimmed;
+  // The whole text, hashed: a regenerated document often keeps its opening lines, so a
+  // prefix alone could not tell an updated document from the old one.
+  let hash = 0;
+  for (let i = 0; i < trimmed.length; i += 1) {
+    hash = (Math.imul(31, hash) + trimmed.charCodeAt(i)) | 0;
+  }
+  return `${trimmed.length}:${hash}`;
 };
 
 const setActiveSimilarIdeasIdea = (ideaId: string | null) => {
@@ -278,8 +284,9 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
   const scheduleDocumentRefetches = () => {
     clearScheduledRefetches();
 
-    // Full document generation can take several minutes depending on model latency.
-    [10000, 30000, 60000, 120000].forEach((delay) => {
+    // Full document generation can take several minutes depending on model latency, so keep
+    // checking for the whole generation window (DOCUMENT_GENERATION_TIMEOUT_MS).
+    [5000, 15000, 30000, 60000, 120000, 180000, 270000, 360000].forEach((delay) => {
       const timeoutId = window.setTimeout(() => {
         const activeIdeaId = currentIdeaIdRef.current;
         if (activeIdeaId) {
@@ -351,14 +358,18 @@ export const Idea: React.FC<IdeaProps> = ({ panelActions }) => {
     () => ({ graph: knowledgeGraph, resolve: makeResolver(knowledgeGraph) }),
     [knowledgeGraph]
   );
+  // The graph (concepts, the semantic model, [[wiki-links]]) is built from the note and the
+  // documents, so refetch it when any of them changes, not only when a length does.
   const documentsKey = [
+    ideaData?.idea?.description,
     ideaData?.idea?.businessModelCanvas,
     ideaData?.idea?.pitchDeck,
     ideaData?.idea?.productRequirementsDocument,
     ideaData?.idea?.provisionalPatent,
+    ideaData?.idea?.similarIdeas,
   ]
-    .map((doc) => (typeof doc === 'string' ? doc.length : 0))
-    .join(':');
+    .map((doc) => documentSignature(doc) ?? '-')
+    .join('|');
   const documentsKeyRef = useRef(documentsKey);
   useEffect(() => {
     if (documentsKeyRef.current === documentsKey) return;

@@ -150,11 +150,30 @@ def test_vault_links_ideas_documents_skills_and_related_ideas():
     assert "[[Manifest/Ideas/TideLine street flood warnings|" in files["Manifest/Home.md"]
 
 
-def test_vault_since_skips_unchanged_ideas_but_keeps_hubs():
+def test_vault_since_resends_every_note_when_one_idea_changed():
+    """Ideas link to each other (related ideas, shared concepts), so one edit refreshes all."""
     files = _by_path(vault.build_files(IDEAS, {}, [], since="2026-11-18T00:00:00+00:00"))
     assert "Manifest/Ideas/TideLine street flood warnings.md" in files
-    assert "Manifest/Ideas/DrainWatch.md" not in files
+    assert "Manifest/Ideas/DrainWatch.md" in files
     assert "Manifest/Home.md" in files and "Manifest/Skills/Embedded Systems.md" in files
+
+
+def test_vault_since_sends_only_hubs_when_nothing_changed():
+    files = _by_path(vault.build_files(IDEAS, {}, [], since="2099-01-01T00:00:00+00:00"))
+    assert not any(p.startswith("Manifest/Ideas/") for p in files)
+    assert not any(p.startswith("Manifest/Documents/") for p in files)
+    assert "Manifest/Home.md" in files and "Manifest/Skills/Embedded Systems.md" in files
+
+
+def test_a_canvas_section_saved_later_counts_as_a_change():
+    sections = {"a": [{"section_name": "channels", "content": "- x", "updated_at": "2099-02-01"}]}
+    files = _by_path(vault.build_files(IDEAS, sections, [], since="2099-01-01T00:00:00+00:00"))
+    assert "Manifest/Ideas/DrainWatch.md" in files
+
+
+def test_vault_export_lists_every_current_path():
+    everything = vault.build_files(IDEAS, {}, [])
+    assert vault.all_paths(everything) == sorted(f["path"] for f in everything)
 
 
 def test_vault_names_are_file_safe_and_unique():

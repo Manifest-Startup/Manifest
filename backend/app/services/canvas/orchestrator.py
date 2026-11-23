@@ -19,6 +19,7 @@ paths. Per-section panels read from this service.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -306,6 +307,53 @@ def _render_siblings(sibling_sections: dict[str, Any]) -> str:
     return "\n\n".join(parts) if parts else "(no sibling sections generated yet)"
 
 
+def _heading(section_name: str) -> str:
+    return section_name.replace("_", " ").title()
+
+
+def merge_section_into_canvas(canvas: str | None, section_name: str, content: str) -> str:
+    """The whole canvas with one section replaced (or added), in the canvas's own format.
+
+    The app, the vault and every document read the whole canvas (``ideas.business_model_canvas``),
+    so a section saved or regenerated on its own has to land there too.
+    """
+    title = _heading(section_name)
+    body = content.strip()
+    text = (canvas or "").strip()
+    pattern = re.compile(
+        rf"^(#{{1,3}})\s*{re.escape(title)}\s*\n.*?(?=^#{{1,3}}\s|\Z)",
+        re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(text)
+    if match:
+        block = f"{match.group(1)} {title}\n{body}\n"
+        merged = text[: match.start()] + block + ("\n" if text[match.end() :].strip() else "")
+        return (merged + text[match.end() :].lstrip("\n")).strip()
+    return f"{text}\n# {title}\n{body}".strip() if text else f"# {title}\n{body}"
+
+
+def _sync_idea_canvas(db, idea_id: str, section_name: str, content: str) -> None:
+    """Write the section into the idea's whole canvas; never fails the section save."""
+    try:
+        rows = (
+            db.table("ideas")
+            .select("business_model_canvas")
+            .eq("idea_id", idea_id)
+            .limit(1)
+            .execute()
+            .data
+        )
+        row = (rows[0] if isinstance(rows, list) and rows else rows) or {}
+        current = row.get("business_model_canvas") if isinstance(row, dict) else None
+        merged = merge_section_into_canvas(current, section_name, content)
+        if merged != (current or ""):
+            db.table("ideas").update({"business_model_canvas": merged}).eq(
+                "idea_id", idea_id
+            ).execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[bmc] could not update the whole canvas for idea {idea_id}: {exc}")
+
+
 def _upsert_section(
     *,
     db,
@@ -332,6 +380,7 @@ def _upsert_section(
         row = row[0] if row else None
     if not row:
         raise BmcSectionError("failed to persist BMC section row")
+    _sync_idea_canvas(db, idea_id, section_name, payload["content"])
     return dict(row)
 
 
@@ -361,4 +410,5 @@ def save_user_section(*, db, idea_id: str, section_name: str, content: str) -> d
         row = row[0] if row else None
     if not row:
         raise BmcSectionError("failed to persist BMC section row")
+    _sync_idea_canvas(db, idea_id, section_name, payload["content"])
     return dict(row)

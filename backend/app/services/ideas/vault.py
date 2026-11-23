@@ -357,6 +357,23 @@ def _idea_body(
     return body
 
 
+# Files that only change when an idea, its canvas or an interview changes; hubs and Home are
+# always sent (they are small and the client skips unchanged files).
+_PER_IDEA = (f"{ROOT}/Ideas/", f"{ROOT}/Documents/", f"{ROOT}/Interviews/")
+
+
+def _changed_since(
+    ideas: list[dict[str, Any]],
+    sections: dict[str, list[dict[str, Any]]],
+    interviews: list[dict[str, Any]],
+    since: str,
+) -> bool:
+    stamps = [_iso(i.get("updated_at")) or _iso(i.get("created_at")) for i in ideas]
+    stamps += [_iso(s.get("updated_at")) or _iso(s.get("created_at")) for s in interviews]
+    stamps += [_iso(r.get("updated_at")) for rows in sections.values() for r in rows]
+    return any(stamp and stamp >= since for stamp in stamps)
+
+
 def build_files(
     ideas: list[dict[str, Any]],
     sections: dict[str, list[dict[str, Any]]],
@@ -365,7 +382,28 @@ def build_files(
     since: str | None = None,
     site: str = "https://manifeststartup.com",
 ) -> list[dict[str, str | None]]:
-    """Pure function: rows in, vault files out (tested without a database)."""
+    """Pure function: rows in, vault files out (tested without a database).
+
+    With ``since``, everything is sent when anything changed after it (ideas link to each
+    other through related ideas and shared concepts, so one edit can change every note), and
+    only the hubs and Home when nothing did.
+    """
+    files = _all_files(ideas, sections, interviews, site)
+    if since and not _changed_since(ideas, sections, interviews, since):
+        files = [f for f in files if not str(f["path"]).startswith(_PER_IDEA)]
+    return files
+
+
+def all_paths(files: list[dict[str, str | None]]) -> list[str]:
+    return sorted(str(f["path"]) for f in files)
+
+
+def _all_files(
+    ideas: list[dict[str, Any]],
+    sections: dict[str, list[dict[str, Any]]],
+    interviews: list[dict[str, Any]],
+    site: str,
+) -> list[dict[str, str | None]]:
     names = _note_names(ideas)
     related = related_ideas(ideas)
     by_id = {i["idea_id"]: i for i in ideas}
@@ -400,8 +438,6 @@ def build_files(
         for concept in graph["concepts"]:
             hub = concept_hubs.setdefault(concept["path"], {"label": concept["label"], "ideas": []})
             hub["ideas"].append((iid, concept))
-        if since and updated and updated < since:
-            continue
         doc_files, doc_links = _document_files(
             idea,
             sections.get(iid) or [],
@@ -436,8 +472,6 @@ def build_files(
         iid = session.get("idea_id")
         created = _iso(session.get("created_at")) or ""
         updated = _iso(session.get("updated_at")) or created
-        if since and updated and updated < since:
-            continue
         label = _short_label(session.get("initial_idea_text") or "Interview")
         path = f"{ROOT}/Interviews/{created[:10]} {label}.md"
         idea_line = (
@@ -546,7 +580,7 @@ def build_vault(db: Any, user_id: str, since: str | None = None) -> dict[str, An
     for idea in ideas:
         rows = (
             db.table("business_model_canvas_sections")
-            .select("section_name, content")
+            .select("section_name, content, updated_at")
             .eq("idea_id", idea["idea_id"])
             .execute()
             .data
@@ -570,12 +604,18 @@ def build_vault(db: Any, user_id: str, since: str | None = None) -> dict[str, An
         idea["idea_id"] = str(idea["idea_id"])
     for session in interviews:
         session["idea_id"] = str(session["idea_id"]) if session.get("idea_id") else None
-    files = build_files(ideas, sections, interviews, since=since)
+    everything = _all_files(ideas, sections, interviews, "https://manifeststartup.com")
+    files = everything
+    if since and not _changed_since(ideas, sections, interviews, since):
+        files = [f for f in everything if not str(f["path"]).startswith(_PER_IDEA)]
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "root": ROOT,
         "idea_count": len(ideas),
         "files": files,
+        # Every Manifest/ file that exists now, so a vault can tidy away notes for ideas
+        # that were renamed or deleted (and the concepts only they mentioned).
+        "paths": all_paths(everything),
     }
 
 

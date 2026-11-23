@@ -254,3 +254,47 @@ def test_install_from_the_installed_copy_does_not_copy_onto_itself(mv, tmp_path,
     monkeypatch.setattr(mv.platform, "system", lambda: "Plan9")
     with pytest.raises(SystemExit, match="Background sync installs on macOS and Linux"):
         mv._install_service(tmp_path / "vault")  # got past the copy
+
+
+def test_files_for_renamed_or_deleted_ideas_are_tidied_away(mv, tmp_path):
+    """Manifest's own notes for ideas that no longer exist go, so links and Graph view stay
+    true; a note you wrote in is kept, and your Notes/ folder is never touched."""
+    vault = tmp_path / "vault"
+    old = {
+        "Manifest/Ideas/Old name.md": generated("old"),
+        "Manifest/Documents/Old name/Pitch Deck.md": generated("deck", "document"),
+        "Manifest/Concepts/Stale concept.md": generated("concept", "concept"),
+        "Manifest/Ideas/Annotated.md": generated("idea") + "\n## My notes\n\nKeep this.\n",
+    }
+    for rel, text in old.items():
+        (vault / rel).parent.mkdir(parents=True, exist_ok=True)
+        (vault / rel).write_text(text)
+    (vault / "Notes").mkdir()
+    (vault / "Notes/Mine.md").write_text("my note [[Old name]]")
+
+    current = ["Manifest/Home.md", "Manifest/Ideas/New name.md"]
+    data = {
+        "files": [
+            {"path": "Manifest/Home.md", "content": generated("home", "home")},
+            {"path": "Manifest/Ideas/New name.md", "content": generated("new")},
+        ],
+        "paths": current,
+    }
+    counts = mv.apply_export(vault, data, readmes=False)
+
+    assert counts["removed"] == 3
+    assert not (vault / "Manifest/Ideas/Old name.md").exists()
+    assert not (vault / "Manifest/Documents/Old name").exists()
+    assert not (vault / "Manifest/Concepts/Stale concept.md").exists()
+    assert (vault / "Manifest/Ideas/Annotated.md").exists()
+    assert (vault / "Notes/Mine.md").exists()
+    assert (vault / "Manifest/Ideas/New name.md").exists()
+
+
+def test_nothing_is_tidied_without_a_complete_listing(mv, tmp_path):
+    vault = tmp_path / "vault"
+    (vault / "Manifest/Ideas").mkdir(parents=True)
+    (vault / "Manifest/Ideas/Kept.md").write_text(generated("kept"))
+    mv.apply_export(vault, {"files": [], "paths": ["Manifest/Ideas/Other.md"]}, readmes=False)
+    mv.apply_export(vault, {"files": []}, readmes=False)
+    assert (vault / "Manifest/Ideas/Kept.md").exists()

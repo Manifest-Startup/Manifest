@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "4b6852fad74d54ba74c520543df4c4c57858607748086028c93601700a608190",
+ "schema_sha256": "80fffa9259e3140ac4ec5d3fe7e5e6616fb8c0351b7032bce310ad9275dae6c6",
  "operations": [
   {
    "name": "me",
@@ -1619,7 +1619,7 @@
    "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt to get only ideas changed since then.",
    "destructive": false,
    "returns": "VaultExport!",
-   "selection": "{ generatedAt root ideaCount files { path content updatedAt } }",
+   "selection": "{ generatedAt root ideaCount files { path content updatedAt } paths }",
    "args": [
     {
      "name": "sinceUpdatedAt",

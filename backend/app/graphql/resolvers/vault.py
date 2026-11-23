@@ -38,6 +38,7 @@ class VaultQuery:
                 VaultFile(path=f["path"], content=f["content"], updated_at=f["updated_at"])
                 for f in data["files"]
             ],
+            paths=data.get("paths") or [],
         )
 
     @strawberry.field

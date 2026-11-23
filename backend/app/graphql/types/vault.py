@@ -16,6 +16,11 @@ class VaultExport:
     root: str
     idea_count: int
     files: list[VaultFile]
+    paths: list[str] = strawberry.field(
+        default_factory=list,
+        description="Every file under Manifest/ right now, even ones not sent; a vault removes "
+        "Manifest's own files that are no longer listed (renamed or deleted ideas).",
+    )
 
 
 @strawberry.type
