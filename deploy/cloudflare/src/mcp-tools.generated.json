@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "4740a3b23383d574e4b9413b9d5b0aecbabbe8eedf2cd66ca36d7f67a34be2cf",
+ "catalog_sha256": "f5d253d0bd9ed291e5f16c03810dcf6bc6d25b6b3e57811e5e02bb4c9862d5ac",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -348,6 +348,38 @@
    }
   },
   {
+   "name": "advance_goal",
+   "title": "Advance goal",
+   "description": "Run every step that can run now (and check for replies), then report progress. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "goalId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "goalId"
+    ]
+   },
+   "annotations": {
+    "title": "Advance goal",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "advanceGoal",
+    "document": "mutation AdvanceGoal($goalId: String!) { advanceGoal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "goalId"
+    ]
+   }
+  },
+  {
    "name": "ai_key_status",
    "title": "Ai key status",
    "description": "Whether you have your own OpenAI key saved (never the key itself).",
@@ -528,6 +560,42 @@
    }
   },
   {
+   "name": "cancel_goal",
+   "title": "Cancel goal",
+   "description": "Stop a goal: open steps and pending approvals are cancelled; history stays. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "goalId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "goalId"
+    ]
+   },
+   "annotations": {
+    "title": "Cancel goal",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "cancelGoal",
+    "document": "mutation CancelGoal($goalId: String!) { cancelGoal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "goalId"
+    ]
+   }
+  },
+  {
    "name": "check_idea_access",
    "title": "Check idea access",
    "description": "Check if current user has access to an idea and get their role.",
@@ -666,6 +734,108 @@
      "conversationId",
      "limit",
      "beforeId"
+    ]
+   }
+  },
+  {
+   "name": "correct_knowledge",
+   "title": "Correct knowledge",
+   "description": "The person corrects what Manifest knows (\"@ana is our technology partner, not a customer\": subject @ana, predicate relationship, value technology partner). Earlier facts are kept as superseded, never repeated as current. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "subject": {
+      "type": "string"
+     },
+     "predicate": {
+      "type": "string"
+     },
+     "value": {
+      "type": "string"
+     },
+     "subjectType": {
+      "type": "string",
+      "default": "person"
+     },
+     "goalId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "subject",
+     "predicate",
+     "value"
+    ]
+   },
+   "annotations": {
+    "title": "Correct knowledge",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "correctKnowledge",
+    "document": "mutation CorrectKnowledge($subject: String!, $predicate: String!, $value: String!, $subjectType: String, $goalId: String) { correctKnowledge(subject: $subject, predicate: $predicate, value: $value, subjectType: $subjectType, goalId: $goalId) { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } }",
+    "variables": [
+     "subject",
+     "predicate",
+     "value",
+     "subjectType",
+     "goalId"
+    ]
+   }
+  },
+  {
+   "name": "create_goal",
+   "title": "Create goal",
+   "description": "Save a goal the person committed to, with a plan: steps = [{key, capability, input, depends_on}] (see goalCapabilities; reference an earlier step's result as \"$steps.<key>\" or \"$steps.<key>.<field>\"). Runs what it can at once; tier 2+ steps wait for approval. Only for real commitments, not ideas being explored. An active goal with the same title is returned instead of a duplicate (existing: true). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "title": {
+      "type": "string"
+     },
+     "steps": {},
+     "desiredOutcome": {
+      "type": "string",
+      "default": ""
+     },
+     "successCriteria": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "title",
+     "steps"
+    ]
+   },
+   "annotations": {
+    "title": "Create goal",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "createGoal",
+    "document": "mutation CreateGoal($title: String!, $steps: JSON!, $desiredOutcome: String, $successCriteria: [String!], $ideaId: String) { createGoal(title: $title, steps: $steps, desiredOutcome: $desiredOutcome, successCriteria: $successCriteria, ideaId: $ideaId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "title",
+     "steps",
+     "desiredOutcome",
+     "successCriteria",
+     "ideaId"
     ]
    }
   },
@@ -916,6 +1086,52 @@
     "document": "query CustomerDiscovery($ideaId: String!) { customerDiscovery(ideaId: $ideaId) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
     "variables": [
      "ideaId"
+    ]
+   }
+  },
+  {
+   "name": "decide_approval",
+   "title": "Decide approval",
+   "description": "Approve or decline one request. Only after the person clearly said yes or no to this exact request (its summary and consequences); pass its scopeSha256 unchanged. Approving runs the step at once. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "approvalId": {
+      "type": "string"
+     },
+     "approve": {
+      "type": "boolean"
+     },
+     "scopeSha256": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "approvalId",
+     "approve",
+     "scopeSha256"
+    ]
+   },
+   "annotations": {
+    "title": "Decide approval",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "decideApproval",
+    "document": "mutation DecideApproval($approvalId: String!, $approve: Boolean!, $scopeSha256: String!) { decideApproval(approvalId: $approvalId, approve: $approve, scopeSha256: $scopeSha256) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "approvalId",
+     "approve",
+     "scopeSha256"
     ]
    }
   },
@@ -3180,6 +3396,91 @@
    }
   },
   {
+   "name": "goal",
+   "title": "Goal",
+   "description": "One goal with its steps, approvals, timeline, facts and a progress report to say aloud (`report.spoken`). Reading it doesn't run anything; use advanceGoal for that.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "goalId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "goalId"
+    ]
+   },
+   "annotations": {
+    "title": "Goal",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "goal",
+    "document": "query Goal($goalId: String!) { goal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "goalId"
+    ]
+   }
+  },
+  {
+   "name": "goal_capabilities",
+   "title": "Goal capabilities",
+   "description": "The steps a goal's plan can use, with their risk tier. Tier 2 and up always wait for the person's approval of exactly what will happen.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Goal capabilities",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "goalCapabilities",
+    "document": "query GoalCapabilities { goalCapabilities { name title riskTier needsApproval description requiredInputs } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "goals",
+   "title": "Goals",
+   "description": "Your goals, most recently active first (closed ones with includeClosed), each with its steps, approvals waiting for you and a progress report (`report.spoken`).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "includeClosed": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Goals",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "goals",
+    "document": "query Goals($includeClosed: Boolean) { goals(includeClosed: $includeClosed) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "includeClosed"
+    ]
+   }
+  },
+  {
    "name": "idea",
    "title": "Idea",
    "description": "Read one idea in full: description, stage, generated documents and scores.",
@@ -3950,6 +4251,48 @@
    }
   },
   {
+   "name": "knowledge_facts",
+   "title": "Knowledge facts",
+   "description": "What Manifest knows about a person (an Open Media handle) or other subject, with each fact's source, kind and confidence. Corrected facts appear only with includeHistory.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "subject": {
+      "type": "string"
+     },
+     "subjectType": {
+      "type": "string",
+      "default": "person"
+     },
+     "includeHistory": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "subject"
+    ]
+   },
+   "annotations": {
+    "title": "Knowledge facts",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "knowledgeFacts",
+    "document": "query KnowledgeFacts($subject: String!, $subjectType: String, $includeHistory: Boolean) { knowledgeFacts(subject: $subject, subjectType: $subjectType, includeHistory: $includeHistory) { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } }",
+    "variables": [
+     "subject",
+     "subjectType",
+     "includeHistory"
+    ]
+   }
+  },
+  {
    "name": "mark_conversation_read",
    "title": "Mark conversation read",
    "description": "Mark an Open Media conversation as read. Changes the person's Manifest account; say what you will do before calling.",
@@ -4382,6 +4725,29 @@
     "via": "graphql",
     "field": "patents",
     "document": "query Patents { patents { patentId title description createdAt } }",
+    "variables": []
+   }
+  },
+  {
+   "name": "pending_approvals",
+   "title": "Pending approvals",
+   "description": "Everything waiting for your yes or no, across goals.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Pending approvals",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "pendingApprovals",
+    "document": "query PendingApprovals { pendingApprovals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } }",
     "variables": []
    }
   },
@@ -5266,6 +5632,43 @@
    }
   },
   {
+   "name": "retry_goal_step",
+   "title": "Retry goal step",
+   "description": "Try a blocked or failed step again after the person fixed what blocked it. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "goalId": {
+      "type": "string"
+     },
+     "stepKey": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "goalId",
+     "stepKey"
+    ]
+   },
+   "annotations": {
+    "title": "Retry goal step",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "retryGoalStep",
+    "document": "mutation RetryGoalStep($goalId: String!, $stepKey: String!) { retryGoalStep(goalId: $goalId, stepKey: $stepKey) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "goalId",
+     "stepKey"
+    ]
+   }
+  },
+  {
    "name": "revoke_account_session",
    "title": "Revoke account session",
    "description": "Sign out one session (a browser, the CLI or an agent) by sessionId. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
@@ -5659,6 +6062,61 @@
     "variables": [
      "serviceId",
      "name"
+    ]
+   }
+  },
+  {
+   "name": "start_outreach_goal",
+   "title": "Start outreach goal",
+   "description": "Reach out to someone on Open Media and hear back: checks the handle, prepares the message, asks the person to approve exactly that message (pendingApprovals), sends it, waits for the reply and records it as knowledge. Nothing is sent before approval. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "handle": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "purpose": {
+      "type": "string",
+      "default": ""
+     },
+     "title": {
+      "type": "string"
+     },
+     "ideaId": {
+      "type": "string"
+     },
+     "waitDays": {
+      "type": "integer",
+      "default": 7
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "handle",
+     "message"
+    ]
+   },
+   "annotations": {
+    "title": "Start outreach goal",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "startOutreachGoal",
+    "document": "mutation StartOutreachGoal($handle: String!, $message: String!, $purpose: String, $title: String, $ideaId: String, $waitDays: Int) { startOutreachGoal(handle: $handle, message: $message, purpose: $purpose, title: $title, ideaId: $ideaId, waitDays: $waitDays) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "variables": [
+     "handle",
+     "message",
+     "purpose",
+     "title",
+     "ideaId",
+     "waitDays"
     ]
    }
   },

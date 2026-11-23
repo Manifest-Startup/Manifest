@@ -45,6 +45,10 @@ _DESTRUCTIVE_EXTRA = {
     "github_api_request",
     # Writes into the person's Gmail (drafts only, never sent): ask first.
     "create_outreach_email_drafts",
+    # Goals (ADR 0020): approving lets a step act for the person (send a message); cancelling
+    # stops their goal. The server also checks the approved scope hash.
+    "decide_approval",
+    "cancel_goal",
 }
 # Commands the CLI itself owns; a schema field with one of these names would be shadowed.
 RESERVED_COMMANDS = {

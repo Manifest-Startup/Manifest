@@ -153,6 +153,16 @@ def process_once(db: Any, worker_id: str) -> bool:
     return True
 
 
+def _sweep_goals(db: Any) -> None:
+    """Resume goals whose waits or retries are due (ADR 0020). Never stops the worker."""
+    try:
+        from app.services.goals.engine import sweep
+
+        sweep(db)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[worker] goal sweep failed: %s", type(exc).__name__)
+
+
 def run_loop(
     db: Any,
     worker_id: str,
@@ -170,7 +180,12 @@ def run_loop(
         max_idle_interval = float(os.getenv("WORKER_MAX_IDLE_SECONDS", "15"))
     max_idle_interval = max(max_idle_interval, poll_interval)
     idle_delay = poll_interval
+    sweep_every = float(os.getenv("GOAL_SWEEP_SECONDS", "60"))
+    last_sweep = 0.0
     while not stop.is_set():
+        if sweep_every > 0 and time.monotonic() - last_sweep >= sweep_every:
+            last_sweep = time.monotonic()
+            _sweep_goals(db)
         try:
             did_work = process_once(db, worker_id)
         except Exception as exc:  # noqa: BLE001 — keep the loop alive on transient errors

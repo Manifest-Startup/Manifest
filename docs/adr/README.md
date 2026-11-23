@@ -22,5 +22,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0017 — Voice with your own agent feels instant, and you can talk over it](0017-voice-feels-instant.md)
 - [0018 — From an idea to first customers, in the conversation](0018-from-an-idea-to-first-customers.md)
 - [0019 — Feedback said to Manifest becomes one GitHub issue, with everyone who asked counted](0019-feedback-becomes-github-issues.md)
+- [0020 — Goals that run: a plan, an approval, Open Media, and what was learned](0020-goals-that-run.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

@@ -5,7 +5,8 @@ Headers: ``X-Open-Media-Event``, ``X-Open-Media-Delivery``,
 sha256=<hex HMAC-SHA256(secret, timestamp + "." + raw_body)>``.
 
 Bodies carry IDs only (never message text). Manifest uses them to drop cached
-unread counts and clip stats, so badges and counts refresh on the next read.
+unread counts and clip stats, so badges and counts refresh on the next read, and a new
+message wakes any goal waiting for a reply in that conversation (ADR 0020).
 Deliveries older than 5 minutes are rejected and repeated delivery ids are
 ignored (Open Media retries with backoff).
 """
@@ -68,6 +69,19 @@ def _seen(delivery_id: str) -> bool:
     return False
 
 
+def _wake_goals(conversation_id: str) -> None:
+    """A reply may be what a goal is waiting for (ADR 0020). Never fails the delivery."""
+    try:
+        from app.db.database import create_database_client
+        from app.services.goals.engine import on_open_media_message
+
+        on_open_media_message(create_database_client(), conversation_id)
+    except Exception as exc:  # noqa: BLE001 — the background sweep checks again later
+        logger.warning(
+            "[open_media] goal wake failed", extra={"exception.type": type(exc).__name__}
+        )
+
+
 def handle(
     raw_body: bytes,
     *,
@@ -93,6 +107,8 @@ def handle(
         recipients = [str(r) for r in data.get("recipient_ids") or [] if r]
         actor = data.get("actor_id")
         invalidate_unread(recipients + ([str(actor)] if actor else []))
+        if kind == "message.created" and data.get("conversation_id"):
+            _wake_goals(str(data["conversation_id"]))
     elif kind in POST_EVENTS:
         invalidate_clip_stats([str(data["post_id"])] if data.get("post_id") else None)
     logger.info(

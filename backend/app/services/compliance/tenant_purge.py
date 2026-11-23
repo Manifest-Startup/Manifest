@@ -29,6 +29,12 @@ OPTIONAL_PURGE_TABLES: frozenset = frozenset(
         "user_totp_mfa",
         "privacy_consents",
         "vault_files",
+        # Goals (ADR 0020): optional until the migration is applied everywhere.
+        "knowledge_facts",
+        "goal_events",
+        "approval_requests",
+        "goal_tasks",
+        "goals",
     }
 )
 
@@ -46,6 +52,12 @@ USER_DATA_PURGE_PLAN: list[dict[str, str]] = [
     {"table": "privacy_consents", "where": "user_id = %s", "mode": "delete"},
     {"table": "scim_group_members", "where": "user_id = %s", "mode": "delete"},
     {"table": "vault_files", "where": "user_id = %s", "mode": "delete"},
+    # Goals hold contacts and their replies (ADR 0020); leaf tables first.
+    {"table": "knowledge_facts", "where": "user_id = %s", "mode": "delete"},
+    {"table": "goal_events", "where": "user_id = %s", "mode": "delete"},
+    {"table": "approval_requests", "where": "user_id = %s", "mode": "delete"},
+    {"table": "goal_tasks", "where": "user_id = %s", "mode": "delete"},
+    {"table": "goals", "where": "user_id = %s", "mode": "delete"},
 ]
 
 
