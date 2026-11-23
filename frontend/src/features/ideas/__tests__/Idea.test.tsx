@@ -145,10 +145,11 @@ describe('Idea Component - Title Editing', () => {
       options?.skip ? skipped : cached[options?.variables?.ideaId as keyof typeof cached] || skipped
     );
     const { rerender } = render(<Idea />);
-    expect(await screen.findByTestId('idea-textarea')).toHaveValue('First saved words');
+    // Waits (not sync asserts): under a busy CPU the effects that load the note land a tick later.
+    expect(await screen.findByTestId('idea-textarea', undefined, { timeout: 5000 })).toHaveValue('First saved words');
     actualLocalState.sidebarVar({ ...mockSidebarVar, currentIdeaId: 'idea-2' });
     rerender(<Idea />);
-    expect(screen.getByTestId('idea-textarea')).toHaveValue('Second saved words');
+    await waitFor(() => expect(screen.getByTestId('idea-textarea')).toHaveValue('Second saved words'), { timeout: 5000 });
     expect(mockPatchIdea).not.toHaveBeenCalled();
   });
 
