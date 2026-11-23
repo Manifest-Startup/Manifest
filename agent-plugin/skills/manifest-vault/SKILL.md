@@ -44,6 +44,7 @@ Without background sync, sync automatically, without being asked, after you crea
 - `Manifest/Concepts/<concept>.md`: hubs linking every idea, cited passage and document that mentions a concept, across all the person's ideas, with its role and how it was derived. Concepts come only from the founder's own words, never from generated documents (ADR 0009). `idea_knowledge_graph` returns one idea's graph without writing files: each concept's `role` and `why`, `relations` with their sentences, and each related idea's `reason`. When the person asks how an idea connects, answer from these, quoting the `why` rather than guessing. The Manifest app doesn't show the graph (ADR 0010): there a citation or concept link just highlights the source words in the idea note, so the graph is yours (and the CLI's and the vault's) to explain.
 - `Manifest/Skills/<skill>.md` and `Manifest/Interviews/<date> <idea>.md`.
 - `Notes/<date> <title>.md`: their notes, with `ideas:` and `tags:` frontmatter.
+- `Memory/<idea>/<fact>.md` and `Conversations/<date time> Voice – <idea>.md`: what Manifest remembers and saved voice conversations (manifest-memory skill).
 
 ## Finding things
 Search the vault folder (filenames, frontmatter, `[[links]]`) before answering "what did I say about…" questions, and quote the note with its path. Notes are private: never paste them into public places (published ideas, comments, pitch shorts).

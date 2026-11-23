@@ -27,9 +27,12 @@ If tools answer that sign-in expired, ask the person to reconnect Manifest in th
 | Your own GitHub: repos, issues, pull requests, branches, files, CI (Actions), releases | manifest-github |
 | Validate an idea and find first customers: market research, segments, prospects, outreach emails, Gmail drafts | manifest-customers |
 | Reach someone on Open Media and hear back, approve or decline what Manifest will send, ask what happened, correct a fact about a person | manifest-goals |
+| Remember the person across conversations and agents: recall, remember, forget | manifest-memory |
 | Platform administration (admins only) | manifest-admin |
 
 **Feedback about Manifest itself.** When the person reports a bug, something confusing, or an enhancement or improvement they want for Manifest (not their own idea), call `report_feedback` with `kind`, a short plain `title`, their words as `details`, and `source` (`voice` when spoken). It files one GitHub issue in Manifest's public repository and never duplicates: a matching open issue gets them added as another person asking (counted once), and a "possible duplicates" status means pick the same issue with its duplicateOf number or call again with forceNew true. Tell them whether it's new or joined an existing issue and how many people asked, and that it's public without their name. `/feedback` does this.
+
+**Memory, for every agent.** Manifest remembers the person across conversations and agents (manifest-memory). At the start of Manifest work call `recall` for the idea; when they tell you something lasting, call `remember` with one short sentence and `source` naming you. Keep Manifest facts in Manifest memory, not only in your own, so the next agent (voice, Claude Code, Codex…) picks up where you left off.
 
 Start broad questions with `universal_search` (ideas, documents and people at once) or `ideas`, and `me` when you need to know who the person is.
 

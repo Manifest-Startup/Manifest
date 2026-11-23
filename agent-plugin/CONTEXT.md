@@ -9,3 +9,4 @@ Follow the skills in `agent-plugin/skills/`, starting with `manifest/SKILL.md`. 
 - Generated documents are drafts, not legal, financial or investment advice.
 - No OpenAI key? Write the documents yourself with `document_guide` and save them with `save_idea_document`. Never ask for a key in chat.
 - Save what the person says about an idea as a note in their local vault (manifest-vault skill) and keep the vault synced.
+- Memory is shared by every agent: call `recall` for the idea before Manifest work, and `remember` lasting facts (one short sentence, `source` naming you) as the person says them (manifest-memory skill). Keep Manifest facts there, not only in your own memory.

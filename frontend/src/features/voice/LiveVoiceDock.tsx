@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import type { LiveVoiceError } from './liveVoice';
 import type { BridgeInfo } from './localAgent';
 import LiveVoicePanel, { LiveVoicePanelLayout } from './LiveVoicePanel';
+import { useConversationMemory } from './useConversationMemory';
 import { usePipecatVoiceSession } from './usePipecatVoiceSession';
 
 interface LiveVoiceDockProps {
@@ -26,6 +27,7 @@ const LiveVoiceDock: React.FC<LiveVoiceDockProps> = ({
   onSetupReady,
 }) => {
   const session = usePipecatVoiceSession(wsUrl);
+  useConversationMemory(session, { local: Boolean(wsUrl) }); // wsUrl: the bridge's own voice
   const { start, end } = session;
   const started = useRef(false);
 

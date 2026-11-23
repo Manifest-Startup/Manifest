@@ -2,6 +2,15 @@ import { gql } from '@apollo/client';
 import type { TypedDocumentNode } from '@apollo/client';
 
 import type {
+  ForgetMemoryData,
+  ForgetMemoryVariables,
+  GetMemoriesData,
+  RecallData,
+  RecallVariables,
+  SaveVoiceConversationData,
+  SaveVoiceConversationVariables,
+  UpdateMemoryData,
+  UpdateMemoryVariables,
   GetAiKeyStatusData,
   GetApolloKeyStatusData,
   RemoveApolloApiKeyData,
@@ -1711,5 +1720,69 @@ export const CONNECT_GITHUB = gql`
 export const DISCONNECT_GITHUB = gql`
   mutation DisconnectGithub {
     disconnectGithub { ${GITHUB_ACCOUNT_FIELDS} }
+  }
+`;
+
+// ---- Memory (ADR 0021): Memory/ and Conversations/ files in the person's vault ----
+const MEMORY_FIELDS = `
+  id
+  text
+  kind
+  ideaId
+  ideaTitle
+  source
+  conversation
+  createdAt
+  updatedAt
+  path
+`;
+
+export const RECALL: TypedDocumentNode<RecallData, RecallVariables> = gql`
+  query Recall($query: String, $ideaId: String, $limit: Int) {
+    recall(query: $query, ideaId: $ideaId, limit: $limit) {
+      ${MEMORY_FIELDS}
+    }
+  }
+`;
+
+export const GET_MEMORIES: TypedDocumentNode<GetMemoriesData, NoVariables> = gql`
+  query GetMemories {
+    memories {
+      ${MEMORY_FIELDS}
+    }
+  }
+`;
+
+export const UPDATE_MEMORY: TypedDocumentNode<UpdateMemoryData, UpdateMemoryVariables> = gql`
+  mutation UpdateMemory($memoryId: String!, $text: String!) {
+    updateMemory(memoryId: $memoryId, text: $text) {
+      ${MEMORY_FIELDS}
+    }
+  }
+`;
+
+export const FORGET_MEMORY: TypedDocumentNode<ForgetMemoryData, ForgetMemoryVariables> = gql`
+  mutation ForgetMemory($memoryId: String!) {
+    forgetMemory(memoryId: $memoryId) {
+      id
+    }
+  }
+`;
+
+export const SAVE_VOICE_CONVERSATION: TypedDocumentNode<SaveVoiceConversationData, SaveVoiceConversationVariables> = gql`
+  mutation SaveVoiceConversation(
+    $turns: [ConversationTurnInput!]!
+    $ideaId: String
+    $startedAt: String
+    $agent: String
+    $extract: Boolean
+  ) {
+    saveVoiceConversation(turns: $turns, ideaId: $ideaId, startedAt: $startedAt, agent: $agent, extract: $extract) {
+      path
+      turns
+      memories {
+        ${MEMORY_FIELDS}
+      }
+    }
   }
 `;

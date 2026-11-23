@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "30f63b64f51bbb343ae6a9c53d7cb6b773cc7ea649005688921cf786fb18401f",
+ "catalog_sha256": "bfecd2939f4b61f9b7cc403dba673dc1cea4a4cf4d9881c5935e0ac5662ca6b9",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -1781,6 +1781,38 @@
     "document": "mutation FollowUser($followedId: String!) { followUser(followedId: $followedId) { following followedId } }",
     "variables": [
      "followedId"
+    ]
+   }
+  },
+  {
+   "name": "forget_memory",
+   "title": "Forget memory",
+   "description": "Forget one memory when the person asks (\"forget that\"). Its file moves to the vault's .trash, so it can still be recovered there. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "memoryId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "memoryId"
+    ]
+   },
+   "annotations": {
+    "title": "Forget memory",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "forgetMemory",
+    "document": "mutation ForgetMemory($memoryId: String!) { forgetMemory(memoryId: $memoryId) { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } }",
+    "variables": [
+     "memoryId"
     ]
    }
   },
@@ -4380,6 +4412,35 @@
    }
   },
   {
+   "name": "memories",
+   "title": "Memories",
+   "description": "Every memory, newest first (only this idea's with ideaId), for reviewing them.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Memories",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "memories",
+    "document": "query Memories($ideaId: String) { memories(ideaId: $ideaId) { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } }",
+    "variables": [
+     "ideaId"
+    ]
+   }
+  },
+  {
    "name": "my_agent_runs",
    "title": "My agent runs",
    "description": "Your recent AI agent runs with status, cost and duration.",
@@ -5126,6 +5187,45 @@
    }
   },
   {
+   "name": "recall",
+   "title": "Recall",
+   "description": "What you remember about the person and their ideas: decisions, preferences, people, plans. Call it at the start of Manifest work (with the idea's id) and whenever earlier context would help; query narrows it by words. Memories are Markdown files in the person's vault (Memory/), the same for every agent.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "default": ""
+     },
+     "ideaId": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer",
+      "default": 8
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Recall",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "recall",
+    "document": "query Recall($query: String, $ideaId: String, $limit: Int) { recall(query: $query, ideaId: $ideaId, limit: $limit) { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } }",
+    "variables": [
+     "query",
+     "ideaId",
+     "limit"
+    ]
+   }
+  },
+  {
    "name": "regenerate_all_bmc_sections",
    "title": "Regenerate all bmc sections",
    "description": "Regenerate every Business Model Canvas section of an idea. Changes the person's Manifest account; say what you will do before calling.",
@@ -5191,6 +5291,55 @@
     "variables": [
      "ideaId",
      "sectionName"
+    ]
+   }
+  },
+  {
+   "name": "remember",
+   "title": "Remember",
+   "description": "Remember one lasting fact the person told you, in one short sentence: a decision, preference, person and their role, plan or open question (kind: fact, decision, preference, person, plan, question). Use ideaId when it is about an idea. Saying the same thing again only refreshes it; when a fact changed, pass the old memory's id as replaces. Never store passwords, keys, account or ID numbers or health details. source names who is remembering (voice, claude-code, codex…). Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "ideaId": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string",
+      "default": "fact"
+     },
+     "source": {
+      "type": "string"
+     },
+     "replaces": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "text"
+    ]
+   },
+   "annotations": {
+    "title": "Remember",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "remember",
+    "document": "mutation Remember($text: String!, $ideaId: String, $kind: String, $source: String, $replaces: String) { remember(text: $text, ideaId: $ideaId, kind: $kind, source: $source, replaces: $replaces) { status memory { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } } }",
+    "variables": [
+     "text",
+     "ideaId",
+     "kind",
+     "source",
+     "replaces"
     ]
    }
   },
@@ -5888,6 +6037,71 @@
      "ideaId",
      "documentType",
      "content"
+    ]
+   }
+  },
+  {
+   "name": "save_voice_conversation",
+   "title": "Save voice conversation",
+   "description": "Save a finished voice conversation to the vault (Conversations/) and link what was remembered during it. With extract and the person's OpenAI key, lasting facts the agent didn't save yet are remembered too. The app calls this when voice ends. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "turns": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "role": {
+         "type": "string"
+        },
+        "text": {
+         "type": "string"
+        }
+       },
+       "additionalProperties": false,
+       "required": [
+        "role",
+        "text"
+       ]
+      }
+     },
+     "ideaId": {
+      "type": "string"
+     },
+     "startedAt": {
+      "type": "string"
+     },
+     "agent": {
+      "type": "string"
+     },
+     "extract": {
+      "type": "boolean",
+      "default": true
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "turns"
+    ]
+   },
+   "annotations": {
+    "title": "Save voice conversation",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "saveVoiceConversation",
+    "document": "mutation SaveVoiceConversation($turns: [ConversationTurnInput!]!, $ideaId: String, $startedAt: String, $agent: String, $extract: Boolean) { saveVoiceConversation(turns: $turns, ideaId: $ideaId, startedAt: $startedAt, agent: $agent, extract: $extract) { path turns memories { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } } }",
+    "variables": [
+     "turns",
+     "ideaId",
+     "startedAt",
+     "agent",
+     "extract"
     ]
    }
   },
@@ -6723,6 +6937,43 @@
     "variables": [
      "investmentId",
      "status"
+    ]
+   }
+  },
+  {
+   "name": "update_memory",
+   "title": "Update memory",
+   "description": "Correct a memory's wording. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "memoryId": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "memoryId",
+     "text"
+    ]
+   },
+   "annotations": {
+    "title": "Update memory",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "updateMemory",
+    "document": "mutation UpdateMemory($memoryId: String!, $text: String!) { updateMemory(memoryId: $memoryId, text: $text) { id text kind ideaId ideaTitle source conversation createdAt updatedAt path } }",
+    "variables": [
+     "memoryId",
+     "text"
     ]
    }
   },

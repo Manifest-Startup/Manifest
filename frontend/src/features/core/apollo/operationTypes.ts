@@ -650,3 +650,66 @@ export interface SaveApolloApiKeyVariables {
 export interface RemoveApolloApiKeyData {
   removeApolloApiKey: ApolloKeyStatus;
 }
+
+// --------------------------- Memory (ADR 0021) ---------------------------
+/** One lasting fact, kept as a Markdown file in the person's vault (Memory/…). */
+export interface MemoryItem {
+  id: string;
+  text: string;
+  kind: string;
+  ideaId: string | null;
+  ideaTitle: string | null;
+  source: string | null;
+  conversation: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  path: string;
+}
+
+export interface RecallData {
+  recall: MemoryItem[];
+}
+
+export interface RecallVariables {
+  query?: string;
+  ideaId?: string | null;
+  limit?: number;
+}
+
+export interface GetMemoriesData {
+  memories: MemoryItem[];
+}
+
+export interface UpdateMemoryData {
+  updateMemory: MemoryItem;
+}
+
+export interface UpdateMemoryVariables {
+  memoryId: string;
+  text: string;
+}
+
+export interface ForgetMemoryData {
+  forgetMemory: MemoryItem;
+}
+
+export interface ForgetMemoryVariables {
+  memoryId: string;
+}
+
+export interface ConversationTurn {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export interface SaveVoiceConversationData {
+  saveVoiceConversation: { path: string | null; turns: number; memories: MemoryItem[] };
+}
+
+export interface SaveVoiceConversationVariables {
+  turns: ConversationTurn[];
+  ideaId?: string | null;
+  startedAt?: string | null;
+  agent?: string | null;
+  extract?: boolean;
+}

@@ -36,6 +36,8 @@ export interface PipecatVoiceSessionApi {
   sendText: (text: string) => Promise<void>;
   /** Stop the voice mid-answer (tap the orb or press Space). Talking over it works too. */
   interrupt?: () => void;
+  /** The person's own agent answering through `manifest bridge` (local voice only). */
+  agentName?: () => string | null;
 }
 
 /**

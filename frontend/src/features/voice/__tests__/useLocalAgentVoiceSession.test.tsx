@@ -126,6 +126,45 @@ describe('useLocalAgentVoiceSession', () => {
     expect(session.current.state.phase).toBe('listening');
   });
 
+  it('sends what Manifest remembers with the first question only (ADR 0021)', async () => {
+    const { RECALL } = await import('../../core/apollo/queries');
+    const remembered = {
+      __typename: 'Memory',
+      id: 'mem_1',
+      text: 'Sells to insurers first.',
+      kind: 'decision',
+      ideaId: 'abc',
+      ideaTitle: 'TideLine',
+      source: 'voice',
+      conversation: null,
+      createdAt: null,
+      updatedAt: null,
+      path: 'Memory/TideLine/Sells to insurers first.md',
+    };
+    const withMemory = ({ children }: { children: React.ReactNode }) => (
+      <MockedProvider
+        mocks={[{ request: { query: RECALL, variables: { ideaId: 'abc', limit: 12 } }, result: { data: { recall: [remembered] } } }]}
+      >
+        <MemoryRouter initialEntries={['/ideas/abc/description']}>{children}</MemoryRouter>
+      </MockedProvider>
+    );
+    const hook = renderHook(() => useLocalAgentVoiceSession(), { wrapper: withMemory });
+    await act(async () => {
+      await hook.result.current.start();
+    });
+    const rec = recognitions[0];
+    act(() => rec.onresult(result('Who do we sell to?', true)));
+    await waitFor(() => expect(turns()).toEqual(['Who do we sell to?']));
+    act(() => rec.onresult(result('And then?', true)));
+    await waitFor(() => expect(turns()).toHaveLength(2));
+    const bodies = (global.fetch as jest.Mock).mock.calls
+      .filter(([url]) => String(url).endsWith('/turn'))
+      .map(([, init]) => JSON.parse(init.body));
+    expect(bodies[0].context.memory).toEqual([{ id: 'mem_1', text: 'Sells to insurers first.' }]);
+    expect(bodies[1].context.memory).toBeUndefined();
+    expect(hook.result.current.agentName?.()).toBe('Claude Code');
+  });
+
   it('names the idea the person is looking at, not just its id (#114)', async () => {
     const { withIdeaTitle } = await import('../usePipecatVoiceSession');
     const { InMemoryCache } = await import('@apollo/client');

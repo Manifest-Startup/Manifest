@@ -10,9 +10,9 @@
     "limit": "200 KB"
   },
   {
-    "name": "Total shipped JS (all chunks, gzip; +60 KB for the lazy local-vault chunk, ADR 0011; +125 KB for the lazy Pipecat voice client, loaded only when a conversation starts)",
+    "name": "Total shipped JS (all chunks, gzip; +60 KB for the lazy local-vault chunk, ADR 0011; +125 KB for the lazy Pipecat voice client, loaded only when a conversation starts; +10 KB for goals and memory, ADR 0020–0021)",
     "path": ["build/assets/**/*.js"],
     "gzip": true,
-    "limit": "1285 KB"
+    "limit": "1295 KB"
   }
 ]

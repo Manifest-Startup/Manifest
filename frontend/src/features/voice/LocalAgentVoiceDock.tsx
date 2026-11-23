@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 import type { BridgeInfo } from './localAgent';
 import LiveVoicePanel, { LiveVoicePanelLayout } from './LiveVoicePanel';
+import { useConversationMemory } from './useConversationMemory';
 import { useLocalAgentVoiceSession } from './useLocalAgentVoiceSession';
 
 /** Voice with the person's own agent (`manifest bridge`), no OpenAI key; same panel. */
@@ -11,6 +12,7 @@ const LocalAgentVoiceDock: React.FC<{
   onSetupReady?: (bridge: BridgeInfo) => void;
 }> = ({ layout = 'docked', onClose, onSetupReady }) => {
   const session = useLocalAgentVoiceSession();
+  useConversationMemory(session, { local: true });
   const { start, end } = session;
   const started = useRef(false);
 

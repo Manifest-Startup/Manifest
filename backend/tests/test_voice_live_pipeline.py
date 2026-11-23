@@ -226,12 +226,14 @@ def test_spoken_question_runs_a_tool_and_answers_out_loud(monkeypatch):
     tools = [d for t, d in events if t == "server-message" and d.get("type") == "manifest.tool"]
     assert [(d["name"], d["phase"]) for d in tools] == [("ideas", "started"), ("ideas", "finished")]
     graphql = [entry for entry in log if "auth" in entry]
-    assert graphql and graphql[0]["auth"] == "Bearer tok"
-    assert graphql[0]["body"]["variables"] == {"first": 5}
+    assert graphql and all(entry["auth"] == "Bearer tok" for entry in graphql)
+    # First what it remembers (ADR 0021), then the question's tool.
+    assert graphql[0]["body"]["variables"] == {"limit": 12}
+    assert graphql[-1]["body"]["variables"] == {"first": 5}
     assert any(entry.get("tts") == "You have one idea, Solar Cold Chain." for entry in log)
     assert audio > 0
     # Speed: the greeting is spoken without a model call, and OpenAI ends the turn.
     assert any(entry.get("tts") == "Hi, Ada. What are we working on?" for entry in log)
     assert not any("llm_without_user" in entry for entry in log)
     assert any((entry.get("turn_detection") or {}).get("type") == "server_vad" for entry in log)
-    assert all(entry["llm_tools"] < 28 for entry in log if "llm_tools" in entry)
+    assert all(entry["llm_tools"] < 32 for entry in log if "llm_tools" in entry)

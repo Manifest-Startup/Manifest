@@ -46,6 +46,7 @@ const BillingDashboardPage = lazy(() => import("features/account/components/Bill
 const AdminCostDashboardPage = lazy(() => import("features/admin/components/AdminCostDashboardPage"));
 const AppIOS = lazy(() => import("features/ios/AppIOS"));
 const PullToRefresh = lazy(() => import("features/core/refresh/PullToRefresh"));
+const RememberedToast = lazy(() => import("features/memory/RememberedToast"));
 const FloatingVoiceButton = lazy(() => import("features/voice/FloatingVoiceButton"));
 const ProductFeedbackSurveyPrompt = lazy(() => import("features/feedback/ProductFeedbackSurveyPrompt"));
 const ResearchSurveyPage = lazy(() => import("features/survey/ResearchSurveyPage"));
@@ -146,6 +147,7 @@ const App = () => {
         {isLoggedIn ? (
           <Suspense fallback={null}>
             <PullToRefresh />
+            <RememberedToast />
           </Suspense>
         ) : null}
       </ThemeProvider>
@@ -223,6 +225,7 @@ const App = () => {
           {isLoggedIn ? (
             <Suspense fallback={null}>
               <PullToRefresh />
+              <RememberedToast />
             </Suspense>
           ) : null}
           {!hideTopChrome && isLoggedIn ? (
