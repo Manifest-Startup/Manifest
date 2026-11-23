@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import quote
 
 from app.security.ai_safety import looks_like_injection_attempt, wrap_untrusted
-from app.services.goals import knowledge, store
+from app.services.goals import extraction, knowledge, store
 from app.services.integrations.open_media import identity, messaging, settings
 from app.services.integrations.open_media.client import OpenMediaError, get_client, pick
 
@@ -307,6 +307,39 @@ def _record_knowledge(ctx: Context, data: dict[str, Any]) -> Outcome:
             goal_id=ctx.goal["id"],
         )
         saved.append(fact["id"])
+        who = str(reply.get("from") or "unknown")
+        # A reply that tries to instruct an assistant is kept verbatim but not mined: its
+        # sentences never reach the spoken report.
+        text = "" if reply.get("suspected_injection") else str(reply.get("text_untrusted") or "")
+        findings = extraction.extract(text)
+        for finding in findings:
+            inferred = knowledge.record(
+                ctx.db,
+                ctx.user_id,
+                subject_type="person",
+                subject_key=who,
+                predicate=finding.predicate,
+                value=finding.quote,
+                kind="inferred",
+                source_type="open_media_message",
+                source_ref=f"open_media:message:{reply['reply_message_id']}",
+                source_at=reply.get("received_at"),
+                extraction="rules:v1",
+                goal_id=ctx.goal["id"],
+            )
+            saved.append(inferred["id"])
+        if findings:
+            store.record_event(
+                ctx.db,
+                ctx.user_id,
+                ctx.goal["id"],
+                "knowledge.extracted",
+                f"From @{who}'s reply: "
+                + "; ".join(f'{f.predicate} "{f.quote[:80]}"' for f in findings[:3])
+                + " (unconfirmed)",
+                {"facts": saved[-len(findings) :]},
+                dedupe_key=f"knowledge.extracted:{reply['reply_message_id']}",
+            )
     for item in data.get("facts") or []:
         if not isinstance(item, dict):
             continue

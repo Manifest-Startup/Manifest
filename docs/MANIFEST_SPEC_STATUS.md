@@ -37,7 +37,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Open Media messaging, inbox, webhooks | Implemented | `services/integrations/open_media/`. Webhooks now also wake waiting goals. |
 | Open Media drafts / delivery status | Missing | Not in Open Media's API. Prepared messages live in the goal step. Needs an open-media change. |
 | Outbound only with authorization | Implemented | Goal sends need an exact-scope approval checked by the server. Direct `sendMessage` / `replyInInbox` are confirm-first in voice, `/mcp` and the CLI (the web composer is the person typing). |
-| Inbound processing (requests, commitments) | Partial | Replies to a goal's message are recorded as `external_claim` facts. No extraction of requests or commitments from the general inbox. |
+| Inbound processing (requests, commitments) | Partial | Replies to a goal's message: verbatim `external_claim` fact plus rule-based `inferred` facts (needs, asked, offered, interest, declined) quoted from the reply (`services/goals/extraction.py`), shown under "needs you" until the person confirms with `correctKnowledge`. Not yet for the general inbox. |
 | Meeting coordination | Missing | No calendar integration. |
 | Knowledge graph, idea concepts | Implemented | `services/ideas/knowledge_graph.py`: derived on read, cited passages, no confidence. |
 | Knowledge facts with provenance, confidence, corrections | **Implemented (slice)** | `knowledge_facts` + `services/goals/knowledge.py`. Entity resolution is by normalised handle only. |
@@ -57,7 +57,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 
 1. First live outreach send, to a recipient the owner names.
 2. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
-3. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
+3. Inbound extraction for the general inbox (goal replies are done).
 4. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
 5. Retention policy for `goal_events` and superseded `knowledge_facts`.
 6. Integration status and health checks (`integrations.status`, last verified).
