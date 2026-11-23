@@ -302,6 +302,44 @@ def merge(existing: str, incoming: str) -> str | None:
     return f"{front}{before}{block}{after}"
 
 
+# The app's own vault mode (ADR 0011/0012) writes idea notes and documents in these folders as
+# plain Markdown, without the generated block.
+APP_FOLDERS = ("Manifest/Ideas/", "Manifest/Documents/")
+
+
+def _front_value(text: str, key: str) -> str | None:
+    """A value from the file's leading YAML frontmatter, if any."""
+    if not text.startswith("---\n"):
+        return None
+    close = text.find("\n---", 4)
+    if close < 0:
+        return None
+    match = re.search(rf'^{key}:\s*"?([^"\n]*?)"?\s*$', text[4:close], re.MULTILINE)
+    return match.group(1).strip() or None if match else None
+
+
+def _stamp(value: str | None) -> float | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _same_note_newest_wins(target: Path, existing: str, content: str) -> str | None:
+    """A plain (app-written) copy of the same idea or document: the newer one stays, and no
+    second copy is ever made, since the app would read a copy as another idea."""
+    rel_doc = "/Documents/" in target.as_posix()
+    mine, theirs = _front_value(existing, "manifest_id"), _front_value(content, "manifest_id")
+    if not rel_doc and (not mine or mine != theirs):
+        return None  # a different file at this path: not ours to decide
+    here = _stamp(_front_value(existing, "updated")) or target.stat().st_mtime
+    incoming = _stamp(_front_value(content, "updated")) or 0
+    if incoming >= here - 1:
+        atomic_write(target, content)
+        return "updated"
+    return "unchanged"  # edited here more recently; the app sends it to the account
+
+
 def write_file(root: Path, relative: str, content: str, readmes: bool) -> str:
     target = inside(root, relative)
     ensure_folder(root, target.parent, readmes)
@@ -311,6 +349,10 @@ def write_file(root: Path, relative: str, content: str, readmes: bool) -> str:
         return "created"
     existing = target.read_text(encoding="utf-8")
     merged = merge(existing, content)
+    if merged is None and relative.startswith(APP_FOLDERS):
+        result = _same_note_newest_wins(target, existing, content)
+        if result:
+            return result
     if merged is None:
         side = target.with_name(f"{target.stem} (Manifest){target.suffix}")
         atomic_write(side, content)
@@ -441,19 +483,41 @@ def apply_export(
     ensure_branding(root)
     ensure_folder(root, root / "Notes", readmes)
     counts: dict[str, int] = {}
+    app = app_syncing(root)
     for item in data["files"]:
+        if app and str(item["path"]).startswith(APP_FOLDERS):
+            # The app is syncing this folder's ideas itself right now; two writers of the
+            # same notes would fight. Background sync takes them back when the app closes.
+            counts["left to the app"] = counts.get("left to the app", 0) + 1
+            continue
         result = write_file(root, str(item["path"]), str(item["content"]), readmes)
         key = result.split(";")[0]
         counts[key] = counts.get(key, 0) + 1
         if result.startswith("kept"):
             print(f"  {item['path']}: {result}", file=out)
-    if "Manifest/Home.md" in (data.get("paths") or ()):  # a complete listing only
+    if "Manifest/Home.md" in (data.get("paths") or ()) and not app:  # a complete listing
         gone = prune_generated(root, set(data["paths"]), out, mode or on_delete())
         if gone:
             counts["removed"] = len(gone)
             if removed is not None:
                 removed.extend(gone)
     return counts
+
+
+APP_ACTIVE = timedelta(minutes=3)  # the app syncs every minute while it is open
+
+
+def app_syncing(root: Path) -> bool:
+    """True while the app's vault mode is syncing this folder with the same account."""
+    user = (load_config().get("user") or {}).get("user_id")
+    if not user:
+        return False
+    try:
+        state = json.loads((root / "Manifest/.sync" / f"{user}.json").read_text(encoding="utf-8"))
+        last = datetime.fromisoformat(str(state.get("lastSync")).replace("Z", "+00:00"))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
+    return datetime.now(timezone.utc) - last < APP_ACTIVE
 
 
 # Folders under Manifest/ whose files are one per idea, document, interview, skill or concept.
@@ -607,7 +671,9 @@ def local_files(root: Path) -> dict[str, tuple[str, str]]:
                 overlay = overlay_of(text)
                 if overlay is not None:
                     found[rel] = ("overlay", overlay)
-                elif not path.stem.endswith(" (Manifest)"):
+                elif not path.stem.endswith(" (Manifest)") and not rel.startswith(APP_FOLDERS):
+                    # Plain idea notes and documents are the app's vault mode: they reach the
+                    # account as ideas through the app, never as loose files.
                     found[rel] = ("file", text)
             else:
                 found[rel] = ("file", text)
@@ -840,6 +906,15 @@ def take_theirs(root: Path, rel: str, kind: str, theirs: dict, state: dict) -> b
     return True
 
 
+def _wanted(remote: dict) -> bool:
+    """A file from the account this vault should have. Plain idea notes an older client
+    uploaded as loose files are not: the app's vault mode owns them."""
+    rel = remote["path"]
+    if not syncable(rel):
+        return False
+    return not (rel.startswith(APP_FOLDERS) and OVERLAY_MARK not in (remote.get("content") or ""))
+
+
 def pull_files(root: Path, acct: Account, state: dict, report: list[str]) -> None:
     cursor = state.get("cursor")
     since = None
@@ -853,7 +928,7 @@ def pull_files(root: Path, acct: Account, state: dict, report: list[str]) -> Non
     local = local_files(root)
     for remote in page.get("files") or []:
         rel = remote["path"]
-        if not syncable(rel):
+        if not _wanted(remote):
             continue
         base = synced.get(rel)
         mine = local.get(rel)

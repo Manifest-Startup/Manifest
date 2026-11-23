@@ -147,3 +147,34 @@ describe("a folder of ideas answers the app's GraphQL", () => {
     expect(versions.data).toEqual({ ideaVersions: [], account: null });
   });
 });
+
+describe("sharing a folder with background sync", () => {
+  const note = (id: string, title: string) =>
+    serializeIdeaFile({
+      id, title, created: "2026-11-19T10:00:00.000Z", updated: null, published: false,
+      skills: [], body: "A note.", extra: [], tail: "",
+    });
+
+  it("never turns a copy of a note, a sync copy or the README into a new idea", async () => {
+    const fs = new MemoryVaultFs();
+    await fs.write("Manifest/Ideas/Open Media.md", note("abc", "Open Media"));
+    await fs.write("Manifest/Ideas/Open Media (Manifest).md", note("abc", "Open Media"));
+    await fs.write("Manifest/Ideas/Open Media copy.md", note("abc", "Open Media"));
+    await fs.write("Manifest/Ideas/N (conflicted copy Mac 2026-11-23).md", "# N\n\nhello");
+    await fs.write("Manifest/Ideas/README.md", "# Ideas\n\nOne file per idea.");
+    const store = new VaultStore(fs);
+    const ideas = await store.list();
+    expect(ideas.map((i) => i.ideaId)).toEqual(["abc"]);
+    // Nothing was rewritten with a fresh id.
+    expect(parseIdeaFile((await fs.read("Manifest/Ideas/Open Media copy.md"))!, "x").id).toBe("abc");
+    expect(await fs.read("Manifest/Ideas/README.md")).toBe("# Ideas\n\nOne file per idea.");
+  });
+
+  it("still gives a note written outside Manifest its own id", async () => {
+    const fs = new MemoryVaultFs();
+    await fs.write("Manifest/Ideas/Typed in Obsidian.md", "# Typed in Obsidian\n\nhello");
+    const [idea] = await new VaultStore(fs).list();
+    expect(idea.title).toBe("Typed in Obsidian");
+    expect(parseIdeaFile((await fs.read("Manifest/Ideas/Typed in Obsidian.md"))!, "x").id).toBe(idea.ideaId);
+  });
+});
