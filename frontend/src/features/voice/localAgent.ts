@@ -20,6 +20,9 @@ export const BRIDGE_INSTALL_COMMAND = 'manifest bridge --install';
  * Once, from nothing: installs the `manifest` CLI and starts the bridge at login, using
  * Claude Code if it is installed, else Codex (public/voice.sh, served by the app).
  */
+/** How many already-spoken sentences still count as its own voice (speakers lag a little). */
+const RECENT_SENTENCES = 3;
+
 export const VOICE_SETUP_COMMAND = 'curl -fsSL https://manifeststartup.com/voice.sh | sh';
 
 /** The bridge could speak naturally here but its install lacks the voice (issue #108). */
@@ -394,7 +397,8 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
   let current: AudioBufferSourceNode | null = null;
   let playing = false;
   let generation = 0;
-  let recent: string[] = [];
+  let said: string[] = []; // pieces already played (or playing), the last few
+  let sayingNow: string | null = null;
 
   const fetchOnce = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
     try {
@@ -434,6 +438,8 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
   const due = (item: Item): Promise<AudioBuffer | null> => item.audio;
 
   const finish = () => {
+    if (sayingNow) said = [...said, sayingNow].slice(-RECENT_SENTENCES * 2);
+    sayingNow = null;
     playing = false;
     current = null;
     onSpeaking(false);
@@ -445,6 +451,8 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
     const buffer = await due(item);
     if (mine !== generation) return;
     queue = queue.slice(1);
+    if (sayingNow) said = [...said, sayingNow].slice(-RECENT_SENTENCES * 2);
+    sayingNow = item.text;
     if (!buffer) {
       // Never the browser's voice: the words are on screen, and the next piece goes on.
       if (mine === generation) void playNext(mine);
@@ -467,7 +475,6 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
         const abort = new AbortController();
         queue = [...queue, { text: piece, abort, audio: fetchAudio(piece, abort) }];
       }
-      recent = [...recent, text].slice(-3);
       if (!playing) {
         playing = true;
         onSpeaking(true);
@@ -478,7 +485,10 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
       return playing;
     },
     get recent() {
-      return recent.join(' ');
+      // Everything it may still be heard saying: recent pieces, the one playing, and the
+      // queue. Claude streams sentences faster than they're spoken, so the queue can be
+      // several sentences ahead of the speakers.
+      return [...said, ...(sayingNow ? [sayingNow] : []), ...queue.map(item => item.text)].join(' ');
     },
     level() {
       if (!current) return 0;

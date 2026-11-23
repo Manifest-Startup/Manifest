@@ -1,4 +1,4 @@
-import { createBridgeSpeaker } from '../localAgent';
+import { createBridgeSpeaker, isBargeIn } from '../localAgent';
 
 describe('the natural voice player', () => {
   const played: number[] = [];
@@ -95,6 +95,29 @@ describe('the natural voice player', () => {
     await flush();
     expect(played).toHaveLength(1); // the second sentence never plays
   });
+
+  // The log behind this: Claude queued five sentences while the second was still playing,
+  // `recent` held only the last three queued, and the second's echo ("so I need two
+  // things") was taken for the person talking over it.
+  const answer = [
+    "I've loaded the feedback tool, but I haven't filed anything yet.",
+    "It posts a public GitHub issue on Manifest's repository, so I need two things from you first.",
+    'What is the feedback about, in your words?',
+    'And should it be a bug, an enhancement, an improvement, or general feedback?',
+    "Once you tell me, I'll file it and let you know whether it matched an existing issue.",
+  ];
+
+  it("knows its own words while they're still queued, so their echo isn't a barge-in", async () => {
+    const speaker = createBridgeSpeaker(() => undefined);
+    for (const sentence of answer) speaker.say(sentence);
+    await flush();
+    sources[0].onended?.(); // the second sentence is playing; three more are queued
+    await flush();
+    expect(isBargeIn('so I need two things', speaker.recent)).toBe(false);
+    expect(isBargeIn('actually open my pitch deck', speaker.recent)).toBe(true);
+  });
+
+
 });
 
 it('splits a long sentence at its pauses so the voice can start on the first piece', async () => {
@@ -105,4 +128,5 @@ it('splits a long sentence at its pauses so the voice can start on the first pie
   ]);
   expect(speechPieces('Yes, it is.')).toEqual(['Yes, it is.']);
   expect(speechPieces('No pauses in this one at all')).toEqual(['No pauses in this one at all']);
+
 });
