@@ -22,6 +22,7 @@ from datetime import timedelta
 from typing import Any
 
 from app.services.goals import store
+from app.utils.logger import logger
 
 APPROVAL_TTL = timedelta(days=7)
 GRANT_MAX_DAYS = 90
@@ -274,7 +275,14 @@ def use_standing(
     if int(task["risk_tier"]) != 2 or scope.get("action") not in STANDING_ACTIONS:
         return None
     recipient = str(scope.get("to") or "").lower()
-    for row in grants(db, user_id):
+    try:
+        active = grants(db, user_id)
+    except Exception as exc:  # noqa: BLE001 — no grants table yet: fall back to asking
+        logger.warning(
+            "[goals] standing approvals unavailable", extra={"exception.type": type(exc).__name__}
+        )
+        return None
+    for row in active:
         if row["action"] != scope["action"] or recipient not in (row.get("recipients") or []):
             continue
         if _uses_this_week(db, user_id, row["id"]) >= int(row["max_per_week"]):

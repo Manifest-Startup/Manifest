@@ -616,3 +616,12 @@ def test_only_the_person_in_the_app_can_grant(db, om):
         f'mutation {{ revokeStandingAuthorization(authorizationId: "{gid}") {{ status }} }}', db
     )
     assert revoked.data["revokeStandingAuthorization"]["status"] == "revoked"
+
+
+def test_without_the_grants_table_steps_still_ask(db, om, monkeypatch):
+    def missing(*_a, **_k):
+        raise RuntimeError('relation "standing_authorizations" does not exist')
+
+    monkeypatch.setattr(policy, "grants", missing)
+    view = _outreach(db)
+    assert _status(view)["send"] == "awaiting_authorization" and om.sends == []
