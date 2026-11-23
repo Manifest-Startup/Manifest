@@ -17,6 +17,7 @@ from app.graphql.types.goals import (
     Goal,
     GoalCapability,
     KnowledgeFact,
+    StandingAuthorization,
     map_approval,
     map_fact,
     map_goal,
@@ -41,6 +42,29 @@ async def _call(fn: Any, *args: Any, **kwargs: Any) -> Any:
 
 def _goal(view: dict[str, Any]) -> Goal:
     return map_goal(view["goal"], view)
+
+
+def _grant(row: dict[str, Any], used: int) -> StandingAuthorization:
+    return StandingAuthorization(
+        id=row["id"],
+        action=row["action"],
+        recipients=list(row.get("recipients") or []),
+        max_per_week=int(row["max_per_week"]),
+        used_this_week=used,
+        note=row.get("note") or "",
+        status=row["status"],
+        expires_at=row.get("expires_at"),
+        created_at=row.get("created_at"),
+    )
+
+
+def _signed_in_browser(info: strawberry.Info) -> bool:
+    """The person in the web app (session cookie), not a token an agent or script holds."""
+    request = info.context["request"]
+    cookies = getattr(request, "cookies", {}) or {}
+    return not request.headers.get("authorization") and bool(
+        cookies.get("session_token") or cookies.get("access_token")
+    )
 
 
 def _via(info: strawberry.Info) -> str:
@@ -107,6 +131,15 @@ class GoalsQuery:
             include_history=include_history,
         )
         return [map_fact(f) for f in rows]
+
+    @strawberry.field
+    async def standing_authorizations(
+        self, info: strawberry.Info, include_inactive: bool = False
+    ) -> list[StandingAuthorization]:
+        """What Manifest may do without asking each time (ADR 0021), with this week's uses."""
+        db, uid = info.context["db"], _uid(info)
+        rows = await _call(policy.grants, db, uid, include_inactive=include_inactive)
+        return [_grant(r, policy._uses_this_week(db, uid, r["id"])) for r in rows]
 
 
 @strawberry.type
@@ -200,6 +233,44 @@ class GoalsMutation:
             via=_via(info),
         )
         return _goal(view)
+
+    @strawberry.mutation
+    async def grant_standing_authorization(
+        self,
+        info: strawberry.Info,
+        recipients: list[str],
+        max_per_week: int = 3,
+        days: int = 30,
+        note: str = "",
+        action: str = "message.send",
+    ) -> StandingAuthorization:
+        """Let Manifest send messages to these Open Media handles without asking each time,
+        up to maxPerWeek a week for `days` days (max 90). Only from the Manifest web app,
+        signed in: agents and API tokens can't grant themselves permission."""
+        if not _signed_in_browser(info):
+            raise ValueError(
+                "Standing approvals can only be given in the Manifest app (Messages), not by an agent."
+            )
+        row = await _call(
+            policy.grant,
+            info.context["db"],
+            _uid(info),
+            action=action,
+            recipients=recipients,
+            max_per_week=max_per_week,
+            days=days,
+            note=note,
+        )
+        return _grant(row, 0)
+
+    @strawberry.mutation
+    async def revoke_standing_authorization(
+        self, info: strawberry.Info, authorization_id: str
+    ) -> StandingAuthorization:
+        """Stop a standing approval now; Manifest asks again for each action."""
+        db, uid = info.context["db"], _uid(info)
+        row = await _call(policy.revoke, db, uid, authorization_id)
+        return _grant(row, policy._uses_this_week(db, uid, row["id"]))
 
     @strawberry.mutation
     async def cancel_goal(self, info: strawberry.Info, goal_id: str) -> Goal:

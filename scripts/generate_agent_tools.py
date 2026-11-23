@@ -42,6 +42,7 @@ EXCLUDED: dict[str, str] = {
     "saveApolloApiKey": "Secret keys never go through chat. Add your Apollo.io key in Account → AI settings.",
     "connectIntegration": "Takes raw OAuth tokens. Connect integrations from Account → Integrations in the app, where the provider's sign-in runs.",
     "runBackgroundTasks": "Superseded by enqueue_background_tasks, which is durable and deduplicated.",
+    "grantStandingAuthorization": "Only the person can give Manifest standing permission, in the Manifest app (Messages); agents can't grant themselves permission (ADR 0021).",
     "rest:upload-profile-picture": "Needs a file upload (multipart). Change your picture in Account → Profile.",
 }
 

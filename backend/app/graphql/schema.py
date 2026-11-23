@@ -472,6 +472,12 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "retryGoalStep": "account.write",
         "correct_knowledge": "account.write",
         "correctKnowledge": "account.write",
+        "standing_authorizations": "account.read",
+        "standingAuthorizations": "account.read",
+        "grant_standing_authorization": "account.write",
+        "grantStandingAuthorization": "account.write",
+        "revoke_standing_authorization": "account.write",
+        "revokeStandingAuthorization": "account.write",
         # --- Open Media account link (messages and pitch shorts) ---
         "open_media_link": "account.read",
         "openMediaLink": "account.read",

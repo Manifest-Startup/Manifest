@@ -15,6 +15,7 @@ TASKS = "goal_tasks"
 APPROVALS = "approval_requests"
 FACTS = "knowledge_facts"
 EVENTS = "goal_events"
+GRANTS = "standing_authorizations"
 
 _TIME_FIELDS = (
     "created_at",
@@ -23,6 +24,7 @@ _TIME_FIELDS = (
     "decided_at",
     "next_check_at",
     "source_at",
+    "revoked_at",
 )
 
 

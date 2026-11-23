@@ -113,6 +113,7 @@
 .om-composer-error { margin: 6px 4px 0; font-size: 12px; color: var(--om-danger); }
 
 /* Goals Manifest is working on (GoalsPanel): approvals first, in the inbox's own style. */
+.om-goals:empty { display: none; }
 .om-goals { display: flex; flex-direction: column; gap: 8px; padding: 0 8px 10px; }
 .om-goal { padding: 12px; border-radius: 14px; background: var(--om-chrome); }
 .om-goal-title { font-size: 15px; font-weight: 700; }
@@ -124,3 +125,5 @@
 .om-goal-primary { background: var(--om-text); color: var(--om-surface); }
 .om-goal-secondary { background: var(--om-surface); color: var(--om-text); border: 1px solid var(--om-border); }
 .om-goal-primary:disabled, .om-goal-secondary:disabled { opacity: 0.4; }
+.om-goal-standing { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--om-text-secondary); }
+.om-goal-standing-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }

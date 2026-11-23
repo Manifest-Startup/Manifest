@@ -33,6 +33,10 @@ import type {
   GetMyCollaborationInvitationsData,
   GetMyInboxData,
   GetGoalsData,
+  GetStandingAuthorizationsData,
+  GrantStandingAuthorizationData,
+  GrantStandingAuthorizationVariables,
+  RevokeStandingAuthorizationData,
   DecideApprovalData,
   DecideApprovalVariables,
   GetMyInboxVariables,
@@ -950,6 +954,7 @@ const GOAL_SUMMARY_FIELDS = `
     riskTier
     scopeSha256
     status
+    scope
   }
   report {
     completed
@@ -972,6 +977,45 @@ export const DECIDE_APPROVAL: TypedDocumentNode<DecideApprovalData, DecideApprov
   mutation DecideApproval($approvalId: String!, $approve: Boolean!, $scopeSha256: String!) {
     decideApproval(approvalId: $approvalId, approve: $approve, scopeSha256: $scopeSha256) {
       ${GOAL_SUMMARY_FIELDS}
+    }
+  }
+`;
+
+const STANDING_AUTHORIZATION_FIELDS = `
+  id
+  action
+  recipients
+  maxPerWeek
+  usedThisWeek
+  expiresAt
+`;
+
+export const GET_STANDING_AUTHORIZATIONS: TypedDocumentNode<GetStandingAuthorizationsData, NoVariables> = gql`
+  query GetStandingAuthorizations {
+    standingAuthorizations {
+      ${STANDING_AUTHORIZATION_FIELDS}
+    }
+  }
+`;
+
+export const GRANT_STANDING_AUTHORIZATION: TypedDocumentNode<
+  GrantStandingAuthorizationData,
+  GrantStandingAuthorizationVariables
+> = gql`
+  mutation GrantStandingAuthorization($recipients: [String!]!, $maxPerWeek: Int, $days: Int) {
+    grantStandingAuthorization(recipients: $recipients, maxPerWeek: $maxPerWeek, days: $days) {
+      ${STANDING_AUTHORIZATION_FIELDS}
+    }
+  }
+`;
+
+export const REVOKE_STANDING_AUTHORIZATION: TypedDocumentNode<
+  RevokeStandingAuthorizationData,
+  { authorizationId: string }
+> = gql`
+  mutation RevokeStandingAuthorization($authorizationId: String!) {
+    revokeStandingAuthorization(authorizationId: $authorizationId) {
+      ${STANDING_AUTHORIZATION_FIELDS}
     }
   }
 `;

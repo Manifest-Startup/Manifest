@@ -1,17 +1,33 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 
-import { DECIDE_APPROVAL, GET_GOALS } from "features/core/apollo/queries";
+import {
+  DECIDE_APPROVAL,
+  GET_GOALS,
+  GET_STANDING_AUTHORIZATIONS,
+  GRANT_STANDING_AUTHORIZATION,
+  REVOKE_STANDING_AUTHORIZATION,
+} from "features/core/apollo/queries";
 import type { GoalApproval, GoalSummary } from "features/core/apollo/operationTypes";
 
 const GOALS_POLL_MS = 30_000;
+// The standing approval the card offers: small on purpose, and revocable below.
+const STANDING = { maxPerWeek: 3, days: 30 };
 
 function Approval({ approval, onDecided }: { approval: GoalApproval; onDecided: () => void }) {
   const [decide, { loading }] = useMutation(DECIDE_APPROVAL);
+  const [grant, { loading: granting }] = useMutation(GRANT_STANDING_AUTHORIZATION, {
+    refetchQueries: [{ query: GET_STANDING_AUTHORIZATIONS }],
+  });
   const [error, setError] = useState<string | null>(null);
+  const [standing, setStanding] = useState(false);
+  const recipient = approval.scope?.action === "message.send" ? approval.scope?.to ?? null : null;
   const answer = async (approve: boolean) => {
     setError(null);
     try {
+      if (approve && standing && recipient) {
+        await grant({ variables: { recipients: [recipient], ...STANDING } });
+      }
       await decide({ variables: { approvalId: approval.id, approve, scopeSha256: approval.scopeSha256 } });
       onDecided();
     } catch (err) {
@@ -27,11 +43,17 @@ function Approval({ approval, onDecided }: { approval: GoalApproval; onDecided: 
           {error}
         </p>
       ) : null}
+      {recipient ? (
+        <label className="om-goal-standing">
+          <input type="checkbox" checked={standing} onChange={(e) => setStanding(e.target.checked)} />
+          Don&apos;t ask again for @{recipient} (up to {STANDING.maxPerWeek} a week, {STANDING.days} days)
+        </label>
+      ) : null}
       <div className="om-goal-actions">
-        <button type="button" className="om-goal-primary" disabled={loading} onClick={() => answer(true)}>
+        <button type="button" className="om-goal-primary" disabled={loading || granting} onClick={() => answer(true)}>
           Send
         </button>
-        <button type="button" className="om-goal-secondary" disabled={loading} onClick={() => answer(false)}>
+        <button type="button" className="om-goal-secondary" disabled={loading || granting} onClick={() => answer(false)}>
           Don&apos;t send
         </button>
       </div>
@@ -49,17 +71,56 @@ function line(goal: GoalSummary): string | null {
   return null;
 }
 
+function StandingApprovals() {
+  const { data, refetch } = useQuery(GET_STANDING_AUTHORIZATIONS, { fetchPolicy: "cache-and-network" });
+  const [revoke, { loading }] = useMutation(REVOKE_STANDING_AUTHORIZATION);
+  const rows = data?.standingAuthorizations ?? [];
+  if (rows.length === 0) return null;
+  return (
+    <div className="om-goal" data-testid="standing-approvals">
+      <p className="om-goal-title">Sends without asking</p>
+      {rows.map((row) => (
+        <div key={row.id} className="om-goal-standing-row">
+          <p className="om-goal-note">
+            {row.recipients.map((r) => `@${r}`).join(", ")} · {row.usedThisWeek} of {row.maxPerWeek} this week
+          </p>
+          <button
+            type="button"
+            className="om-goal-secondary"
+            disabled={loading}
+            onClick={async () => {
+              await revoke({ variables: { authorizationId: row.id } });
+              void refetch();
+            }}
+          >
+            Stop
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** What Manifest is doing for the person through Open Media (ADR 0020): messages waiting for
  * their yes, and where each goal stands. Renders nothing when there are no goals. */
 const GoalsPanel: React.FC = () => {
-  const { data, refetch } = useQuery(GET_GOALS, {
+  const { data, previousData, refetch } = useQuery(GET_GOALS, {
     pollInterval: GOALS_POLL_MS,
     fetchPolicy: "cache-and-network",
   });
-  const goals = data?.goals ?? [];
-  if (goals.length === 0) return null;
+  // Keep the last answer on screen while a refetch is in flight, so a card the person is
+  // using never unmounts under their click.
+  const goals = (data ?? previousData)?.goals ?? [];
+  if (goals.length === 0) {
+    return (
+      <section className="om-goals" aria-label="Manifest is working on">
+        <StandingApprovals />
+      </section>
+    );
+  }
   return (
     <section className="om-goals" aria-label="Manifest is working on" data-testid="goals-panel">
+      <StandingApprovals />
       {goals.map((goal) => {
         const pending = goal.approvals.filter((a) => a.status === "pending");
         const status = pending.length ? null : line(goal); // the approval says it all

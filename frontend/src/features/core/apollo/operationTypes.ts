@@ -395,6 +395,34 @@ export interface GoalApproval {
   riskTier: number;
   scopeSha256: string;
   status: string;
+  scope: { to?: string | null; action?: string | null } | null;
+}
+
+export interface StandingAuthorization {
+  id: string;
+  action: string;
+  recipients: string[];
+  maxPerWeek: number;
+  usedThisWeek: number;
+  expiresAt: string | null;
+}
+
+export interface GetStandingAuthorizationsData {
+  standingAuthorizations: StandingAuthorization[];
+}
+
+export interface GrantStandingAuthorizationData {
+  grantStandingAuthorization: StandingAuthorization;
+}
+
+export interface GrantStandingAuthorizationVariables {
+  recipients: string[];
+  maxPerWeek?: number;
+  days?: number;
+}
+
+export interface RevokeStandingAuthorizationData {
+  revokeStandingAuthorization: StandingAuthorization;
 }
 
 export interface GoalReport {
