@@ -408,3 +408,42 @@ def test_a_voice_that_fails_to_load_says_why_and_never_exits(monkeypatch):
 
     monkeypatch.setattr(speech, "text_model_problem", lambda: "the English text model is missing")
     assert voice.load() is False and "text model" in voice.status
+
+
+def test_bridge_sets_what_a_deleted_note_does_in_the_vault(monkeypatch):
+    from manifest_cli import vault_folder
+
+    chosen = []
+
+    def set_on_delete(mode):
+        chosen.append(mode)
+        return {"folder": "/v", "on_delete": mode}
+
+    monkeypatch.setattr(vault_folder, "set_on_delete", set_on_delete)
+    monkeypatch.setattr(vault_folder, "move", lambda place: pytest.fail("must not move"))
+
+    async def run():
+        b = bridge.Bridge(
+            agents.make_agent("cat"), origins=bridge.DEFAULT_ORIGINS, out=io.StringIO()
+        )
+        server = await asyncio.start_server(b.handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        async with server:
+            return await _request(port, _post("/vault/folder", {"on_delete": "keep"}))
+
+    status, _, body = asyncio.run(run())
+    assert status.endswith("200 OK") and json.loads(body)["on_delete"] == "keep"
+    assert chosen == ["keep"]
+
+
+def test_set_on_delete_checks_the_choice(tmp_path, monkeypatch):
+    from manifest_cli import vault_folder
+
+    script = tmp_path / "s.py"
+    script.write_text(
+        "import json, sys\ndef cmd_move(): pass\nprint(json.dumps({'args': sys.argv[1:]}))\n"
+    )
+    monkeypatch.setattr(vault_folder, "_candidates", lambda: [script])
+    assert vault_folder.set_on_delete("Keep") == {"args": ["where", "--json"]}
+    with pytest.raises(vault_folder.VaultFolderError):
+        vault_folder.set_on_delete("shred")

@@ -298,3 +298,126 @@ def test_nothing_is_tidied_without_a_complete_listing(mv, tmp_path):
     mv.apply_export(vault, {"files": [], "paths": ["Manifest/Ideas/Other.md"]}, readmes=False)
     mv.apply_export(vault, {"files": []}, readmes=False)
     assert (vault / "Manifest/Ideas/Kept.md").exists()
+
+
+def idea_file(iid: str, body: str = "idea", mine: str = "") -> str:
+    return f'---\nmanifest_id: "{iid}"\ntype: "idea"\n---\n{BEGIN}\n{body}\n{END}\n{mine}'
+
+
+def _deleted_in_manifest(mv, tmp_path, mode):
+    vault = tmp_path / "vault"
+    files = {
+        "Manifest/Ideas/Gone.md": idea_file("gone", mine="\n## My notes\n\nMy thoughts.\n"),
+        "Manifest/Ideas/Gone plain.md": idea_file("gone2", mine="\n## My notes\n\n"),
+        "Manifest/Ideas/Old title.md": idea_file("live", mine="\n## My notes\n\nKept.\n"),
+        "Manifest/Ideas/Old title 2.md": idea_file("live"),
+    }
+    for rel, text in files.items():
+        (vault / rel).parent.mkdir(parents=True, exist_ok=True)
+        (vault / rel).write_text(text)
+    data = {
+        "files": [
+            {"path": "Manifest/Home.md", "content": generated("home", "home")},
+            {"path": "Manifest/Ideas/New title.md", "content": idea_file("live")},
+        ],
+        "paths": ["Manifest/Home.md", "Manifest/Ideas/New title.md"],
+    }
+    removed: list[str] = []
+    mv.apply_export(vault, data, readmes=False, removed=removed, mode=mode)
+    return vault, removed
+
+
+def test_a_note_deleted_in_manifest_is_deleted_here_by_default(mv, tmp_path, monkeypatch):
+    monkeypatch.setattr(mv, "vault_setting_path", lambda: tmp_path / "vault.json")
+    assert mv.on_delete() == "delete"
+    vault, removed = _deleted_in_manifest(mv, tmp_path, None)
+    assert not (vault / "Manifest/Ideas/Gone.md").exists()
+    assert "My thoughts." in (vault / ".trash/Manifest/Ideas/Gone.md").read_text()
+    assert not (vault / "Manifest/Ideas/Gone plain.md").exists()
+    assert not (vault / ".trash/Manifest/Ideas/Gone plain.md").exists()
+    # Renamed, not deleted: the empty old copy goes, the one you wrote in stays.
+    assert not (vault / "Manifest/Ideas/Old title 2.md").exists()
+    assert (vault / "Manifest/Ideas/Old title.md").exists()
+    assert sorted(removed) == [
+        "Manifest/Ideas/Gone plain.md",
+        "Manifest/Ideas/Gone.md",
+        "Manifest/Ideas/Old title 2.md",
+    ]
+
+
+def test_keep_mode_keeps_copies_of_deleted_notes(mv, tmp_path):
+    vault, removed = _deleted_in_manifest(mv, tmp_path, "keep")
+    assert (vault / "Manifest/Ideas/Gone.md").exists()
+    assert (vault / "Manifest/Ideas/Gone plain.md").exists()
+    assert removed == ["Manifest/Ideas/Old title 2.md"]
+
+
+def test_the_setting_is_saved_beside_the_folder(mv, tmp_path, monkeypatch):
+    monkeypatch.setattr(mv, "vault_setting_path", lambda: tmp_path / "vault.json")
+    mv.save_vault_setting(tmp_path / "v")
+    mv.save_on_delete("keep")
+    mv.save_vault_setting(tmp_path / "w")
+    assert mv.on_delete() == "keep" and mv.saved_vault() == str(tmp_path / "w")
+    with pytest.raises(SystemExit):
+        mv.save_on_delete("shred")
+
+
+class FakeAccount:
+    def __init__(self, export, files=()):
+        self._export, self._files, self.puts, self.exports = export, list(files), [], []
+
+    def export(self, since, fingerprint=None):
+        self.exports.append((since, fingerprint))
+        return self._export
+
+    def files(self, since):
+        return {"serverTime": "2026-11-23T00:00:00+00:00", "files": self._files}
+
+    def put(self, path, content, base):
+        self.puts.append((path, content))
+        return {"status": "saved"}
+
+
+def test_sync_deletes_your_writing_in_a_deleted_note_from_the_account(mv, tmp_path, monkeypatch):
+    monkeypatch.setattr(mv, "vault_setting_path", lambda: tmp_path / "vault.json")
+    vault = tmp_path / "vault"
+    rel = "Manifest/Ideas/Gone.md"
+    (vault / "Manifest/Ideas").mkdir(parents=True)
+    (vault / rel).write_text(idea_file("gone", mine="\n## My notes\n\nMine.\n"))
+    mv.save_state(vault, {"synced": {rel: "abc"}, "fingerprint": "old"})
+    acct = FakeAccount(
+        {
+            "generatedAt": "2026-11-23T00:00:00+00:00",
+            "fingerprint": "new",
+            "paths": ["Manifest/Home.md"],
+            "files": [{"path": "Manifest/Home.md", "content": generated("home", "home")}],
+        }
+    )
+    mv.sync_online(vault, acct)
+    assert (rel, None) in acct.puts
+    state = mv.load_state(vault)
+    assert rel not in state["synced"] and state["fingerprint"] == "new"
+    assert acct.exports[0][1] == "old"
+
+
+def test_keep_mode_keeps_a_note_deleted_in_the_account_without_reuploading(
+    mv, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(mv, "vault_setting_path", lambda: tmp_path / "vault.json")
+    mv.save_on_delete("keep")
+    vault = tmp_path / "vault"
+    (vault / "Notes").mkdir(parents=True)
+    rel = "Notes/Idea.md"
+    (vault / rel).write_text("hello")
+    mv.save_state(vault, {"synced": {rel: mv.sha256("hello")}})
+    empty = {"generatedAt": "x", "files": [], "paths": []}
+    acct = FakeAccount(empty, [{"path": rel, "deleted": True}])
+    mv.sync_online(vault, acct)
+    mine = lambda a: [p for p in a.puts if p[0] == rel]  # noqa: E731
+    assert (vault / rel).exists() and mine(acct) == []
+    acct = FakeAccount(empty)
+    mv.sync_online(vault, acct)
+    assert mine(acct) == []  # still a kept copy: not uploaded again
+    (vault / rel).write_text("hello again")
+    mv.sync_online(vault, acct)
+    assert mine(acct) == [(rel, "hello again")]  # edited: it syncs again

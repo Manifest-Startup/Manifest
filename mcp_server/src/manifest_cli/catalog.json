@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "80fffa9259e3140ac4ec5d3fe7e5e6616fb8c0351b7032bce310ad9275dae6c6",
+ "schema_sha256": "054b43933c4798be410c091c57993b63fd5b27fd902fcf623c784dda2087ad8f",
  "operations": [
   {
    "name": "me",
@@ -1616,14 +1616,23 @@
    "name": "vaultExport",
    "command": "vault-export",
    "kind": "query",
-   "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt to get only ideas changed since then.",
+   "description": "Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the plugin's manifest_vault.py; pass sinceUpdatedAt and the last fingerprint to get nothing when nothing changed (deletions included).",
    "destructive": false,
    "returns": "VaultExport!",
-   "selection": "{ generatedAt root ideaCount files { path content updatedAt } paths }",
+   "selection": "{ generatedAt root ideaCount files { path content updatedAt } paths fingerprint }",
    "args": [
     {
      "name": "sinceUpdatedAt",
      "flag": "--since-updated-at",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "fingerprint",
+     "flag": "--fingerprint",
      "type": "String",
      "kind": "scalar",
      "required": false,

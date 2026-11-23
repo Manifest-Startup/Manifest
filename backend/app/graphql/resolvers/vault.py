@@ -21,14 +21,22 @@ from app.services.ideas import vault as vault_service
 class VaultQuery:
     @strawberry.field
     async def vault_export(
-        self, info: strawberry.Info, since_updated_at: str | None = None
+        self,
+        info: strawberry.Info,
+        since_updated_at: str | None = None,
+        fingerprint: str | None = None,
     ) -> VaultExport:
         """Your ideas, documents, canvas, interviews and skills as Obsidian-ready Markdown files with
         frontmatter and [[wiki-links]] (a knowledge graph). Write them into a local vault with the
-        plugin's manifest_vault.py; pass sinceUpdatedAt to get only ideas changed since then."""
+        plugin's manifest_vault.py; pass sinceUpdatedAt and the last fingerprint to get nothing when
+        nothing changed (deletions included)."""
         user_id = get_current_user_id(info.context["request"])
         data = await asyncio.to_thread(
-            vault_service.build_vault, info.context["db"], str(user_id), since_updated_at
+            vault_service.build_vault,
+            info.context["db"],
+            str(user_id),
+            since_updated_at,
+            fingerprint,
         )
         return VaultExport(
             generated_at=data["generated_at"],
@@ -39,6 +47,7 @@ class VaultQuery:
                 for f in data["files"]
             ],
             paths=data.get("paths") or [],
+            fingerprint=data.get("fingerprint"),
         )
 
     @strawberry.field

@@ -16,7 +16,11 @@ export interface ComputerVault {
   background_sync: boolean;
   /** Named places this computer has: icloud, documents, home → their paths. */
   places: Record<string, string>;
+  /** When a note is deleted in Manifest: delete it from this vault too, or keep a copy here. */
+  on_delete?: OnDelete;
 }
+
+export type OnDelete = 'delete' | 'keep';
 
 export interface MoveResult {
   folder: string;
@@ -68,6 +72,15 @@ export function moveComputerVault(place: string): Promise<MoveResult> {
     },
     150000, // a big vault leaving iCloud can take a while
   );
+}
+
+/** Choose what a note deleted in Manifest does in this computer's vault. */
+export function setComputerVaultOnDelete(onDelete: OnDelete): Promise<ComputerVault> {
+  return call<ComputerVault>({
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ on_delete: onDelete }),
+  });
 }
 
 /** `/Users/me/Library/Mobile Documents/com~apple~CloudDocs/Manifest Vault` → `iCloud Drive › Manifest Vault`. */

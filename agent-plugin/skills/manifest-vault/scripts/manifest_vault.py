@@ -16,6 +16,8 @@ It needs only Python 3.9+ (standard library) and works offline; changes sync whe
     manifest_vault.py move  DEST [--json]         move the vault (``icloud``, ``documents``,
                                                   ``home`` or a path) and remember it
     manifest_vault.py icon                        give the vault folder the Manifest icon (macOS)
+    manifest_vault.py on-delete [delete|keep]     when a note is deleted in Manifest: delete it
+                                                  here too (default) or keep your copy
 
 The vault folder is ``--vault``, else ``$MANIFEST_VAULT``, else the folder saved by ``move`` (in
 ``~/.config/manifest/vault.json``, shared with the ``manifest`` CLI, its bridge and the app), else
@@ -26,8 +28,9 @@ What syncs: ``Manifest/`` comes down from your account. Your own files (``Notes/
 .md, .txt or .canvas file outside ``Manifest/``) and your writing around the generated block in
 ``Manifest/`` files go both ways. Hidden folders (``.obsidian``, ``.trash``) stay on this computer.
 
-Safety: nothing is ever deleted. A file deleted on another computer moves to the vault's
-``.trash/`` here. When the same file changed in two places, both are kept: the other version is
+Deleting: a note deleted in Manifest (the app, another computer, an agent) is deleted here too,
+by default within a minute. Anything you wrote goes to the vault's ``.trash/``, so nothing you
+wrote is lost; ``on-delete keep`` keeps your copies here instead. When the same file changed in two places, both are kept: the other version is
 saved as ``<name> (conflicted copy <computer> <time>).md``. In files Manifest wrote, only the
 frontmatter and the block between the ``manifest:begin``/``manifest:end`` markers are replaced; a
 file without those markers is never overwritten by an export. Paths are confined to the vault.
@@ -171,21 +174,47 @@ def vault_setting_path() -> Path:
     return config_path().parent / "vault.json"
 
 
-def saved_vault() -> str | None:
+def vault_settings() -> dict[str, Any]:
     try:
         data = json.loads(vault_setting_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return None
-    folder = data.get("folder") if isinstance(data, dict) else None
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def saved_vault() -> str | None:
+    folder = vault_settings().get("folder")
     return folder if isinstance(folder, str) and folder.strip() else None
 
 
-def save_vault_setting(folder: Path) -> None:
+def _save_settings(**changes: Any) -> None:
+    data = {**vault_settings(), **changes}
     path = vault_setting_path()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(json.dumps({"folder": str(folder)}, indent=1) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
     os.replace(tmp, path)
+
+
+def save_vault_setting(folder: Path) -> None:
+    _save_settings(folder=str(folder))
+
+
+# What happens here when a note is deleted in Manifest (the app, another computer, an agent):
+# "delete" (the default) removes it from this vault too, into the vault's .trash if you wrote
+# in it; "keep" leaves your copy here, and it no longer syncs unless you edit it again.
+ON_DELETE = ("delete", "keep")
+
+
+def on_delete() -> str:
+    mode = os.environ.get("MANIFEST_VAULT_ON_DELETE") or vault_settings().get("on_delete")
+    return mode if mode in ON_DELETE else "delete"
+
+
+def save_on_delete(mode: str) -> None:
+    if mode not in ON_DELETE:
+        raise SystemExit(f"Choose one of: {', '.join(ON_DELETE)}.")
+    _save_settings(on_delete=mode)
 
 
 def vault_source(arg: str | None) -> tuple[str, str]:
@@ -401,7 +430,14 @@ def save_state(root: Path, state: dict[str, Any]) -> None:
     atomic_write(root / STATE, json.dumps(state, indent=1, sort_keys=True) + "\n")
 
 
-def apply_export(root: Path, data: dict, readmes: bool, out=sys.stdout) -> dict[str, int]:
+def apply_export(
+    root: Path,
+    data: dict,
+    readmes: bool,
+    out=sys.stdout,
+    removed: list[str] | None = None,
+    mode: str | None = None,
+) -> dict[str, int]:
     ensure_branding(root)
     ensure_folder(root, root / "Notes", readmes)
     counts: dict[str, int] = {}
@@ -412,9 +448,11 @@ def apply_export(root: Path, data: dict, readmes: bool, out=sys.stdout) -> dict[
         if result.startswith("kept"):
             print(f"  {item['path']}: {result}", file=out)
     if "Manifest/Home.md" in (data.get("paths") or ()):  # a complete listing only
-        removed = prune_generated(root, set(data["paths"]), out)
-        if removed:
-            counts["removed"] = removed
+        gone = prune_generated(root, set(data["paths"]), out, mode or on_delete())
+        if gone:
+            counts["removed"] = len(gone)
+            if removed is not None:
+                removed.extend(gone)
     return counts
 
 
@@ -426,16 +464,68 @@ PRUNABLE = (
     "Manifest/Skills/",
     "Manifest/Concepts/",
 )
+_MANIFEST_ID = re.compile(r'^manifest_id:\s*"?([^"\n]+?)"?\s*$', re.MULTILINE)
 
 
-def prune_generated(root: Path, current: set[str], out=sys.stdout) -> int:
-    """Remove Manifest's own files that Manifest no longer has (a renamed or deleted idea, a
-    concept nothing mentions any more), so links and Graph view stay true. A file you wrote in,
-    outside the generated block, is never removed."""
-    removed = 0
+def manifest_id(text: str) -> str | None:
+    """The id in a Manifest file's frontmatter (an idea, or the interview's session)."""
+    parts = split_generated(text)
+    match = _MANIFEST_ID.search(parts[0]) if parts else None
+    return match.group(1).strip() if match else None
+
+
+def _read(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _current_ids(root: Path, current: set[str]) -> set[str]:
+    """The ids (ideas, interviews) of every file Manifest has right now."""
+    ids = set()
+    for rel in current:
+        text = _read(root / rel) if rel.startswith(PRUNABLE) else None
+        found = manifest_id(text) if text else None
+        if found:
+            ids.add(found)
+    return ids
+
+
+def _drop_empty_folders(root: Path, base: Path) -> None:
+    """Remove per-idea folders left empty (only Manifest's own README in them)."""
+    for folder in sorted((p for p in base.rglob("*") if p.is_dir()), reverse=True):
+        rel = folder.relative_to(root).as_posix() + "/"
+        if not rel.startswith(PRUNABLE) or rel in PRUNABLE or "/." in f"/{rel}":
+            continue
+        children = list(folder.iterdir())
+        readme = folder / "README.md"
+        ours = not readme.exists() or (_read(readme) or "").startswith(
+            f"# {folder.name}\n\nPart of your Manifest vault"
+        )
+        if ours and all(c.name in (".DS_Store", "README.md") for c in children):
+            for c in children:
+                c.unlink()
+            folder.rmdir()
+
+
+def prune_generated(
+    root: Path, current: set[str], out=sys.stdout, mode: str = "delete"
+) -> list[str]:
+    """Tidy Manifest's own files that Manifest no longer has, so links and Graph view stay true.
+
+    - Renamed idea: the old file goes (Manifest wrote the new one). If you wrote in the old
+      file it is kept, so nothing you wrote is lost.
+    - Deleted idea (its id is gone): with ``mode`` "delete" it goes too, into the vault's
+      .trash when you wrote in it; with "keep" your copy stays here.
+    - Concepts, skills and folders nothing mentions any more always go.
+    Returns the vault paths removed.
+    """
     base = root / "Manifest"
     if not base.is_dir():
-        return 0
+        return []
+    ids = _current_ids(root, current)
+    removed: list[str] = []
     for path in sorted(base.rglob("*.md")):
         rel = path.relative_to(root).as_posix()
         if not rel.startswith(PRUNABLE) or any(p.startswith(".") for p in path.parts):
@@ -445,30 +535,25 @@ def prune_generated(root: Path, current: set[str], out=sys.stdout) -> int:
         )
         if rel in current or original in current:
             continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+        text = _read(path)
+        overlay = overlay_of(text) if text is not None else None
+        if overlay is None:
+            continue  # not Manifest's file
+        written = not trivial_overlay(overlay)
+        fid = manifest_id(text or "")
+        deleted = bool(fid) and fid not in ids
+        if deleted and mode == "keep":
             continue
-        overlay = overlay_of(text)
-        if overlay is None or not trivial_overlay(overlay):
-            if overlay is not None:
-                print(f"  {rel}: kept (you wrote in it; Manifest no longer has it)", file=out)
+        if written and not deleted:
+            print(f"  {rel}: kept (you wrote in it; Manifest no longer has it)", file=out)
             continue
-        path.unlink()
-        removed += 1
-    for folder in sorted((p for p in base.rglob("*") if p.is_dir()), reverse=True):
-        rel = folder.relative_to(root).as_posix() + "/"
-        if not rel.startswith(PRUNABLE) or rel in PRUNABLE:
-            continue
-        children = list(folder.iterdir())
-        readme = folder / "README.md"
-        ours = not readme.exists() or readme.read_text(
-            encoding="utf-8", errors="replace"
-        ).startswith(f"# {folder.name}\n\nPart of your Manifest vault")
-        if ours and all(c.name in (".DS_Store", "README.md") for c in children):
-            for c in children:
-                c.unlink()
-            folder.rmdir()
+        if written:
+            to_trash(root, rel)
+            print(f"  {rel}: moved to .trash (deleted in Manifest)", file=out)
+        else:
+            path.unlink()
+        removed.append(rel)
+    _drop_empty_folders(root, base)
     return removed
 
 
@@ -675,14 +760,32 @@ class Account:
             raise SystemExit(f"Manifest: {message}")
         return body.get("data") or {}
 
-    def export(self, since: str | None) -> dict:
-        q = "query($s:String){vaultExport(sinceUpdatedAt:$s){generatedAt paths files{path content}}}"
-        try:
-            return self.graphql(q, {"s": since})["vaultExport"]
-        except SystemExit as exc:  # an older Manifest without `paths`: sync, just don't tidy
-            if "paths" not in str(exc):
-                raise
-            return self.graphql(q.replace(" paths", ""), {"s": since})["vaultExport"]
+    def export(self, since: str | None, fingerprint: str | None = None) -> dict:
+        """The vault files; with the last fingerprint, nothing at all when nothing changed."""
+        attempts = [
+            (
+                "query($s:String,$f:String){vaultExport(sinceUpdatedAt:$s,fingerprint:$f)"
+                "{generatedAt fingerprint paths files{path content}}}",
+                {"s": since, "f": fingerprint},
+            ),
+            # Older Manifest servers: without the fingerprint, then without `paths`.
+            (
+                "query($s:String){vaultExport(sinceUpdatedAt:$s){generatedAt paths files{path content}}}",
+                {"s": since},
+            ),
+            (
+                "query($s:String){vaultExport(sinceUpdatedAt:$s){generatedAt files{path content}}}",
+                {"s": since},
+            ),
+        ]
+        for i, (query, variables) in enumerate(attempts):
+            try:
+                return self.graphql(query, variables)["vaultExport"]
+            except SystemExit as exc:
+                unknown = "fingerprint" in str(exc) or "paths" in str(exc)
+                if not unknown or i == len(attempts) - 1:
+                    raise
+        raise SystemExit("Manifest: the vault export failed.")
 
     def files(self, since: str | None) -> dict:
         q = (
@@ -756,10 +859,15 @@ def pull_files(root: Path, acct: Account, state: dict, report: list[str]) -> Non
         mine = local.get(rel)
         mine_sha = sha256(mine[1]) if mine else None
         if remote.get("deleted"):
-            # Unchanged here: move it to .trash. Edited here: keep it; it uploads as new.
+            # Unchanged here: deleted here too (into .trash), unless you chose to keep copies.
+            # Edited here: keep it; your edit wins and it uploads as new.
             if mine and mine_sha == base and mine[0] == "file":
-                to_trash(root, rel)
-                report.append(f"moved to .trash (deleted on another computer): {rel}")
+                if on_delete() == "keep":
+                    state.setdefault("kept", {})[rel] = mine_sha
+                    report.append(f"kept your copy (deleted in Manifest): {rel}")
+                else:
+                    to_trash(root, rel)
+                    report.append(f"moved to .trash (deleted in Manifest): {rel}")
             _record(state, rel, None)
             continue
         theirs = remote.get("content") or ""
@@ -781,11 +889,15 @@ def pull_files(root: Path, acct: Account, state: dict, report: list[str]) -> Non
 
 def pending_changes(root: Path, state: dict) -> tuple[dict[str, tuple[str, str]], list[str]]:
     synced = state.get("synced") or {}
+    kept = state.get("kept") or {}
     local = local_files(root)
+    for rel in [r for r in kept if r not in local or sha256(local[r][1]) != kept[r]]:
+        kept.pop(rel)  # edited (it syncs again) or removed: no longer a kept copy
     changed = {
         rel: item
         for rel, item in local.items()
         if sha256(item[1]) != synced.get(rel)
+        and kept.get(rel) != sha256(item[1])
         and not (item[0] == "overlay" and rel not in synced and trivial_overlay(item[1]))
     }
     gone = [rel for rel in synced if rel not in local and not rel.startswith("Manifest/")]
@@ -845,8 +957,18 @@ def sync_online(
     report: list[str] = []
     try:
         if export:
-            data = acct.export(None if full else state.get("last_sync"))
-            counts = apply_export(root, data, readmes, out=sys.stderr)
+            data = acct.export(
+                None if full else state.get("last_sync"),
+                None if full else state.get("fingerprint"),
+            )
+            removed: list[str] = []
+            counts = apply_export(root, data, readmes, out=sys.stderr, removed=removed)
+            if data.get("fingerprint"):
+                state["fingerprint"] = data["fingerprint"]
+            for rel in removed:  # your writing in a deleted idea's note leaves the account too
+                if rel in state["synced"]:
+                    acct.put(rel, None, state["synced"][rel])
+                    _record(state, rel, None)
             changed = sum(n for k, n in counts.items() if k != "unchanged")
             if changed:
                 report.append(
@@ -953,10 +1075,11 @@ def cmd_sync(ns: argparse.Namespace) -> int:
 
 
 def cmd_watch(ns: argparse.Namespace) -> int:
-    """The background loop: export every few minutes, your files every `interval` seconds,
+    """The background loop: Manifest's changes and your files every `interval` seconds,
     and local edits within seconds. Offline or signed out, it waits and retries."""
     root = vault_dir(ns.vault)
-    acct_interval, export_interval = max(10, ns.interval), max(60, ns.interval * 10)
+    # Exports are cheap when nothing changed (the fingerprint), so check as often as files.
+    acct_interval = export_interval = max(10, ns.interval)
     next_export = next_files = 0.0
     signature: tuple = ()
     told_signed_out = False
@@ -1313,6 +1436,22 @@ def cmd_move(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_on_delete(ns: argparse.Namespace) -> int:
+    """Show or set what happens here when a note is deleted in Manifest."""
+    if ns.mode:
+        save_on_delete(ns.mode)
+    mode = on_delete()
+    if ns.json:
+        print(json.dumps({"on_delete": mode, "choices": list(ON_DELETE)}))
+    elif mode == "delete":
+        print(
+            "Notes deleted in Manifest are deleted from this vault too (into .trash if you wrote in them)."
+        )
+    else:
+        print("Notes deleted in Manifest stay in this vault as your own copies.")
+    return 0
+
+
 def cmd_where(ns: argparse.Namespace) -> int:
     raw, source = vault_source(ns.vault)
     root = Path(raw).expanduser().resolve()
@@ -1329,6 +1468,7 @@ def cmd_where(ns: argparse.Namespace) -> int:
                 "icloud": in_icloud(root),
                 "icloud_available": ICLOUD_DRIVE.is_dir(),
                 "background_sync": service.exists(),
+                "on_delete": on_delete(),
                 "places": {
                     k: str(v) for k, v in PLACES.items() if k != "icloud drive" and v.is_dir()
                 },
@@ -1467,6 +1607,13 @@ def main(argv: list[str] | None = None) -> int:
     note.add_argument("--tag", action="append")
     note.add_argument("text", nargs="?", default="-", help="note text, or - for stdin")
     sub.add_parser("since", parents=[common], help="print the last export time")
+    od = sub.add_parser(
+        "on-delete",
+        parents=[common],
+        help="what happens here when a note is deleted in Manifest: delete (default) or keep",
+    )
+    od.add_argument("mode", nargs="?", choices=ON_DELETE)
+    od.add_argument("--json", action="store_true")
     where = sub.add_parser("where", parents=[common], help="print the vault folder")
     where.add_argument("--json", action="store_true", help="folder, source and places as JSON")
     move = sub.add_parser("move", parents=[common], help="move the vault folder and remember it")
@@ -1476,6 +1623,7 @@ def main(argv: list[str] | None = None) -> int:
     ns = parser.parse_args(argv)
     commands = {
         "where": cmd_where,
+        "on-delete": cmd_on_delete,
         "move": cmd_move,
         "icon": cmd_icon,
         "sync": cmd_sync,

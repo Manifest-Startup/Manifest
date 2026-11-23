@@ -85,8 +85,21 @@ def _run(*args: str, timeout: float = 120) -> dict[str, Any]:
 
 
 def where() -> dict[str, Any]:
-    """{"folder", "source", "exists", "icloud", "icloud_available", "background_sync", "places"}"""
+    """{"folder", "source", "exists", "icloud", "icloud_available", "background_sync", "places",
+    "on_delete"}"""
     return _run("where")
+
+
+ON_DELETE = ("delete", "keep")
+
+
+def set_on_delete(mode: str) -> dict[str, Any]:
+    """When a note is deleted in Manifest: "delete" it from this vault too, or "keep" a copy."""
+    mode = (mode or "").strip().lower()
+    if mode not in ON_DELETE:
+        raise VaultFolderError("Choose delete (remove it here too) or keep (keep your copy).")
+    _run("on-delete", mode)
+    return where()
 
 
 def move(dest: str) -> dict[str, Any]:
