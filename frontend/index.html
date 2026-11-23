@@ -3,6 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Before anything paints: the saved theme's background, and the crawler text hidden, so a
+         refresh never flashes a white page (ThemeContext keeps the same class afterwards). -->
+    <script>
+      (function () {
+        var root = document.documentElement;
+        root.className += " js";
+        try {
+          var saved = localStorage.getItem("manifest_theme");
+          var dark = saved === "dark" || (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) root.className += " dark";
+          root.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html { background: #ffffff; }
+      html.dark { background: #161617; }
+      html.js .manifest-static-shell {
+        position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+      }
+    </style>
     <!-- First paint matches the system theme; ThemeContext then follows the in-app theme. -->
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#161617" media="(prefers-color-scheme: dark)" />

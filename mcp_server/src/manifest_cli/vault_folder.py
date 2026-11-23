@@ -108,3 +108,23 @@ def move(dest: str) -> dict[str, Any]:
     if not dest:
         raise VaultFolderError("Say where to move the vault: icloud, documents, home or a path.")
     return _run("move", dest)
+
+
+def sync_now(timeout: float = 55) -> dict[str, Any]:
+    """Run one two-way sync of this computer's vault now (pull-to-refresh in the app)."""
+    script = script_path()
+    try:
+        done = subprocess.run(
+            [sys.executable, str(script), "sync"], capture_output=True, text=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise VaultFolderError(
+            "Syncing the vault took too long; it keeps syncing in the background."
+        ) from exc
+    lines = (done.stdout or "").strip().splitlines()
+    if done.returncode == 3:  # offline: changes wait and sync later
+        return {"ok": False, "offline": True, "report": lines}
+    if done.returncode != 0:
+        message = (done.stderr or done.stdout).strip().splitlines()
+        raise VaultFolderError(message[-1] if message else "The vault sync failed.")
+    return {"ok": True, "report": lines}
