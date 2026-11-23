@@ -28,7 +28,8 @@ def test_catalog_matches_the_agent_plugin_and_core_tools_exist():
 def test_model_sees_core_tools_plus_meta_tools_not_the_whole_catalog():
     names = [d["name"] for d in tools.model_tool_definitions()]
     assert {"find_tools", "use_tool", "show_in_app", "end_conversation"} <= set(names)
-    assert len(names) < 25 < len(tools.load_catalog())
+    # Goals (ADR 0020) added three everyday tools; keep the per-turn list short.
+    assert len(names) < 28 < len(tools.load_catalog())
 
 
 @pytest.mark.parametrize(

@@ -52,6 +52,9 @@ CORE_TOOLS: tuple[str, ...] = (
     "research_market",
     "find_prospects",
     "draft_outreach",
+    "goals",
+    "start_outreach_goal",
+    "decide_approval",
     "report_feedback",
 )
 
@@ -111,6 +114,12 @@ TOOL_LABELS: dict[str, str] = {
     "exclude_prospects": "Updating the prospect list",
     "draft_outreach": "Drafting the emails",
     "create_outreach_email_drafts": "Saving drafts to Gmail",
+    "goals": "Checking your goals",
+    "goal": "Checking the goal",
+    "start_outreach_goal": "Preparing the outreach",
+    "decide_approval": "Recording your decision",
+    "advance_goal": "Moving the goal forward",
+    "correct_knowledge": "Correcting what Manifest knows",
     "save_customer_discovery": "Saving the customer research",
     "delete_idea": "Deleting the idea",
     "toggle_publish_idea": "Changing who can see the idea",
