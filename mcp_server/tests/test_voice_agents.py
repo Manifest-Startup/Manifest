@@ -226,8 +226,10 @@ def test_the_voice_persona_sounds_like_a_person_and_stays_short():
     persona = agents.VOICE_PERSONA
     for rule in ("one breath", "React first", "never fawning", "Praise only what's earned"):
         assert rule in persona
-    assert "never name or guess their feelings" in persona
-    assert len(persona) < 1100  # sent once per call, so it stays cheap
+    assert "never name or guess their feelings" in persona.lower()
+    assert "don't end every reply with a question" in persona  # Hume EVI
+    assert "say plainly you're an AI" in persona  # Pi, Hume
+    assert len(persona) < 1300  # sent once per call, so it stays cheap
     assert agents.VOICE_STYLE.startswith(persona)
 
 

@@ -39,6 +39,8 @@ export const FINAL_SETTLE_MS = 350;
 export const INTERIM_SETTLE_MS = 700;
 const NUDGE_AFTER_MS = 3000;
 /** Said while a slow answer is on its way; varied so it doesn't sound like a machine. */
+/** Below this a tone cue is too weak to pass on (measured: an early baseline misread a calm turn at 0.22). */
+export const MIN_TONE_CONFIDENCE = 0.3;
 export const HOLD_ON = ['One moment.', 'Let me think.', 'Hang on, looking.', 'Give me a second.'];
 /** While the natural voice is still loading, look again this often (and switch to it). */
 /** For this long after it stops talking, words that repeat what it said are its own echo. */
@@ -178,8 +180,9 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     if (interim) recognitionRef.current?.restart(); // its "final" for these words would repeat them
     // How it was said, compared with how this person sounded earlier (opt-in, on this device).
     const cue = text ? (meterRef.current?.take(text.split(/\s+/).length) ?? null) : null;
-    // A turn that sounds like their usual self adds nothing: send no cue (no extra tokens).
-    const tone = cue && cue.label !== 'steady' ? cue : null;
+    // A turn that sounds like their usual self, or a weak reading (an early baseline), adds
+    // nothing: send no cue, so no extra tokens (the bridge drops these too).
+    const tone = cue && cue.label !== 'steady' && cue.confidence >= MIN_TONE_CONFIDENCE ? cue : null;
     if (text) void turn(text, tone);
   }, [turn]);
 
