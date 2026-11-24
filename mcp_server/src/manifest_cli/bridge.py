@@ -339,6 +339,7 @@ class Bridge:
             self.pool.refresh()  # a new conversation may pick up the agent used last
         return {
             "ok": True,
+            "pid": os.getpid(),  # tells a restarted bridge from the one it replaced
             "agent": self.agent.name,
             **self.pool.status(),
             "voice": self.voice_url,
@@ -888,23 +889,28 @@ def install(
     return code
 
 
-def wait_for_bridge(port: int, attempts: int = 60) -> dict[str, Any] | None:
+def wait_for_bridge(
+    port: int, attempts: int = 60, *, not_pid: int | None = None
+) -> dict[str, Any] | None:
+    """The bridge's /health once it answers; with `not_pid`, only a new process counts (the
+    old one can still answer for a moment after launchd was told to restart it)."""
     for _ in range(attempts):
         health = setup.bridge_health(port, timeout=1.0)
-        if health is not None:
+        if health is not None and (not_pid is None or health.get("pid") != not_pid):
             return health
         time.sleep(0.5)
     return None
 
 
 def restart(*, out: TextIO, port: int = DEFAULT_PORT) -> int:
+    before = (setup.bridge_health(port) or {}).get("pid")
     done = subprocess.run(
         ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{LAUNCH_LABEL}"], capture_output=True
     )
     if done.returncode:
         out.write("The bridge isn't installed as a login item: `manifest bridge --install`.\n")
         return 1
-    health = wait_for_bridge(port)
+    health = wait_for_bridge(port, not_pid=before)
     out.write(
         f"Restarted: {health.get('agent')} {'ready' if health.get('ready', True) else 'not ready'}.\n"
         if health
