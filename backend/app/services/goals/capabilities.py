@@ -23,6 +23,7 @@ from app.security.ai_safety import looks_like_injection_attempt, wrap_untrusted
 from app.services.goals import extraction, knowledge, store
 from app.services.integrations.open_media import identity, messaging, settings
 from app.services.integrations.open_media.client import OpenMediaError, get_client, pick
+from app.utils.logger import logger
 
 REPLY_CHECK_EVERY = timedelta(minutes=15)
 REPLY_WAIT_DEFAULT_DAYS = 7
@@ -150,7 +151,32 @@ def _prepare_message(ctx: Context, data: dict[str, Any]) -> Outcome:
         "purpose": str(data.get("purpose") or "")[:300],
         "channel": "open_media",
     }
-    return Outcome("completed", result, {"verified": True, "how": "Draft saved in the plan"})
+    draft_id = _mirror_draft(ctx, handle, body)
+    if draft_id:
+        result["open_media_draft_id"] = draft_id
+        how = "Draft saved in the plan and in your Open Media conversation"
+    else:
+        how = "Draft saved in the plan"
+    return Outcome("completed", result, {"verified": True, "how": how})
+
+
+def _mirror_draft(ctx: Context, handle: str, body: str) -> str | None:
+    """Best effort: show the draft in an Open Media conversation the person already has with
+    this person, so they see it where they read their messages. Never opens a conversation
+    (the other person could see that) and never fails the step. The approval still covers
+    the text held here; edits made in Open Media are not what gets sent."""
+    try:
+        conversation_id = messaging.existing_conversation_with(ctx.user_id, handle)
+        if not conversation_id:
+            return None
+        draft = messaging.save_draft(ctx.user_id, conversation_id, body=body, ref=ctx.task["id"])
+        return str(draft.get("id") or "") or None
+    except Exception as exc:  # older Open Media without drafts, or a network hiccup
+        logger.info(
+            "goal draft not mirrored to Open Media",
+            extra={"exception.type": type(exc).__name__, "goal_id": ctx.goal.get("id")},
+        )
+        return None
 
 
 # --- message.send (tier 2) --------------------------------------------------------------------
@@ -224,6 +250,15 @@ def _send_message(ctx: Context, data: dict[str, Any]) -> Outcome:
             {"verified": False, "how": "Message not found in the conversation after sending"},
             error="Open Media accepted the message but it isn't in the conversation yet.",
         )
+    draft_id = (data.get("draft") or {}).get("open_media_draft_id")
+    if draft_id:
+        try:  # the message is sent; its draft copy in Open Media is no longer needed
+            messaging.discard_draft(ctx.user_id, str(draft_id))
+        except Exception as exc:
+            logger.info(
+                "goal draft not discarded in Open Media",
+                extra={"exception.type": type(exc).__name__, "goal_id": ctx.goal.get("id")},
+            )
     return Outcome(
         "completed", result, {"verified": True, "how": "Message is in the Open Media conversation"}
     )

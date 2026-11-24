@@ -56,7 +56,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 ## Backlog (in order: risk, then value)
 
 1. First live outreach send, to a recipient the owner names.
-2. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
+2. Open Media drafts: the API is open-media PR #19 (ADR 0045), and Manifest mirrors a prepared message into an existing Open Media conversation once it is live. Still to do: the composer UI that shows drafts, and delivery status.
 3. Inbound extraction for the general inbox (goal replies are done).
 4. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
 5. Retention policy for `goal_events` and superseded `knowledge_facts`.

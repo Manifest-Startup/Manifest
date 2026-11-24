@@ -121,6 +121,36 @@ def send_message(
     return _message(response.get("message") or {}, conversation_id)
 
 
+def existing_conversation_with(user_id: str, handle: str) -> str | None:
+    """The id of a direct conversation the person already has with ``handle``, or None.
+    Never opens one: a new conversation could show up for the other person."""
+    wanted = (handle or "").lstrip("@").lower()
+    for conversation in list_conversations(user_id, app_only=False):
+        other = conversation.get("other") or {}
+        if (
+            conversation.get("kind") == "direct"
+            and str(other.get("handle") or "").lower() == wanted
+        ):
+            return conversation["id"] or None
+    return None
+
+
+def save_draft(user_id: str, conversation_id: str, *, body: str, ref: str) -> dict[str, Any]:
+    """Saves (or updates, by ``ref``) an unsent draft in Open Media (open-media ADR 0045)."""
+    response = get_client().connected(
+        user_id,
+        "POST",
+        f"/conversations/{quote(conversation_id, safe='')}/drafts",
+        json={"body": body, "app": settings.APP_TAG, "ref": ref},
+        idempotent=True,
+    )
+    return response.get("draft") or {}
+
+
+def discard_draft(user_id: str, draft_id: str) -> None:
+    get_client().connected(user_id, "DELETE", f"/drafts/{quote(draft_id, safe='')}")
+
+
 def mark_read(user_id: str, conversation_id: str) -> bool:
     get_client().connected(
         user_id, "POST", f"/conversations/{quote(conversation_id, safe='')}/read", idempotent=True
