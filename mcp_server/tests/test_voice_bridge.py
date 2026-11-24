@@ -153,6 +153,10 @@ def test_install_retries_until_the_old_bridge_has_stopped(tmp_path, monkeypatch)
     from manifest_cli import bridge_tls
 
     monkeypatch.setattr(bridge_tls, "ensure", lambda **_k: True)  # no real keychain in tests
+    # Never the person's real bridge on 47821: the installed one answers ready.
+    monkeypatch.setattr(
+        bridge.setup, "bridge_health", lambda *_a, **_k: {"ready": True, "agent": "Claude Code"}
+    )
     out = io.StringIO()
     assert bridge.install(["--agent", "claude"], out=out) == 0
     assert calls.count("bootstrap") == 3

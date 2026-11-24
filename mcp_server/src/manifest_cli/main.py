@@ -13,6 +13,7 @@ import json
 import sys
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import quote
 
@@ -591,6 +592,15 @@ def cmd_voice(ctx: Context, argv: list[str]) -> int:
         problem = missing_agent(agent)
         if problem:
             raise CliError(problem)
+        from pathlib import Path as _Path
+
+        from manifest_cli import bridge_setup
+
+        if ns.agent.strip().lower() == "codex" and not bridge_setup.codex_trusts(_Path.cwd()):
+            raise CliError(
+                "Codex only answers inside a project it trusts (a Git repository). "
+                "Run this from your project folder."
+            )
     elif ns.continue_last or ns.resume or ns.agent_arg:
         raise CliError("--continue, --resume and --agent-arg go with --agent.")
     return voice.run(
@@ -814,21 +824,29 @@ def cmd_github(ctx: Context, argv: list[str]) -> int:
 
 def cmd_bridge(ctx: Context, argv: list[str]) -> int:
     from manifest_cli import bridge
-    from manifest_cli.agents import make_agent, missing_agent
+    from manifest_cli import bridge_setup as setup
 
     parser = _sub(
         "bridge",
         BUILTINS["bridge"],
         epilog="Keep it running, then use voice in the Manifest web app or the installed app:\n"
         "the browser listens and speaks, your agent answers. Only Manifest's own pages can\n"
-        "reach it, on 127.0.0.1. Example: manifest bridge --agent claude --continue",
+        "reach it, on 127.0.0.1. Set up once with --install: it saves your agents and folders,\n"
+        'answers with the agent you used last, and you can say "switch to Codex" any time.\n'
+        "Example: manifest bridge --install --agent codex --workdir ~/Projects/myapp",
     )
     parser.add_argument(
         "--agent",
-        default="auto",
+        default=None,
         metavar="AGENT",
-        help="auto (Claude Code if installed, else Codex; default), claude, codex, "
+        help="active (the agent you used last on this computer; default), claude, codex, "
         "or a command that reads the turn on stdin",
+    )
+    parser.add_argument(
+        "--workdir",
+        metavar="DIR",
+        help="the project folder the agent works in (Codex needs a project it trusts: a Git "
+        "repository; Claude Code's sessions are per folder)",
     )
     parser.add_argument(
         "--model",
@@ -840,30 +858,50 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         "--continue",
         dest="continue_last",
         action="store_true",
-        help="continue the agent's newest session in this folder (incl. VS Code)",
+        help="continue the agent's newest session in its folder (incl. VS Code)",
     )
     parser.add_argument("--resume", metavar="SESSION", help="resume this agent session")
     parser.add_argument(
         "--agent-arg",
         action="append",
-        default=[],
+        default=None,
         metavar="ARG",
         help="extra argument for the agent, repeatable",
     )
-    parser.add_argument("--port", type=int, default=bridge.DEFAULT_PORT, help="local port")
+    parser.add_argument("--port", type=int, default=None, help="local port (default 47821)")
     parser.add_argument(
         "--origin",
         action="append",
-        default=[],
+        default=None,
         metavar="URL",
         help="also allow this app origin (e.g. a self-hosted Manifest)",
     )
     parser.add_argument(
         "--install",
         action="store_true",
-        help="start the bridge at login and keep it running (macOS), with these options",
+        help="save these settings, start the bridge at login and keep it running (macOS), "
+        "then check that the agent can answer",
     )
     parser.add_argument("--uninstall", action="store_true", help="stop starting it at login")
+    parser.add_argument(
+        "--use",
+        metavar="AGENT",
+        help="switch the agent that answers: claude, codex, or active (the one you used last); "
+        "the running bridge switches at once and remembers it",
+    )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help="check everything voice needs (agents, folders, sign-in, bridge, Safari, voice) "
+        "and say what to do next",
+    )
+    parser.add_argument(
+        "--probe",
+        action="store_true",
+        help="with --doctor: also send each agent one short test turn",
+    )
+    parser.add_argument("--restart", action="store_true", help="restart the login item")
+    parser.add_argument("--config", metavar="FILE", help=argparse.SUPPRESS)  # the login item
     parser.add_argument(
         "--check-voice",
         action="store_true",
@@ -887,25 +925,189 @@ def cmd_bridge(ctx: Context, argv: list[str]) -> int:
         return bridge.set_cartesia_key(out=ctx.out)
     if ns.check_voice:
         return bridge.check_voice(out=ctx.out)
-    agent = make_agent(
-        ns.agent,
-        extra_args=ns.agent_arg,
-        resume=ns.resume,
-        continue_last=ns.continue_last,
-        model=ns.model,
-    )
-    problem = missing_agent(agent)
-    if problem:
-        raise CliError(problem)
+    saved_path = Path(ns.config).expanduser() if ns.config else setup.settings_path()
+    if ns.restart:
+        current = setup.load(saved_path)
+        return bridge.restart(out=ctx.out, port=current.port if current else bridge.DEFAULT_PORT)
+    try:
+        settings, explicit = _bridge_settings(ns, saved_path)
+    except ValueError as exc:
+        raise CliError(str(exc)) from exc
+    if ns.use:
+        return _bridge_use(ctx, settings, ns.use, saved_path)
+    if ns.doctor:
+        return _bridge_doctor(ctx, settings, run_probe=ns.probe)
     if ns.install:
-        args = ["--agent", ns.agent, "--port", str(ns.port)]
-        args += ["--continue"] if ns.continue_last else []
-        args += ["--resume", ns.resume] if ns.resume else []
-        args += [f"--agent-arg={a}" for a in ns.agent_arg] + [f"--origin={o}" for o in ns.origin]
-        args += [f"--voice={ns.voice}"] if ns.voice else []
-        args += [f"--model={ns.model}"] if ns.model else []
-        return bridge.install(args, out=ctx.out)
-    return bridge.run(agent, port=ns.port, extra_origins=ns.origin, out=ctx.out, voice=ns.voice)
+        _ask_for_codex_folder(ctx, settings)
+        if not settings.agents:
+            raise CliError(
+                "Manifest voice needs Claude Code or Codex on this computer first: "
+                "https://claude.com/claude-code or https://developers.openai.com/codex"
+            )
+        try:
+            setup.save(settings, saved_path)
+        except (OSError, ValueError) as exc:
+            raise CliError(f"Couldn't save the bridge settings: {exc}") from exc
+        default = settings.agents.get(settings.default)
+        return bridge.install(
+            ["--config", str(saved_path)],
+            out=ctx.out,
+            workdir=default.folder if default else None,
+            port=settings.port,
+        )
+    if not settings.agents:
+        raise CliError("No agent found: install Claude Code or Codex, or pass --agent.")
+    pool = bridge.AgentPool(settings, save_to=None if explicit else saved_path)
+    return bridge.run(
+        pool, port=settings.port, extra_origins=settings.origins, out=ctx.out, voice=settings.voice
+    )
+
+
+def _bridge_settings(ns: argparse.Namespace, saved_path: Path) -> tuple[Any, bool]:
+    """The settings to use, and whether options on the command line changed them.
+
+    One source of truth: the saved file (or, from an older install, the login item's own
+    options), with this command's options on top. Without options the foreground bridge
+    runs exactly what the login item runs."""
+    from manifest_cli import bridge_setup as setup
+
+    explicit = any(
+        v is not None and v is not False
+        for v in (
+            ns.agent,
+            ns.workdir,
+            ns.model,
+            ns.continue_last or None,
+            ns.resume,
+            ns.agent_arg,
+            ns.port,
+            ns.origin,
+            ns.voice,
+        )
+    )
+    saved = _saved_bridge_settings(saved_path, required=bool(ns.config))
+    fresh = saved is None
+    settings = saved or setup.BridgeSettings()
+    if explicit and not (ns.install or ns.use or ns.doctor):
+        settings = setup.BridgeSettings()  # a one-off foreground run: exactly these options
+        fresh = True
+    key = setup.agent_key(ns.agent) if ns.agent else settings.default
+    if fresh or ns.install:
+        for found in setup.installed_agents():  # every agent here, ready to switch to
+            if key == setup.ACTIVE or not ns.agent or ns.install:
+                settings.agents.setdefault(found, setup.AgentProfile())
+    targets = list(settings.agents) if key == setup.ACTIVE else [key]
+    for target in targets:
+        _apply_agent_options(settings.profile(target), ns)
+    codex = settings.agents.get("codex")
+    if codex and not codex.workdir:
+        codex.workdir = setup.suggested_folder("codex")
+    settings.default = key
+    if ns.port:
+        settings.port = ns.port
+    if ns.origin is not None:
+        settings.origins = [o.rstrip("/") for o in ns.origin]
+    if ns.voice:
+        settings.voice = ns.voice
+    settings.validate()
+    return settings, explicit
+
+
+def _saved_bridge_settings(saved_path: Path, *, required: bool) -> Any:
+    from manifest_cli import bridge_setup as setup
+
+    saved = setup.load(saved_path)
+    if saved is None and required:
+        raise ValueError(f"Can't read the bridge settings in {saved_path}.")
+    if saved is None:
+        old = setup.installed_args()
+        if old and not setup.uses_saved_settings(old):
+            saved = setup.settings_from_args(old)  # an older install: keep its choice
+    return saved
+
+
+def _apply_agent_options(profile: Any, ns: argparse.Namespace) -> None:
+    if ns.workdir:
+        profile.workdir = str(Path(ns.workdir).expanduser().resolve())
+    if ns.model:
+        profile.model = ns.model
+    if ns.continue_last:
+        profile.continue_last = True
+    if ns.resume:
+        profile.resume = ns.resume
+    if ns.agent_arg is not None:
+        profile.agent_args = list(ns.agent_arg)
+
+
+def _ask_for_codex_folder(ctx: Context, settings: Any) -> None:
+    """Codex answers only in a project it trusts: ask which one (never widen its trust)."""
+    from manifest_cli import bridge_setup as setup
+
+    codex = settings.agents.get("codex")
+    if not codex or setup.codex_trusts(codex.folder):
+        return
+    interactive = hasattr(ctx.stdin, "isatty") and ctx.stdin.isatty()
+    ctx.out.write(
+        f"Codex only answers inside a project it trusts (a Git repository); {codex.folder} "
+        "isn't one. Manifest won't change Codex's trust settings or bypass its check.\n"
+    )
+    if not interactive:
+        ctx.out.write(
+            'Choose one with: manifest bridge --install --agent codex --workdir "/path/to/project"\n'
+        )
+        return
+    ctx.out.write("Which project folder should Codex work in? (Enter to set it up later) ")
+    ctx.out.flush()
+    answer = ctx.stdin.readline().strip()
+    if not answer:
+        return
+    folder = Path(answer).expanduser().resolve()
+    root = setup.git_root(folder) if folder.is_dir() else None
+    if root is None:
+        ctx.out.write(f"{folder} isn't a Git repository, so Codex won't run there; skipped.\n")
+        return
+    codex.workdir = str(root)
+    ctx.out.write(f"Codex will work in {root}.\n")
+
+
+def _bridge_use(ctx: Context, settings: Any, wanted: str, saved_path: Path) -> int:
+    from manifest_cli import bridge_setup as setup
+
+    key = setup.agent_key(wanted)
+    if key != setup.ACTIVE:
+        profile = settings.agents.get(key)
+        if profile is None:
+            profile = settings.profile(key)
+            profile.workdir = setup.suggested_folder(key)
+        problems = setup.check_agent(key, profile)
+        if problems:
+            for problem in problems:
+                ctx.out.write(f"Not switched: {problem.message}\n  Next: {problem.fix}\n")
+            return 1
+    settings.default = key
+    setup.save(settings, saved_path)
+    told = setup.tell_bridge(settings.port, key)
+    name = "the agent you use most recently" if key == setup.ACTIVE else setup.agent_name(key)
+    if told and not told.get("error"):
+        ctx.out.write(f"Voice now answers with {name} (now {told.get('agent')}); saved.\n")
+    elif told and told.get("error"):
+        ctx.out.write(f"Saved, but the bridge says: {told['error'].get('message')}\n")
+        return 1
+    else:
+        ctx.out.write(f"Saved: voice answers with {name} when the bridge starts.\n")
+    return 0
+
+
+def _bridge_doctor(ctx: Context, settings: Any, *, run_probe: bool) -> int:
+    from manifest_cli import bridge_setup as setup
+
+    marks = {"ok": "✓", "warn": "!", "fail": "✗"}
+    rows = setup.doctor(settings, run_probe=run_probe)
+    for status, name, detail in rows:
+        ctx.out.write(f"{marks[status]} {name}: {detail}\n")
+    failed = any(status == "fail" for status, _, _ in rows)
+    ctx.out.write("Something needs fixing (see ✗ above).\n" if failed else "Voice is ready.\n")
+    return 1 if failed else 0
 
 
 def cmd_completion(ctx: Context, argv: list[str]) -> int:

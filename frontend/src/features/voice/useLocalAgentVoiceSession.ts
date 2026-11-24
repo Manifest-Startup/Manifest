@@ -11,6 +11,7 @@ import {
   isBargeIn,
   isEcho,
   NATURAL_VOICE_MISSING_NOTE,
+  bridgeNotReadyMessage,
   naturalVoiceMissing,
   probeBridge,
   runBridgeTurn,
@@ -221,6 +222,12 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
         type: 'error',
         error: { kind: 'setup', message: `Connect Claude Code or Codex on this Mac once: ${VOICE_SETUP_COMMAND}` },
       });
+      return;
+    }
+    const notReady = bridgeNotReadyMessage(bridge);
+    if (notReady) {
+      // The bridge runs but its agent can't answer (issue #132): say what to do, don't fail later.
+      dispatch({ type: 'error', error: { kind: 'setup', message: notReady } });
       return;
     }
     activeRef.current = true;

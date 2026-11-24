@@ -12,7 +12,9 @@ Safety: it listens on 127.0.0.1 only and answers only pages from Manifest's own 
 drive your agent. The agent keeps its own permission rules (Claude Code is read-only by
 default here; see ``agents.py``).
 
-    GET  /health   {"ok": true, "agent": "Claude Code", "voice": ws url | null, "interrupt": true}
+    GET  /health   {"ok", "agent", "agent_id", "ready", "problems": [{code, message, fix}], "agents",
+                    "choice", "folder", "voice", "interrupt", "speech", "speech_status"}
+    POST /agent    {"agent": "codex" | "claude" | "active"} → switch now (saved); 409 + error if not ready
     POST /turn     {"text": "...", "context": {"path", "idea_id", "idea_title"}}
                    → newline-delimited JSON: {"kind": "say"|"tool"|"error", "text"}…
                      then {"kind": "done"}. Closing the connection early interrupts the
@@ -32,6 +34,7 @@ import contextlib
 import json
 import os
 import plistlib
+import re
 import subprocess
 import sys
 import threading
@@ -39,6 +42,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
+from manifest_cli import bridge_setup as setup
 from manifest_cli import speech
 from manifest_cli.speech import Voice
 
@@ -76,10 +80,199 @@ def describe_context(context: Any) -> str:
     return f"(In the Manifest app, the person is on {path}.)" if path else ""
 
 
+_SWITCH = re.compile(
+    r"^\W*(?:ok(?:ay)?\W+|hey\W+|please\W+)*(?:switch|change|go back|move|hand (?:it )?over)"
+    r"(?:\s+(?:over|back))?\s+to\s+(claude(?:\s+code)?|codex)\b"
+    r"|^\W*(?:please\W+)?(?:use|talk to)\s+(claude(?:\s+code)?|codex)(?:\s+(?:now|instead))?\W*$",
+    re.IGNORECASE,
+)
+# A new conversation after this long picks the agent used most recently again.
+IDLE_RESELECT_S = 120.0
+HANDOFF_TURNS = 12
+
+
+def switch_request(text: str) -> str | None:
+    """ "Switch to Codex", "use Claude Code instead" → the agent's key; else None."""
+    match = _SWITCH.search(text.strip())
+    if not match:
+        return None
+    return "codex" if "codex" in (match.group(1) or match.group(2) or "").lower() else "claude"
+
+
+class AgentPool:
+    """The agents set up for voice (issue #132). One answers at a time: the one the person
+    chose, or by default the one they used most recently on this computer. Each agent keeps
+    its own session, and a switch hands the new agent this conversation so far, so it picks
+    up where the other left off."""
+
+    def __init__(
+        self,
+        settings: setup.BridgeSettings | None = None,
+        *,
+        agent: LocalAgent | None = None,
+        save_to: Path | None = None,
+    ) -> None:
+        from collections import deque
+
+        self.settings = settings or setup.BridgeSettings()
+        self.save_to = save_to  # persist switches here (the saved settings file)
+        self.live: dict[str, LocalAgent] = {}
+        self.problems: dict[str, list[setup.Problem]] = {}
+        self.history: deque[tuple[str, str]] = deque(maxlen=HANDOFF_TURNS * 2)
+        self.handoff: dict[str, str] = {}  # agent key → conversation to hand it on its next turn
+        self.last_turn = 0.0
+        self.current_key: str | None = None
+        if agent is not None:  # one fixed agent (tests, `manifest voice`)
+            key = _key_of(agent)
+            self.live[key], self.current_key = agent, key
+            self.settings.agents.setdefault(key, setup.AgentProfile(workdir=agent.cwd or ""))
+            self.settings.default = key
+            self.problems[key] = []
+
+    def check(self, *, auth: bool = True) -> None:
+        for key, profile in self.settings.agents.items():
+            if key not in self.live or key not in self.problems:
+                self.problems[key] = setup.check_agent(key, profile, auth=auth)
+
+    def ready_keys(self) -> list[str]:
+        return [k for k in self.settings.agents if not self.problems.get(k)]
+
+    def resolve(self) -> str | None:
+        """The agent that answers next."""
+        choice = self.settings.default
+        if choice != setup.ACTIVE:
+            return choice  # chosen explicitly: never silently another agent
+        ready = self.ready_keys()
+        return (
+            setup.active_agent(ready)
+            or (ready[0] if ready else None)
+            or next(iter(self.settings.agents), None)
+        )
+
+    def refresh(self) -> None:
+        """A new conversation: pick the agent used most recently again (when not chosen)."""
+        if self.settings.default != setup.ACTIVE:
+            self.select(self.settings.default)
+        elif time.monotonic() - self.last_turn > IDLE_RESELECT_S or self.current_key is None:
+            key = self.resolve()
+            if key:
+                self.select(key)
+
+    def select(self, key: str) -> None:
+        if key == self.current_key:
+            return
+        previous = self.current_key
+        self.current_key = key
+        if previous and self.history:
+            lines = "\n".join(f"{who}: {text}" for who, text in self.history)
+            self.handoff[key] = (
+                f"(This voice conversation in Manifest was with {setup.agent_name(previous)} "
+                f"until now; the person switched to you. Here it is so far, so you can carry on "
+                f"where it left off without asking again:\n{lines}\n)"
+            )
+
+    def switch(self, key: str) -> setup.Problem | None:
+        """Switch now (and remember it): by voice, in the app or `manifest bridge --use`."""
+        key = setup.agent_key(key)
+        if key != setup.ACTIVE:
+            if key not in self.settings.agents:
+                if key not in setup.KNOWN_AGENTS:
+                    return setup.Problem(
+                        setup.NO_AGENT, f"{key} isn't an agent.", "Say Claude Code or Codex."
+                    )
+                profile = setup.AgentProfile(workdir=setup.suggested_folder(key))
+                self.settings.agents[key] = profile
+                self.problems.pop(key, None)
+            self.problems.pop(key, None)  # check again: the person may have fixed it
+            self.check()
+            if self.problems.get(key):
+                return self.problems[key][0]
+        self.settings.default = key
+        if self.save_to:
+            with contextlib.suppress(OSError, ValueError):
+                setup.save(self.settings, self.save_to)
+        target = self.resolve()
+        if target:
+            self.select(target)
+        return None
+
+    def agent(self, key: str | None = None) -> LocalAgent:
+        key = key or self.current_key or self.resolve() or "claude"
+        if key not in self.live:
+            from manifest_cli.agents import make_agent
+
+            profile = self.settings.agents.get(key) or setup.AgentProfile()
+            self.live[key] = make_agent(
+                key,
+                extra_args=profile.agent_args,
+                resume=profile.resume,
+                continue_last=profile.continue_last,
+                model=profile.model,
+                cwd=str(profile.folder),
+            )
+        if self.current_key is None:
+            self.current_key = key
+        return self.live[key]
+
+    def prompt_for(self, key: str, prompt: str) -> str:
+        handoff = self.handoff.pop(key, "")
+        return f"{handoff}\n\n{prompt}" if handoff else prompt
+
+    def remember(self, who: str, text: str) -> None:
+        if text.strip():
+            self.history.append((who, " ".join(text.split())[:600]))
+
+    def status(self) -> dict[str, Any]:
+        key = self.current_key or self.resolve()
+        problems = (
+            self.problems.get(key or "", [])
+            if key
+            else [
+                setup.Problem(
+                    setup.NO_AGENT, "No agent is set up.", "Run `manifest bridge --install`."
+                )
+            ]
+        )
+        return {
+            "agent_id": key,
+            "choice": self.settings.default,
+            "ready": key is not None and not problems,
+            "problems": [p.public() for p in problems],
+            "folder": (self.settings.agents.get(key or "") or setup.AgentProfile()).folder.name
+            if key
+            else None,
+            "agents": [
+                {
+                    "id": k,
+                    "name": setup.agent_name(k),
+                    "ready": not self.problems.get(k),
+                    "problem": (self.problems.get(k) or [None])[0].message  # type: ignore[union-attr]
+                    if self.problems.get(k)
+                    else None,
+                }
+                for k in self.settings.agents
+            ],
+        }
+
+    def stop(self) -> None:
+        for agent in self.live.values():
+            agent.stop()
+
+
+def _key_of(agent: LocalAgent) -> str:
+    from manifest_cli.agents import ClaudeCodeAgent, CodexAgent, CommandAgent
+
+    if isinstance(agent, ClaudeCodeAgent):
+        return "claude"
+    if isinstance(agent, CodexAgent):
+        return "codex"
+    return agent.shell_command if isinstance(agent, CommandAgent) else agent.name
+
+
 class Bridge:
     def __init__(
         self,
-        agent: LocalAgent,
+        agent: LocalAgent | AgentPool,
         *,
         origins: tuple[str, ...],
         out: TextIO,
@@ -87,13 +280,36 @@ class Bridge:
         speech: Voice | None = None,
         speech_problem: str | None = None,
     ) -> None:
-        self.agent, self.origins, self.out = agent, origins, out
+        self.pool = agent if isinstance(agent, AgentPool) else AgentPool(agent=agent)
+        self.origins, self.out = origins, out
         self.voice_url = voice_url  # the local Pipecat voice, when it runs here
         self.speech = speech  # Kokoro on the Apple GPU, for /speak
         # Why there's no natural voice on a Mac that could have one (a reinstall without the
         # natural-voice extra, issue #108); None when it's off on purpose or not possible.
         self.speech_problem = speech_problem
         self.lock = asyncio.Lock()
+
+    @property
+    def agent(self) -> LocalAgent:
+        """The agent answering now."""
+        return self.pool.agent()
+
+    def _health(self) -> dict[str, Any]:
+        if not self.lock.locked():
+            self.pool.refresh()  # a new conversation may pick up the agent used last
+        return {
+            "ok": True,
+            "agent": self.agent.name,
+            **self.pool.status(),
+            "voice": self.voice_url,
+            "interrupt": True,  # a hung-up /turn stops the agent's answer
+            # The natural voice (POST /speak), once its model has loaded.
+            "speech": self.speech.voice if self.speech and self.speech.ready else None,
+            # "ready", "loading", or what's wrong; the app upgrades once it's ready.
+            "speech_status": getattr(self.speech, "status", "ready")
+            if self.speech
+            else (self.speech_problem or "off"),
+        }
 
     def _cors(self, origin: str) -> list[str]:
         return [
@@ -150,25 +366,16 @@ class Bridge:
         if method == "OPTIONS":
             send("204 No Content", cors)
         elif method == "GET" and path == "/health":
-            body = json.dumps(
-                {
-                    "ok": True,
-                    "agent": self.agent.name,
-                    "voice": self.voice_url,
-                    "interrupt": True,  # a hung-up /turn stops the agent's answer
-                    # The natural voice (POST /speak), once its model has loaded.
-                    "speech": self.speech.voice if self.speech and self.speech.ready else None,
-                    # "ready", "loading", or what's wrong; the app upgrades once it's ready.
-                    "speech_status": getattr(self.speech, "status", "ready")
-                    if self.speech
-                    else (self.speech_problem or "off"),
-                }
-            ).encode()
+            body = json.dumps(self._health()).encode()
             send("200 OK", [*cors, "Content-Type: application/json"], body)
-        elif path in ("/vault/folder", "/vault/sync") and method in ("GET", "POST"):
+        elif (path, method) == ("/agent", "POST") or (
+            path in ("/vault/folder", "/vault/sync") and method in ("GET", "POST")
+        ):
             length = int(headers.get("content-length") or 0)
             status, body = await (
-                self._vault_sync(method)
+                self._switch_agent(reader, length)
+                if path == "/agent"
+                else self._vault_sync(method)
                 if path == "/vault/sync"
                 else self._vault_folder(method, reader, length)
             )
@@ -188,6 +395,22 @@ class Bridge:
         else:
             send("404 Not Found", cors)
         await writer.drain()
+
+    async def _switch_agent(
+        self, reader: asyncio.StreamReader, length: int
+    ) -> tuple[str, dict[str, Any]]:
+        """The app (or `manifest bridge --use`) switches the agent that answers."""
+        if length <= 0 or length > MAX_BODY:
+            return "413 Payload Too Large", {"error": 'Send {"agent": ...}.'}
+        payload = json.loads(await reader.readexactly(length))
+        key = str(payload.get("agent") or "") if isinstance(payload, dict) else ""
+        async with self.lock:  # never mid-answer
+            problem = self.pool.switch(key)
+        if not problem:
+            self.out.write(f"agent  now {self.agent.name}\n")
+            self.out.flush()
+        body = {**self._health(), "error": problem.public() if problem else None}
+        return ("409 Conflict" if problem else "200 OK"), body
 
     async def _speak(
         self, path: str, reader: asyncio.StreamReader, length: int
@@ -271,18 +494,46 @@ class Bridge:
         self.out.write(f"you  {text}\n")
         self.out.flush()
         async with self.lock:  # one turn at a time, in order
+            self.pool.refresh()
+            wanted = switch_request(text)
+            if wanted:
+                problem = self.pool.switch(wanted)
+                said = (
+                    f"{setup.agent_name(wanted)} isn't ready: {problem.message} {problem.fix}"
+                    if problem
+                    else f"Okay, you're talking to {self.agent.name} now. It knows what we said."
+                )
+                await emit("error" if problem else "say", said)
+                self.pool.remember("Manifest", said)
+                await emit("done")
+                return
+            key = self.pool.current_key or self.pool.resolve() or ""
+            agent = self.pool.agent(key or None)
+            problems = self.pool.problems.get(key) or []
+            if problems:  # don't start an agent that can't answer; say what to do instead
+                await emit("error", f"{problems[0].message} {problems[0].fix}")
+                await emit("done")
+                return
+            self.pool.remember("Person", text)
+            spoken: list[str] = []
             watcher = asyncio.ensure_future(link.watch())
             try:
-                async for kind, value in self.agent.turn(prompt):
+                async for kind, value in agent.turn(self.pool.prompt_for(key, prompt)):
+                    if kind == "error":
+                        profile = self.pool.settings.agents.get(key) or setup.AgentProfile()
+                        value = setup.explain_agent_error(key, value, profile.folder)
                     if kind in ("say", "tool", "error") and not link.gone:
                         await emit(kind, value)
                         if kind == "say":
-                            self.out.write(f"{self.agent.name.lower()}  {value}\n")
+                            spoken.append(value)
+                            self.out.write(f"{agent.name.lower()}  {value}\n")
                             self.out.flush()
             except FileNotFoundError:
-                await emit("error", f"Could not start {self.agent.name}.")
+                await emit("error", f"Could not start {agent.name}.")
             finally:
                 watcher.cancel()
+                self.pool.remember(agent.name, " ".join(spoken))
+                self.pool.last_turn = time.monotonic()
         await emit("done")
 
 
@@ -320,7 +571,7 @@ class _TurnLink:
 
 
 async def serve(
-    agent: LocalAgent,
+    agent: LocalAgent | AgentPool,
     *,
     port: int = DEFAULT_PORT,
     origins: tuple[str, ...] = DEFAULT_ORIGINS,
@@ -329,6 +580,10 @@ async def serve(
 ) -> None:
     from manifest_cli import local_voice
 
+    pool = agent if isinstance(agent, AgentPool) else AgentPool(agent=agent)
+    pool.check()
+    pool.refresh()
+    agent = pool.agent()
     # The natural voice: the browser hears, Kokoro on the Apple GPU speaks (POST /speak).
     no_speech = speech.supported() if voice != "browser" else "browser voice chosen"
 
@@ -353,24 +608,22 @@ async def serve(
     # Missing packages on Apple silicon is a broken install, not a choice: say so to the app.
     fixable = bool(no_speech) and no_speech.startswith("install")
     bridge = Bridge(
-        agent,
+        pool,
         origins=origins,
         out=out,
         voice_url=voice_url,
         speech=spoken,
         speech_problem=f"natural voice not installed: {no_speech}" if fixable else None,
     )
-    server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
+    try:
+        server = await asyncio.start_server(bridge.handle, "127.0.0.1", port)
+    except OSError as exc:
+        raise BridgeError(port_in_use(port)) from exc
     # HTTPS too, for Safari (it won't call http://127.0.0.1 from a secure page).
     from manifest_cli import bridge_tls
 
-    tls = bridge_tls.server_context()
-    secure = (
-        await asyncio.start_server(bridge.handle, "127.0.0.1", bridge_tls.HTTPS_PORT, ssl=tls)
-        if tls
-        else None
-    )
-    warm = getattr(agent, "start", None)
+    secure = await _start_https(bridge, out)
+    warm = getattr(agent, "start", None) if pool.status()["ready"] else None
     if warm is not None:
         await warm()  # Claude Code: start once now, so the first turn is quick
     voice_task = None
@@ -381,8 +634,24 @@ async def serve(
                 agent, origins=origins, voice=voice or local_voice.DEFAULT_VOICE, out=out
             )
         )
+    status = pool.status()
+    names = ", ".join(a["name"] for a in status["agents"]) or "none"
+    folder = (pool.settings.agents.get(pool.current_key or "") or setup.AgentProfile()).folder
+    lead = "the agent you used last, now " if pool.settings.default == setup.ACTIVE else ""
     out.write(
-        f"Manifest can now talk to {agent.name} on this computer (http://127.0.0.1:{port}).\n"
+        f"Bridge listening on http://127.0.0.1:{port}. Agents set up: {names}.\n"
+        f"Answers with {lead}{agent.name}, in {folder}.\n"
+    )
+    for item in status["agents"]:
+        if item["problem"]:
+            fix = pool.problems[item["id"]][0].fix
+            out.write(f"Not ready: {item['name']}: {item['problem']} {fix}\n")
+    out.write(
+        (
+            f"{agent.name} is ready to answer.\n"
+            if status["ready"]
+            else f"{agent.name} can't answer yet (see above); voice will say why.\n"
+        )
         + (
             "Voice: Cartesia (Pipecat's voice), with Kokoro as the fallback.\n"
             if key
@@ -397,7 +666,7 @@ async def serve(
             if secure
             else "Safari needs `manifest bridge --install` (HTTPS); Chrome works as is.\n"
         )
-        + "Open Manifest and tap the voice button; no OpenAI key needed. Ctrl-C to stop.\n"
+        + 'Open Manifest and tap the voice button; say "switch to Codex" (or Claude) any time.\n'
     )
     out.flush()
     async with server:
@@ -408,7 +677,40 @@ async def serve(
                 voice_task.cancel()
             if secure:
                 secure.close()
-            agent.stop()
+            pool.stop()
+
+
+async def _start_https(bridge: Bridge, out: TextIO) -> asyncio.Server | None:
+    from manifest_cli import bridge_tls
+
+    tls = bridge_tls.server_context()
+    if not tls:
+        return None
+    try:
+        return await asyncio.start_server(
+            bridge.handle, "127.0.0.1", bridge_tls.HTTPS_PORT, ssl=tls
+        )
+    except OSError:  # another bridge holds it (a second, foreground one): HTTP only
+        out.write(f"HTTPS port {bridge_tls.HTTPS_PORT} is in use; Safari uses the other bridge.\n")
+        return None
+
+
+class BridgeError(Exception):
+    """A setup problem with a plain message and the next step."""
+
+
+def port_in_use(port: int) -> str:
+    health = setup.bridge_health(port)
+    if health:
+        return (
+            f"A Manifest bridge is already running on port {port} (with {health.get('agent')}). "
+            "Switch agents with `manifest bridge --use codex` (or claude), restart it with "
+            "`manifest bridge --restart`, or stop the login item with `manifest bridge --uninstall`."
+        )
+    return (
+        f"Port {port} is in use by another program. Quit it, or choose another port with --port "
+        "(the app looks on 47821, so self-hosted setups only)."
+    )
 
 
 LAUNCH_LABEL = "com.manifeststartup.bridge"
@@ -419,7 +721,12 @@ def launch_agent_path() -> Path:
 
 
 def launch_agent_plist(
-    args: list[str], *, path_env: str, log: Path, launcher: Path | None = None
+    args: list[str],
+    *,
+    path_env: str,
+    log: Path,
+    launcher: Path | None = None,
+    workdir: Path | None = None,
 ) -> dict[str, Any]:
     """A login item that keeps `manifest bridge` running (restarted if it stops). With a
     `launcher` (macos_app), it runs as "Manifest Bridge", which may use an iCloud vault."""
@@ -429,7 +736,9 @@ def launch_agent_plist(
         "ProgramArguments": [*program, "-m", "manifest_cli", "bridge", *args],
         "RunAtLoad": True,
         "KeepAlive": True,
-        "WorkingDirectory": str(Path.home()),
+        # The agent's own folder comes from the saved settings; this is only where the
+        # bridge process itself starts.
+        "WorkingDirectory": str(workdir or Path.home()),
         "EnvironmentVariables": {"PATH": path_env},
         "StandardOutPath": str(log),
         "StandardErrorPath": str(log),
@@ -461,8 +770,11 @@ def _bootstrap_when_unloaded(
         time.sleep(1.0)
 
 
-def install(args: list[str], *, out: TextIO) -> int:
-    """Run the bridge at login (macOS LaunchAgent), replacing an earlier install."""
+def install(
+    args: list[str], *, out: TextIO, workdir: Path | None = None, port: int = DEFAULT_PORT
+) -> int:
+    """Run the bridge at login (macOS LaunchAgent), replacing an earlier install, and wait
+    until it answers: "Done" only once the installed bridge itself says it is ready."""
     if sys.platform != "darwin":
         out.write(
             "--install sets up a macOS login item. Elsewhere, run `manifest bridge` at startup.\n"
@@ -485,17 +797,66 @@ def install(args: list[str], *, out: TextIO) -> int:
     app = macos_app.launcher("Manifest Bridge", LAUNCH_LABEL)
     with plist.open("wb") as handle:
         plistlib.dump(
-            launch_agent_plist(args, path_env=os.environ.get("PATH", ""), log=log, launcher=app),
+            launch_agent_plist(
+                args,
+                path_env=os.environ.get("PATH", ""),
+                log=log,
+                launcher=app,
+                workdir=workdir,
+            ),
             handle,
         )
     started = _bootstrap_when_unloaded(domain, plist)
     if started.returncode != 0:
         out.write(f"Could not start it: {started.stderr.strip() or started.returncode}\n")
         return 1
+    out.write("The Manifest bridge now starts when you log in and stays running.\n")
+    health = wait_for_bridge(port)
+    if health is None:
+        out.write(f"It hasn't answered yet; see {log}, or run `manifest bridge --doctor`.\n")
+        return 1
+    code = 0
+    if health.get("ready", True):
+        folder = f" · {health['folder']}" if health.get("folder") else ""
+        out.write(f"Ready: {health.get('agent')}{folder} · voice works with no key.\n")
+    else:
+        code = 1
+        for problem in health.get("problems") or []:
+            out.write(f"Not ready: {problem.get('message')}\n  Next: {problem.get('fix')}\n")
+    others = [a for a in health.get("agents") or [] if a.get("id") != health.get("agent_id")]
+    for item in others:
+        state = "ready" if item.get("ready") else f"not ready ({item.get('problem')})"
+        out.write(
+            f'Also set up: {item.get("name")}, {state}. Say "switch to {item.get("name")}".\n'
+        )
     out.write(
-        "The Manifest bridge now starts when you log in and stays running.\n"
-        f"Voice in Manifest talks to your agent with no key. Log: {log}\n"
-        "Undo with: manifest bridge --uninstall\n"
+        f"Log: {log}\nCheck: manifest bridge --doctor · Switch: manifest bridge --use codex|claude|active\n"
+        "Undo: manifest bridge --uninstall\n"
+    )
+    return code
+
+
+def wait_for_bridge(port: int, attempts: int = 60) -> dict[str, Any] | None:
+    for _ in range(attempts):
+        health = setup.bridge_health(port, timeout=1.0)
+        if health is not None:
+            return health
+        time.sleep(0.5)
+    return None
+
+
+def restart(*, out: TextIO, port: int = DEFAULT_PORT) -> int:
+    done = subprocess.run(
+        ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{LAUNCH_LABEL}"], capture_output=True
+    )
+    if done.returncode:
+        out.write("The bridge isn't installed as a login item: `manifest bridge --install`.\n")
+        return 1
+    health = wait_for_bridge(port)
+    out.write(
+        f"Restarted: {health.get('agent')} {'ready' if health.get('ready', True) else 'not ready'}.\n"
+        if health
+        else "Restarted, but it hasn't answered yet: `manifest bridge --doctor`.\n"
     )
     return 0
 
@@ -543,14 +904,26 @@ def uninstall(*, out: TextIO) -> int:
     plist = launch_agent_path()
     if plist.exists():
         plist.unlink()
-    out.write("The Manifest bridge no longer starts at login.\n")
+    out.write(
+        "The Manifest bridge no longer starts at login (its saved settings stay in "
+        f"{setup.settings_path()}, so reinstalling keeps your agents).\n"
+    )
     return 0
 
 
 def run(
-    agent: LocalAgent, *, port: int, extra_origins: list[str], out: TextIO, voice: str | None = None
+    agent: LocalAgent | AgentPool,
+    *,
+    port: int,
+    extra_origins: list[str],
+    out: TextIO,
+    voice: str | None = None,
 ) -> int:
     origins = DEFAULT_ORIGINS + tuple(o.rstrip("/") for o in extra_origins)
-    with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(serve(agent, port=port, origins=origins, out=out, voice=voice))
+    try:
+        with contextlib.suppress(KeyboardInterrupt):
+            asyncio.run(serve(agent, port=port, origins=origins, out=out, voice=voice))
+    except BridgeError as exc:
+        out.write(f"{exc}\n")
+        return 1
     return 0

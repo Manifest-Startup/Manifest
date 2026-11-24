@@ -42,6 +42,19 @@ export interface BridgeInfo {
   speech: string | null;
   /** "ready", "loading", "off", or what's wrong with the natural voice. */
   speechStatus?: string;
+  /** False when the agent can't answer yet (e.g. Codex has no trusted project); see `problem`. */
+  ready: boolean;
+  /** Why it can't answer, and the next step (issue #132). */
+  problem: { message: string; fix: string } | null;
+  /** Every agent set up on this computer; say "switch to Codex" to change. */
+  agents: { id: string; name: string; ready: boolean }[];
+}
+
+/** The one line to show when the bridge runs but its agent can't answer yet. */
+export function bridgeNotReadyMessage(bridge: BridgeInfo): string | null {
+  if (bridge.ready) return null;
+  const problem = bridge.problem;
+  return problem ? `${problem.message} ${problem.fix}` : `${bridge.agent} can't answer yet. Run: manifest bridge --doctor`;
 }
 
 export type BridgeEvent = { kind: 'say' | 'tool' | 'error'; text: string } | { kind: 'done'; text: string };
@@ -62,12 +75,33 @@ async function probeAt(base: string, signal: AbortSignal): Promise<BridgeInfo | 
       interrupt?: boolean;
       speech?: string | null;
       speech_status?: string;
+      ready?: boolean;
+      problems?: { message?: unknown; fix?: unknown }[];
+      agents?: { id?: unknown; name?: unknown; ready?: unknown }[];
     };
     const voice = typeof body.voice === 'string' && /^ws:\/\/127\.0\.0\.1:\d+$/.test(body.voice) ? body.voice : null;
     const speech = typeof body.speech === 'string' && body.speech ? body.speech : null;
     const speechStatus = typeof body.speech_status === 'string' ? body.speech_status.slice(0, 300) : undefined;
+    const first = Array.isArray(body.problems) ? body.problems[0] : undefined;
+    const problem =
+      first && typeof first.message === 'string'
+        ? { message: first.message.slice(0, 400), fix: typeof first.fix === 'string' ? first.fix.slice(0, 400) : '' }
+        : null;
+    const agents = (Array.isArray(body.agents) ? body.agents : [])
+      .filter(a => typeof a.id === 'string' && typeof a.name === 'string')
+      .map(a => ({ id: String(a.id), name: String(a.name), ready: Boolean(a.ready) }));
     return body.ok
-      ? { agent: body.agent || 'Your agent', voice, interrupt: Boolean(body.interrupt), speech, speechStatus }
+      ? {
+          agent: body.agent || 'Your agent',
+          voice,
+          interrupt: Boolean(body.interrupt),
+          speech,
+          speechStatus,
+          // Older bridges don't say; they were ready whenever they answered.
+          ready: body.ready !== false,
+          problem,
+          agents,
+        }
       : null;
   } catch {
     return null; // not running, or (Safari) plain HTTP to this computer is blocked

@@ -40,20 +40,28 @@ manifest voice --text                # type instead (needs only websockets)
 
 ### Voice in the app with no OpenAI key: `manifest bridge`
 
-Set it up from nothing in one step (installs the CLI with uv and starts the bridge at login):
+Set it up from nothing in one step (installs the CLI with uv, sets up every agent it finds and starts the bridge at login):
 
 ```bash
 curl -fsSL https://manifeststartup.com/voice.sh | sh
+curl -fsSL https://manifeststartup.com/voice.sh | sh -s -- --agent codex --workdir ~/Projects/app
 ```
 
 ```bash
-manifest bridge                            # Claude Code (or Codex if that's what's installed) answers voice
-manifest bridge --agent codex              # or Codex, or any command (as for `voice --agent`)
-manifest bridge --agent claude --continue  # pick up your newest Claude Code session here
+manifest bridge --install                  # save the settings, start at login (HTTPS for Safari), wait until the agent can answer
+manifest bridge --install --agent codex --workdir ~/Projects/app   # Codex, in a project it trusts
+manifest bridge --use codex                # switch the agent that answers (claude, codex, or active); the running bridge switches at once
+manifest bridge --doctor [--probe]         # check agents, folders, sign-in, bridge, Safari and voice; --probe sends each agent a test turn
+manifest bridge --restart | --uninstall    # restart the login item, or stop starting it at login (settings are kept)
+manifest bridge                            # run in the foreground with exactly the saved settings
+manifest bridge --agent claude --continue  # a one-off foreground run with these options (not saved)
 manifest bridge --model default            # keep the agent's own model (voice uses Claude's haiku by default, for speed)
-manifest bridge --install                  # macOS: start it at login and keep it running, with HTTPS for Safari (--uninstall undoes)
 manifest bridge --cartesia-key             # speak in Cartesia's voice, as in Pipecat's demos (key kept in the Keychain)
 ```
+
+**Several agents, one bridge ([ADR 0023](adr/0023-one-bridge-several-agents.md)).** The settings live in `~/.config/manifest/bridge.json` (mode 0600), and the login item, the foreground bridge and the app all use the same file, so restarts and upgrades keep your agents, folders and options. By default (`active`) voice answers with the agent you used most recently on this computer, judged from the time of each agent's newest session file (their contents are never read). Say "switch to Codex" or "go back to Claude", or run `manifest bridge --use codex`, to switch. The new agent gets the conversation so far, so it carries on without asking again, and each agent keeps its own session when you switch back. An agent you chose by name is never silently replaced by another.
+
+**Codex and trust.** `codex exec` only answers inside a project it trusts, which means a Git repository. The bridge runs Codex in the folder you choose (`--workdir`; by default the project of your newest Codex session). It never passes `--skip-git-repo-check` and never changes Codex's own trust settings. If the folder isn't a project, setup says so and stops short of "Ready". The bridge only says it is ready once the agent's checks pass: installed, signed in, and a folder it can work in. `/health` reports `ready`, `problems` (`code`, `message`, `fix`) and `agents`, and the app shows the next step instead of failing on the first question.
 
 The browser listens, and on Apple silicon the answer is spoken in Kokoro's natural `af_heart` voice, made on the GPU (`pip install 'manifest-mcp[natural-voice]'`; the setup command installs it). Elsewhere the browser's own voice speaks. The first word comes about 3–4 s after you stop talking (2–3 s with the browser's voice). `--voice NAME` picks another Kokoro voice, and `--voice browser` turns it off. You can talk over it: it stops speaking, interrupts the agent, and takes your new question. Tapping the orb or pressing Space also stops it. See [ADR 0017](adr/0017-voice-feels-instant.md).
 

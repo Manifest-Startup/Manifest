@@ -4,6 +4,10 @@
 # runs `manifest bridge` at login. Safe to run again: it updates and restarts the bridge.
 #
 #   curl -fsSL https://manifeststartup.com/voice.sh | sh
+#   curl -fsSL https://manifeststartup.com/voice.sh | sh -s -- --agent codex --workdir ~/Projects/app
+#
+# Every agent found (Claude Code, Codex) is set up; voice answers with the one you used last,
+# and you can say "switch to Codex" any time. Options after `--` go to `manifest bridge --install`.
 #
 # The bridge listens on 127.0.0.1 only and answers only Manifest's own pages.
 # Undo: manifest bridge --uninstall && uv tool uninstall manifest-mcp
@@ -11,11 +15,10 @@ set -eu
 
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 
-if command -v claude >/dev/null 2>&1; then
-  agent="Claude Code"
-elif command -v codex >/dev/null 2>&1; then
-  agent="Codex"
-else
+found=""
+command -v claude >/dev/null 2>&1 && found="Claude Code"
+command -v codex >/dev/null 2>&1 && found="${found:+${found} and }Codex"
+if [ -z "${found}" ]; then
   say "Manifest voice needs Claude Code or Codex on this computer first."
   echo "  Claude Code: https://claude.com/claude-code"
   echo "  Codex:       https://developers.openai.com/codex"
@@ -45,9 +48,19 @@ if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
 fi
 
 if [ "$(uname -s)" = "Darwin" ]; then
-  say "Connecting Manifest voice to ${agent}…"
-  manifest bridge --install
-  say "Done. Go back to Manifest: voice connects by itself (the natural voice downloads once, ~330 MB)."
+  say "Connecting Manifest voice to ${found}…"
+  # Reads answers (e.g. which project Codex should work in) from the terminal, not this pipe.
+  if [ -r /dev/tty ] && [ -t 1 ]; then
+    if manifest bridge --install "$@" </dev/tty; then ready=1; else ready=0; fi
+  else
+    if manifest bridge --install "$@"; then ready=1; else ready=0; fi
+  fi
+  if [ "${ready}" = 1 ]; then
+    say "Done. Go back to Manifest: voice connects by itself (the natural voice downloads once, ~330 MB)."
+  else
+    say "Almost: fix the step above, then run: manifest bridge --doctor"
+    exit 1
+  fi
 else
   say "Installed. Start it with: manifest bridge   (keep it running; voice connects by itself)"
 fi

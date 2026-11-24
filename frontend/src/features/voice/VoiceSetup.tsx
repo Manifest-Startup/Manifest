@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { probeBridge, VOICE_SETUP_COMMAND, type BridgeInfo } from './localAgent';
+import { bridgeNotReadyMessage, probeBridge, VOICE_SETUP_COMMAND, type BridgeInfo } from './localAgent';
 
 /** How often to look for the bridge while the setup card is open. */
 export const SETUP_POLL_MS = 2000;
@@ -13,6 +13,8 @@ export const SETUP_POLL_MS = 2000;
  */
 const VoiceSetup: React.FC<{ onReady: (bridge: BridgeInfo) => void; signIn?: boolean }> = ({ onReady, signIn }) => {
   const [copied, setCopied] = useState(false);
+  // The bridge runs but its agent can't answer yet (e.g. Codex needs a project): what to do.
+  const [notReady, setNotReady] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -21,7 +23,9 @@ const VoiceSetup: React.FC<{ onReady: (bridge: BridgeInfo) => void; signIn?: boo
       // One probe at a time: the first may wait on Chrome asking about this computer.
       const bridge = await probeBridge();
       if (!alive) return;
-      if (bridge) onReady(bridge);
+      const problem = bridge ? bridgeNotReadyMessage(bridge) : null;
+      setNotReady(problem);
+      if (bridge && !problem) onReady(bridge);
       else timer = window.setTimeout(() => void look(), SETUP_POLL_MS);
     };
     void look();
@@ -50,9 +54,15 @@ const VoiceSetup: React.FC<{ onReady: (bridge: BridgeInfo) => void; signIn?: boo
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <p className="lv-setup__wait" role="status">
-        <span aria-hidden="true" className="lv-spin" /> Waiting for your Mac · connects by itself
-      </p>
+      {notReady ? (
+        <p className="lv-setup__wait" role="status">
+          {notReady} Then run <code>manifest bridge --restart</code>; voice connects by itself.
+        </p>
+      ) : (
+        <p className="lv-setup__wait" role="status">
+          <span aria-hidden="true" className="lv-spin" /> Waiting for your Mac · connects by itself
+        </p>
+      )}
       <p className="lv-setup__alt">
         Or{' '}
         {signIn ? (

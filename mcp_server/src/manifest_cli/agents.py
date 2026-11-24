@@ -87,6 +87,7 @@ class LocalAgent:
     continue_last: bool = False
     session_id: str | None = None
     model: str | None = None  # None: the agent's fast voice default; "default": its own
+    cwd: str | None = None  # the folder the agent works in (its project; Codex must trust it)
     process: asyncio.subprocess.Process | None = None
     _finishing: set[asyncio.Future[None]] = field(default_factory=set)
 
@@ -107,6 +108,7 @@ class LocalAgent:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             limit=16 * 1024 * 1024,
+            cwd=self.cwd,
         )
         process = self.process
         if stdin is not None and process.stdin:
@@ -199,6 +201,7 @@ class ClaudeCodeAgent(LocalAgent):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             limit=16 * 1024 * 1024,
+            cwd=self.cwd,
         )
 
     async def turn(self, prompt: str) -> AsyncIterator[Event]:
@@ -347,15 +350,9 @@ class CodexAgent(LocalAgent):
         elif self.continue_last:
             argv = ["codex", "exec", "resume", "--json", "--last", *fast, *self.extra_args, "-"]
         else:
-            argv = [
-                "codex",
-                "exec",
-                "--json",
-                "--skip-git-repo-check",
-                *fast,
-                *self.extra_args,
-                "-",
-            ]
+            # Never `--skip-git-repo-check`: Codex's own folder check is the person's
+            # security boundary. The bridge runs Codex in a project it trusts (issue #132).
+            argv = ["codex", "exec", "--json", *fast, *self.extra_args, "-"]
         return argv, text.encode()
 
     def parse(self, line: str) -> list[Event]:
@@ -400,7 +397,13 @@ class CommandAgent(LocalAgent):
 
 
 def detect_agent() -> str:
-    """The agent to use when none is named: Claude Code if installed, else Codex."""
+    """The agent to use when none is named: the one used most recently on this computer
+    (Claude Code or Codex), else whichever is installed."""
+    from manifest_cli.bridge_setup import active_agent
+
+    recent = active_agent(["claude", "codex"])
+    if recent:
+        return recent
     for binary in ("claude", "codex"):
         if shutil.which(binary):
             return binary
@@ -414,16 +417,18 @@ def make_agent(
     resume: str | None = None,
     continue_last: bool = False,
     model: str | None = None,
+    cwd: str | None = None,
 ) -> LocalAgent:
-    """`auto` (Claude Code, else Codex), `claude`, `codex`, or a command line."""
+    """`auto`/`active` (the agent used last here), `claude`, `codex`, or a command line."""
     common = {
         "extra_args": list(extra_args or []),
         "resume": resume,
         "continue_last": continue_last,
         "model": model,
+        "cwd": cwd,
     }
     key = spec.strip().lower()
-    if key in ("", "auto"):
+    if key in ("", "auto", "active"):
         key = detect_agent()
     if key in ("claude", "claude-code", "claude_code"):
         return ClaudeCodeAgent(**common)
