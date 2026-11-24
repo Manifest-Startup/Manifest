@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@apollo/client/react";
 
 import {
   DECIDE_APPROVAL,
+  GET_GOAL_TIMELINE,
   GET_GOALS,
   GET_STANDING_AUTHORIZATIONS,
   GRANT_STANDING_AUTHORIZATION,
@@ -58,6 +59,56 @@ function Approval({ approval, onDecided }: { approval: GoalApproval; onDecided: 
         </button>
       </div>
     </div>
+  );
+}
+
+const KIND_LABEL: Record<string, string> = {
+  stated_by_user: "you said",
+  verified: "checked",
+  external_claim: "they said",
+  inferred: "unconfirmed",
+};
+
+function Timeline({ goalId }: { goalId: string }) {
+  const { data, loading, error } = useQuery(GET_GOAL_TIMELINE, { variables: { goalId }, fetchPolicy: "network-only" });
+  if (loading && !data) return <p className="om-goal-note">Loading…</p>;
+  if (error || !data) return <p className="om-goal-error">Couldn&apos;t load what happened.</p>;
+  const facts = data.goal.facts.filter((f) => f.status === "current");
+  return (
+    <div className="om-goal-timeline" data-testid={`goal-timeline-${goalId}`}>
+      <ol>
+        {data.goal.timeline.map((event, i) => (
+          <li key={`${event.type}-${i}`} className="om-goal-note">
+            {event.summary}
+          </li>
+        ))}
+      </ol>
+      {facts.length ? (
+        <>
+          <p className="om-goal-subtitle">What Manifest learned</p>
+          <ul>
+            {facts.map((fact) => (
+              <li key={fact.id} className="om-goal-note">
+                {fact.subject} {fact.predicate.replace(/_/g, " ")}: {fact.value}{" "}
+                <span className="om-goal-kind">({KIND_LABEL[fact.kind] ?? fact.kind})</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function GoalDetails({ goalId }: { goalId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="om-goal-link" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? "Hide what happened" : "What happened"}
+      </button>
+      {open ? <Timeline goalId={goalId} /> : null}
+    </>
   );
 }
 
@@ -128,6 +179,7 @@ const GoalsPanel: React.FC = () => {
           <div key={goal.id} className="om-goal" data-testid={`goal-${goal.id}`}>
             <p className="om-goal-title">{goal.title}</p>
             {status ? <p className="om-goal-note">{status}</p> : null}
+            <GoalDetails goalId={goal.id} />
             {pending.map((approval) => (
               <Approval key={approval.id} approval={approval} onDecided={() => void refetch()} />
             ))}

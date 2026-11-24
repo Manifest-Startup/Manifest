@@ -33,6 +33,7 @@ import type {
   GetMyCollaborationInvitationsData,
   GetMyInboxData,
   GetGoalsData,
+  GetGoalTimelineData,
   GetStandingAuthorizationsData,
   GrantStandingAuthorizationData,
   GrantStandingAuthorizationVariables,
@@ -969,6 +970,28 @@ export const GET_GOALS: TypedDocumentNode<GetGoalsData, NoVariables> = gql`
   query GetGoals {
     goals {
       ${GOAL_SUMMARY_FIELDS}
+    }
+  }
+`;
+
+export const GET_GOAL_TIMELINE: TypedDocumentNode<GetGoalTimelineData, { goalId: string }> = gql`
+  query GetGoalTimeline($goalId: String!) {
+    goal(goalId: $goalId) {
+      id
+      timeline {
+        type
+        summary
+        createdAt
+      }
+      facts {
+        id
+        subject
+        predicate
+        value
+        kind
+        confidence
+        status
+      }
     }
   }
 `;
