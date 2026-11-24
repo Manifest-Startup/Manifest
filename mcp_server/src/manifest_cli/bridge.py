@@ -707,13 +707,7 @@ async def serve(
     if warm is not None:
         await warm()  # Claude Code: start once now, so the first turn is quick
     if local_voice.enough_memory():
-        # Room for more than one: warm the others too, so switching agents is instant.
-        for other in pool.ready_keys():
-            if other != pool.current_key:
-                start = getattr(pool.agent(other), "start", None)
-                if start is not None:
-                    task = asyncio.ensure_future(start())
-                    task.add_done_callback(lambda t: t.cancelled() or t.exception())
+        _warm_others(pool)
     voice_task = None
     if voice_url:
         # Natural voice on this Mac: Pipecat with local Whisper and Kokoro, no key.
@@ -778,6 +772,16 @@ async def _start_https(bridge: Bridge, out: TextIO) -> asyncio.Server | None:
     except OSError:  # another bridge holds it (a second, foreground one): HTTP only
         out.write(f"HTTPS port {bridge_tls.HTTPS_PORT} is in use; Safari uses the other bridge.\n")
         return None
+
+
+def _warm_others(pool: AgentPool) -> None:
+    """Room for more than one agent: warm the others too, so switching is instant."""
+    for other in pool.ready_keys():
+        if other != pool.current_key:
+            start = getattr(pool.agent(other), "start", None)
+            if start is not None:
+                task = asyncio.ensure_future(start())
+                task.add_done_callback(lambda t: t.cancelled() or t.exception())
 
 
 def _announce_problems(pool: AgentPool, status: dict[str, Any], out: TextIO) -> None:
