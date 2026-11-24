@@ -104,7 +104,8 @@ def db(request, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", url)
     client = DatabaseClient()
     client.execute_raw(
-        "TRUNCATE goal_events, knowledge_facts, approval_requests, goal_tasks, goals CASCADE"
+        "TRUNCATE standing_authorizations, goal_events, knowledge_facts, approval_requests, "
+        "goal_tasks, goals CASCADE"
     )
     return client
 
@@ -430,7 +431,7 @@ def test_other_peoples_goals_are_invisible(db, om):
 # --- through GraphQL (what voice, /mcp, the plugin and the CLI call) ---------------------------
 
 
-def _gql(query, db, user=USER):
+def _gql(query, db, user=USER, cookies=None, authorization="Bearer agent-token"):
     import asyncio
     from types import SimpleNamespace
     from unittest.mock import MagicMock, patch
@@ -439,6 +440,9 @@ def _gql(query, db, user=USER):
 
     request = MagicMock()
     request.headers = {"user-agent": "manifest-voice/1.0"}
+    if authorization:
+        request.headers["authorization"] = authorization
+    request.cookies = cookies or {}
     loop = asyncio.new_event_loop()
     try:
         with (
@@ -515,3 +519,109 @@ def test_a_stuck_last_step_blocks_the_goal_and_retry_reopens_it(db, om):
     om.profiles["zed"] = {"id": "om-zed", "handle": "zed", "display_name": "Zed"}
     view = engine.retry_step(db, USER, view["goal"]["id"], "find")
     assert view["goal"]["status"] == "achieved"
+
+
+# --- standing authorizations (ADR 0022) -----------------------------------------------------
+
+
+def _grant(db, **kw):
+    return policy.grant(
+        db,
+        USER,
+        action="message.send",
+        recipients=kw.pop("recipients", ["@Ana"]),
+        max_per_week=kw.pop("max_per_week", 2),
+        days=kw.pop("days", 30),
+    )
+
+
+def test_standing_approval_sends_without_asking_and_is_recorded(db, om):
+    grant = _grant(db)
+    view = _outreach(db)
+    assert _status(view)["send"] == "completed" and len(om.sends) == 1
+    approval = next(a for a in view["approvals"] if a["status"] == "approved")
+    assert approval["decided_via"] == f"standing:{grant['id']}"
+    assert approval["scope"]["body"] == "Hi Ana, could we talk about pilots?"
+    assert any("standing approval" in e["summary"] for e in view["events"])
+
+
+def test_standing_approval_respects_the_weekly_cap(db, om):
+    _grant(db, max_per_week=1)
+    first = _outreach(db, title="First")
+    second = _outreach(db, title="Second", message="Another one")
+    assert _status(first)["send"] == "completed"
+    assert _status(second)["send"] == "awaiting_authorization"  # over the cap: ask again
+    assert len(om.sends) == 1
+
+
+def test_standing_approval_only_covers_named_people(db, om):
+    om.profiles["lee"] = {"id": "om-lee", "handle": "lee", "display_name": "Lee"}
+    _grant(db, recipients=["ana"])
+    view = engine.create_goal(db, USER, title="Lee", steps=engine.outreach_plan("lee", "Hi"))
+    assert _status(view)["send"] == "awaiting_authorization" and om.sends == []
+
+
+def test_revoked_or_expired_standing_approval_asks_again(db, om):
+    grant = _grant(db)
+    policy.revoke(db, USER, grant["id"])
+    assert _status(_outreach(db, title="A"))["send"] == "awaiting_authorization"
+    other = _grant(db)
+    store.cas_update(
+        db,
+        store.GRANTS,
+        other["id"],
+        {},
+        {"expires_at": (store.now() - timedelta(seconds=1)).isoformat()},
+    )
+    assert _status(_outreach(db, title="B", message="b"))["send"] == "awaiting_authorization"
+    assert om.sends == []
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"action": "payment.send"}, "can be pre-approved"),
+        ({"recipients": []}, "between 1 and 20"),
+        ({"max_per_week": 50}, "between 1 and 20 a week"),
+        ({"days": 365}, "1 to 90 days"),
+        ({"recipients": ["two words"]}, "isn't an Open Media handle"),
+    ],
+)
+def test_standing_approvals_are_narrow(db, kwargs, message):
+    args = {
+        "action": "message.send",
+        "recipients": ["ana"],
+        "max_per_week": 3,
+        "days": 30,
+        **kwargs,
+    }
+    with pytest.raises(policy.ApprovalError, match=message):
+        policy.grant(db, USER, **args)
+
+
+def test_only_the_person_in_the_app_can_grant(db, om):
+    query = 'mutation { grantStandingAuthorization(recipients: ["ana"]) { id } }'
+    as_agent = _gql(query, db)  # bearer-style request: no session cookie
+    assert as_agent.errors and "only be given in the Manifest app" in as_agent.errors[0].message
+    assert policy.grants(db, USER) == []
+
+    as_person = _gql(query, db, cookies={"session_token": "s"}, authorization="")
+    assert not as_person.errors, as_person.errors
+    listed = _gql("query { standingAuthorizations { recipients maxPerWeek usedThisWeek } }", db)
+    assert listed.data["standingAuthorizations"] == [
+        {"recipients": ["ana"], "maxPerWeek": 3, "usedThisWeek": 0}
+    ]
+    gid = as_person.data["grantStandingAuthorization"]["id"]
+    revoked = _gql(
+        f'mutation {{ revokeStandingAuthorization(authorizationId: "{gid}") {{ status }} }}', db
+    )
+    assert revoked.data["revokeStandingAuthorization"]["status"] == "revoked"
+
+
+def test_without_the_grants_table_steps_still_ask(db, om, monkeypatch):
+    def missing(*_a, **_k):
+        raise RuntimeError('relation "standing_authorizations" does not exist')
+
+    monkeypatch.setattr(policy, "grants", missing)
+    view = _outreach(db)
+    assert _status(view)["send"] == "awaiting_authorization" and om.sends == []

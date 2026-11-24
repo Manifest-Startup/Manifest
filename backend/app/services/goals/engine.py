@@ -272,16 +272,18 @@ def _run(db: Any, user_id: str, goal: dict[str, Any], task: dict[str, Any], step
             scope = capability.scope(ctx, data) if capability.scope else {"task": task["id"]}
             if not policy.is_authorized(db, user_id, task["id"], scope):
                 described = capability.describe(ctx, data) if capability.describe else {}
-                policy.request(
-                    db,
-                    user_id=user_id,
-                    goal_id=goal["id"],
-                    task=task,
-                    scope=scope,
-                    summary=described.get("summary", capability.title),
-                    reason=described.get("reason", goal["title"]),
-                    consequences=described.get("consequences", ""),
-                )
+                ask = {
+                    "user_id": user_id,
+                    "goal_id": goal["id"],
+                    "task": task,
+                    "scope": scope,
+                    "summary": described.get("summary", capability.title),
+                    "reason": described.get("reason", goal["title"]),
+                    "consequences": described.get("consequences", ""),
+                }
+                if policy.use_standing(db, **ask) is None:
+                    policy.request(db, **ask)
+            if not policy.is_authorized(db, user_id, task["id"], scope):
                 if task["status"] != "awaiting_authorization":
                     store.cas_update(
                         db,

@@ -3,7 +3,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MockedProvider } from "@apollo/client/testing/react";
 
 import GoalsPanel from "../GoalsPanel";
-import { DECIDE_APPROVAL, GET_GOALS } from "features/core/apollo/queries";
+import {
+  DECIDE_APPROVAL,
+  GET_GOALS,
+  GET_STANDING_AUTHORIZATIONS,
+  REVOKE_STANDING_AUTHORIZATION,
+} from "features/core/apollo/queries";
 
 const approval = {
   __typename: "ApprovalRequest",
@@ -14,6 +19,22 @@ const approval = {
   riskTier: 2,
   scopeSha256: "f".repeat(64),
   status: "pending",
+  scope: { action: "message.send", to: "ana", body: "Hi Ana, pilot?", channel: "open_media", idea_id: null },
+};
+
+const standing = (rows: unknown[]) => ({
+  request: { query: GET_STANDING_AUTHORIZATIONS },
+  result: { data: { standingAuthorizations: rows } },
+});
+
+const grantRow = {
+  __typename: "StandingAuthorization",
+  id: "s1",
+  action: "message.send",
+  recipients: ["ana"],
+  maxPerWeek: 3,
+  usedThisWeek: 1,
+  expiresAt: "2026-12-22T00:00:00+00:00",
 };
 
 const goal = (overrides: Record<string, unknown> = {}) => ({
@@ -45,6 +66,7 @@ test("shows the exact message and sends only when the person says so", async () 
     <MockedProvider
       mocks={[
         goalsMock([goal()]),
+        standing([]),
         {
           request: { query: DECIDE_APPROVAL, variables: { approvalId: "a1", approve: true, scopeSha256: "f".repeat(64) } },
           result: decided,
@@ -66,10 +88,46 @@ test("shows the exact message and sends only when the person says so", async () 
 });
 
 test("renders nothing when there are no goals", async () => {
-  const { container } = render(
-    <MockedProvider mocks={[goalsMock([])]}>
+  render(
+    <MockedProvider mocks={[goalsMock([]), standing([])]}>
       <GoalsPanel />
     </MockedProvider>,
   );
-  await waitFor(() => expect(container).toBeEmptyDOMElement());
+  await waitFor(() => expect(screen.queryByTestId("goals-panel")).not.toBeInTheDocument());
+  expect(screen.queryByTestId("standing-approvals")).not.toBeInTheDocument();
+});
+
+
+test("offers 'don't ask again' only for messages, unticked by default", async () => {
+  const other = { ...approval, id: "a2", scope: { action: "something.else" } };
+  render(
+    <MockedProvider mocks={[goalsMock([goal({ approvals: [approval, other] })]), standing([])]}>
+      <GoalsPanel />
+    </MockedProvider>,
+  );
+  const boxes = await screen.findAllByLabelText(/Don't ask again for @ana/);
+  expect(boxes).toHaveLength(1);
+  expect(boxes[0]).not.toBeChecked();
+  expect(screen.getByTestId("goal-approval-a2")).not.toHaveTextContent("Don't ask again");
+});
+
+test("standing approvals are listed and can be stopped", async () => {
+  render(
+    <MockedProvider
+      mocks={[
+        goalsMock([]),
+        standing([grantRow]),
+        {
+          request: { query: REVOKE_STANDING_AUTHORIZATION, variables: { authorizationId: "s1" } },
+          result: { data: { revokeStandingAuthorization: { ...grantRow, id: "s1" } } },
+        },
+        standing([]),
+      ]}
+    >
+      <GoalsPanel />
+    </MockedProvider>,
+  );
+  expect(await screen.findByText("@ana · 1 of 3 this week")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+  await waitFor(() => expect(screen.queryByText("@ana · 1 of 3 this week")).not.toBeInTheDocument());
 });

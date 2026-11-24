@@ -95,6 +95,22 @@ class Goal:
 
 
 @strawberry.type
+class StandingAuthorization:
+    """A standing yes: Manifest may do ``action`` for these recipients without asking, up to
+    ``maxPerWeek`` times a week, until ``expiresAt`` or until it is revoked."""
+
+    id: str
+    action: str
+    recipients: list[str]
+    max_per_week: int
+    used_this_week: int
+    note: str
+    status: str
+    expires_at: str | None
+    created_at: str | None
+
+
+@strawberry.type
 class GoalCapability:
     name: str
     title: str

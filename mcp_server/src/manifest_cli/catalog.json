@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "ca37e96cb62d94ed5a852db8b7cc8231f49947cd7d4a75798fccf475909a1f7d",
+ "schema_sha256": "970a2aaa603750d60938f2e5f02399b873e741864cc0804ad43c25e95bc54f39",
  "operations": [
   {
    "name": "me",
@@ -1557,6 +1557,26 @@
     {
      "name": "includeHistory",
      "flag": "--include-history",
+     "type": "Boolean!",
+     "kind": "scalar",
+     "required": false,
+     "default": false,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "standingAuthorizations",
+   "command": "standing-authorizations",
+   "kind": "query",
+   "description": "What Manifest may do without asking each time (ADR 0022), with this week's uses.",
+   "destructive": false,
+   "returns": "[StandingAuthorization!]!",
+   "selection": "{ id action recipients maxPerWeek usedThisWeek note status expiresAt createdAt }",
+   "args": [
+    {
+     "name": "includeInactive",
+     "flag": "--include-inactive",
      "type": "Boolean!",
      "kind": "scalar",
      "required": false,
@@ -4609,6 +4629,82 @@
     {
      "name": "scopeSha256",
      "flag": "--scope-sha256",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "grantStandingAuthorization",
+   "command": "grant-standing-authorization",
+   "kind": "mutation",
+   "description": "Let Manifest send messages to these Open Media handles without asking each time, up to maxPerWeek a week for `days` days (max 90). Only from the Manifest web app, signed in: agents and API tokens can't grant themselves permission.",
+   "destructive": false,
+   "returns": "StandingAuthorization!",
+   "selection": "{ id action recipients maxPerWeek usedThisWeek note status expiresAt createdAt }",
+   "args": [
+    {
+     "name": "recipients",
+     "flag": "--recipients",
+     "type": "[String!]!",
+     "kind": "list",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "maxPerWeek",
+     "flag": "--max-per-week",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 3,
+     "description": ""
+    },
+    {
+     "name": "days",
+     "flag": "--days",
+     "type": "Int!",
+     "kind": "scalar",
+     "required": false,
+     "default": 30,
+     "description": ""
+    },
+    {
+     "name": "note",
+     "flag": "--note",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "",
+     "description": ""
+    },
+    {
+     "name": "action",
+     "flag": "--action",
+     "type": "String!",
+     "kind": "scalar",
+     "required": false,
+     "default": "message.send",
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "revokeStandingAuthorization",
+   "command": "revoke-standing-authorization",
+   "kind": "mutation",
+   "description": "Stop a standing approval now; Manifest asks again for each action.",
+   "destructive": true,
+   "returns": "StandingAuthorization!",
+   "selection": "{ id action recipients maxPerWeek usedThisWeek note status expiresAt createdAt }",
+   "args": [
+    {
+     "name": "authorizationId",
+     "flag": "--authorization-id",
      "type": "String!",
      "kind": "scalar",
      "required": true,

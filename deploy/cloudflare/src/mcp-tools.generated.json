@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "30f63b64f51bbb343ae6a9c53d7cb6b773cc7ea649005688921cf786fb18401f",
+ "catalog_sha256": "a3754232d655822a7cc6e7737b1918c9014fb28f0705a84f9eed791b5162e35e",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -9,6 +9,7 @@
   "saveApolloApiKey": "Secret keys never go through chat. Add your Apollo.io key in Account → AI settings.",
   "connectIntegration": "Takes raw OAuth tokens. Connect integrations from Account → Integrations in the app, where the provider's sign-in runs.",
   "runBackgroundTasks": "Superseded by enqueue_background_tasks, which is durable and deduplicated.",
+  "grantStandingAuthorization": "Only the person can give Manifest standing permission, in the Manifest app (Messages); agents can't grant themselves permission (ADR 0022).",
   "rest:upload-profile-picture": "Needs a file upload (multipart). Change your picture in Account → Profile."
  },
  "tools": [
@@ -5737,6 +5738,42 @@
    }
   },
   {
+   "name": "revoke_standing_authorization",
+   "title": "Revoke standing authorization",
+   "description": "Stop a standing approval now; Manifest asks again for each action. Destructive or hard to undo: show the person what will change, ask, then call again with confirm: true.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "authorizationId": {
+      "type": "string"
+     },
+     "confirm": {
+      "type": "boolean",
+      "description": "Set to true only after the person has seen exactly what this will do and said yes."
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "authorizationId"
+    ]
+   },
+   "annotations": {
+    "title": "Revoke standing authorization",
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "revokeStandingAuthorization",
+    "document": "mutation RevokeStandingAuthorization($authorizationId: String!) { revokeStandingAuthorization(authorizationId: $authorizationId) { id action recipients maxPerWeek usedThisWeek note status expiresAt createdAt } }",
+    "variables": [
+     "authorizationId"
+    ]
+   }
+  },
+  {
    "name": "run_partner_discovery",
    "title": "Run partner discovery",
    "description": "Run the partner-discovery agent for an owned idea. Changes the person's Manifest account; say what you will do before calling.",
@@ -5966,6 +6003,36 @@
     "variables": [
      "monthlyCapUsd",
      "paused"
+    ]
+   }
+  },
+  {
+   "name": "standing_authorizations",
+   "title": "Standing authorizations",
+   "description": "What Manifest may do without asking each time (ADR 0022), with this week's uses.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "includeInactive": {
+      "type": "boolean",
+      "default": false
+     }
+    },
+    "additionalProperties": false
+   },
+   "annotations": {
+    "title": "Standing authorizations",
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "standingAuthorizations",
+    "document": "query StandingAuthorizations($includeInactive: Boolean) { standingAuthorizations(includeInactive: $includeInactive) { id action recipients maxPerWeek usedThisWeek note status expiresAt createdAt } }",
+    "variables": [
+     "includeInactive"
     ]
    }
   },

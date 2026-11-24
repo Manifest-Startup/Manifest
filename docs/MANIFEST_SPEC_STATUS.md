@@ -28,7 +28,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Projects | Implemented | Ideas are the project entity (`ideas`, collaborators, versions). Goals can point at an idea. |
 | Task decomposition with statuses, deps, verification, risk | **Implemented (slice)** | `goal_tasks` with the spec's statuses, `depends_on`, tier, verification, retries. Plans come from agents or templates; no server-side LLM planner. |
 | Durable workflows: retries, waits, checkpoints, resume | **Partial (slice)** | Idempotent `advance` with CAS, bounded retries, crash recovery, webhook and sweep resume. Scheduled triggers and timeouts only for reply waits. |
-| Human approval as a workflow state | **Implemented (slice)** | `approval_requests`: scope hash checked at run time, expiry, deny cascades. No standing authorizations yet. |
+| Human approval as a workflow state | **Implemented (slice)** | `approval_requests`: scope hash checked at run time, expiry, deny cascades. Standing approvals (ADR 0022): named people, weekly cap, expiry, granted only by the person in the app. |
 | Risk tiers 0–3 | **Implemented (slice)** | Declared per capability in `services/goals/capabilities.py`, enforced in `policy.py`. |
 | Tool registry with risk/idempotency metadata | Partial | Generated catalog (`readOnly`/`destructive` by name regex) plus `goalCapabilities` (tiers) for goal steps. |
 | Service discovery and evaluation engine | Missing | No `ServiceEvaluation` records. ADRs and this file are the manual equivalent. |
@@ -56,11 +56,10 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 ## Backlog (in order: risk, then value)
 
 1. First live outreach send, to a recipient the owner names.
-2. Standing authorizations: scoped, expiring, revocable grants (for example "follow-ups to people I've already approved, up to 3 a week") checked in `policy.is_authorized`.
-3. Goal timeline and facts in the web app (the approvals and status are on the Messages page).
-4. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
-5. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
-6. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
-7. Data export of goals and facts in the data-subject access request flow; retention policy for `goal_events`.
-8. Integration status and health checks (`integrations.status`, last verified).
-9. Send the CSRF header from every app call, then require it as well as the Origin check.
+2. Goal timeline and facts in the web app (the approvals and status are on the Messages page).
+3. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
+4. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
+5. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
+6. Data export of goals and facts in the data-subject access request flow; retention policy for `goal_events`.
+7. Integration status and health checks (`integrations.status`, last verified).
+8. Send the CSRF header from every app call, then require it as well as the Origin check.
