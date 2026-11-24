@@ -42,6 +42,14 @@ We measured the local agent path (Claude Code haiku, 3 founder questions, 2 roun
    - **What's kept:** nothing. No audio, features or cues are stored.
 5. **No emotion classifier.** The open models are non-commercial (audeering, autrainer), research-licensed (openSMILE), trained on commercially restricted data (SpeechBrain IEMOCAP), carry a custom license (emotion2vec, FunASR model license) or are GPL (Parselmouth, pitchfinder). Even the best reach only about 36% macro-F1 on natural speech (Odyssey 2024). Prosody cues need no weights and no network.
 
+## Follow-up (same day)
+
+- **Pi and Hume EVI.** Inflection's Pi was built to be short, curious and honest about being an AI. Hume EVI's guidance says not to end every reply with a question and to mirror the user's length. The persona now adds four rules: don't end every reply with a question; match their length as well as their energy; when words and tone disagree, take the gentler reading; never claim to feel or detect emotions, and say plainly you're an AI if asked. Rules that clash with "praise only what's earned", such as validating on every turn, were left out.
+- **End to end on the real stack.** The deployed `voiceProsody.ts` ran in Chromium on recorded speech in place of the mic: three calm turns for the baseline, then an excited turn and a tired one.
+  - **Tone reading:** the excited turn read as energized (arousal 0.94: louder, higher, more animated). The tired turn read as subdued (0.13: quieter, lower, flatter).
+  - **Through to the agent:** the real cues went to the person's real bridge and Codex. The Codex session shows both cue lines in the prompt. Codex answered the excited turn with "That's a real milestone… What did they want to try first?". To the tired one it said "That's a rough turn, especially after the clinics said yes. We can leave it for now, or look at what the insurer objected to when you're ready."
+  - **Low-confidence cues:** the third calm turn was misread as energized at confidence 0.22, against a baseline of only two turns. Cues below 0.3 are now dropped in the browser as well as the bridge.
+
 ## Consequences
 
 - Answers are shorter and start sooner. A person who wants depth says so, and the persona allows longer answers when asked.
