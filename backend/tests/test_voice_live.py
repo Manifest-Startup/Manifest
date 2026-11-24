@@ -254,3 +254,20 @@ def test_sending_a_message_needs_a_spoken_yes():
     ):
         result = asyncio.run(executor.run(name, args))
         assert result.get("needs_confirmation") is True, (name, result)
+
+
+def test_live_voice_talks_like_a_person_and_its_voice_is_expressive():
+    """Issue #131 / ADR 0024: warm, specific, brief and honest; the TTS gets a style to match."""
+    from app.services.voice.live import bot
+
+    prompt = bot.SYSTEM_PROMPT.lower()
+    for rule in (
+        "one breath",
+        "react",
+        "never fawning",
+        "praise only what's earned",
+        "never name or guess",
+    ):
+        assert rule in prompt
+    assert "Warm, calm and clear" not in bot.TTS_STYLE
+    assert "warm" in bot.TTS_STYLE and "Pacing" in bot.TTS_STYLE

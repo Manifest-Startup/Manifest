@@ -167,7 +167,10 @@ def brain_class() -> type:  # noqa: C901 (one class, built lazily so Pipecat loa
         async def _event(self, kind: str, value: str, turn: int) -> bool:
             """Speak or show one agent event; True when it changed the person's Manifest data."""
             if kind == "say":
-                await self._say(value, turn)
+                from manifest_cli.agents import speakable
+
+                if speakable(value):
+                    await self._say(speakable(value), turn)
             elif kind == "error":
                 await self._say(f"{self.agent.name} ran into a problem.", turn)
             elif kind == "tool":
