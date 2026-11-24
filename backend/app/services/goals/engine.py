@@ -429,6 +429,25 @@ def advance(db: Any, user_id: str, goal_id: str, *, force_check: bool = False) -
     return view(db, user_id, goal_id)
 
 
+def _clear_unsent_drafts(user_id: str, goal_id: str, db: Any) -> None:
+    """A goal step that won't be sent leaves no draft behind in Open Media (best effort)."""
+    tasks = _tasks(db, goal_id)
+    for task in tasks:
+        draft_id = (task.get("result") or {}).get("open_media_draft_id")
+        if task.get("capability") != "message.prepare" or not draft_id:
+            continue
+        senders = [t for t in tasks if task["step_key"] in (t.get("depends_on") or [])]
+        if any(t["status"] not in ("cancelled", "failed") for t in senders):
+            continue  # still going to be sent, or already sent (the send clears it)
+        try:
+            capabilities.messaging.discard_draft(user_id, str(draft_id))
+        except Exception as exc:
+            logger.info(
+                "goal draft not discarded in Open Media",
+                extra={"exception.type": type(exc).__name__, "goal_id": goal_id},
+            )
+
+
 def decide_approval(
     db: Any, user_id: str, approval_id: str, *, approve: bool, scope_sha256: str, via: str
 ) -> dict[str, Any]:
@@ -445,6 +464,7 @@ def decide_approval(
             {"status": "cancelled"},
         )
         _cancel_dependents(db, user_id, decided["goal_id"], task["step_key"])
+        _clear_unsent_drafts(user_id, decided["goal_id"], db)
     return advance(db, user_id, decided["goal_id"])
 
 
@@ -464,6 +484,7 @@ def cancel_goal(db: Any, user_id: str, goal_id: str) -> dict[str, Any]:
                 db, store.APPROVALS, approval["id"], {"status": "pending"}, {"status": "superseded"}
             )
         store.record_event(db, user_id, goal_id, "goal.cancelled", f"Cancelled: {goal['title']}")
+        _clear_unsent_drafts(user_id, goal_id, db)
     return view(db, user_id, goal_id)
 
 

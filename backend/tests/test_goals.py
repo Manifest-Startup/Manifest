@@ -741,3 +741,18 @@ def test_existing_conversation_lookup_only_matches_a_direct_chat(monkeypatch):
     )
     assert real.existing_conversation_with(USER, "@ana") == "conv-ana"
     assert real.existing_conversation_with(USER, "bo") is None
+
+
+@pytest.mark.parametrize("abandon", ["decline", "cancel"])
+def test_a_declined_or_cancelled_goal_leaves_no_draft_in_open_media(db, om, abandon):
+    _existing_chat_with_ana(om)
+    view = _outreach(db)
+    assert len(om.drafts) == 1
+    if abandon == "decline":
+        approval = _pending(view)
+        engine.decide_approval(
+            db, USER, approval["id"], approve=False, scope_sha256=approval["scope_sha256"], via="t"
+        )
+    else:
+        engine.cancel_goal(db, USER, view["goal"]["id"])
+    assert om.drafts == {} and om.sends == []
