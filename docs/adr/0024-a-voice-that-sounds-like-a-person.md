@@ -50,6 +50,13 @@ We measured the local agent path (Claude Code haiku, 3 founder questions, 2 roun
   - **Through to the agent:** the real cues went to the person's real bridge and Codex. The Codex session shows both cue lines in the prompt. Codex answered the excited turn with "That's a real milestone… What did they want to try first?". To the tired one it said "That's a rough turn, especially after the clinics said yes. We can leave it for now, or look at what the insurer objected to when you're ready."
   - **Low-confidence cues:** the third calm turn was misread as energized at confidence 0.22, against a baseline of only two turns. Cues below 0.3 are now dropped in the browser as well as the bridge.
 
+- **Hume EVI's default prompt.** The official repo is gone; this is its `default_prompt.txt` from a mirror of Hume's examples. Its new rules are adopted: say numbers, dates and money aloud; when the person trails off, a quick "mm-hm, go on"; go with the likely meaning of an obvious mishearing and ask only when it matters; don't lecture. Two deliberate differences remain: Hume names emotions when they are intense and avoids calling itself an AI, while Manifest does neither.
+- **Blind evaluation.** A simulated founder (Claude haiku) talked to each version for 5 turns in 2 scenarios, excited and discouraged. A judge (Claude sonnet) scored the unlabeled transcripts in both orders, 1–10.
+  - **Pre-#135 vs #135/#137:** the new version was preferred 3 of 4 times. Human 5.8 → 7.0, attention 6.8 → 8.5, fit for speech 4.2 → 8.2, honesty 7.5 → 8.0, warmth 5.5 → 6.0. The one loss was "clinical": it never acknowledged a nervous founder.
+  - **Fix:** acknowledge the situation (never a diagnosis of feelings) in a few words, once, and allow the odd real reaction ("oh, nice").
+  - **Live vs this version:** this version was preferred 3 of 4 times. Warmth 5.5 → 6.8, energy match 5.8 → 7.0, honesty 7.2 → 8.2, attention 6.8 → 7.5, human 6.0 → 6.5. Its one loss came from repeating a quoted example word for word, so the example became "in a few human words of your own, once", as OpenAI's guide advises.
+  - **Script:** `blind_eval.py` (session scratchpad).
+
 ## Consequences
 
 - Answers are shorter and start sooner. A person who wants depth says so, and the persona allows longer answers when asked.

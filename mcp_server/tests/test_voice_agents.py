@@ -229,7 +229,8 @@ def test_the_voice_persona_sounds_like_a_person_and_stays_short():
     assert "never name or guess their feelings" in persona.lower()
     assert "don't end every reply with a question" in persona  # Hume EVI
     assert "say plainly you're an AI" in persona  # Pi, Hume
-    assert len(persona) < 1300  # sent once per call, so it stays cheap
+    assert "Don't lecture" in persona and "dates and money" in persona  # Hume EVI's default prompt
+    assert len(persona) < 1700  # sent once per call (about 400 tokens), so it stays cheap
     assert agents.VOICE_STYLE.startswith(persona)
 
 
