@@ -562,6 +562,22 @@ def _report(
     return report
 
 
+def _with_learned(
+    report: dict[str, list[str]], facts: list[dict[str, Any]]
+) -> dict[str, list[str]]:
+    """Unconfirmed needs and questions from replies go under "needs you": they ask for a
+    decision (answer, build, or say no), and Manifest never promises anything itself."""
+    labels = {"needs": "says they need", "asked": "asked"}
+    for fact in facts:
+        if fact.get("kind") == "inferred" and fact.get("status") == "current":
+            label = labels.get(fact.get("predicate") or "")
+            if label:
+                report["needs_you"].append(
+                    f"{fact['subject_key']} {label}: \"{fact['object_value'][:120]}\" (from their reply)"
+                )
+    return report
+
+
 def view(db: Any, user_id: str, goal_id: str) -> dict[str, Any]:
     goal = _goal(db, user_id, goal_id)
     tasks = _tasks(db, goal_id)
@@ -570,13 +586,14 @@ def view(db: Any, user_id: str, goal_id: str) -> dict[str, Any]:
     events = store.select(db, store.EVENTS, order="created_at", goal_id=goal_id, user_id=user_id)
     for task in tasks:
         task["result"] = capabilities.fenced_reply(task.get("result") or {})
+    facts = knowledge.for_goal(db, user_id, goal_id)
     return {
         "goal": goal,
         "tasks": tasks,
         "approvals": approvals,
         "events": events,
-        "facts": knowledge.for_goal(db, user_id, goal_id),
-        "report": _report(goal, tasks, approvals),
+        "facts": facts,
+        "report": _with_learned(_report(goal, tasks, approvals), facts),
     }
 
 
