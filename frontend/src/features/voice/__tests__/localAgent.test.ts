@@ -46,7 +46,7 @@ describe('local agent bridge', () => {
 
   it('finds a running bridge and quietly reports none otherwise', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, agent: 'Claude Code' }) }) as never;
-    await expect(probeBridge()).resolves.toEqual({ agent: 'Claude Code', voice: null, interrupt: false, speech: null, ready: true, problem: null, agents: [] });
+    await expect(probeBridge()).resolves.toEqual({ agent: 'Claude Code', voice: null, interrupt: false, speech: null, ready: true, problem: null, warning: null, agents: [] });
     global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch')) as never;
     await expect(probeBridge()).resolves.toBeNull();
   });

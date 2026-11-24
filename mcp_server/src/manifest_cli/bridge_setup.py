@@ -37,6 +37,7 @@ PORT_IN_USE = "port_in_use"
 SERVICE_OUTDATED = "service_outdated"
 NO_AGENT = "no_agent"
 LAUNCH_FAILED = "launch_failed"
+MANIFEST_NOT_CONNECTED = "manifest_not_connected"
 
 
 def settings_path() -> Path:
@@ -157,18 +158,6 @@ def save(settings: BridgeSettings, path: Path | None = None) -> Path:
 # -- which agent is the person using right now? ----------------------------------
 
 
-def _newest(paths: list[Path]) -> Path | None:
-    best, best_time = None, -1.0
-    for path in paths:
-        try:
-            mtime = path.stat().st_mtime
-        except OSError:
-            continue
-        if mtime > best_time:
-            best, best_time = path, mtime
-    return best
-
-
 def _latest_dir(folder: Path) -> Path | None:
     try:
         names = sorted((p for p in folder.iterdir() if p.is_dir()), key=lambda p: p.name)
@@ -177,40 +166,66 @@ def _latest_dir(folder: Path) -> Path | None:
     return names[-1] if names else None
 
 
-def last_session(key: str, home: Path | None = None) -> tuple[float, str | None] | None:
-    """(when, folder) of the agent's newest session on this computer, or None.
-
-    Only file times and the session's folder are read, never the conversation itself.
-    """
-    home = home or Path.home()
-    newest: Path | None = None
+def _session_files(key: str, home: Path) -> list[Path]:
     if key == "claude":
         projects = home / ".claude" / "projects"
         try:
-            newest = _newest(
-                [f for d in projects.iterdir() if d.is_dir() for f in d.glob("*.jsonl")]
-            )
+            return [f for d in projects.iterdir() if d.is_dir() for f in d.glob("*.jsonl")]
         except OSError:
-            return None
-    elif key == "codex":
-        day = home / ".codex" / "sessions"
-        for _ in range(3):  # YYYY/MM/DD
-            day = _latest_dir(day) or day
-        newest = _newest(list(day.glob("*.jsonl")))
-    if newest is None:
-        return None
-    folder = None
+            return []
+    if key == "codex":
+        files: list[Path] = []
+        year = _latest_dir(home / ".codex" / "sessions")
+        for month in sorted(year.iterdir())[-2:] if year and year.is_dir() else []:
+            for day in sorted(p for p in month.iterdir() if p.is_dir())[-3:]:
+                files += list(day.glob("*.jsonl"))
+        return files
+    return []
+
+
+def _session_head(path: Path) -> tuple[str | None, bool]:
+    """(the session's folder, whether the person worked in it themselves). Voice's own
+    sessions (Manifest's bridge, scripted `claude -p`, `codex exec`) don't count: the
+    agent "you used last" is the one you were working in, not the voice itself."""
+    folder, mine = None, True
     try:
-        with newest.open() as handle:
+        with path.open() as handle:
             for _, line in zip(range(40), handle, strict=False):
                 event = json.loads(line)
-                cwd = event.get("cwd") or (event.get("payload") or {}).get("cwd")
-                if isinstance(cwd, str) and cwd:
+                payload = event.get("payload") or {}
+                if event.get("type") == "session_meta" and (
+                    payload.get("originator") == "manifest-voice" or payload.get("source") == "exec"
+                ):
+                    mine = False
+                if event.get("entrypoint") == "sdk-cli":
+                    mine = False
+                cwd = event.get("cwd") or payload.get("cwd")
+                if isinstance(cwd, str) and cwd and folder is None:
                     folder = cwd
+                if folder and (event.get("entrypoint") or event.get("type") == "session_meta"):
                     break
     except (OSError, ValueError):
         pass
-    return newest.stat().st_mtime, folder
+    return folder, mine
+
+
+def last_session(key: str, home: Path | None = None) -> tuple[float, str | None] | None:
+    """(when, folder) of the newest session the person worked in with this agent, or None.
+
+    Only file times and each session's first lines (its folder and who started it) are
+    read, never the conversation itself."""
+    home = home or Path.home()
+    dated = []
+    for path in _session_files(key, home):
+        try:
+            dated.append((path.stat().st_mtime, path))
+        except OSError:
+            continue
+    for when, path in sorted(dated, reverse=True)[:40]:
+        folder, mine = _session_head(path)
+        if mine:
+            return when, folder
+    return None
 
 
 def active_agent(candidates: list[str], home: Path | None = None) -> str | None:
@@ -367,7 +382,51 @@ def check_agent(key: str, profile: AgentProfile, *, auth: bool = True) -> list[P
                 f"Run `{login}` once, then `manifest bridge --restart`.",
             )
         )
+    if (
+        auth
+        and key == "codex"
+        and not _cli_signed_in()
+        and codex_manifest_auth() == "not_logged_in"
+    ):
+        problems.append(
+            Problem(
+                MANIFEST_NOT_CONNECTED,
+                "Codex isn't signed in to Manifest, so voice can talk but can't open or change "
+                "your ideas, notes or feedback.",
+                "Run `manifest login` once (or `codex mcp login manifest`).",
+                blocking=False,  # the conversation still works
+            )
+        )
     return problems
+
+
+def _cli_signed_in() -> bool:
+    """Signed in to the Manifest CLI: the bridge then gives every agent Manifest's tools."""
+    try:
+        from manifest_cli import config
+
+        return bool(config.token())
+    except Exception:
+        return False
+
+
+def codex_manifest_auth() -> str | None:
+    """Codex's sign-in to the Manifest MCP server ("not_logged_in", "oauth", …), or None
+    when Codex has no Manifest server or can't say. Reads only Codex's own status."""
+    done = _run(["codex", "mcp", "list", "--json"], timeout=10)
+    if not done or done.returncode:
+        return None
+    try:
+        servers = json.loads(done.stdout)
+    except ValueError:
+        return None
+    for server in servers if isinstance(servers, list) else []:
+        url = str(((server.get("transport") or {}).get("url")) or "")
+        if server.get("name") == "manifest" or "manifeststartup.com/mcp" in url:
+            if not server.get("enabled", True):
+                return "disabled"
+            return str(server.get("auth_status") or "") or None
+    return None
 
 
 def explain_agent_error(key: str, text: str, folder: Path) -> str:
@@ -539,10 +598,12 @@ def doctor(settings: BridgeSettings, *, run_probe: bool = False) -> list[tuple[s
         version = agent_version(key)
         problems = check_agent(key, profile)
         label = agent_name(key) + (f" {version}" if version else "")
-        rows.append(("fail" if problems else "ok", label, f"in {profile.folder}"))
+        blocking = [p for p in problems if p.blocking]
+        rows.append(("fail" if blocking else "ok", label, f"in {profile.folder}"))
         for problem in problems:
-            rows.append(("fail", problem.code, f"{problem.message} {problem.fix}"))
-        if run_probe and not problems:
+            status = "fail" if problem.blocking else "warn"
+            rows.append((status, problem.code, f"{problem.message} {problem.fix}"))
+        if run_probe and not blocking:
             failed = probe(key, profile)
             rows.append(
                 ("fail", failed.code, failed.message)

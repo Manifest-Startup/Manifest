@@ -47,17 +47,7 @@ test('in conversation: only the latest reply and the latest action, with a confi
   expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
 });
 
-test('tone reading is an explicit switch that says what it does and that no audio leaves', () => {
-  const toggle = jest.fn();
-  renderPanel({ phase: 'listening' }, { toneReading: { on: false, toggle } });
-  const button = screen.getByRole('button', { name: 'Read my tone of voice' });
-  expect(button).toHaveAttribute('aria-pressed', 'false');
-  expect(button.getAttribute('title')).toContain('No audio leaves this device');
-  button.click();
-  expect(toggle).toHaveBeenCalled();
-});
-
-test('no tone switch where the session cannot read tone', () => {
+test('no extra buttons: tone reading has no switch in the panel', () => {
   renderPanel({ phase: 'listening' });
-  expect(screen.queryByRole('button', { name: /tone of voice/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /tone/i })).not.toBeInTheDocument();
 });

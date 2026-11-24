@@ -126,6 +126,18 @@ describe('useLocalAgentVoiceSession', () => {
     expect(session.current.state.phase).toBe('listening');
   });
 
+  it('turns tone reading off when the person says so, without asking the agent (no button)', async () => {
+    window.localStorage.clear();
+    const { result: session } = await started();
+    const rec = recognitions[0];
+    act(() => rec.onresult(result('stop reading my tone', true)));
+    // (Other tests' hooks may still make their idle "one moment" lines into this mock.)
+    await waitFor(() => expect(session.current.state.captions.map(c => c.text)).toContain("Okay, I've stopped reading your tone."));
+    expect(turns()).toEqual([]); // handled here, never sent to the agent
+    expect(window.localStorage.getItem('manifest.voice.toneReading')).toBe('off');
+    expect(session.current.state.phase).not.toBe('error');
+  });
+
   it('names the idea the person is looking at, not just its id (#114)', async () => {
     const { withIdeaTitle } = await import('../usePipecatVoiceSession');
     const { InMemoryCache } = await import('@apollo/client');

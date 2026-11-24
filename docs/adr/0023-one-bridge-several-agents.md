@@ -18,6 +18,15 @@ People also use more than one agent. Voice should answer with the one they are w
 4. **Several agents, the active one by default.** Every installed agent gets a profile. With `active`, the bridge answers with the agent whose newest session file is most recent. Only file times and the session's folder are read, never conversation content. It picks again when a new conversation starts (after 2 minutes idle), and skips agents that can't answer. An agent chosen by name is never silently replaced.
 5. **Seamless switching.** "Switch to Codex" said aloud, `POST /agent` from the app, or `manifest bridge --use codex` switches at once and is saved. The new agent's next turn carries the last 12 exchanges of this voice conversation, once. Each agent keeps its own live session, so switching back resumes it. Long-term memory shared by all agents is the vault memory of ADR 0021.
 
+## Follow-up: fast, interruptible, the same for every agent (2026-11-23)
+
+The person's live test found Codex voice slow (6–8 s a turn), unable to use Manifest ("the Manifest feedback tool isn't connected"), hard to interrupt, and curt.
+
+- **Codex stays warm.** It runs as one `codex app-server` (JSON-RPC over stdio, the protocol Codex's IDE extension uses) for the whole call. Words stream sentence by sentence, and talking over it sends `turn/interrupt` and stops speaking at once. A throwaway turn while the call connects starts its MCP servers early. Measured on the real stack: first words 2.5 s, follow-ups 1.4–2.1 s, and an interrupt took 0.06 s, against 6–8 s for `codex exec` per turn. `--continue` still uses `exec resume`.
+- **Every agent gets Manifest's tools from the CLI sign-in.** The hosted `/mcp` accepts the CLI token. The bridge puts it only in the agent's environment (`MANIFEST_MCP_TOKEN`), never in arguments or logs. Codex points its `manifest` MCP server at it. When neither the CLI nor Codex is signed in, `/health` and the panel show a `manifest_not_connected` note with the fix.
+- **"The agent you used last" ignores voice's own sessions:** Codex `originator: manifest-voice` or `source: exec`, and Claude Code `entrypoint: sdk-cli`.
+- **Switching warms the new agent at once.** On a Mac under 16 GB it also stops the previous agent's process and keeps its session, so the two never share memory.
+
 ## Consequences
 
 - Codex users must pick a Git project for voice. Setup asks for one in a terminal, or explains `--workdir`.
