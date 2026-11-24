@@ -469,6 +469,7 @@ class CodexAppAgent(LocalAgent):
     _reader: asyncio.Future | None = None
     _text: str = ""
     _lock: asyncio.Lock | None = None
+    _stopping: str | None = None  # an interrupted turn Codex hasn't finished stopping yet
 
     def command(self, prompt: str = "") -> tuple[list[str], bytes | None]:
         argv = ["codex", "app-server"]
@@ -596,8 +597,7 @@ class CodexAppAgent(LocalAgent):
             yield ("error", _short(f"Codex didn't start: {exc}", 160))
             return
         assert self._events is not None
-        while not self._events.empty():  # leftovers of an interrupted turn
-            self._events.get_nowait()
+        await self._finish_stopping()
         self._text = ""
         try:
             result = await self._call(
@@ -623,6 +623,8 @@ class CodexAppAgent(LocalAgent):
             if method != "local/interrupted" and params.get("turnId") not in (None, turn_id):
                 continue  # a late event from an earlier, interrupted turn
             if self.turn_id is None and method != "local/interrupted":
+                if method == "turn/completed" and (params.get("turn") or {}).get("id") == turn_id:
+                    self._stopping = None  # Codex already ended it: the next turn needn't wait
                 continue  # interrupted: drop what's still arriving for this turn
             events, finished = self._on_event(method, params)
             for event in events:
@@ -662,10 +664,35 @@ class CodexAppAgent(LocalAgent):
             return [("error", "Codex stopped")], True
         return [], False
 
+    async def _finish_stopping(self, timeout: float = 3.0) -> None:
+        """Before the next question: wait for Codex to end the interrupted turn. A `turn/start`
+        while a turn is still active steers that turn instead, and the new question then
+        ended with the old one, unanswered (seen on the real stack)."""
+        assert self._events is not None
+        stopping, self._stopping = self._stopping, None
+
+        async def drain() -> None:
+            while True:
+                message = await self._events.get()
+                params = message.get("params") or {}
+                if message.get("method") == "process/exited":
+                    return
+                if message.get("method") == "turn/completed" and (
+                    (params.get("turn") or {}).get("id") == stopping
+                ):
+                    return
+
+        if stopping:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(drain(), timeout)
+        while not self._events.empty():  # anything else left from before
+            self._events.get_nowait()
+
     async def interrupt(self) -> None:
         """Stop the answer at once; the same warm process takes the next question."""
         if self.process and self.process.returncode is None and self.thread_id and self.turn_id:
             turn, self.turn_id = self.turn_id, None
+            self._stopping = turn
             if self._events is not None:
                 await self._events.put({"method": "local/interrupted", "params": {"turnId": turn}})
             with contextlib.suppress(RuntimeError, TimeoutError, ConnectionError):
