@@ -36,3 +36,5 @@ description: "Manage a person's Manifest account: profile, signed-in sessions (b
 ## Feedback and trust
 - `submit_survey`, `survey_insights`, `submit_contact_form` (show the message before sending).
 - `trust_center`: Manifest's security posture. `voice_capabilities`: what Manifest's voice assistant can do.
+
+`integration_health` says whether each connection works right now (Open Media is checked live). Use it when something that sends or reads through a connection fails, and say its `detail`.
