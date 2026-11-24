@@ -44,7 +44,7 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 | Event model | **Partial (slice)** | `goal_events` (deduped) for goals. No app-wide outbox or bus. |
 | Prompt-injection defences | Partial | Fencing for discovery, goal replies and every voice tool result carrying other people's text (inbox, conversations, comments); injection heuristic + event. MCP agents get raw text (their own harness decides). |
 | Project timeline and progress reports | **Implemented (slice)** | `goal.timeline`, `goal.report` (completed / in progress / waiting / needs you / next), `report.spoken`. Web: the Messages page lists goals with pending approvals (Send / Don't send) and status (`GoalsPanel.tsx`). The full timeline is in the API only. |
-| Privacy: erasure | Implemented | `compliance/tenant_purge.py` now includes the five goal tables. Export of goal data: missing. |
+| Privacy: erasure and access | Implemented | `compliance/tenant_purge.py` erases the goal tables; `GET /api/dsar/access` (and portability) exports goals, steps, approvals, knowledge facts and goal events. |
 | Observability | Partial | JSON logs with OpenTelemetry field names. No traces or metrics pipeline. |
 
 ## Security baseline (2026-11-22)
@@ -56,10 +56,9 @@ Every GraphQL field becomes a CLI command, an MCP tool, a plugin tool and a voic
 ## Backlog (in order: risk, then value)
 
 1. First live outreach send, to a recipient the owner names.
-2. Goal timeline and facts in the web app (the approvals and status are on the Messages page).
-3. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
-4. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
-5. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
-6. Data export of goals and facts in the data-subject access request flow; retention policy for `goal_events`.
-7. Integration status and health checks (`integrations.status`, last verified).
-8. Send the CSRF header from every app call, then require it as well as the Origin check.
+2. Open Media drafts API and delivery status (open-media repo), then show goal drafts in Open Media's composer.
+3. Inbound extraction: requests, requirements and commitments from replies, as `inferred` facts the person confirms.
+4. Calendar capability (CalDAV / Google Calendar) for `meeting.propose` / `meeting.schedule` steps.
+5. Retention policy for `goal_events` and superseded `knowledge_facts`.
+6. Integration status and health checks (`integrations.status`, last verified).
+7. Send the CSRF header from every app call, then require it as well as the Origin check.

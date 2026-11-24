@@ -77,6 +77,12 @@ def test_collect_subject_data_returns_envelope_with_categories():
         "privacy_consents",
         "integrations",
         "api_keys",
+        "vault_files",
+        "goals",
+        "goal_steps",
+        "approvals",
+        "knowledge_facts",
+        "goal_events",
     ):
         assert required in envelope["categories"]
 
