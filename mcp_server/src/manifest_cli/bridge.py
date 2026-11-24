@@ -706,6 +706,14 @@ async def serve(
     warm = getattr(agent, "start", None) if pool.status()["ready"] else None
     if warm is not None:
         await warm()  # Claude Code: start once now, so the first turn is quick
+    if local_voice.enough_memory():
+        # Room for more than one: warm the others too, so switching agents is instant.
+        for other in pool.ready_keys():
+            if other != pool.current_key:
+                start = getattr(pool.agent(other), "start", None)
+                if start is not None:
+                    task = asyncio.ensure_future(start())
+                    task.add_done_callback(lambda t: t.cancelled() or t.exception())
     voice_task = None
     if voice_url:
         # Natural voice on this Mac: Pipecat with local Whisper and Kokoro, no key.

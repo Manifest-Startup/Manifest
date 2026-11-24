@@ -350,3 +350,59 @@ def test_every_agent_gets_manifest_tools_from_the_cli_sign_in(monkeypatch):
     argv, _ = agents.CodexAppAgent().command()
     assert "tok-test" not in " ".join(argv)  # never in arguments (visible to other users)
     assert f'mcp_servers.manifest.bearer_token_env_var="{agents.MANIFEST_TOKEN_ENV}"' in argv
+
+
+STEERING_APP_SERVER = r"""
+import json, sys, threading
+lock = threading.Lock()
+def send(m):
+    with lock: sys.stdout.write(json.dumps(m) + "\n"); sys.stdout.flush()
+active = None; n = 0
+for line in sys.stdin:
+    m = json.loads(line); method, mid = m.get("method"), m.get("id")
+    if method == "initialize": send({"id": mid, "result": {}})
+    elif method == "thread/start": send({"id": mid, "result": {"thread": {"id": "th"}}})
+    elif method == "turn/start":
+        text = m["params"]["input"][0]["text"]
+        if active:  # like real Codex: a start during a running turn steers it, no new answer
+            send({"id": mid, "result": {"turn": {"id": active}}}); continue
+        n += 1; active = "tu-%d" % n; send({"id": mid, "result": {"turn": {"id": active}}})
+        if text == "ok" or "fast" in text:
+            if "fast" in text:
+                send({"method": "item/agentMessage/delta", "params": {"threadId": "th", "turnId": active, "delta": "Quick."}})
+            send({"method": "turn/completed", "params": {"threadId": "th", "turn": {"id": active}}}); active = None
+        else:
+            send({"method": "item/agentMessage/delta", "params": {"threadId": "th", "turnId": active, "delta": "Once upon a time. "}})
+    elif method == "turn/interrupt":
+        send({"id": mid, "result": {}}); stopping = active
+        def done(t=stopping):
+            global active
+            send({"method": "turn/completed", "params": {"threadId": "th", "turn": {"id": t}}}); active = None
+        threading.Timer(0.3, done).start()
+"""
+
+
+def test_the_question_after_an_interruption_is_answered(tmp_path, monkeypatch):
+    """Real-stack bug: asked while Codex was still stopping, the question steered the old turn
+    and ended with it, unanswered. The next turn now waits for the stop to finish."""
+    script = tmp_path / "steer.py"
+    script.write_text(STEERING_APP_SERVER)
+    agent = agents.CodexAppAgent(cwd=str(tmp_path))
+    monkeypatch.setattr(agent, "command", lambda prompt="": ([sys.executable, str(script)], None))
+    monkeypatch.setattr(agents, "manifest_access", lambda: (dict(os.environ), None))
+
+    async def run():
+        await agent.start()
+
+        async def listen():
+            return [e async for e in agent.turn("Tell me a long story")]
+
+        task = asyncio.ensure_future(listen())
+        await asyncio.sleep(0.3)
+        await agent.interrupt()
+        await asyncio.wait_for(task, 3)
+        answer = [e async for e in agent.turn("One word for fast?")]
+        agent.stop()
+        return answer
+
+    assert asyncio.run(run()) == [("say", "Quick.")]
