@@ -344,3 +344,20 @@ def test_probe_runs_a_real_turn_through_the_same_agent_command(tmp_path):
         setup.AgentProfile(workdir=str(tmp_path)),
     )
     assert failed and failed.code == setup.LAUNCH_FAILED
+
+
+def test_restart_waits_for_the_new_bridge_not_the_old_one(monkeypatch):
+    answers = iter(
+        [
+            {"pid": 1, "agent": "Codex"},
+            {"pid": 1},
+            None,
+            {"pid": 2, "agent": "Codex", "ready": True},
+        ]
+    )
+    monkeypatch.setattr(setup, "bridge_health", lambda *_a, **_k: next(answers))
+    monkeypatch.setattr(bridge.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0))
+    monkeypatch.setattr(bridge.time, "sleep", lambda _s: None)
+    out = io.StringIO()
+    assert bridge.restart(out=out) == 0
+    assert "Restarted: Codex ready" in out.getvalue()
