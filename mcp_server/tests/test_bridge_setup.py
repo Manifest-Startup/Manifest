@@ -25,7 +25,8 @@ APP = "https://manifeststartup.com"
 
 def _repo(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    clean = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}  # hooks set GIT_DIR
+    subprocess.run(["git", "init", "-q", str(path)], check=True, env=clean)
     return path
 
 

@@ -263,6 +263,9 @@ def git_root(folder: Path) -> Path | None:
             capture_output=True,
             text=True,
             timeout=5,
+            # Judge the folder itself: an inherited GIT_DIR (git hooks set it) would make
+            # any folder look like that repository.
+            env={k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
