@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from manifest_cli import bridge_setup as setup
 from manifest_cli import speech
+from manifest_cli.agents import speakable
 from manifest_cli.speech import Voice
 
 if TYPE_CHECKING:
@@ -269,6 +270,45 @@ def _key_of(agent: LocalAgent) -> str:
     return agent.shell_command if isinstance(agent, CommandAgent) else agent.name
 
 
+_TONE_LABELS = {
+    "energized": "sounds energized",
+    "calm": "sounds calm",
+    "subdued": "sounds quieter and lower in energy",
+}
+_TONE_SIGNS = {
+    "faster than usual",
+    "slower than usual",
+    "louder than usual",
+    "quieter than usual",
+    "more animated pitch than usual",
+    "flatter pitch than usual",
+    "higher pitch than usual",
+    "lower pitch than usual",
+}
+
+
+def describe_tone(tone: Any) -> str:
+    """The opt-in tone-of-voice cue the app measured on the person's device (ADR 0024), as one
+    line for the agent. Only known labels and phrases pass, so the page can't inject text."""
+    if not isinstance(tone, dict):
+        return ""
+    label = _TONE_LABELS.get(str(tone.get("label") or ""))
+    if not label:  # "steady" (their usual self) adds nothing: no extra words for the agent
+        return ""
+    try:
+        confidence = float(tone.get("confidence") or 0)
+    except (TypeError, ValueError):
+        return ""
+    if confidence < 0.3:
+        return ""
+    signs = [s for s in tone.get("signs") or [] if isinstance(s, str) and s in _TONE_SIGNS][:3]
+    how = f" ({', '.join(signs)})" if signs else ""
+    return (
+        f"(Voice cue from their device, vs. earlier in this call: {label}{how}. A rough hint for "
+        "your energy and pace, not a fact; don't mention it.)"
+    )
+
+
 class Bridge:
     def __init__(
         self,
@@ -490,7 +530,15 @@ class Bridge:
         if not text:
             await emit("done")
             return
-        prompt = " ".join(p for p in (describe_context(payload.get("context")), text) if p)
+        prompt = " ".join(
+            p
+            for p in (
+                describe_context(payload.get("context")),
+                describe_tone(payload.get("tone")),
+                text,
+            )
+            if p
+        )
         self.out.write(f"you  {text}\n")
         self.out.flush()
         async with self.lock:  # one turn at a time, in order
@@ -522,6 +570,10 @@ class Bridge:
                     if kind == "error":
                         profile = self.pool.settings.agents.get(key) or setup.AgentProfile()
                         value = setup.explain_agent_error(key, value, profile.folder)
+                    if kind == "say":
+                        value = speakable(value)
+                        if not value:
+                            continue
                     if kind in ("say", "tool", "error") and not link.gone:
                         await emit(kind, value)
                         if kind == "say":

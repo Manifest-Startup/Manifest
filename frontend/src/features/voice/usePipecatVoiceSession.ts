@@ -36,6 +36,8 @@ export interface PipecatVoiceSessionApi {
   sendText: (text: string) => Promise<void>;
   /** Stop the voice mid-answer (tap the orb or press Space). Talking over it works too. */
   interrupt?: () => void;
+  /** Opt-in tone of voice, read on this device (local-agent voice only; ADR 0024). */
+  toneReading?: { on: boolean; toggle: () => void };
 }
 
 /**

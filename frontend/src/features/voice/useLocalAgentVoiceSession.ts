@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useApolloClient } from '@apollo/client/react';
 import { useLocation } from 'react-router-dom';
 
@@ -22,6 +22,13 @@ import {
   type RecognitionHandle,
   type Speaker,
 } from './localAgent';
+import {
+  setToneReading,
+  startProsodyMeter,
+  toneReadingEnabled,
+  type ProsodyMeter,
+  type ToneCue,
+} from './voiceProsody';
 import { contextFromPath, withIdeaTitle, type LiveVoiceLevels, type PipecatVoiceSessionApi } from './usePipecatVoiceSession';
 
 const log = createLogger('useLocalAgentVoiceSession');
@@ -31,6 +38,8 @@ export const FINAL_SETTLE_MS = 350;
 /** …or after the words in progress stop changing this long (faster than waiting for final). */
 export const INTERIM_SETTLE_MS = 700;
 const NUDGE_AFTER_MS = 3000;
+/** Said while a slow answer is on its way; varied so it doesn't sound like a machine. */
+export const HOLD_ON = ['One moment.', 'Let me think.', 'Hang on, looking.', 'Give me a second.'];
 /** While the natural voice is still loading, look again this often (and switch to it). */
 /** For this long after it stops talking, words that repeat what it said are its own echo. */
 export const ECHO_TAIL_MS = 1500;
@@ -80,6 +89,10 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const micRef = useRef<MediaStream | null>(null);
   const quietSinceRef = useRef(0); // when it last stopped talking
   const warmedRef = useRef(false); // woke the voice for this question already
+  // Opt-in: read the tone of voice on this device (pitch, loudness, pace), never sent as audio.
+  const [toneOn, setToneOn] = useState(toneReadingEnabled);
+  const toneOnRef = useRef(toneOn);
+  const meterRef = useRef<ProsodyMeter | null>(null);
 
   const clearSettle = () => {
     if (settleRef.current !== null) window.clearTimeout(settleRef.current);
@@ -95,7 +108,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   }, []);
 
   const turn = useCallback(
-    async (text: string) => {
+    async (text: string, tone: ToneCue | null = null) => {
       const trimmed = text.trim();
       if (!trimmed || !activeRef.current) return;
       interrupt(); // a new question replaces an answer still coming
@@ -109,7 +122,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       let step = 0;
       const current = () => id === turnRef.current && activeRef.current;
       const nudge = window.setTimeout(() => {
-        if (!spoke && current()) speakerRef.current?.say('One moment.');
+        if (!spoke && current()) speakerRef.current?.say(HOLD_ON[id % HOLD_ON.length]); // varied, like a person
       }, NUDGE_AFTER_MS);
       try {
         await runBridgeTurn(
@@ -129,6 +142,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
             }
           },
           controller.signal,
+          tone,
         );
       } catch (error) {
         if (!controller.signal.aborted && current()) {
@@ -162,7 +176,11 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     const text = `${final} ${interim}`.trim();
     warmedRef.current = false;
     if (interim) recognitionRef.current?.restart(); // its "final" for these words would repeat them
-    if (text) void turn(text);
+    // How it was said, compared with how this person sounded earlier (opt-in, on this device).
+    const cue = text ? (meterRef.current?.take(text.split(/\s+/).length) ?? null) : null;
+    // A turn that sounds like their usual self adds nothing: send no cue (no extra tokens).
+    const tone = cue && cue.label !== 'steady' ? cue : null;
+    if (text) void turn(text, tone);
   }, [turn]);
 
   const onHeard = useCallback(
@@ -180,6 +198,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
         warmBridgeSpeech(); // page the voice in while they're still talking
       }
       const heard = heardRef.current;
+      if (!heard.final && !heard.interim) meterRef.current?.begin(); // a new turn starts
       if (final) heardRef.current = { final: `${heard.final} ${text}`.trim(), interim: '' };
       else heardRef.current = { ...heard, interim: text };
       levelsRef.current.mic = 0.7;
@@ -197,6 +216,8 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     interrupt();
     recognitionRef.current?.stop();
     recognitionRef.current = null;
+    meterRef.current?.stop();
+    meterRef.current = null;
     micRef.current?.getTracks().forEach(track => track.stop());
     micRef.current = null;
     speakerRef.current = null;
@@ -264,6 +285,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       levels.mic = mutedRef.current ? 0 : Math.max(0.12, levels.mic * 0.85);
     }, 50);
     micRef.current = await echoCancelledMic();
+    if (toneOnRef.current && micRef.current) meterRef.current = startProsodyMeter(micRef.current);
     recognitionRef.current = startRecognition(
       {
         onText: onHeard,
@@ -294,7 +316,30 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
 
   const sendText = useCallback((text: string) => turn(text), [turn]);
 
+  const toggleToneReading = useCallback(() => {
+    const on = !toneOnRef.current;
+    toneOnRef.current = on;
+    setToneOn(on);
+    setToneReading(on);
+    if (!on) {
+      meterRef.current?.stop();
+      meterRef.current = null;
+    } else if (activeRef.current && micRef.current && !meterRef.current) {
+      meterRef.current = startProsodyMeter(micRef.current);
+    }
+  }, []);
+
   useEffect(() => () => void end(), [end]);
 
-  return { state, levelsRef, context, start, end, toggleMute, sendText, interrupt };
+  return {
+    state,
+    levelsRef,
+    context,
+    start,
+    end,
+    toggleMute,
+    sendText,
+    interrupt,
+    toneReading: { on: toneOn, toggle: toggleToneReading },
+  };
 }

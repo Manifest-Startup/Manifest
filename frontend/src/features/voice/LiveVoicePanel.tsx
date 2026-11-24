@@ -100,6 +100,8 @@ const MIC = 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5.5 11a6.5 6.5
 const MIC_OFF = `${MIC}M4 4l16 16`;
 const KEYS = 'M4 7h16v10H4zM7.5 10.5h.01M10.5 10.5h.01M13.5 10.5h.01M16.5 10.5h.01M8.5 14h7';
 const CLOSE = 'M7 7l10 10M17 7L7 17';
+/** A short waveform: tone of voice. */
+const WAVE = 'M3 12h1M7 8v8M11 5v14M15 9v6M19 11v2';
 const SEND = 'M12 19V5M6.5 10.5L12 5l5.5 5.5';
 
 function statusLine(mood: Mood, action: LiveActivity | undefined): { text: string; kind: string } {
@@ -117,7 +119,7 @@ const Orb: React.FC<{ size: 'sm' | 'lg'; orbRef?: React.RefObject<HTMLDivElement
 );
 
 const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'docked', blocked, onClose, onSetupReady }) => {
-  const { state, context, start, end, toggleMute, sendText, interrupt } = session;
+  const { state, context, start, end, toggleMute, sendText, interrupt, toneReading } = session;
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState('');
   const glowRef = useRef<HTMLDivElement>(null);
@@ -304,6 +306,22 @@ const LiveVoicePanel: React.FC<LiveVoicePanelProps> = ({ session, layout = 'dock
           {!blocked && !typing && !error ? (
             <button aria-label="Type instead" className="lv-btn lv-btn--type" onClick={() => setTyping(true)} type="button">
               <Glyph d={KEYS} size={17} width={1.8} />
+            </button>
+          ) : null}
+          {live && toneReading ? (
+            <button
+              aria-label={toneReading.on ? 'Stop reading my tone of voice' : 'Read my tone of voice'}
+              aria-pressed={toneReading.on}
+              className={`lv-btn${toneReading.on ? ' is-on' : ''}`}
+              onClick={toneReading.toggle}
+              title={
+                toneReading.on
+                  ? 'Tone reading is on: this device estimates your pace, loudness and pitch, and your agent gets a short hint such as "sounds energized". No audio leaves this device. Tap to turn it off.'
+                  : 'Read my tone of voice: this device estimates your pace, loudness and pitch so the agent can match your energy. No audio leaves this device.'
+              }
+              type="button"
+            >
+              <Glyph d={WAVE} size={17} />
             </button>
           ) : null}
           {live ? (

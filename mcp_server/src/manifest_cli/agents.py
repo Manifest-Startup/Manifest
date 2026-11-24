@@ -19,18 +19,35 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 import shlex
 import shutil
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-VOICE_STYLE = (
-    "You are being spoken to out loud through Manifest voice; your replies are read aloud. "
-    "Answer in short, natural spoken sentences. No markdown, lists, code blocks, tables, "
-    "URLs, file paths or ids read aloud: say what you did or found in plain words, and call "
-    "ideas, documents and people by their names (people never see ids). Before a long "
-    "task, say in one short sentence what you are about to do. "
+# How to sound on a voice call (issue #131, ADR 0024): from OpenAI's Realtime prompting guide,
+# ElevenLabs' agent prompting guide, Sierra's and Sesame's voice research, Alexa's one-breath test.
+VOICE_PERSONA = (
+    "Live voice call through Manifest: your words are spoken aloud. Talk like a warm, curious, "
+    "confident person, never fawning. One to three short sentences that fit in one breath "
+    "unless asked for more; contractions, plain words, varied rhythm. React first to what they "
+    "actually said, briefly and specifically, then make your point; vary your openings and skip "
+    "stock lines like 'Great question'. Remember and use what they said earlier; ask at most "
+    "one follow-up, only when it moves things on. Praise only what's earned; flag a shaky "
+    "assumption kindly and say how to test it. Match their energy; never name or guess their "
+    "feelings. A light, wry aside is fine when relaxed, never about money, legal trouble or bad "
+    "news. If something sounds misheard, check ('pilot or pivot?'). 'Okay' or 'mm-hm' means go "
+    "on. Nothing that doesn't read aloud: no markdown, lists, emoji, URLs, paths or ids; say "
+    "names and numbers as people do. Before a long task, say in a few words what you're doing. "
+)
+
+# Said with every turn: a system prompt alone loses to the agent's coding defaults (measured
+# 2026-11-23 with Claude Code haiku: ~200-400 spoken words with markdown per answer). Short
+# answers are also the biggest speed win: less to write, and speech starts sooner.
+VOICE_TURN_HINT = "(Voice: reply in one to three short spoken sentences, no markdown or lists.)"
+
+VOICE_STYLE = VOICE_PERSONA + (
     "The person's Manifest vault is a folder on this computer. To say where it is, run "
     "`manifest vault-folder`; to move it when they ask (for example to iCloud Drive), run "
     "`manifest vault-folder icloud`, `documents`, `home` or a full path. Moving keeps every "
@@ -208,7 +225,7 @@ class ClaudeCodeAgent(LocalAgent):
         await self.start()
         process = self.process
         assert process and process.stdin and process.stdout
-        process.stdin.write(self.message(prompt))
+        process.stdin.write(self.message(f"{prompt}\n{VOICE_TURN_HINT}"))
         await process.stdin.drain()
         async for raw in process.stdout:
             events = self.parse(raw.decode(errors="replace"))
@@ -296,6 +313,23 @@ class ClaudeCodeAgent(LocalAgent):
             asyncio.get_event_loop().call_later(10, _kill, process)
 
 
+_MARKUP = (
+    (re.compile(r"`{3}.*?`{3}", re.S), " "),  # code blocks are never read aloud
+    (re.compile(r"\*\*|__|`|^#{1,6}\s+|^\s*>\s?", re.M), ""),  # bold, code, headings, quotes
+    (re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+", re.M), ""),  # list bullets and numbers
+    (re.compile(r"\[([^\]]+)\]\([^)]+\)"), r"\1"),  # [text](url) → text
+    (re.compile(r"https?://\S+"), "the link"),
+)
+
+
+def speakable(text: str) -> str:
+    """What a voice should say for an agent's text: its markdown dropped, never read out as
+    "asterisk asterisk" (agents still write it now and then)."""
+    for pattern, replacement in _MARKUP:
+        text = pattern.sub(replacement, text)
+    return " ".join(text.split())
+
+
 def split_sentences(text: str) -> tuple[list[str], str]:
     """Complete sentences in `text` (ended by . ! ? and a space), and the unfinished rest."""
     out: list[str] = []
@@ -328,7 +362,8 @@ class CodexAgent(LocalAgent):
     name: str = "Codex"
 
     def command(self, prompt: str) -> tuple[list[str], bytes | None]:
-        text = f"{VOICE_STYLE}\n\n{prompt}" if not self.session_id else prompt
+        turn = f"{prompt}\n{VOICE_TURN_HINT}"
+        text = f"{VOICE_STYLE}\n\n{turn}" if not self.session_id else turn
         fast: list[str] = []
         if self.model not in (None, "default"):
             fast = ["-m", self.model]

@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import LiveVoicePanel from '../LiveVoicePanel';
 import { INITIAL_LIVE_VOICE_STATE, LiveVoiceState } from '../liveVoice';
 
-function renderPanel(state: Partial<LiveVoiceState>) {
+function renderPanel(state: Partial<LiveVoiceState>, extra: Record<string, unknown> = {}) {
   const session = {
     state: { ...INITIAL_LIVE_VOICE_STATE, ...state },
     levelsRef: { current: { mic: 0, bot: 0 } },
@@ -14,6 +14,7 @@ function renderPanel(state: Partial<LiveVoiceState>) {
     end: jest.fn(),
     toggleMute: jest.fn(),
     sendText: jest.fn(),
+    ...extra,
   };
   render(
     <MemoryRouter>
@@ -44,4 +45,19 @@ test('in conversation: only the latest reply and the latest action, with a confi
   expect(screen.getByText('Say “yes” to confirm')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'New idea' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
+});
+
+test('tone reading is an explicit switch that says what it does and that no audio leaves', () => {
+  const toggle = jest.fn();
+  renderPanel({ phase: 'listening' }, { toneReading: { on: false, toggle } });
+  const button = screen.getByRole('button', { name: 'Read my tone of voice' });
+  expect(button).toHaveAttribute('aria-pressed', 'false');
+  expect(button.getAttribute('title')).toContain('No audio leaves this device');
+  button.click();
+  expect(toggle).toHaveBeenCalled();
+});
+
+test('no tone switch where the session cannot read tone', () => {
+  renderPanel({ phase: 'listening' });
+  expect(screen.queryByRole('button', { name: /tone of voice/ })).not.toBeInTheDocument();
 });

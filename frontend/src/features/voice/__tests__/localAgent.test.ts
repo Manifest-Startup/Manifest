@@ -34,6 +34,16 @@ describe('local agent bridge', () => {
     expect(JSON.parse(init.body)).toMatchObject({ text: 'what ideas do I have', context: { idea_id: 'a1' } });
   });
 
+  it('sends the opt-in tone cue with a turn, and nothing when it is off', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(streamed(['{"kind":"done","text":""}\n']));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const tone = { label: 'energized' as const, arousal: 0.8, confidence: 0.6, signs: ['faster than usual' as const] };
+    await runBridgeTurn('let us go', { path: '/' }, () => undefined, undefined, tone);
+    await runBridgeTurn('let us go', { path: '/' }, () => undefined);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).tone).toEqual(tone);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).not.toHaveProperty('tone');
+  });
+
   it('finds a running bridge and quietly reports none otherwise', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true, agent: 'Claude Code' }) }) as never;
     await expect(probeBridge()).resolves.toEqual({ agent: 'Claude Code', voice: null, interrupt: false, speech: null, ready: true, problem: null, agents: [] });

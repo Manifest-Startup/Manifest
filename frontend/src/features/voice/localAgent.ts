@@ -6,6 +6,7 @@
  * whether Manifest may reach devices on the local network; that is this bridge.
  */
 import type { LiveVoiceContext } from './liveVoice';
+import type { ToneCue } from './voiceProsody';
 
 export const BRIDGE_URL = 'http://127.0.0.1:47821';
 /** The same bridge over HTTPS (`manifest bridge --install` sets it up): Safari only allows this. */
@@ -130,6 +131,7 @@ export async function runBridgeTurn(
   context: LiveVoiceContext,
   onEvent: (event: BridgeEvent) => void,
   signal?: AbortSignal,
+  tone?: ToneCue | null,
 ): Promise<void> {
   const response = await fetch(`${bridgeBase}/turn`, {
     method: 'POST',
@@ -137,6 +139,8 @@ export async function runBridgeTurn(
     body: JSON.stringify({
       text,
       context: { path: context.path, idea_id: context.ideaId ?? null, idea_title: context.ideaTitle ?? null },
+      // Opt-in tone of voice, read on this device: a label and fixed phrases, never audio.
+      ...(tone ? { tone } : {}),
     }),
     signal,
   });

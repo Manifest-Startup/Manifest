@@ -20,7 +20,7 @@ def test_claude_code_command_resumes_its_session_and_stays_read_only_by_default(
         "message": {"role": "user", "content": "what changed today?"},
     }
     assert argv[argv.index("--allowedTools") + 1] == agents.CLAUDE_DEFAULT_TOOLS
-    assert "out loud" in argv[argv.index("--append-system-prompt") + 1]
+    assert "spoken aloud" in argv[argv.index("--append-system-prompt") + 1]
 
     events = agent.parse(json.dumps({"type": "system", "subtype": "init", "session_id": "s-1"}))
     events += agent.parse(
@@ -55,7 +55,7 @@ def test_codex_command_and_events():
     agent = agents.make_agent("codex")
     argv, stdin = agent.command("hi")
     assert argv[:3] == ["codex", "exec", "--json"] and argv[-1] == "-"
-    assert stdin.endswith(b"hi") and b"out loud" in stdin
+    assert stdin.endswith(b"hi\n" + agents.VOICE_TURN_HINT.encode()) and b"spoken aloud" in stdin
     agent.parse(json.dumps({"type": "thread.started", "thread_id": "t-9"}))
     said = agent.parse(
         json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "Done."}})
@@ -219,3 +219,34 @@ def test_interrupting_claude_sends_a_control_request():
     asyncio.run(agent.interrupt())
     body = json.loads(written[0])
     assert body["type"] == "control_request" and body["request"] == {"subtype": "interrupt"}
+
+
+def test_the_voice_persona_sounds_like_a_person_and_stays_short():
+    """Issue #131: warm, specific acknowledgements, honest, brief, never names feelings."""
+    persona = agents.VOICE_PERSONA
+    for rule in ("one breath", "React first", "never fawning", "Praise only what's earned"):
+        assert rule in persona
+    assert "never name or guess their feelings" in persona
+    assert len(persona) < 1100  # sent once per call, so it stays cheap
+    assert agents.VOICE_STYLE.startswith(persona)
+
+
+def test_markdown_is_never_read_aloud():
+    assert agents.speakable("**Why it's promising**") == "Why it's promising"
+    assert (
+        agents.speakable("- Insurers are slow.\n2. Call five clinics.")
+        == "Insurers are slow. Call five clinics."
+    )
+    assert (
+        agents.speakable("See [the guide](https://x.example/a) or https://y.example")
+        == "See the guide or the link"
+    )
+    assert agents.speakable("```\ncode\n```") == ""
+
+
+def test_every_turn_reminds_the_agent_it_is_speaking():
+    """A system prompt alone lost to the agent's defaults (200-400 words with markdown)."""
+    codex = agents.make_agent("codex")
+    assert codex.command("hi")[1].decode().endswith(agents.VOICE_TURN_HINT)
+    codex.session_id = "t-1"
+    assert codex.command("again")[1].decode() == f"again\n{agents.VOICE_TURN_HINT}"

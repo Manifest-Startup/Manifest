@@ -25,5 +25,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0020 — Goals that run: a plan, an approval, Open Media, and what was learned](0020-goals-that-run.md)
 - [0022 — Standing approvals: the person can say "don't ask again" for a few people](0022-standing-approvals.md)
 - [0023 — One bridge, several agents, honest setup](0023-one-bridge-several-agents.md)
+- [0024 — A voice that sounds like a person, and reads tone on the device](0024-a-voice-that-sounds-like-a-person.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.
