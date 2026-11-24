@@ -1,5 +1,5 @@
 /**
- * Tone of voice, read on this device (opt-in; ADR 0024).
+ * Tone of voice, read on this device (on with a notice; "stop reading my tone" turns it off; ADR 0024).
  *
  * While the person talks, the mic's own audio is measured here in the browser: pitch (YIN),
  * loudness (RMS) and pace (words per second of speech). Each turn is compared with how this
@@ -236,13 +236,26 @@ export function toEmotionML(cue: ToneCue): string {
   );
 }
 
+/** On unless the person said to stop (no button: they say it; ADR 0024). */
 export function toneReadingEnabled(): boolean {
   try {
-    return window.localStorage.getItem(PROSODY_PREF_KEY) === 'on';
+    return window.localStorage.getItem(PROSODY_PREF_KEY) !== 'off';
   } catch {
-    return false;
+    return true;
   }
 }
+
+/** "Stop reading my tone" → false, "read my tone again" → true, anything else → null. */
+export function toneCommand(text: string): boolean | null {
+  const t = text.toLowerCase();
+  if (!/\btone\b/.test(t)) return null;
+  if (/\b(stop|don'?t|do not|turn off|no more|quit)\b.*\b(read|reading|listen|listening|track|tracking|tone)\b/.test(t)) return false;
+  if (/\b(start|turn on|resume|again|go ahead and|please)\b.*\b(read|reading|listen|listening|track|tracking)\b|\bread(ing)? my tone\b/.test(t)) return true;
+  return null;
+}
+
+export const TONE_NOTICE =
+  'Reading your tone of voice on this device to match your energy. No audio leaves it. Say "stop reading my tone" to turn it off.';
 
 export function setToneReading(on: boolean): void {
   try {
@@ -287,7 +300,7 @@ export function startProsodyMeter(stream: MediaStream): ProsodyMeter | null {
     analyser.fftSize = FRAME_SIZE;
     source.connect(analyser); // not to the speakers: measured only
   } catch {
-    void context.close().catch(() => undefined);
+    void context.close?.().catch(() => undefined);
     return null; // this browser can't measure the mic: voice works as before
   }
   const buffer = new Float32Array(FRAME_SIZE);

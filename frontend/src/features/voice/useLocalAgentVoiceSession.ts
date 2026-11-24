@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useApolloClient } from '@apollo/client/react';
 import { useLocation } from 'react-router-dom';
 
@@ -25,6 +25,8 @@ import {
 import {
   setToneReading,
   startProsodyMeter,
+  TONE_NOTICE,
+  toneCommand,
   toneReadingEnabled,
   type ProsodyMeter,
   type ToneCue,
@@ -37,7 +39,8 @@ const log = createLogger('useLocalAgentVoiceSession');
 export const FINAL_SETTLE_MS = 350;
 /** …or after the words in progress stop changing this long (faster than waiting for final). */
 export const INTERIM_SETTLE_MS = 700;
-const NUDGE_AFTER_MS = 3000;
+/** No words yet after this long: say a short "one moment" (pre-made, so it's instant). */
+export const NUDGE_AFTER_MS = 2000;
 /** Said while a slow answer is on its way; varied so it doesn't sound like a machine. */
 /** Below this a tone cue is too weak to pass on (measured: an early baseline misread a calm turn at 0.22). */
 export const MIN_TONE_CONFIDENCE = 0.3;
@@ -92,8 +95,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
   const quietSinceRef = useRef(0); // when it last stopped talking
   const warmedRef = useRef(false); // woke the voice for this question already
   // Opt-in: read the tone of voice on this device (pitch, loudness, pace), never sent as audio.
-  const [toneOn, setToneOn] = useState(toneReadingEnabled);
-  const toneOnRef = useRef(toneOn);
+  const toneOnRef = useRef(toneReadingEnabled());
   const meterRef = useRef<ProsodyMeter | null>(null);
 
   const clearSettle = () => {
@@ -138,6 +140,12 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
               dispatch({ type: 'botOutput', text: event.kind === 'error' ? event.text : said });
               speakerRef.current?.say(said);
             } else if (event.kind === 'tool') {
+              if (!spoke && !usedTools) {
+                // A tool takes a while: say so at once instead of leaving silence.
+                window.clearTimeout(nudge);
+                spoke = true;
+                speakerRef.current?.say(HOLD_ON[id % HOLD_ON.length]);
+              }
               usedTools = true;
               step += 1;
               dispatch({ type: 'tool', activity: { id: `local-${id}-${step}`, label: event.text, status: 'done' } });
@@ -178,6 +186,19 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     const text = `${final} ${interim}`.trim();
     warmedRef.current = false;
     if (interim) recognitionRef.current?.restart(); // its "final" for these words would repeat them
+    const wantsTone = text ? toneCommand(text) : null;
+    if (wantsTone !== null) {
+      // "Stop reading my tone" / "read my tone again": handled here, never sent to the agent.
+      setToneReading(wantsTone);
+      toneOnRef.current = wantsTone;
+      meterRef.current?.stop();
+      meterRef.current = wantsTone && micRef.current ? startProsodyMeter(micRef.current) : null;
+      dispatch({ type: 'userInput', text, final: true });
+      const said = wantsTone ? "Okay, I'll follow your tone again." : "Okay, I've stopped reading your tone.";
+      dispatch({ type: 'botOutput', text: said });
+      speakerRef.current?.say(said);
+      return;
+    }
     // How it was said, compared with how this person sounded earlier (opt-in, on this device).
     const cue = text ? (meterRef.current?.take(text.split(/\s+/).length) ?? null) : null;
     // A turn that sounds like their usual self, or a weak reading (an early baseline), adds
@@ -255,7 +276,21 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       return;
     }
     activeRef.current = true;
+    if (bridge.warning) {
+      // It can talk, but can't reach Manifest's tools: say so up front, with the fix.
+      dispatch({
+        type: 'tool',
+        activity: { id: 'bridge-warning', label: `${bridge.warning.message} ${bridge.warning.fix}`, status: 'failed' },
+      });
+    }
+    let preloaded = false;
     const onSpeaking = (speaking: boolean) => {
+      if (!speaking && !preloaded) {
+        // Once the first answer is over and the voice is idle, make the "one moment" lines,
+        // so later they play instantly without competing with a real answer for the voice.
+        preloaded = true;
+        speakerRef.current?.preload?.(HOLD_ON);
+      }
       if (!speaking) quietSinceRef.current = Date.now();
       levelsRef.current.bot = speaking ? 0.6 : 0;
       dispatch({ type: speaking ? 'botStarted' : 'botStopped' });
@@ -268,6 +303,7 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     naturalRef.current =
       canPlay && !missing && (Boolean(bridge.speech) || (bridge.speechStatus ?? 'off') !== 'off');
     speakerRef.current = naturalRef.current ? createBridgeSpeaker(onSpeaking) : createSilentSpeaker();
+
     if (!naturalRef.current) {
       dispatch({
         type: 'tool',
@@ -288,7 +324,11 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
       levels.mic = mutedRef.current ? 0 : Math.max(0.12, levels.mic * 0.85);
     }, 50);
     micRef.current = await echoCancelledMic();
-    if (toneOnRef.current && micRef.current) meterRef.current = startProsodyMeter(micRef.current);
+    if (toneOnRef.current && micRef.current) {
+      meterRef.current = startProsodyMeter(micRef.current);
+      // Say it's on, once, when it starts: no button, the person turns it off by saying so.
+      if (meterRef.current) dispatch({ type: 'tool', activity: { id: 'tone-reading', label: TONE_NOTICE, status: 'done' } });
+    }
     recognitionRef.current = startRecognition(
       {
         onText: onHeard,
@@ -319,18 +359,6 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
 
   const sendText = useCallback((text: string) => turn(text), [turn]);
 
-  const toggleToneReading = useCallback(() => {
-    const on = !toneOnRef.current;
-    toneOnRef.current = on;
-    setToneOn(on);
-    setToneReading(on);
-    if (!on) {
-      meterRef.current?.stop();
-      meterRef.current = null;
-    } else if (activeRef.current && micRef.current && !meterRef.current) {
-      meterRef.current = startProsodyMeter(micRef.current);
-    }
-  }, []);
 
   useEffect(() => () => void end(), [end]);
 
@@ -343,6 +371,5 @@ export function useLocalAgentVoiceSession(): PipecatVoiceSessionApi {
     toggleMute,
     sendText,
     interrupt,
-    toneReading: { on: toneOn, toggle: toggleToneReading },
   };
 }

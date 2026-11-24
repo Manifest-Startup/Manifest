@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import json
 import re
 import shlex
@@ -42,7 +43,9 @@ VOICE_PERSONA = (
     "Never name or guess their feelings; if their "
     "words and tone seem to disagree, take the gentler reading. Never claim to feel or detect "
     "emotions; if asked, say plainly you're an AI. A light, wry aside is fine when relaxed, "
-    "never about money, legal trouble or bad news. Don't lecture. If a word is obviously "
+    "never about money, legal trouble or bad news. Be kind and easygoing, never curt: when "
+    "you can't do something, say so gently and offer what you can do; if they're annoyed with "
+    "you, own it in a few words and fix it. Don't lecture. If a word is obviously "
     "misheard, go with the likely meaning; ask ('pilot or pivot?') only when it matters. If "
     "they trail off mid-thought, a quick 'mm-hm, go on' is enough; 'okay' or 'mm-hm' from them "
     "means go on. Nothing that doesn't read aloud: no markdown, lists, emoji, URLs, paths or "
@@ -134,6 +137,7 @@ class LocalAgent:
             stderr=asyncio.subprocess.PIPE,
             limit=16 * 1024 * 1024,
             cwd=self.cwd,
+            env=manifest_access()[0],
         )
         process = self.process
         if stdin is not None and process.stdin:
@@ -227,6 +231,7 @@ class ClaudeCodeAgent(LocalAgent):
             stderr=asyncio.subprocess.DEVNULL,
             limit=16 * 1024 * 1024,
             cwd=self.cwd,
+            env=manifest_access()[0],
         )
 
     async def turn(self, prompt: str) -> AsyncIterator[Event]:
@@ -423,6 +428,269 @@ class CodexAgent(LocalAgent):
         return []
 
 
+MANIFEST_TOKEN_ENV = "MANIFEST_MCP_TOKEN"
+
+
+def manifest_access() -> tuple[dict[str, str], str | None]:
+    """The agent's environment, with the person's own Manifest CLI sign-in for Manifest's
+    tools (the hosted /mcp accepts the CLI token), and the /mcp URL; ({…}, None) when they
+    aren't signed in. The token goes only into the agent's environment, never its arguments
+    or a log, so every agent gets the same Manifest abilities (issue: Codex couldn't report)."""
+    import os
+
+    env = dict(os.environ)
+    try:
+        from manifest_cli import config
+
+        token, base = config.token(), config.base_url()
+    except Exception:  # no CLI config: the agent keeps its own Manifest connection
+        return env, None
+    if not token:
+        return env, None
+    env[MANIFEST_TOKEN_ENV] = token
+    return env, f"{base}/mcp"
+
+
+@dataclass
+class CodexAppAgent(LocalAgent):
+    """Codex as one long-lived `codex app-server` for the whole conversation (JSON-RPC over
+    stdio, the protocol Codex's own IDE extension uses). Its MCP servers and model session
+    stay warm, words stream in sentence by sentence, and talking over it sends
+    `turn/interrupt` instead of killing a process. Measured 2026-11-23 with codex-cli 0.172:
+    the first words of a follow-up came in 1.8 s, against 6-8 s for a new `codex exec` each
+    turn."""
+
+    name: str = "Codex"
+    thread_id: str | None = None
+    turn_id: str | None = None
+    _next_id: int = 0
+    _pending: dict = field(default_factory=dict)
+    _events: asyncio.Queue | None = None
+    _reader: asyncio.Future | None = None
+    _text: str = ""
+    _lock: asyncio.Lock | None = None
+
+    def command(self, prompt: str = "") -> tuple[list[str], bytes | None]:
+        argv = ["codex", "app-server"]
+        if self.model != "default" and "model_reasoning_effort" not in " ".join(self.extra_args):
+            argv += ["-c", 'model_reasoning_effort="low"']  # spoken answers: start talking sooner
+        _env, mcp_url = manifest_access()
+        if mcp_url:  # Manifest's tools through the person's own CLI sign-in
+            argv += ["-c", f'mcp_servers.manifest.url="{mcp_url}"']
+            argv += ["-c", f'mcp_servers.manifest.bearer_token_env_var="{MANIFEST_TOKEN_ENV}"']
+        return argv + list(self.extra_args), None
+
+    async def _send(self, payload: dict) -> None:
+        assert self.process and self.process.stdin
+        self.process.stdin.write((json.dumps(payload) + "\n").encode())
+        await self.process.stdin.drain()
+
+    async def _call(self, method: str, params: dict, timeout: float = 60) -> dict:
+        self._next_id += 1
+        future = asyncio.get_running_loop().create_future()
+        self._pending[self._next_id] = future
+        await self._send(
+            {"jsonrpc": "2.0", "id": self._next_id, "method": method, "params": params}
+        )
+        reply = await asyncio.wait_for(future, timeout)
+        if "error" in reply:
+            raise RuntimeError(str((reply["error"] or {}).get("message") or reply["error"]))
+        return reply.get("result") or {}
+
+    async def _read(self) -> None:
+        assert self.process and self.process.stdout and self._events is not None
+        async for raw in self.process.stdout:
+            try:
+                message = json.loads(raw)
+            except ValueError:
+                continue
+            if "id" in message and "method" not in message:
+                future = self._pending.pop(message["id"], None)
+                if future and not future.done():
+                    future.set_result(message)
+            elif "id" in message:
+                # Codex asks to approve something. Voice runs read-only with no approvals, so
+                # anything it asks is declined; Manifest's own tools confirm with the person.
+                await self._send(
+                    {"jsonrpc": "2.0", "id": message["id"], "result": {"decision": "decline"}}
+                )
+            else:
+                await self._events.put(message)
+        await self._events.put({"method": "process/exited"})
+
+    async def start(self) -> None:
+        self._lock = self._lock or asyncio.Lock()
+        async with self._lock:  # the bridge warms it while a first question may arrive
+            if self.process and self.process.returncode is None and self.thread_id:
+                return
+            await self._start()
+
+    async def _quiet_turn(self, thread_id: str, text: str, timeout: float = 60) -> None:
+        assert self._events is not None
+        await self._call(
+            "turn/start",
+            {"threadId": thread_id, "input": [{"type": "text", "text": text, "text_elements": []}]},
+        )
+
+        async def done() -> None:
+            while (await self._events.get()).get("method") not in (
+                "turn/completed",
+                "process/exited",
+            ):
+                pass
+
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(done(), timeout)
+
+    async def _start(self) -> None:
+        env, _url = manifest_access()
+        argv, _ = self.command()
+        self.process = await asyncio.create_subprocess_exec(
+            *argv,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            limit=16 * 1024 * 1024,
+            cwd=self.cwd,
+            env=env,
+        )
+        self._events, self._pending = asyncio.Queue(), {}
+        self._reader = asyncio.ensure_future(self._read())
+        await self._call(
+            "initialize",
+            {
+                "clientInfo": {"name": "manifest-voice", "title": "Manifest voice", "version": "1"},
+                "capabilities": None,
+            },
+        )
+        await self._send({"jsonrpc": "2.0", "method": "initialized"})
+        params: dict = {
+            "cwd": self.cwd,
+            "approvalPolicy": "never",
+            "sandbox": "read-only",
+            "developerInstructions": VOICE_STYLE,
+        }
+        if self.model not in (None, "default"):
+            params["model"] = self.model
+        # Codex connects its MCP servers and model on the first turn (~9 s measured). One
+        # throwaway turn while the call connects takes that out of the person's first question
+        # (first words 8.5 s -> 2.5 s); its session is marked as voice's own (originator).
+        warm = await self._call(
+            "thread/start", {**params, "developerInstructions": "Reply with just: ok"}
+        )
+        await self._quiet_turn((warm.get("thread") or {}).get("id"), "ok")
+        if self.resume or self.session_id:
+            result = await self._call(
+                "thread/resume", {**params, "threadId": self.resume or self.session_id}
+            )
+        else:
+            result = await self._call("thread/start", params)
+        self.thread_id = (result.get("thread") or {}).get("id")
+        self.session_id = self.thread_id
+
+    async def turn(self, prompt: str) -> AsyncIterator[Event]:
+        try:
+            await self.start()
+        except (OSError, RuntimeError, TimeoutError) as exc:
+            self.process = None
+            yield ("error", _short(f"Codex didn't start: {exc}", 160))
+            return
+        assert self._events is not None
+        while not self._events.empty():  # leftovers of an interrupted turn
+            self._events.get_nowait()
+        self._text = ""
+        try:
+            result = await self._call(
+                "turn/start",
+                {
+                    "threadId": self.thread_id,
+                    "input": [
+                        {
+                            "type": "text",
+                            "text": f"{prompt}\n{VOICE_TURN_HINT}",
+                            "text_elements": [],
+                        }
+                    ],
+                },
+            )
+        except (RuntimeError, TimeoutError) as exc:
+            yield ("error", _short(str(exc), 160))
+            return
+        self.turn_id = turn_id = (result.get("turn") or {}).get("id")
+        while True:
+            message = await self._events.get()
+            method, params = message.get("method"), message.get("params") or {}
+            if method != "local/interrupted" and params.get("turnId") not in (None, turn_id):
+                continue  # a late event from an earlier, interrupted turn
+            if self.turn_id is None and method != "local/interrupted":
+                continue  # interrupted: drop what's still arriving for this turn
+            events, finished = self._on_event(method, params)
+            for event in events:
+                yield event
+            if finished:
+                return
+
+    def _on_event(self, method: str | None, params: dict) -> tuple[list[Event], bool]:
+        """One app-server notification as voice events, and whether the turn is over."""
+        if method == "item/agentMessage/delta":
+            self._text += str(params.get("delta") or "")
+            sentences, self._text = split_sentences(self._text)
+            return [("say", sentence) for sentence in sentences], False
+        if method == "item/started":
+            item = params.get("item") or {}
+            kind = item.get("type")
+            if kind in ("mcpToolCall", "commandExecution", "webSearch", "dynamicToolCall"):
+                return [
+                    ("tool", _short(str(item.get("tool") or item.get("command") or kind)))
+                ], False
+            return [], False
+        if method in ("item/completed", "turn/completed"):
+            is_message = (params.get("item") or {}).get("type") == "agentMessage"
+            rest = self._text.strip() if (is_message or method == "turn/completed") else ""
+            if is_message or method == "turn/completed":
+                self._text = ""
+            if method == "turn/completed":
+                self.turn_id = None
+            return ([("say", rest)] if rest else []), method == "turn/completed"
+        if method == "error" and not params.get("willRetry"):
+            error = params.get("error") or {}
+            return [("error", _short(str(error.get("message") or "Codex failed"), 160))], False
+        if method == "local/interrupted":
+            return [], True  # the person talked over it: stop at once, Codex catches up
+        if method == "process/exited":
+            self.process, self.thread_id = None, None
+            return [("error", "Codex stopped")], True
+        return [], False
+
+    async def interrupt(self) -> None:
+        """Stop the answer at once; the same warm process takes the next question."""
+        if self.process and self.process.returncode is None and self.thread_id and self.turn_id:
+            turn, self.turn_id = self.turn_id, None
+            if self._events is not None:
+                await self._events.put({"method": "local/interrupted", "params": {"turnId": turn}})
+            with contextlib.suppress(RuntimeError, TimeoutError, ConnectionError):
+                await self._call(
+                    "turn/interrupt", {"threadId": self.thread_id, "turnId": turn}, timeout=5
+                )
+
+    def stop(self) -> None:
+        if self._reader:
+            self._reader.cancel()
+        super().stop()
+
+
+@functools.lru_cache(maxsize=1)
+def codex_app_server_available() -> bool:
+    """Whether this Codex has the app server (codex-cli 0.130+); else voice uses `exec`."""
+    import subprocess
+
+    try:
+        done = subprocess.run(["codex", "app-server", "--help"], capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return done.returncode == 0
+
+
 @dataclass
 class CommandAgent(LocalAgent):
     """Any command: the turn on stdin, its whole output spoken."""
@@ -476,6 +744,9 @@ def make_agent(
     if key in ("claude", "claude-code", "claude_code"):
         return ClaudeCodeAgent(**common)
     if key == "codex":
+        # Persistent and interruptible when this Codex can; `--continue` keeps `exec resume`.
+        if not continue_last and codex_app_server_available():
+            return CodexAppAgent(**common)
         return CodexAgent(**common)
     words = shlex.split(spec)
     return CommandAgent(name=words[0] if words else "agent", shell_command=spec, **common)

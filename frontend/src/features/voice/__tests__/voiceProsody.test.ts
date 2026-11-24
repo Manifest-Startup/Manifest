@@ -64,3 +64,25 @@ describe('tone of voice, read on this device', () => {
     expect(xml).toContain('<dimension name="arousal" value="0.82" confidence="0.6"/>');
   });
 });
+
+describe('turning tone reading off and on by voice', () => {
+  it('understands natural ways to say it, and ignores other talk about tone', () => {
+    const { toneCommand } = jest.requireActual('../voiceProsody') as typeof import('../voiceProsody');
+    expect(toneCommand('stop reading my tone')).toBe(false);
+    expect(toneCommand("please don't track my tone")).toBe(false);
+    expect(toneCommand('read my tone again')).toBe(true);
+    expect(toneCommand('start reading my tone of voice')).toBe(true);
+    expect(toneCommand('what tone should the pitch deck have')).toBeNull();
+    expect(toneCommand('list my ideas')).toBeNull();
+  });
+
+  it('is on unless the person turned it off', () => {
+    const { toneReadingEnabled, setToneReading } = jest.requireActual('../voiceProsody') as typeof import('../voiceProsody');
+    window.localStorage.clear();
+    expect(toneReadingEnabled()).toBe(true);
+    setToneReading(false);
+    expect(toneReadingEnabled()).toBe(false);
+    setToneReading(true);
+    expect(toneReadingEnabled()).toBe(true);
+  });
+});

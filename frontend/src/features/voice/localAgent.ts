@@ -47,6 +47,8 @@ export interface BridgeInfo {
   ready: boolean;
   /** Why it can't answer, and the next step (issue #132). */
   problem: { message: string; fix: string } | null;
+  /** It answers, but something is missing, e.g. the agent isn't signed in to Manifest. */
+  warning?: { message: string; fix: string } | null;
   /** Every agent set up on this computer; say "switch to Codex" to change. */
   agents: { id: string; name: string; ready: boolean }[];
 }
@@ -78,6 +80,7 @@ async function probeAt(base: string, signal: AbortSignal): Promise<BridgeInfo | 
       speech_status?: string;
       ready?: boolean;
       problems?: { message?: unknown; fix?: unknown }[];
+      warnings?: { message?: unknown; fix?: unknown }[];
       agents?: { id?: unknown; name?: unknown; ready?: unknown }[];
     };
     const voice = typeof body.voice === 'string' && /^ws:\/\/127\.0\.0\.1:\d+$/.test(body.voice) ? body.voice : null;
@@ -87,6 +90,11 @@ async function probeAt(base: string, signal: AbortSignal): Promise<BridgeInfo | 
     const problem =
       first && typeof first.message === 'string'
         ? { message: first.message.slice(0, 400), fix: typeof first.fix === 'string' ? first.fix.slice(0, 400) : '' }
+        : null;
+    const note = Array.isArray(body.warnings) ? body.warnings[0] : undefined;
+    const warning =
+      note && typeof note.message === 'string'
+        ? { message: note.message.slice(0, 400), fix: typeof note.fix === 'string' ? note.fix.slice(0, 400) : '' }
         : null;
     const agents = (Array.isArray(body.agents) ? body.agents : [])
       .filter(a => typeof a.id === 'string' && typeof a.name === 'string')
@@ -101,6 +109,7 @@ async function probeAt(base: string, signal: AbortSignal): Promise<BridgeInfo | 
           // Older bridges don't say; they were ready whenever they answered.
           ready: body.ready !== false,
           problem,
+          warning,
           agents,
         }
       : null;
@@ -302,6 +311,8 @@ export interface Speaker {
   cancel: () => void;
   /** How loud it is right now (0–1), for the orb; absent when unknown. */
   level?: () => number;
+  /** Make these short lines' audio now, so saying them later is instant (fillers). */
+  preload?: (texts: string[]) => void;
 }
 
 const words = (text: string) =>
@@ -437,6 +448,8 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
   let generation = 0;
   let said: string[] = []; // pieces already played (or playing), the last few
   let sayingNow: string | null = null;
+  // Short lines made ahead of time ("One moment."): they play the instant they're needed.
+  const ready = new Map<string, Promise<AudioBuffer | null>>();
 
   const fetchOnce = async (text: string, abort: AbortController): Promise<AudioBuffer | null> => {
     try {
@@ -511,12 +524,18 @@ export function createBridgeSpeaker(onSpeaking: (speaking: boolean) => void): Sp
       if (context.state === 'suspended') void context.resume();
       for (const piece of speechPieces(text)) {
         const abort = new AbortController();
-        queue = [...queue, { text: piece, abort, audio: fetchAudio(piece, abort) }];
+        const made = ready.get(piece);
+        queue = [...queue, { text: piece, abort, audio: made ?? fetchAudio(piece, abort) }];
       }
       if (!playing) {
         playing = true;
         onSpeaking(true);
         void playNext(generation);
+      }
+    },
+    preload(texts: string[]) {
+      for (const text of texts) {
+        if (!ready.has(text)) ready.set(text, fetchAudio(text, new AbortController()));
       }
     },
     get speaking() {

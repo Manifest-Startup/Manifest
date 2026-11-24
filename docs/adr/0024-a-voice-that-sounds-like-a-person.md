@@ -57,6 +57,10 @@ We measured the local agent path (Claude Code haiku, 3 founder questions, 2 roun
   - **Live vs this version:** this version was preferred 3 of 4 times. Warmth 5.5 → 6.8, energy match 5.8 → 7.0, honesty 7.2 → 8.2, attention 6.8 → 7.5, human 6.0 → 6.5. Its one loss came from repeating a quoted example word for word, so the example became "in a few human words of your own, once", as OpenAI's guide advises.
   - **Script:** `blind_eval.py` (session scratchpad).
 
+- **No button (person's request).** Tone reading is on by default. A one-line notice says so when voice starts ("Reading your tone of voice on this device… Say 'stop reading my tone' to turn it off"). Saying it turns it off or on, the browser handles that and never sends it to the agent, and the choice is saved. This keeps the transparency Art. 50(3) asks for without a control in the panel.
+- **No dead air.** When a tool starts, a short, varied "one moment" is spoken at once, and after 2 s without words (was 3 s). Those lines are made into audio once the first answer is done, so they play instantly and never compete with a real answer for the voice.
+- **Kinder.** "Be kind and easygoing, never curt: when you can't do something, say so gently and offer what you can do; if they're annoyed with you, own it and fix it."
+
 ## Consequences
 
 - Answers are shorter and start sooner. A person who wants depth says so, and the persona allows longer answers when asked.

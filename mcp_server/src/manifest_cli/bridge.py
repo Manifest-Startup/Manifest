@@ -119,6 +119,7 @@ class AgentPool:
         self.save_to = save_to  # persist switches here (the saved settings file)
         self.live: dict[str, LocalAgent] = {}
         self.problems: dict[str, list[setup.Problem]] = {}
+        self.warnings: dict[str, list[setup.Problem]] = {}
         self.history: deque[tuple[str, str]] = deque(maxlen=HANDOFF_TURNS * 2)
         self.handoff: dict[str, str] = {}  # agent key → conversation to hand it on its next turn
         self.last_turn = 0.0
@@ -133,7 +134,10 @@ class AgentPool:
     def check(self, *, auth: bool = True) -> None:
         for key, profile in self.settings.agents.items():
             if key not in self.live or key not in self.problems:
-                self.problems[key] = setup.check_agent(key, profile, auth=auth)
+                found = setup.check_agent(key, profile, auth=auth)
+                # Only what stops the agent answering blocks it; the rest is shown as a note.
+                self.problems[key] = [p for p in found if p.blocking]
+                self.warnings[key] = [p for p in found if not p.blocking]
 
     def ready_keys(self) -> list[str]:
         return [k for k in self.settings.agents if not self.problems.get(k)]
@@ -171,6 +175,27 @@ class AgentPool:
                 f"until now; the person switched to you. Here it is so far, so you can carry on "
                 f"where it left off without asking again:\n{lines}\n)"
             )
+        self._warm(key, previous)
+
+    def _warm(self, key: str, previous: str | None) -> None:
+        """Start the new agent now, while the person is still talking, not on their next
+        question (a cold Claude Code took 9.9 s after a switch). On a Mac without room for
+        two agents, the previous one's process stops; its session is kept, so switching back
+        resumes it."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return  # not serving yet: `serve` warms the first agent itself
+        from manifest_cli import local_voice
+
+        old = self.live.get(previous or "")
+        if old is not None and not local_voice.enough_memory():
+            old.stop()
+        agent = self.agent(key)
+        start = getattr(agent, "start", None)
+        if start is not None:
+            task = loop.create_task(start())
+            task.add_done_callback(lambda t: t.cancelled() or t.exception())  # never unhandled
 
     def switch(self, key: str) -> setup.Problem | None:
         """Switch now (and remember it): by voice, in the app or `manifest bridge --use`."""
@@ -239,6 +264,8 @@ class AgentPool:
             "choice": self.settings.default,
             "ready": key is not None and not problems,
             "problems": [p.public() for p in problems],
+            # Works, but something is missing (e.g. the agent can't reach Manifest's tools).
+            "warnings": [p.public() for p in self.warnings.get(key or "", [])],
             "folder": (self.settings.agents.get(key or "") or setup.AgentProfile()).folder.name
             if key
             else None,
@@ -261,11 +288,11 @@ class AgentPool:
 
 
 def _key_of(agent: LocalAgent) -> str:
-    from manifest_cli.agents import ClaudeCodeAgent, CodexAgent, CommandAgent
+    from manifest_cli.agents import ClaudeCodeAgent, CodexAgent, CodexAppAgent, CommandAgent
 
     if isinstance(agent, ClaudeCodeAgent):
         return "claude"
-    if isinstance(agent, CodexAgent):
+    if isinstance(agent, CodexAgent | CodexAppAgent):
         return "codex"
     return agent.shell_command if isinstance(agent, CommandAgent) else agent.name
 
@@ -695,10 +722,7 @@ async def serve(
         f"Bridge listening on http://127.0.0.1:{port}. Agents set up: {names}.\n"
         f"Answers with {lead}{agent.name}, in {folder}.\n"
     )
-    for item in status["agents"]:
-        if item["problem"]:
-            fix = pool.problems[item["id"]][0].fix
-            out.write(f"Not ready: {item['name']}: {item['problem']} {fix}\n")
+    _announce_problems(pool, status, out)
     out.write(
         (
             f"{agent.name} is ready to answer.\n"
@@ -746,6 +770,16 @@ async def _start_https(bridge: Bridge, out: TextIO) -> asyncio.Server | None:
     except OSError:  # another bridge holds it (a second, foreground one): HTTP only
         out.write(f"HTTPS port {bridge_tls.HTTPS_PORT} is in use; Safari uses the other bridge.\n")
         return None
+
+
+def _announce_problems(pool: AgentPool, status: dict[str, Any], out: TextIO) -> None:
+    for key, notes in pool.warnings.items():
+        for note in notes:
+            out.write(f"Note: {setup.agent_name(key)}: {note.message} {note.fix}\n")
+    for item in status["agents"]:
+        if item["problem"]:
+            fix = pool.problems[item["id"]][0].fix
+            out.write(f"Not ready: {item['name']}: {item['problem']} {fix}\n")
 
 
 class BridgeError(Exception):

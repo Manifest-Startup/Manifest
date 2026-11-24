@@ -154,6 +154,7 @@ def test_codex_trusts_a_project_not_the_home_folder(tmp_path):
 def test_an_untrusted_folder_is_a_clear_setup_step(tmp_path, monkeypatch):
     monkeypatch.setattr(setup.shutil, "which", lambda b: f"/bin/{b}")
     monkeypatch.setattr(setup, "agent_signed_in", lambda _k: True)
+    monkeypatch.setattr(setup, "codex_manifest_auth", lambda: "oauth")  # not the real Codex
     problems = setup.check_agent("codex", setup.AgentProfile(workdir=str(tmp_path)))
     assert [p.code for p in problems] == [setup.TRUST_REQUIRED]
     assert "--workdir" in problems[0].fix and "skip" not in problems[0].fix
@@ -361,3 +362,65 @@ def test_restart_waits_for_the_new_bridge_not_the_old_one(monkeypatch):
     out = io.StringIO()
     assert bridge.restart(out=out) == 0
     assert "Restarted: Codex ready" in out.getvalue()
+
+
+def test_codex_not_signed_in_to_manifest_is_a_clear_note_not_a_blocker(tmp_path, monkeypatch):
+    """Seen live 2026-11-23: Codex answered but said the Manifest tools weren't connected."""
+    _repo(tmp_path / "p")
+    monkeypatch.setattr(setup.shutil, "which", lambda b: f"/bin/{b}")
+    monkeypatch.setattr(setup, "agent_signed_in", lambda _k: True)
+    monkeypatch.setattr(setup, "_cli_signed_in", lambda: False)
+    listing = json.dumps(
+        [
+            {
+                "name": "manifest",
+                "enabled": True,
+                "transport": {"url": "https://manifeststartup.com/mcp"},
+                "auth_status": "not_logged_in",
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        setup, "_run", lambda argv, timeout=15: subprocess.CompletedProcess(argv, 0, listing, "")
+    )
+    problems = setup.check_agent("codex", setup.AgentProfile(workdir=str(tmp_path / "p")))
+    assert [p.code for p in problems] == [setup.MANIFEST_NOT_CONNECTED]
+    assert problems[0].blocking is False and "manifest login" in problems[0].fix
+
+    pool = bridge.AgentPool(
+        setup.BridgeSettings(
+            default="codex", agents={"codex": setup.AgentProfile(workdir=str(tmp_path / "p"))}
+        )
+    )
+    pool.check()
+    status = pool.status()
+    assert status["ready"] is True and status["warnings"][0]["code"] == setup.MANIFEST_NOT_CONNECTED
+
+
+def test_switching_warms_the_new_agent_and_frees_the_old_one_on_a_small_mac(monkeypatch):
+    from manifest_cli import local_voice
+
+    class Warm(_Echo):
+        def __init__(self, name):
+            super().__init__(name)
+            self.started = 0
+            self.stopped = 0
+
+        async def start(self):
+            self.started += 1
+
+        def stop(self):
+            self.stopped += 1
+
+    pool = _pool()
+    pool.live = {"claude": Warm("Claude Code"), "codex": Warm("Codex")}
+    pool.current_key = "claude"
+    monkeypatch.setattr(local_voice, "enough_memory", lambda: False)
+
+    async def run():
+        pool.select("codex")
+        await asyncio.sleep(0)  # the warm-up runs in the background
+
+    asyncio.run(run())
+    assert pool.live["codex"].started == 1  # warm before the next question
+    assert pool.live["claude"].stopped == 1  # 8 GB: one agent at a time; its session is kept
