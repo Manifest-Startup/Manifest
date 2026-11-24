@@ -24,5 +24,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0019 — Feedback said to Manifest becomes one GitHub issue, with everyone who asked counted](0019-feedback-becomes-github-issues.md)
 - [0020 — Goals that run: a plan, an approval, Open Media, and what was learned](0020-goals-that-run.md)
 - [0022 — Standing approvals: the person can say "don't ask again" for a few people](0022-standing-approvals.md)
+- [0023 — One bridge, several agents, honest setup](0023-one-bridge-several-agents.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

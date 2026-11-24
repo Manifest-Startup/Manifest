@@ -215,6 +215,31 @@ describe('useLocalAgentVoiceSession', () => {
     expect(session.current.state.phase).toBe('listening'); // the conversation still works
   });
 
+  it("says what to do when the bridge runs but its agent can't answer yet (#132)", async () => {
+    global.fetch = jest.fn(async (url: string) => {
+      if (url.endsWith('/health')) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            agent: 'Codex',
+            ready: false,
+            problems: [
+              { code: 'trust_required', message: "Codex won't answer in /Users/x.", fix: 'Choose a project folder for Codex.' },
+            ],
+            agents: [{ id: 'codex', name: 'Codex', ready: false }],
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    }) as unknown as typeof fetch;
+    const { result: session } = await started();
+    expect(session.current.state.error?.kind).toBe('setup');
+    expect(session.current.state.error?.message).toContain('Choose a project folder for Codex.');
+    expect(turns()).toEqual([]); // no turn sent to an agent that can't answer
+    expect(recognitions).toHaveLength(0); // and the mic never opened
+  });
+
   it('uses the natural voice even while it is still loading, never the browser voice', async () => {
     let voiceReady = false;
     const speakCalls: string[] = [];
