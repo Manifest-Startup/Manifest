@@ -23,7 +23,7 @@ def _client() -> TestClient:
     return TestClient(app, base_url="https://manifest-backend.test")
 
 
-COOKIE = {"cookie": "session_token=abc; manifest_csrf_token=x"}
+COOKIE = {"cookie": "session_token=abc; manifest_csrf_token=x", "x-csrf-token": "x"}
 
 
 @pytest.mark.parametrize(
@@ -60,3 +60,25 @@ def test_other_paths_and_reads_are_untouched():
     evil = {**COOKIE, "origin": "https://idp.example"}
     assert client.post("/sso/saml/acs", headers=evil).status_code == 200
     assert client.get("/graphql", headers=evil).status_code in (200, 405)
+
+
+def test_double_submit_token_when_the_csrf_cookie_is_present():
+    client = _client()
+    signed_in = {
+        "cookie": "session_token=abc; manifest_csrf_token=tok123",
+        "origin": "https://manifeststartup.com",
+    }
+    assert client.post("/graphql", json={}, headers=signed_in).status_code == 403
+    assert (
+        client.post("/graphql", json={}, headers={**signed_in, "x-csrf-token": "wrong"}).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/graphql", json={}, headers={**signed_in, "x-csrf-token": "tok123"}
+        ).status_code
+        == 200
+    )
+    # Without the CSRF cookie (older sessions) the origin check alone still applies.
+    legacy = {"cookie": "session_token=abc", "origin": "https://manifeststartup.com"}
+    assert client.post("/graphql", json={}, headers=legacy).status_code == 200
