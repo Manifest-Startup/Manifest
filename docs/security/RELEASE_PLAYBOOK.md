@@ -187,6 +187,12 @@ Allowed licenses (the CI license-scan job enforces this):
 - **Review required:** any license not on the allowed or disallowed lists —
   Security + Legal sign off before merge.
 
+This policy covers third-party dependencies. Manifest's own code is
+AGPL-3.0-only (core) and Apache-2.0 (agent-facing packages), see `NOTICE`;
+the license scan skips the project's own private packages
+(`--excludePrivatePackages`). Copyleft dependencies stay disallowed so the
+Apache-2.0 packages and the App Store build remain distributable.
+
 A new transitive dependency that introduces a disallowed license **fails the
 release** (currently advisory; flips to blocking per `FINDINGS_BACKLOG.md`).
 

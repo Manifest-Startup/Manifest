@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-16212c?style=flat-square"></a>
+  <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-16212c?style=flat-square"></a>
   <img alt="Stack: React, FastAPI, GraphQL, Supabase" src="https://img.shields.io/badge/React%20%C2%B7%20FastAPI%20%C2%B7%20GraphQL%20%C2%B7%20Supabase-2f62e8?style=flat-square">
   <img alt="Status: demo, in development" src="https://img.shields.io/badge/status-demo%20%C2%B7%20in%20development-b54708?style=flat-square">
 </p>
@@ -238,7 +238,7 @@ Manifest is **in development**. The public site at [manifeststartup.com](https:/
 - Follow, invest and funding flows are product features in the app, not a regulated investment platform. Billing and equity mechanics must match live billing code before they are offered.
 - The MCP package is installed from this repository; it is not on PyPI yet.
 - AI features run on each user's own OpenAI API key (Account → AI settings). Manifest does not pay for or proxy anyone's AI usage.
-- Manifest is open source under the MIT license. This public repository started from a cleaned snapshot on 2026-11-14; earlier private history (which held customer data and company records) is not published.
+- Manifest is open source: the core under AGPL-3.0, the agent packages under Apache-2.0 and the docs under CC BY 4.0 (see [License](#license)). Releases up to v2.51.2 were published under MIT and stay MIT. This public repository started from a cleaned snapshot on 2026-11-14; earlier private history (which held customer data and company records) is not published.
 
 ## Documentation
 
@@ -256,9 +256,31 @@ Manifest is **in development**. The public site at [manifeststartup.com](https:/
 
 Contributions are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md): it covers setup, the one local check command (`python3 scripts/check.py`) and how pull requests are reviewed. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately as described in [`SECURITY.md`](SECURITY.md), never in a public issue.
 
+## Can I use Manifest commercially?
+
+Yes. The AGPL-3.0 allows commercial use, including selling or hosting Manifest. If you do:
+
+- **Share your changes.** If you modify Manifest and give it to others, or let people use it over a network, offer them the full source of your version under the AGPL.
+- **Keep the attribution.** Show `Based on Manifest (https://github.com/Manifest-Startup/Manifest) by Mihir Kavishwar.` in your About or credits screen, footer or equivalent, and in your documentation.
+- **Use your own name and logo** for a fork or hosted version (see [TRADEMARKS.md](TRADEMARKS.md)).
+
+The MCP server, agent plugin, extensions and skills are Apache-2.0, so you can embed them in closed-source products too. Using the hosted service at manifeststartup.com, its API or its MCP endpoint from your own software creates no license obligations.
+
+## Cite Manifest
+
+If you use Manifest in research or build on it, please cite it. GitHub shows a "Cite this repository" button built from [`CITATION.cff`](CITATION.cff):
+
+> Kavishwar, M. *Manifest* [Computer software]. https://github.com/Manifest-Startup/Manifest
+
 ## License
 
-[MIT](LICENSE) © Manifest Startup
+© 2026 Manifest Startup. Manifest is free and open source software:
+
+- **Core app and server** (everything not listed below): [GNU AGPL-3.0-only](LICENSE). You can use, change and sell it. If you distribute it or run a modified version as a service, share your source under the same license.
+- **Agent-facing packages** ([`mcp_server/`](mcp_server/), [`agent-plugin/`](agent-plugin/), [`extensions/`](extensions/), [`skills/`](skills/)): [Apache-2.0](mcp_server/LICENSE), so they can go into any project.
+- **Docs and research writing** ([`docs/`](docs/)): [CC BY 4.0](docs/LICENSE.md). Code samples in the docs follow the license of the code they belong to.
+
+Two additional terms (allowed by AGPL section 7) are in [NOTICE](NOTICE): keep the attribution line `Based on Manifest (https://github.com/Manifest-Startup/Manifest) by Mihir Kavishwar.` in your interface and docs, and use your own name and logo for forks and hosted versions ([TRADEMARKS.md](TRADEMARKS.md)). Using the hosted service, the API or the MCP server is not affected by any of this. Releases up to v2.51.2 remain under the MIT License. Contributions are accepted under [CLA.md](CLA.md).
 
 <p align="center">
   <br>

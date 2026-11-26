@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Manifest in your research or build on it, please cite it as below."
+type: software
+title: "Manifest"
+abstract: "Open-source AI workspace that turns a rough startup idea into a business model canvas, research, documents and a pitch. Bring your own OpenAI key."
+authors:
+  - family-names: Kavishwar
+    given-names: Mihir
+repository-code: "https://github.com/Manifest-Startup/Manifest"
+url: "https://manifeststartup.com"
+license: AGPL-3.0-only
+keywords:
+  - startup
+  - entrepreneurship
+  - business model canvas
+  - pitch deck
+  - AI agents
+  - model context protocol
+  - large language models
+  - venture creation

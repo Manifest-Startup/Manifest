@@ -15,7 +15,7 @@
   },
   "homepage": "https://manifeststartup.com/agents.md",
   "repository": "https://github.com/Manifest-Startup/Manifest",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "startup",
     "founder",
