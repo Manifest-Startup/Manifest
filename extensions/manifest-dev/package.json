@@ -4,7 +4,7 @@
   "description": "Cursor and VS Code helper commands for the Manifest web app and MCP package.",
   "version": "0.1.0",
   "publisher": "manifest-startup",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.146.0"
   },

@@ -1,0 +1,54 @@
+Manifest
+Copyright 2026 Manifest Startup
+
+Manifest (https://github.com/Manifest-Startup/Manifest) was created by
+Mihir Kavishwar.
+
+Releases published before this licensing change (up to and including
+v2.51.2) remain available under the MIT License. Everything from the commit
+that added this NOTICE onward is licensed as described below.
+
+Licensing map
+=============
+
+GNU Affero General Public License v3.0 only (AGPL-3.0-only), see LICENSE:
+  Everything in this repository not listed under another license below,
+  including backend/, frontend/, ios/, deploy/, supabase/, scripts/, src/,
+  tests/ and the root configuration files.
+
+Apache License 2.0 (Apache-2.0), each with its own LICENSE and NOTICE file:
+  mcp_server/              Manifest MCP server and the `manifest` CLI
+  agent-plugin/            Agent plugin (Claude Code, Codex, Cursor, Gemini,
+                           Antigravity) and MCP registry metadata
+  extensions/              Editor extensions (manifest-dev for VS Code/Cursor)
+  skills/                  Agent skills (manifest-api)
+  gemini-extension.json, .claude-plugin/, .cursor-plugin/, .agents/plugins/
+                           Plugin marketplace manifests that install the
+                           agent-plugin
+
+Creative Commons Attribution 4.0 International (CC-BY-4.0), see docs/LICENSE.md:
+  Prose documentation and research writing in docs/ (including
+  docs/images/), and README and guide prose. Code samples inside the
+  documentation stay under the license of the code they belong to.
+
+Third-party components keep their own licenses.
+
+Additional terms under AGPL-3.0 section 7
+=========================================
+
+The following additional terms apply to the parts of Manifest licensed under
+the GNU Affero General Public License v3.0, as permitted by its section 7.
+
+(b) Attribution. Anyone who conveys or runs, including over a network, a
+    modified or unmodified version of Manifest must preserve the following
+    attribution notice in the product's About or credits screen, footer, or
+    an equivalent location of every interactive user interface, and in its
+    documentation:
+
+        Based on Manifest (https://github.com/Manifest-Startup/Manifest) by Mihir Kavishwar.
+
+    Plain text is enough. No logo is required. In a graphical interface the
+    URL may be a hyperlink on the word "Manifest" instead of printed text.
+
+(e) Trademarks. No rights are granted to use the Manifest names, logos or
+    trademarks, except as described in TRADEMARKS.md.

@@ -47,4 +47,13 @@ It runs ruff (lint and format), the backend pytest suite, Jest related tests wit
 - Never commit credentials, customer data, `.env` files, generated PDFs, coverage or build output.
 - Say in the description what you ran to check the change.
 
-By contributing you agree that your contributions are licensed under the [MIT License](LICENSE).
+## Licensing and sign-off
+
+Every commit must be signed off under the [Developer Certificate of Origin](https://developercertificate.org/). Use `git commit -s`, which adds a `Signed-off-by: Your Name <you@example.com>` line. Pull requests with commits that are not signed off cannot be merged.
+
+By signing off you agree to the [contributor license grant](CLA.md). In short:
+
+- your contribution is licensed under the license of the directory it lands in (see [NOTICE](NOTICE)): AGPL-3.0-only for the core, Apache-2.0 for the agent-facing packages (`mcp_server/`, `agent-plugin/`, `extensions/`, `skills/`), CC-BY-4.0 for prose docs;
+- you also grant the maintainer a perpetual, irrevocable right to relicense and distribute it under other terms. This is needed to ship the iOS app through the App Store, whose terms conflict with the AGPL.
+
+Read [CLA.md](CLA.md) for the full text.

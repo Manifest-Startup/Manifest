@@ -25,6 +25,21 @@ describe("AppFooter (regression #22)", () => {
     expect(screen.getByRole("link", { name: /docs/i })).toHaveAttribute("href", "/docs");
   });
 
+  it("keeps the AGPL attribution line and a source code link", () => {
+    renderFooter();
+    expect(screen.getByTestId("app-footer-attribution")).toHaveTextContent(
+      "Based on Manifest by Mihir Kavishwar · AGPL-3.0",
+    );
+    expect(screen.getByRole("link", { name: "Manifest" })).toHaveAttribute(
+      "href",
+      "https://github.com/Manifest-Startup/Manifest",
+    );
+    expect(screen.getByRole("link", { name: /source code/i })).toHaveAttribute(
+      "href",
+      "https://github.com/Manifest-Startup/Manifest",
+    );
+  });
+
   it("provides a contact email affordance", () => {
     renderFooter();
     expect(screen.getByRole("link", { name: /contact/i })).toHaveAttribute(

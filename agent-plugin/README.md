@@ -92,3 +92,7 @@ skills/*/SKILL.md ◀── tests/tooling/test_agent_plugin.py fails if any tool
 | `../.claude-plugin/marketplace.json`, `../.agents/plugins/marketplace.json` | Claude Code and Codex marketplaces |
 
 After a schema or `rest.py` change: `python3 scripts/generate_cli_catalog.py && python3 scripts/generate_agent_tools.py`. `python3 scripts/check.py` (area `plugin`) fails until the tools are regenerated and every new tool is in a skill. Keep the name, version and server URL equal in every manifest (the same test checks).
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The rest of the Manifest repository is AGPL-3.0-only; see the root [NOTICE](../NOTICE).

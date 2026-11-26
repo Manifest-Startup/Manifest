@@ -13,6 +13,7 @@ This folder contains the maintained documentation for the Manifest platform.
 - [Manifest CLI](./CLI.md)
 - [Architecture Reference](./ARCHITECTURE_REFERENCE.md)
 - [Architecture decision records](./adr/README.md) (`adr/`)
+- [Documentation license](./LICENSE.md) (CC BY 4.0) and the repository [NOTICE](../NOTICE)
 - [Configuration](./CONFIGURATION.md)
 - [Open Media integration](./OPEN_MEDIA_INTEGRATION_PLAN.md) and its [API contract](./OPEN_MEDIA_CONTRACT.md)
 - [Partner connections](./PARTNER_CONNECTIONS.md): key partners, official sign-ins and the owner setup for each provider

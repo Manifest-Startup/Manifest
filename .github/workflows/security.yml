@@ -494,10 +494,10 @@ jobs:
         continue-on-error: true   # remove to flip to blocking (SEC-059)
         working-directory: frontend
         run: |
-          npx --yes license-checker --production --json \
+          npx --yes license-checker --production --excludePrivatePackages --json \
             > ../reports/licenses-frontend.json
           # `--failOn` enforces the disallowed list; semicolon-delimited.
-          npx --yes license-checker --production \
+          npx --yes license-checker --production --excludePrivatePackages \
             --failOn "GPL;LGPL;AGPL;SSPL;Commons-Clause;BUSL-1.1"
 
       - name: Upload license reports

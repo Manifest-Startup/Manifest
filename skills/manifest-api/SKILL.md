@@ -1,6 +1,7 @@
 ---
 title: Manifest API integration
 description: Use Manifest's public REST API to manage a user's startup ideas and generate startup documents.
+license: Apache-2.0
 ---
 # Manifest API integration
 

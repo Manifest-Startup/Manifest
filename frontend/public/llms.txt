@@ -47,6 +47,14 @@ Every documented HTML page above also has a `.md` version or answers `Accept: te
 - [Coding agent guide](https://github.com/Manifest-Startup/Manifest/blob/main/AGENTS.md)
 - [Portable agent plugin manifest](https://github.com/Manifest-Startup/Manifest/blob/main/plugin.json)
 
+## License
+
+- Source: https://github.com/Manifest-Startup/Manifest
+- Core app and server: AGPL-3.0-only, with an attribution term and a trademark term (NOTICE, TRADEMARKS.md)
+- MCP server, agent plugin, extensions and skills: Apache-2.0
+- Documentation prose: CC-BY-4.0
+- Calling the hosted API or MCP endpoint creates no license obligations.
+
 ## Optional
 
 - [User guide](https://manifeststartup.com/docs/guide): how founders use the workspace (needs JavaScript)

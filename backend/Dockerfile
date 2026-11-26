@@ -58,7 +58,7 @@ LABEL org.opencontainers.image.title="manifest-backend" \
       org.opencontainers.image.description="Manifest API server (FastAPI + Strawberry GraphQL + Socket.IO)" \
       org.opencontainers.image.vendor="Manifest Startup" \
       org.opencontainers.image.source="https://github.com/Manifest-Startup/Manifest" \
-      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.documentation="https://github.com/Manifest-Startup/Manifest/blob/main/docs/security/RELEASE_PLAYBOOK.md" \
       io.manifest.security.policy="https://github.com/Manifest-Startup/Manifest/blob/main/SECURITY.md"
 

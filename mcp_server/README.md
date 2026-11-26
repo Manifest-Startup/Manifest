@@ -352,7 +352,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The rest of the Manifest repository is AGPL-3.0-only; see the root [NOTICE](../NOTICE).
 
 ## Support
 

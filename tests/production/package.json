@@ -2,6 +2,7 @@
   "name": "manifest-production-tests",
   "private": true,
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "description": "Continuous Playwright smoke tests against the deployed Manifest site. Failures are posted to /api/internal/production-tests/results which dedupes and files GitHub issues. See docs/PRODUCTION_TESTING.md.",
   "type": "module",
   "scripts": {
