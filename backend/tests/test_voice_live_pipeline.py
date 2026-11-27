@@ -234,4 +234,4 @@ def test_spoken_question_runs_a_tool_and_answers_out_loud(monkeypatch):
     assert any(entry.get("tts") == "Hi, Ada. What are we working on?" for entry in log)
     assert not any("llm_without_user" in entry for entry in log)
     assert any((entry.get("turn_detection") or {}).get("type") == "server_vad" for entry in log)
-    assert all(entry["llm_tools"] < 28 for entry in log if "llm_tools" in entry)
+    assert all(entry["llm_tools"] < 29 for entry in log if "llm_tools" in entry)

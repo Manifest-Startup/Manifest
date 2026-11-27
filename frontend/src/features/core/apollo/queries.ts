@@ -33,6 +33,9 @@ import type {
   GetMyCollaborationInvitationsData,
   GetMyInboxData,
   GetGoalsData,
+  EditGoalDraftData,
+  EditGoalDraftVariables,
+  RetryGoalStepData,
   GetGoalTimelineData,
   GetStandingAuthorizationsData,
   GrantStandingAuthorizationData,
@@ -975,6 +978,7 @@ const GOAL_SUMMARY_FIELDS = `
     needsYou
     next
   }
+  draft
 `;
 
 export const GET_GOALS: TypedDocumentNode<GetGoalsData, NoVariables> = gql`
@@ -1010,6 +1014,22 @@ export const GET_GOAL_TIMELINE: TypedDocumentNode<GetGoalTimelineData, { goalId:
 export const DECIDE_APPROVAL: TypedDocumentNode<DecideApprovalData, DecideApprovalVariables> = gql`
   mutation DecideApproval($approvalId: String!, $approve: Boolean!, $scopeSha256: String!) {
     decideApproval(approvalId: $approvalId, approve: $approve, scopeSha256: $scopeSha256) {
+      ${GOAL_SUMMARY_FIELDS}
+    }
+  }
+`;
+
+export const EDIT_GOAL_DRAFT: TypedDocumentNode<EditGoalDraftData, EditGoalDraftVariables> = gql`
+  mutation EditGoalDraft($goalId: String!, $body: String, $subject: String) {
+    editGoalDraft(goalId: $goalId, body: $body, subject: $subject) {
+      ${GOAL_SUMMARY_FIELDS}
+    }
+  }
+`;
+
+export const RETRY_GOAL_STEP: TypedDocumentNode<RetryGoalStepData, { goalId: string; stepKey: string }> = gql`
+  mutation RetryGoalStep($goalId: String!, $stepKey: String!) {
+    retryGoalStep(goalId: $goalId, stepKey: $stepKey) {
       ${GOAL_SUMMARY_FIELDS}
     }
   }

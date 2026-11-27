@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@apollo/client/react";
 
-import { GET_MY_INBOX } from "features/core/apollo/queries";
+import { GET_GOALS, GET_MY_INBOX } from "features/core/apollo/queries";
 import OpenMediaConnectPrompt from "features/open-media/OpenMediaConnectPrompt";
 import { useOpenMediaLink } from "features/open-media/useOpenMediaLink";
 import type { InboxConversation } from "features/core/apollo/operationTypes";
@@ -11,6 +11,7 @@ import { MESSAGES_FALLBACK_POLL_MS, useLiveMessages } from "../hooks/useLiveMess
 import GoalsPanel from "./GoalsPanel";
 import InboxList from "./InboxList";
 import InboxThread from "./InboxThread";
+import OutreachDraft, { pendingApproval } from "./OutreachDraft";
 import "../inbox.css";
 
 /** One inbox: every Open Media chat and email conversation, assembled by Open Media. */
@@ -19,6 +20,29 @@ const MessagesPage: React.FC = () => {
   const selectedId = routeId ? decodeURIComponent(routeId) : undefined;
   const navigate = useNavigate();
   const openMedia = useOpenMediaLink();
+  const [params, setParams] = useSearchParams();
+  const draftId = routeId ? undefined : params.get("draft") ?? undefined;
+  // Same query (and cache) as the goals panel: the open draft is always the panel's version.
+  const { data: goalsData, refetch: refetchGoals } = useQuery(GET_GOALS, {
+    skip: !openMedia.ready,
+    fetchPolicy: "cache-first",
+  });
+  const goals = goalsData?.goals ?? [];
+  const waitingIds = goals.filter((g) => g.draft && pendingApproval(g)).map((g) => g.id);
+  const draftGoal = draftId ? goals.find((g) => g.id === draftId && g.draft) : undefined;
+  const openDraft = useCallback(
+    (goalId?: string) => {
+      if (routeId) navigate(goalId ? `/messages?draft=${encodeURIComponent(goalId)}` : "/messages");
+      else setParams(goalId ? { draft: goalId } : {}, { replace: !goalId });
+    },
+    [navigate, routeId, setParams],
+  );
+  const afterDecision = useCallback(async () => {
+    // Straight on to the next message waiting for an OK, as when going through them by voice.
+    const result = await refetchGoals();
+    const next = (result.data?.goals ?? []).find((g) => g.draft && pendingApproval(g) && g.id !== draftId);
+    openDraft(next?.id);
+  }, [draftId, openDraft, refetchGoals]);
 
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -82,7 +106,7 @@ const MessagesPage: React.FC = () => {
 
   return (
     <div className="manifest-page manifest-page-messages" data-testid="messages-page">
-      <div className="om-inbox" data-open={Boolean(selectedId)}>
+      <div className="om-inbox" data-open={Boolean(selectedId || draftGoal)}>
         <aside className="om-list-pane" aria-label="Inbox">
           <div className="om-heading">
             <h1 className="om-title">Messages</h1>
@@ -120,7 +144,8 @@ const MessagesPage: React.FC = () => {
             />
           </div>
           <div className="om-list">
-            <GoalsPanel />
+            <GoalsPanel selectedGoalId={draftGoal?.id} onOpenDraft={openDraft} />
+            {goals.some((g) => g.draft) && shown.length ? <p className="om-section-label om-inbox-label">Inbox</p> : null}
             <InboxList
               conversations={shown}
               filtered={Boolean(words.length) || unreadOnly}
@@ -135,6 +160,18 @@ const MessagesPage: React.FC = () => {
         </aside>
         {selectedId ? (
           <InboxThread key={selectedId} conversationId={selectedId} fallbackTitle={selected?.title} onBack={back} />
+        ) : draftGoal ? (
+          <OutreachDraft
+            key={draftGoal.id}
+            goal={draftGoal}
+            position={
+              waitingIds.includes(draftGoal.id)
+                ? { index: waitingIds.indexOf(draftGoal.id), total: waitingIds.length }
+                : undefined
+            }
+            onBack={() => openDraft(undefined)}
+            onDecided={() => void afterDecision()}
+          />
         ) : (
           <section className="om-thread-pane" data-testid="messages-empty-state">
             <div className="om-state">

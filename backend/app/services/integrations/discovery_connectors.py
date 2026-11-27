@@ -96,6 +96,9 @@ _SPACE = re.compile(r"\s+")
 _TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
 
 
+_MAILTO = re.compile(r"mailto:([^\"'?>\s]+@[^\"'?>\s]+)", re.I)
+
+
 def web_read(url: str) -> dict[str, str]:
     """Fetch one public page as plain text (SSRF-safe). The text is untrusted data."""
     from app.security.safe_http import safe_get
@@ -111,6 +114,10 @@ def web_read(url: str) -> dict[str, str]:
     raw = response.text or ""
     title_match = _TITLE.search(raw)
     text = _SPACE.sub(" ", html.unescape(_ANY_TAG.sub(" ", _TAG.sub(" ", raw)))).strip()
+    # A "Get in touch" link shows its address only in the link; keep those addresses too.
+    mailto = sorted({m.lower() for m in _MAILTO.findall(raw)})
+    if mailto:
+        text = f"Email links: {' '.join(mailto)}. {text}"
     return {
         "url": response.url or url,
         "title": _SPACE.sub(" ", html.unescape(title_match.group(1))).strip()

@@ -29,7 +29,9 @@ def test_model_sees_core_tools_plus_meta_tools_not_the_whole_catalog():
     names = [d["name"] for d in tools.model_tool_definitions()]
     assert {"find_tools", "use_tool", "show_in_app", "end_conversation"} <= set(names)
     # Goals (ADR 0020) added three everyday tools; keep the per-turn list short.
-    assert len(names) < 28 < len(tools.load_catalog())
+    # Small on purpose (every turn carries these); edit_goal_draft joined for going through
+    # waiting messages by voice (ADR 0026).
+    assert len(names) < 29 < len(tools.load_catalog())
 
 
 @pytest.mark.parametrize(

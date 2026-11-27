@@ -56,6 +56,7 @@ CORE_TOOLS: tuple[str, ...] = (
     "goals",
     "start_outreach_goal",
     "decide_approval",
+    "edit_goal_draft",
     "report_feedback",
 )
 
@@ -128,7 +129,10 @@ TOOL_LABELS: dict[str, str] = {
     "research_market": "Researching the market",
     "find_prospects": "Researching potential customers",
     "exclude_prospects": "Updating the prospect list",
-    "draft_outreach": "Drafting the emails",
+    "draft_outreach": "Drafting the messages",
+    "queue_outreach": "Putting the messages in Messages",
+    "set_outreach_recipient": "Adding their address",
+    "edit_goal_draft": "Changing the message",
     "create_outreach_email_drafts": "Saving drafts to Gmail",
     "goals": "Checking your goals",
     "goal": "Checking the goal",
@@ -193,6 +197,48 @@ def check_arguments(tool: dict[str, Any], args: dict[str, Any]) -> str | None:
     if missing:
         return f"Missing required argument(s): {', '.join(missing)}."
     return None
+
+
+def _goal_for_speech(goal: Any) -> Any:
+    """What a spoken review needs: the message, why, its approval and the spoken report. The
+    step-by-step plan, timeline and facts stay in the app (they'd crowd out the drafts)."""
+    if not isinstance(goal, dict):
+        return goal
+    draft = goal.get("draft") or None
+    if isinstance(draft, dict):
+        draft = {
+            k: v
+            for k, v in draft.items()
+            if k not in ("composeUrl", "edited") and v not in (None, [], "")
+        }
+    return {
+        "id": goal.get("id"),
+        "title": goal.get("title"),
+        "status": goal.get("status"),
+        "spoken": (goal.get("report") or {}).get("spoken"),
+        "draft": draft,
+        "approvals": [
+            {k: a.get(k) for k in ("id", "summary", "consequences", "scopeSha256")}
+            for a in goal.get("approvals") or []
+            if isinstance(a, dict) and a.get("status") == "pending"
+        ],
+    }
+
+
+def _goals_for_speech(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_goal_for_speech(g) for g in value]
+    return _goal_for_speech(value)
+
+
+# Fields whose answers voice reshapes before the model sees them.
+SPEECH_SHAPES = {
+    "goals": _goals_for_speech,
+    "goal": _goals_for_speech,
+    "decideApproval": _goals_for_speech,
+    "editGoalDraft": _goals_for_speech,
+    "startOutreachGoal": _goals_for_speech,
+}
 
 
 def _clip(value: Any) -> Any:
@@ -334,6 +380,9 @@ def _interpret(call: dict[str, Any], response: httpx.Response) -> dict[str, Any]
         keys = OTHER_PEOPLES_TEXT.get(call["field"])
         if keys:
             value = fence_text(value, keys)
+        shape = SPEECH_SHAPES.get(call["field"])
+        if shape is not None:
+            value = shape(value)
         return {call["field"]: _clip(value)}
     if response.status_code >= 400:
         return {"status": response.status_code, "error": _clip(payload)}
