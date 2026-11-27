@@ -3,6 +3,7 @@
 from datetime import datetime
 
 import strawberry
+from app.graphql.open_media_types import InboxConversation
 
 
 @strawberry.type
@@ -33,3 +34,4 @@ class UniversalSearchResults:
     assistant_summary: str | None = None
     web_summary: str | None = None
     web_sources: list[UniversalSearchWebSource]
+    messages: list[InboxConversation] = strawberry.field(default_factory=list)

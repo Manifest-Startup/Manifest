@@ -97,6 +97,8 @@ const App = () => {
   const isImmersiveShorts =
     location.pathname.startsWith("/pitch-reels") ||
     location.pathname.startsWith("/shorts");
+  // Messages is an app surface like Mail: it fills the window and scrolls its own panes.
+  const isMessages = location.pathname === "/messages" || location.pathname.startsWith("/messages/");
   const isSurveyFlow = location.pathname === "/research" || location.pathname === "/feedback/survey";
   const isLandingPage = location.pathname === "/" || location.pathname === "/home";
   const hideTopChrome = isSurveyFlow || isLandingPage;
@@ -155,7 +157,7 @@ const App = () => {
   return (
     <ThemeProvider>
       <MessageProvider>
-        <div className="manifest-app-frame flex flex-col">
+        <div className={`manifest-app-frame flex flex-col${isMessages ? " manifest-app-frame-fixed" : ""}`}>
           {hideTopChrome ? null : <NavigationBar />}
           <MessageBanner />
           <AiKeyRequiredNotice />
@@ -167,9 +169,9 @@ const App = () => {
           {hideTopChrome ? null : <PrivacyConsentBanner />}
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div
-              className={`min-h-0 flex-1 ${isImmersiveShorts ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden"} ${
-                showPrivacyBanner ? "pb-40 sm:pb-36" : ""
-              } [-webkit-overflow-scrolling:touch]`}
+              className={`min-h-0 flex-1 ${isImmersiveShorts || isMessages ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden"} [-webkit-overflow-scrolling:touch]`}
+              // Exactly the room the privacy banner takes, measured by the banner itself.
+              style={showPrivacyBanner ? { paddingBottom: "var(--privacy-banner-space, 10rem)" } : undefined}
             >
               <ErrorBoundary>
                 <Suspense fallback={<RouteFallback />}>
@@ -218,7 +220,7 @@ const App = () => {
               </ErrorBoundary>
             </div>
           </main>
-          {hideTopChrome ? null : <AppFooter />}
+          {hideTopChrome || isMessages ? null : <AppFooter />}
           <AppShortcuts signedIn={Boolean(isLoggedIn)} />
           {isLoggedIn ? (
             <Suspense fallback={null}>

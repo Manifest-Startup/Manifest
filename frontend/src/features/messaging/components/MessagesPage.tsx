@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@apollo/client/react";
 
@@ -20,7 +20,9 @@ const MessagesPage: React.FC = () => {
   const navigate = useNavigate();
   const openMedia = useOpenMediaLink();
 
-  const { data, loading, error } = useQuery(GET_MY_INBOX, {
+  const [search, setSearch] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const { data, loading, error, refetch } = useQuery(GET_MY_INBOX, {
     variables: { limit: 100 },
     skip: !openMedia.ready,
     pollInterval: MESSAGES_FALLBACK_POLL_MS,
@@ -29,9 +31,26 @@ const MessagesPage: React.FC = () => {
   });
   useLiveMessages(openMedia.ready);
 
-  const conversations = data?.myInbox ?? [];
+  const conversations = useMemo(() => data?.myInbox ?? [], [data]);
   const selected = conversations.find((c) => c.conversationId === selectedId);
-  const open = (conversation: InboxConversation) => navigate(`/messages/${encodeURIComponent(conversation.conversationId)}`);
+  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = useMemo(
+    () =>
+      conversations.filter((c) => {
+        // The open conversation stays listed after reading it clears its unread mark.
+        if (unreadOnly && c.unreadCount === 0 && c.conversationId !== selectedId) return false;
+        if (!words.length) return true;
+        const text = [c.title, c.company, c.preview, c.ideaTitle].filter(Boolean).join(" ").toLowerCase();
+        return words.every((word) => text.includes(word));
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversations, unreadOnly, selectedId, search],
+  );
+  const unreadTotal = conversations.reduce((sum, c) => sum + (c.unreadCount > 0 ? 1 : 0), 0);
+  const open = useCallback(
+    (conversation: InboxConversation) => navigate(`/messages/${encodeURIComponent(conversation.conversationId)}`),
+    [navigate],
+  );
   const back = () => navigate("/messages", { replace: true });
 
   if (!openMedia.ready) {
@@ -67,22 +86,62 @@ const MessagesPage: React.FC = () => {
         <aside className="om-list-pane" aria-label="Inbox">
           <div className="om-heading">
             <h1 className="om-title">Messages</h1>
+            <button
+              type="button"
+              className="om-icon-button om-filter-button"
+              aria-pressed={unreadOnly}
+              aria-label={unreadOnly ? "Show all conversations" : "Show unread only"}
+              title={unreadOnly ? "Show all" : "Unread only"}
+              onClick={() => setUnreadOnly((value) => !value)}
+              data-testid="inbox-unread-filter"
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill={unreadOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+                <path strokeLinejoin="round" d="M3 7.5A2.5 2.5 0 0 1 5.5 5h9M21 11v6.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-10l9 6 4.5-3" />
+                <circle cx="19" cy="6" r="2.6" fill="currentColor" stroke="none" />
+              </svg>
+              {unreadTotal > 0 && !unreadOnly ? <span className="om-filter-dot" aria-hidden="true" /> : null}
+            </button>
           </div>
-          <GoalsPanel />
-          <InboxList
-            conversations={conversations}
-            loading={loading}
-            error={error}
-            selectedId={selectedId}
-            onSelect={open}
-          />
+          <div className="om-search">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setSearch("");
+              }}
+              placeholder="Search messages"
+              aria-label="Search messages"
+              data-testid="inbox-search"
+            />
+          </div>
+          <div className="om-list">
+            <GoalsPanel />
+            <InboxList
+              conversations={shown}
+              filtered={Boolean(words.length) || unreadOnly}
+              unreadOnly={unreadOnly && !words.length}
+              loading={loading}
+              error={error}
+              selectedId={selectedId}
+              onSelect={open}
+              onRetry={() => void refetch()}
+            />
+          </div>
         </aside>
         {selectedId ? (
           <InboxThread key={selectedId} conversationId={selectedId} fallbackTitle={selected?.title} onBack={back} />
         ) : (
           <section className="om-thread-pane" data-testid="messages-empty-state">
             <div className="om-state">
-              <strong>Pick a conversation</strong>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6 2.4-3.2A8 8 0 1 1 20 12a8 8 0 0 1-8 8H4z" />
+              </svg>
+              <strong>Choose a conversation</strong>
               Your chats and email are together here. Replies go out through Open Media.
             </div>
           </section>

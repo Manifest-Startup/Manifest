@@ -17,8 +17,8 @@
   color: var(--om-text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
-.manifest-page-messages { height: 100%; }
-.om-inbox { display: flex; height: 100%; min-height: 420px; }
+.manifest-page-messages { height: 100%; min-height: 0; }
+.om-inbox { display: flex; height: 100%; min-height: 0; }
 .dark .om-inbox, .dark .om-thread-pane {
   --om-text: #f6f6f2;
   --om-text-secondary: #b4b4ad;
@@ -41,13 +41,24 @@
   .om-inbox[data-open="false"] .om-thread-pane { display: none; }
 }
 
-.om-heading { display: flex; align-items: center; gap: 12px; padding: 18px 18px 10px; }
-.om-title { font-size: 28px; font-weight: 800; letter-spacing: -0.8px; }
-.om-list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
+.om-heading { display: flex; align-items: center; gap: 8px; padding: 18px 14px 6px 18px; }
+.om-title { flex: 1; font-size: 28px; font-weight: 800; letter-spacing: -0.8px; line-height: 34px; }
+.om-filter-button { position: relative; border: 1px solid var(--om-border); }
+.om-filter-button[aria-pressed="true"] { background: var(--om-text); border-color: var(--om-text); color: var(--om-surface); }
+.om-filter-button[aria-pressed="true"]:hover { background: var(--om-text); }
+.om-filter-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border: 2px solid var(--om-surface); border-radius: 999px; background: var(--om-unread); }
+.om-search { display: flex; align-items: center; gap: 8px; height: 38px; margin: 6px 14px 8px 18px; padding: 0 12px; border-radius: 12px; background: var(--om-chrome); color: var(--om-text-tertiary); }
+.om-search:focus-within { box-shadow: 0 0 0 1px var(--om-text-tertiary) inset; }
+.om-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: var(--om-text); font: inherit; font-size: 14px; }
+.om-search input::placeholder { color: var(--om-text-tertiary); }
+.om-search input::-webkit-search-cancel-button { cursor: pointer; }
+.om-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
+.om-list-rows { margin: 0; padding: 0; list-style: none; }
 
 /* Conversation row */
-.om-row { display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); min-height: 76px; margin: 0 8px; padding: 10px; border-radius: 14px; text-align: left; background: transparent; color: inherit; }
+.om-row { display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); min-height: 76px; margin: 0 8px 2px; padding: 10px; border-radius: 14px; text-align: left; background: transparent; color: inherit; cursor: pointer; transition: background-color 0.12s ease; }
 .om-row:hover { background: var(--om-chrome); }
+.om-row:focus-visible { outline: 2px solid var(--om-text); outline-offset: -2px; }
 .om-row[data-unread="true"] { background: var(--om-unread-soft); }
 .om-row[aria-current="true"] { background: var(--om-bubble); }
 .om-row-main { flex: 1; min-width: 0; }
@@ -59,7 +70,8 @@
 .om-row-bottom { display: flex; align-items: flex-start; gap: 8px; margin-top: 2px; }
 .om-row-preview { display: -webkit-box; flex: 1; min-width: 0; overflow: hidden; font-size: 13px; line-height: 18px; color: var(--om-text-secondary); -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .om-row[data-unread="true"] .om-row-preview { color: var(--om-text); font-weight: 500; }
-.om-row-context { margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--om-text-tertiary); }
+.om-row-context { display: block; margin-top: 1px; overflow: hidden; font-size: 12px; font-weight: 600; color: var(--om-text-tertiary); text-overflow: ellipsis; white-space: nowrap; }
+.om-row-kind { flex-shrink: 0; margin-top: 3px; color: var(--om-text-tertiary); }
 .om-badge { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--om-unread); color: #fff; font-size: 11px; font-weight: 700; }
 .om-source { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 11px; color: var(--om-text-tertiary); }
 
@@ -71,7 +83,7 @@
 /* Thread */
 .om-thread-header { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 10px; border-bottom: 1px solid var(--om-border); }
 .om-thread-who { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; gap: 4px; }
-.om-thread-name { max-width: 100%; overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.om-thread-name { max-width: 100%; margin: 0; overflow: hidden; font-size: 15px; font-weight: 700; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
 .om-thread-meta { font-size: 11px; color: var(--om-text-tertiary); }
 .om-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 999px; color: var(--om-text); }
 .om-icon-button:hover { background: var(--om-chrome); }
@@ -79,14 +91,20 @@
 .om-header-side { display: flex; width: 38px; flex-shrink: 0; }
 /* In the inbox the list stays beside the thread on wide screens, so Back is only for narrow ones. */
 @media (min-width: 760px) { .om-inbox .om-back { display: none; } }
-.om-thread-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.om-thread-content { width: 100%; max-width: 760px; margin: 0 auto; padding: 16px 18px; }
+.om-thread-scroll { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.om-thread-content { width: 100%; max-width: 760px; margin: auto auto 0; padding: 16px 18px 20px; }
 .om-time { margin: 22px 0 8px; text-align: center; font-size: 11px; }
 .om-time-day { font-weight: 600; color: var(--om-text-secondary); }
 .om-time-clock { color: var(--om-text-tertiary); }
 .om-message { display: flex; flex-direction: column; align-items: flex-start; max-width: 76%; margin-top: 2px; }
 .om-message[data-start="true"] { margin-top: 10px; }
 .om-message[data-mine="true"] { align-items: flex-end; margin-left: auto; }
+.om-message[data-email="true"] { max-width: 88%; }
+.om-message[data-pending="true"] .om-bubble { opacity: 0.6; }
+.om-bubble[data-failed="true"] { background: transparent !important; color: var(--om-text) !important; box-shadow: 0 0 0 1.5px var(--om-danger) inset; }
+.om-receipt { margin: 3px 6px 0; font-size: 11px; color: var(--om-text-tertiary); }
+.om-receipt-failed { color: var(--om-danger); }
+.om-receipt button { font-weight: 700; text-decoration: underline; color: inherit; }
 .om-sender { margin: 0 0 3px 12px; font-size: 12px; font-weight: 600; color: var(--om-text-tertiary); }
 .om-bubble { max-width: 100%; padding: 9px 14px; border-radius: 20px; background: var(--om-bubble); color: var(--om-text); font-size: 15px; line-height: 21px; overflow-wrap: anywhere; }
 .om-message[data-mine="true"] .om-bubble { background: var(--om-text); color: var(--om-surface); }
@@ -100,16 +118,30 @@
 .om-bubble-note { margin-top: 6px; font-size: 12px; opacity: 0.7; }
 .om-state { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 32px; text-align: center; color: var(--om-text-secondary); font-size: 14px; }
 .om-state strong { color: var(--om-text); font-size: 15px; }
+.om-state svg { margin-bottom: 4px; color: var(--om-text-tertiary); }
+.om-pill-button { min-height: 38px; margin-top: 10px; padding: 0 18px; border-radius: 999px; background: var(--om-text); color: var(--om-surface); font-size: 13px; font-weight: 700; }
+
+/* Loading placeholders in the list's and thread's own shapes. */
+.om-skeleton { background: var(--om-chrome); animation: om-pulse 1.4s ease-in-out infinite; }
+.om-avatar.om-skeleton { border-color: transparent; }
+.om-skeleton-line { display: block; height: 11px; margin: 6px 0; border-radius: 6px; }
+.om-bubble.om-skeleton { height: 38px; max-width: 100%; }
+.om-row-skeleton { cursor: default; }
+.om-row-skeleton:hover { background: transparent; }
+@keyframes om-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .om-skeleton { animation: none; } }
 
 /* Composer: pill on chrome, round send button that appears with text */
 .om-composer { padding: 8px 14px 10px; border-top: 1px solid var(--om-border); background: var(--om-surface); }
 .om-composer-shell { display: flex; align-items: flex-end; gap: 8px; min-height: 44px; padding: 3px 3px 3px 16px; border: 1px solid var(--om-border); border-radius: 23px; background: var(--om-chrome); }
 .om-composer-shell:focus-within { border-color: var(--om-text-tertiary); background: var(--om-surface); }
-.om-composer textarea { flex: 1; min-height: 36px; max-height: 160px; padding: 8px 0; border: 0; outline: none; resize: none; background: transparent; color: var(--om-text); font: inherit; font-size: 15px; line-height: 20px; }
+.om-composer textarea { flex: 1; min-height: 36px; max-height: 136px; padding: 8px 0; border: 0; outline: none; resize: none; background: transparent; color: var(--om-text); font: inherit; font-size: 15px; line-height: 20px; }
 .om-composer textarea::placeholder { color: var(--om-text-tertiary); }
 .om-send { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 999px; background: var(--om-text); color: var(--om-surface); transition: opacity 0.15s, transform 0.15s; }
 .om-send:disabled { opacity: 0.28; transform: scale(0.86); }
 .om-composer-hint { margin: 6px 4px 0; font-size: 11px; color: var(--om-text-tertiary); }
+.om-composer-hint-solo { margin: 4px; text-align: center; font-size: 12px; }
+@media (pointer: coarse) { .om-composer-keys { display: none; } }
 .om-composer-error { margin: 6px 4px 0; font-size: 12px; color: var(--om-danger); }
 
 /* Goals Manifest is working on (GoalsPanel): approvals first, in the inbox's own style. */
@@ -132,3 +164,14 @@
 .om-goal-timeline ol, .om-goal-timeline ul { display: flex; flex-direction: column; gap: 2px; padding-left: 16px; list-style: disc; }
 .om-goal-subtitle { margin-top: 8px; font-size: 13px; font-weight: 700; }
 .om-goal-kind { color: var(--om-text-tertiary); }
+
+/* The floating Voice button keeps its corner beside the composer (which leaves room for it) instead
+ * of covering Send or the thread; while the privacy banner is up, it sits just above the banner. */
+body:has(.manifest-voice-launcher) .om-composer { padding-right: 124px; }
+body:has(.om-composer) .manifest-voice-launcher { bottom: max(calc(env(safe-area-inset-bottom, 0px) + 22px), calc(var(--privacy-banner-space, 0px) + 22px)); }
+/* On phones an open conversation has the whole screen, as in Open Media: Voice waits on the list. */
+@media (max-width: 759px) {
+  body:has(.om-inbox[data-open="true"]) .manifest-voice-launcher { display: none; }
+  body:has(.om-inbox[data-open="true"]) .om-composer { padding-right: 14px; }
+}
+.om-composer textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

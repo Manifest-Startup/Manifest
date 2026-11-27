@@ -676,6 +676,17 @@ export const UNIVERSAL_SEARCH = gql`
         url
         hostname
       }
+      messages {
+        conversationId
+        kind
+        title
+        initials
+        avatarUrl
+        preview
+        lastMessageAt
+        unreadCount
+        ideaTitle
+      }
     }
   }
 `;

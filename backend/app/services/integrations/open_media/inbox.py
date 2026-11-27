@@ -69,3 +69,28 @@ def mark_read(user_id: str, conversation_id: str) -> bool:
     if om_user_id:
         invalidate_unread([om_user_id])
     return True
+
+
+def _searchable(raw: dict[str, Any]) -> str:
+    context = raw.get("context") if isinstance(raw.get("context"), dict) else {}
+    parts = [raw.get("title"), raw.get("company"), raw.get("preview"), context.get("title")]
+    return " ".join(str(p) for p in parts if p).lower()
+
+
+def search_inbox(user_id: str, query: str, *, limit: int = 5) -> list[dict[str, Any]]:
+    """Conversations whose person, company, idea or latest message match every word of ``query``.
+
+    Open Media has no inbox search, so this filters the person's live inbox (newest first);
+    a person without a linked account simply has no message results.
+    """
+    words = [w for w in (query or "").lower().split() if w]
+    if not words or not identity.om_user_id_for(user_id):
+        return []
+    matches: list[dict[str, Any]] = []
+    for raw in list_inbox(user_id, limit=200):
+        text = _searchable(raw)
+        if all(w in text for w in words):
+            matches.append(raw)
+            if len(matches) >= limit:
+                break
+    return matches

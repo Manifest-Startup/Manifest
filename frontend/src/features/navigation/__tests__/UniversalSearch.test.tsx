@@ -84,7 +84,7 @@ describe("UniversalSearch", () => {
     renderSearch();
 
     expect(
-      screen.getByRole("button", { name: "Search ideas, notes, and the web" })
+      screen.getByRole("button", { name: "Search ideas, messages, and the web" })
     ).toBeInTheDocument();
     expect(screen.queryByText(/jump into recent work/i)).not.toBeInTheDocument();
 
@@ -163,6 +163,49 @@ describe("UniversalSearch", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/ideas/idea-1/description"));
+  });
+
+  it("finds a message and opens its conversation", async () => {
+    const payload = {
+      data: {
+        universalSearch: {
+          query: "term sheet",
+          assistantSummary: null,
+          webSummary: null,
+          myIdeas: [],
+          publishedIdeas: [],
+          webSources: [],
+          messages: [
+            {
+              conversationId: "company:acme.vc",
+              kind: "email",
+              title: "Acme Ventures",
+              initials: "AV",
+              avatarUrl: null,
+              preview: "Term sheet attached",
+              lastMessageAt: "2026-11-20T10:00:00Z",
+              unreadCount: 1,
+              ideaTitle: null,
+            },
+          ],
+        },
+      },
+    };
+    mockQuery.mockResolvedValue(payload);
+
+    renderSearch();
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = await screen.findByLabelText(/search everything/i);
+    fireEvent.change(input, { target: { value: "term sheet" } });
+    await act(async () => {
+      jest.advanceTimersByTime(700);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText("Acme Ventures")).toBeInTheDocument();
+    expect(screen.getByText("Term sheet attached")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Acme Ventures"));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/messages/company%3Aacme.vc"));
   });
 
   it("creates a new idea from the search brief", async () => {

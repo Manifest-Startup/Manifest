@@ -114,6 +114,9 @@ class InboxItem:
     source: str | None = None
     subject: str | None = None
     body: list[InboxTextSegment] = strawberry.field(default_factory=list)
+    text: str = strawberry.field(
+        default="", description="The message as plain text (the body segments joined)."
+    )
     attachment_count: int = 0
     quoted_history_hidden: bool = False
     group_start: bool = True
@@ -226,6 +229,7 @@ def map_inbox_item(raw: dict[str, Any]) -> InboxItem:
         source=raw.get("source"),
         subject=raw.get("subject"),
         body=segments,
+        text="".join(seg.text for seg in segments),
         attachment_count=int(raw.get("attachments") or 0),
         quoted_history_hidden=bool(raw.get("quoted_history_hidden")),
         group_start=raw.get("group_start") is not False,

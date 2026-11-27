@@ -255,3 +255,75 @@ def test_universal_search_includes_web_results_and_ai_summary():
     assert len(data["webSources"]) == 2
     assert data["webSources"][0]["url"] == "https://example.com/enterprise-search-report"
     assert data["webSources"][0]["hostname"] == "example.com"
+
+
+MESSAGES_SEARCH_QUERY = """
+query UniversalSearch($query: String!) {
+  universalSearch(query: $query) {
+    messages { conversationId kind title preview ideaTitle }
+  }
+}
+"""
+
+
+def _search_messages(query, inbox, linked=True):
+    search_db = MagicMock()
+    search_db.table.side_effect = lambda name: _build_table([])
+    with _override_request_db(search_db):
+        with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"), patch(
+            "app.graphql.resolvers.search.get_current_user_id", return_value="test_user_id"
+        ), patch(
+            "app.services.integrations.open_media.inbox.identity.om_user_id_for",
+            return_value="om-1" if linked else None,
+        ), patch(
+            "app.services.integrations.open_media.inbox.list_inbox", return_value=inbox
+        ) as listed:
+            response = client.post(
+                "/graphql", json={"query": MESSAGES_SEARCH_QUERY, "variables": {"query": query}}
+            )
+    payload = response.json()
+    assert "errors" not in payload, payload
+    return payload["data"]["universalSearch"]["messages"], listed
+
+
+INBOX = [
+    {"id": "c1", "kind": "chat", "title": "Priya Shah", "preview": "Loved the pitch deck"},
+    {"id": "c2", "kind": "email", "title": "Acme Ventures", "preview": "Term sheet attached"},
+    {
+        "id": "c3",
+        "kind": "chat",
+        "title": "Sam Lee",
+        "preview": "hi",
+        "context": {"app": "manifest", "title": "Factory Forecast"},
+    },
+]
+
+
+def test_universal_search_finds_messages_by_person_message_and_idea():
+    assert [m["conversationId"] for m in _search_messages("priya", INBOX)[0]] == ["c1"]
+    assert [m["conversationId"] for m in _search_messages("TERM sheet", INBOX)[0]] == ["c2"]
+    found = _search_messages("factory forecast", INBOX)[0]
+    assert found[0]["conversationId"] == "c3" and found[0]["ideaTitle"] == "Factory Forecast"
+    assert _search_messages("nobody", INBOX)[0] == []
+
+
+def test_universal_search_skips_messages_without_open_media_link():
+    messages, listed = _search_messages("priya", INBOX, linked=False)
+    assert messages == []
+    listed.assert_not_called()
+
+
+def test_universal_search_survives_open_media_failure():
+    search_db = MagicMock()
+    search_db.table.side_effect = lambda name: _build_table([])
+    with _override_request_db(search_db):
+        with patch("app.graphql.schema.get_current_user_id", return_value="test_user_id"), patch(
+            "app.graphql.resolvers.search.get_current_user_id", return_value="test_user_id"
+        ), patch(
+            "app.services.integrations.open_media.inbox.search_inbox",
+            side_effect=RuntimeError("down"),
+        ):
+            response = client.post(
+                "/graphql", json={"query": MESSAGES_SEARCH_QUERY, "variables": {"query": "x"}}
+            )
+    assert response.json()["data"]["universalSearch"]["messages"] == []

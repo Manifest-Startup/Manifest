@@ -175,7 +175,7 @@ const sections: GuideSection[] = [
       "Once your workspace is active, the supporting tools matter. Account settings help you manage profile and API access, universal search helps you move faster, and voice adds a hands-free control layer on top of the app.",
     steps: [
       "Open Account from the profile dropdown to manage profile details, connected settings, and API access.",
-      "Use universal search from the navigation bar to jump into recent work and search across your workspace faster than manual browsing.",
+      "Use universal search from the navigation bar to jump into recent work and search your ideas, messages and the web at once.",
       "Use the floating voice control when you want guided, hands-free navigation or app-control actions.",
       "Open the API reference when you need to create clients, issue keys, or integrate Manifest workflows with external tools.",
     ],

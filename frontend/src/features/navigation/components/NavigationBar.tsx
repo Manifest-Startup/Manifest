@@ -20,6 +20,8 @@ interface NavItem {
   label: string;
   path: string;
   matchStartsWith?: boolean;
+  /** Unread count badge (Messages) */
+  badgeCount?: number;
 }
 
 interface DropdownItem {
@@ -58,8 +60,12 @@ const NavigationBar: React.FC = () => {
       ...(openMedia.enabled && !isVaultMode()
         ? [{ label: "Pitch Reels", path: "/pitch-reels", matchStartsWith: true }]
         : []),
+      // Messages sits beside Ideas and Reels, with its unread count, instead of inside the profile menu.
+      ...(openMedia.enabled && !isVaultMode()
+        ? [{ label: "Messages", path: "/messages", matchStartsWith: true, badgeCount: unreadTotal > 0 ? unreadTotal : undefined }]
+        : []),
     ],
-    [openMedia.enabled],
+    [openMedia.enabled, unreadTotal],
   );
 
   useEffect(() => {
@@ -136,14 +142,11 @@ const NavigationBar: React.FC = () => {
 
   const dropdownItems: DropdownItem[] = useMemo(
     () => [
-      ...(openMedia.enabled
-        ? [{ label: "Messages", path: "/messages", badgeCount: unreadTotal > 0 ? unreadTotal : undefined }]
-        : []),
       { label: "Account", path: "/account" },
       { label: "Docs", path: "/docs" },
       { label: "Logout", action: handleLogout },
     ],
-    [handleLogout, openMedia.enabled, unreadTotal],
+    [handleLogout],
   );
 
   const isActive = (item: NavItem) =>
@@ -178,7 +181,7 @@ const NavigationBar: React.FC = () => {
                     onClick={createNavigateHandler(item.path)}
                     onMouseEnter={() => prefetchRoute(item.path)}
                     onFocus={() => prefetchRoute(item.path)}
-                    className={`rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                    className={`inline-flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                       isActive(item)
                         ? "bg-stone100 text-neutral900 dark:bg-neutral800 dark:text-white"
                         : "text-neutral700 hover:bg-stone50 hover:text-neutral900 dark:text-gray300 dark:hover:bg-neutral800 dark:hover:text-white"
@@ -187,6 +190,11 @@ const NavigationBar: React.FC = () => {
                     aria-label={`Navigate to ${item.label}`}
                   >
                     {item.label}
+                    {item.badgeCount ? (
+                      <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent-600 px-1 text-[0.65rem] font-bold leading-none text-white" aria-label={`${item.badgeCount} unread`}>
+                        {item.badgeCount > 99 ? "99+" : item.badgeCount}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -198,7 +206,7 @@ const NavigationBar: React.FC = () => {
                     type="button"
                     onClick={createNavigateHandler(item.path)}
                     onTouchStart={() => prefetchRoute(item.path)}
-                    className={`shrink-0 rounded-md px-2.5 py-2 text-[0.7rem] font-semibold leading-tight transition-all sm:px-3 sm:text-xs ${
+                    className={`inline-flex shrink-0 items-center rounded-md px-2.5 py-2 text-[0.7rem] font-semibold leading-tight transition-all sm:px-3 sm:text-xs ${
                       isActive(item)
                         ? "bg-stone100 text-neutral900 dark:bg-neutral800 dark:text-white"
                         : "text-neutral700 hover:bg-stone50 hover:text-neutral900 dark:text-gray300 dark:hover:bg-neutral800 dark:hover:text-white"
@@ -206,6 +214,11 @@ const NavigationBar: React.FC = () => {
                     role="menuitem"
                   >
                     {item.label === "Pitch Reels" ? "Reels" : item.label}
+                    {item.badgeCount ? (
+                      <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent-600 px-1 text-[0.65rem] font-bold leading-none text-white" aria-label={`${item.badgeCount} unread`}>
+                        {item.badgeCount > 99 ? "99+" : item.badgeCount}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
