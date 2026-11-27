@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "d5548a897f78167ba1066924cbece5e6f04271b72a52612f11e668965e54cdcc",
+ "catalog_sha256": "8b85d3b360af07b5c3e8e678ea4be38aad21d8521a5bba5d8a587c2721eee8be",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -3871,7 +3871,7 @@
    "_call": {
     "via": "graphql",
     "field": "inboxConversation",
-    "document": "query InboxConversation($conversationId: String!) { inboxConversation(conversationId: $conversationId) { conversation { conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply } items { kind key at messageId isMine senderName sentAt source subject attachmentCount quotedHistoryHidden groupStart groupEnd } } }",
+    "document": "query InboxConversation($conversationId: String!) { inboxConversation(conversationId: $conversationId) { conversation { conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply } items { kind key at messageId isMine senderName sentAt source subject text attachmentCount quotedHistoryHidden groupStart groupEnd } } }",
     "variables": [
      "conversationId"
     ]
@@ -6549,7 +6549,7 @@
   {
    "name": "universal_search",
    "title": "Universal search",
-   "description": "Search your ideas, documents and people at once (optionally the web).",
+   "description": "Search your ideas, documents, messages and people at once (optionally the web).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -6580,7 +6580,7 @@
    "_call": {
     "via": "graphql",
     "field": "universalSearch",
-    "document": "query UniversalSearch($query: String!, $limit: Int, $includeWeb: Boolean) { universalSearch(query: $query, limit: $limit, includeWeb: $includeWeb) { query myIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } publishedIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } assistantSummary webSummary webSources { title url hostname } } }",
+    "document": "query UniversalSearch($query: String!, $limit: Int, $includeWeb: Boolean) { universalSearch(query: $query, limit: $limit, includeWeb: $includeWeb) { query myIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } publishedIdeas { ideaId title snippet matchedIn createdAt userId isPublished creatorName creatorAvatar } assistantSummary webSummary webSources { title url hostname } messages { conversationId kind source title initials avatarColor avatarUrl group company preview lastMessageAt unreadCount ideaId ideaTitle canReply } } }",
     "variables": [
      "query",
      "limit",

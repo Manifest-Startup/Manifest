@@ -375,7 +375,7 @@ def test_inbox_conversation_maps_open_media_layout(monkeypatch):
         },
     )
     result = run(
-        'query { inboxConversation(conversationId: "company:doordash.com") { conversation { title } items { kind isMine subject attachmentCount body { text url } } } }'
+        'query { inboxConversation(conversationId: "company:doordash.com") { conversation { title } items { kind isMine subject attachmentCount text body { text url } } } }'
     )
     assert not result.errors
     items = result.data["inboxConversation"]["items"]
@@ -390,6 +390,8 @@ def test_inbox_conversation_maps_open_media_layout(monkeypatch):
         {"text": "here", "url": "https://dd.com/t"},
         {"text": "x", "url": None},
     ]
+    # Plain text too, so agents and the CLI (two levels of fields) can read the message.
+    assert items[1]["text"] == "Track it herex"
 
 
 def test_reply_in_inbox_goes_through_open_media(monkeypatch):

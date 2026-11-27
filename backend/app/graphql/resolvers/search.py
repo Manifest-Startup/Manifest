@@ -7,6 +7,7 @@ from urllib.parse import unquote, urlparse
 
 import strawberry
 from app.auth.current_user import get_current_user_id
+from app.graphql.open_media_types import map_inbox_conversation
 from app.graphql.resolvers.shared import (
     _coerce_datetime,
     _display_name,
@@ -273,6 +274,18 @@ def _generate_universal_search_summary(
         return None
 
 
+async def _search_messages(user_id: str, query: str, limit: int) -> list:
+    """Open Media conversations matching the query; never fails the whole search."""
+    from app.services.integrations.open_media import inbox as om_inbox
+
+    try:
+        rows = await asyncio.to_thread(om_inbox.search_inbox, user_id, query, limit=limit)
+    except Exception as exc:
+        logger.warning(f"[universal_search] Message search failed: {exc}")
+        return []
+    return [map_inbox_conversation(r) for r in rows]
+
+
 @strawberry.type
 class SearchQuery:
     @strawberry.field
@@ -283,7 +296,7 @@ class SearchQuery:
         limit: int = 5,
         include_web: bool = False,
     ) -> UniversalSearchResults:
-        """Search your ideas, documents and people at once (optionally the web)."""
+        """Search your ideas, documents, messages and people at once (optionally the web)."""
         user_id = get_current_user_id(info.context["request"])
         db = info.context["db"]
         search_query = (query or "").strip()
@@ -296,6 +309,8 @@ class SearchQuery:
                 published_ideas=[],
                 web_sources=[],
             )
+
+        messages_task = asyncio.create_task(_search_messages(user_id, search_query, search_limit))
 
         my_ideas_response = (
             db.table("ideas")
@@ -424,6 +439,7 @@ class SearchQuery:
 
         return UniversalSearchResults(
             query=search_query,
+            messages=await messages_task,
             my_ideas=my_ideas,
             published_ideas=published_ideas,
             assistant_summary=assistant_summary,

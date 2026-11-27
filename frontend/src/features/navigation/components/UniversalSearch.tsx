@@ -35,6 +35,16 @@ interface SearchWebSource {
   hostname?: string | null;
 }
 
+interface SearchMessageResult {
+  conversationId: string;
+  kind: string;
+  title: string;
+  preview?: string | null;
+  lastMessageAt: string;
+  unreadCount: number;
+  ideaTitle?: string | null;
+}
+
 interface UniversalSearchPayload {
   query: string;
   assistantSummary?: string | null;
@@ -42,6 +52,7 @@ interface UniversalSearchPayload {
   myIdeas: SearchIdeaResult[];
   publishedIdeas: SearchIdeaResult[];
   webSources: SearchWebSource[];
+  messages?: SearchMessageResult[];
 }
 
 interface UniversalSearchResponse {
@@ -55,7 +66,7 @@ interface IdeasResponse {
 interface PaletteItem {
   id: string;
   section: string;
-  kind: "action" | "idea" | "published" | "web";
+  kind: "action" | "idea" | "published" | "web" | "message";
   title: string;
   subtitle: string;
   meta?: string;
@@ -73,6 +84,12 @@ interface SearchState {
 }
 
 const RESULT_LIMIT = 4;
+
+const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6l2.4-3.2A8 8 0 1 1 20 12a8 8 0 0 1-8 8H4z" />
+  </svg>
+);
 
 const stripMarkup = (value?: string | null) =>
   (value || "")
@@ -219,6 +236,11 @@ const UniversalSearch: React.FC = () => {
     sidebarVar({ ...sidebarState, currentIdeaId: ideaId });
     closePalette();
     safeNavigate(navigate, setMessage, `/ideas/${ideaId}/description`);
+  };
+
+  const handleOpenConversation = (conversationId: string) => {
+    closePalette();
+    safeNavigate(navigate, setMessage, `/messages/${encodeURIComponent(conversationId)}`);
   };
 
   const handleCreateIdea = async (title: string, description?: string) => {
@@ -481,6 +503,19 @@ const UniversalSearch: React.FC = () => {
       });
     });
 
+    searchResults?.messages?.forEach((conversation) => {
+      items.push({
+        id: `message-${conversation.conversationId}`,
+        section: "Messages",
+        kind: "message",
+        title: conversation.title,
+        subtitle: stripMarkup(conversation.preview) || (conversation.ideaTitle ? `Re: ${conversation.ideaTitle}` : "Open this conversation."),
+        meta: conversation.kind === "email" ? "Email" : "Chat",
+        actionLabel: "Open",
+        onSelect: () => handleOpenConversation(conversation.conversationId),
+      });
+    });
+
     searchResults?.publishedIdeas.forEach((idea) => {
       items.push({
         id: `published-idea-${idea.ideaId}`,
@@ -623,7 +658,7 @@ const UniversalSearch: React.FC = () => {
                       type="text"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Search ideas, notes, web…"
+                      placeholder="Search ideas, messages, web…"
                       className="w-full min-w-0 border-none bg-transparent text-[1.0625rem] font-medium leading-snug tracking-[-0.01em] text-neutral900 outline-none placeholder:text-gray400/95 dark:text-white dark:placeholder:text-gray500"
                       aria-label="Search everything"
                     />
@@ -695,6 +730,8 @@ const UniversalSearch: React.FC = () => {
                                   <PlusIcon className="h-4 w-4" />
                                 ) : item.kind === "published" ? (
                                   <ArrowTurnIcon className="h-4 w-4" />
+                                ) : item.kind === "message" ? (
+                                  <ChatIcon className="h-4 w-4" />
                                 ) : (
                                   <SearchIcon className="h-4 w-4" />
                                 )}
@@ -780,7 +817,7 @@ const UniversalSearch: React.FC = () => {
         type="button"
         onClick={() => setIsOpen(true)}
         className="hidden min-h-10 w-full min-w-0 items-center gap-2 rounded-md border border-transparent bg-stone50 px-3 py-1 text-left transition-colors hover:border-stone200 dark:bg-neutral800 dark:hover:border-neutral700 md:flex"
-        aria-label="Search ideas, notes, and the web"
+        aria-label="Search ideas, messages, and the web"
       >
         <div className="flex h-6 w-6 flex-none items-center justify-center">
           <SearchIcon className="h-[0.95rem] w-[0.95rem] text-gray500 dark:text-gray300" />

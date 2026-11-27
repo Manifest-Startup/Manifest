@@ -127,9 +127,38 @@ describe("MessagesPage", () => {
     expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText("DoorDash")).toBeInTheDocument();
     expect(screen.getByText("Re: Tidy")).toBeInTheDocument();
-    expect(screen.getByLabelText("2 unread")).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-row-company:doordash.com")).toHaveAccessibleName(/2 unread/);
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.getByTestId("messages-empty-state")).toBeInTheDocument();
+  });
+
+  it("searches the list by person, company, message and idea", async () => {
+    renderPage([linkMock(), inboxMock()]);
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("inbox-search"), { target: { value: "order way" } });
+    expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+    expect(screen.getByText("DoorDash")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("inbox-search"), { target: { value: "tidy" } });
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.queryByText("DoorDash")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("inbox-search"), { target: { value: "nobody" } });
+    expect(screen.getByTestId("inbox-no-match")).toBeInTheDocument();
+  });
+
+  it("filters to unread conversations and says when all are read", async () => {
+    renderPage([linkMock(), inboxMock()]);
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("inbox-unread-filter"));
+    expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+    expect(screen.getByText("DoorDash")).toBeInTheDocument();
+    expect(screen.getByTestId("inbox-unread-filter")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("says when everything is read under the unread filter", async () => {
+    renderPage([linkMock(), inboxMock([inbox[0]])]);
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("inbox-unread-filter"));
+    expect(screen.getByTestId("inbox-caught-up")).toBeInTheDocument();
   });
 
   it("explains an empty inbox", async () => {
@@ -143,7 +172,22 @@ describe("MessagesPage", () => {
     expect(screen.getByRole("link", { name: "Track it" })).toHaveAttribute("href", "https://doordash.com/t");
     fireEvent.change(screen.getByTestId("inbox-composer"), { target: { value: "Thanks!" } });
     fireEvent.click(screen.getByTestId("inbox-send"));
-    await waitFor(() => expect(screen.getByTestId("inbox-composer")).toHaveValue(""));
+    // The reply shows at once while it's on its way, and the composer is ready for the next one.
+    expect(screen.getByTestId("inbox-composer")).toHaveValue("");
+    expect(screen.getByText("Thanks!")).toBeInTheDocument();
+    expect(screen.getByText("Sending…")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Sending…")).not.toBeInTheDocument());
+  });
+
+  it("keeps a failed reply on screen with a way to try again", async () => {
+    const failing = { ...replyMock, result: undefined, error: new Error("Open Media didn't answer.") };
+    renderPage([linkMock(), inboxMock(), threadMock, readMock, failing], "/messages/company%3Adoordash.com");
+    expect(await screen.findByText("Your order")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("inbox-composer"), { target: { value: "Thanks!" } });
+    fireEvent.keyDown(screen.getByTestId("inbox-composer"), { key: "Enter" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Not delivered");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByTestId("inbox-composer")).toHaveValue("Thanks!");
   });
 
   it("asks to connect Open Media before showing messages", async () => {

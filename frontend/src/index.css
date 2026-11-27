@@ -161,6 +161,12 @@ summary:focus-visible,
   min-height: 100dvh;
 }
 
+/* App surfaces that scroll their own panes (Messages): exactly one window tall. */
+.manifest-app-frame-fixed {
+  height: 100vh;
+  height: 100dvh;
+}
+
 .manifest-shell {
   width: 100%;
   margin: 0 auto;

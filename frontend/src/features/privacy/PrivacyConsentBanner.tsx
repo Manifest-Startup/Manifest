@@ -15,6 +15,34 @@ const PrivacyConsentBanner: React.FC = () => {
     setDraft(buildDraftFromConsent(consent));
   }, [consent]);
 
+  // Publish the space the banner takes (height plus its bottom gap) so the page can leave room
+  // for it: on phones it is taller than any fixed padding, and it covered the Messages composer.
+  const bannerRef = React.useRef<HTMLDivElement>(null);
+  const visible = !loading && !consent.hasStoredPreference;
+  React.useEffect(() => {
+    const root = document.documentElement;
+    const node = bannerRef.current;
+    if (!visible || !node) {
+      root.style.removeProperty("--privacy-banner-space");
+      return;
+    }
+    const update = () => {
+      const rect = node.getBoundingClientRect();
+      // Nothing on screen (hidden or not laid out yet): leave no room rather than a whole window.
+      const space = rect.height > 0 ? window.innerHeight - rect.top + 8 : 0;
+      root.style.setProperty("--privacy-banner-space", `${Math.max(0, Math.round(space))}px`);
+    };
+    update();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(node);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+      root.style.removeProperty("--privacy-banner-space");
+    };
+  }, [visible, expanded]);
+
   if (loading || consent.hasStoredPreference) {
     return null;
   }
@@ -45,7 +73,7 @@ const PrivacyConsentBanner: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-50 px-4 sm:px-6" data-testid="privacy-consent-banner">
+    <div ref={bannerRef} className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-50 px-4 sm:px-6" data-testid="privacy-consent-banner">
       <div className="mx-auto max-w-5xl rounded-3xl border border-stone200 bg-white/95 p-4 shadow-panel backdrop-blur dark:border-neutral700 dark:bg-neutral900/95">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 flex-1">
