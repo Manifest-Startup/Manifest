@@ -368,7 +368,8 @@ def _send_email(ctx: Context, data: dict[str, Any]) -> Outcome:
             to=scope["to"],
             subject=scope["subject"],
             text=scope["body"],
-            idempotency_key=f"manifest-goal-{ctx.task['id']}",
+            # Open Media takes a UUID; the step's own id is one, and a retry reuses it.
+            idempotency_key=str(ctx.task["id"]),
             in_reply_to=scope.get("in_reply_to"),
         )
     except OpenMediaError as exc:

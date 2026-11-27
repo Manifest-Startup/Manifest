@@ -7,6 +7,7 @@ without a yes for exactly that text, an edit needs a new yes, and a retry never 
 
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -39,7 +40,9 @@ class FakeMail:
         self.syncs = 0
         self.fail: Exception | None = None
 
-    def send(self, user_id, *, to, subject, text, idempotency_key, mailbox_id=None, in_reply_to=None):
+    def send(
+        self, user_id, *, to, subject, text, idempotency_key, mailbox_id=None, in_reply_to=None
+    ):
         if self.fail:
             error, self.fail = self.fail, None
             raise error
@@ -172,7 +175,8 @@ def test_nothing_is_sent_until_the_exact_email_is_approved_then_it_goes_once(db,
     assert draft["from"] == "me@founder.test" and draft["mailbox_ready"] is True
 
     view = _approve(db, view)
-    assert len(mail.sent) == 1 and mail.sent[0]["key"].startswith("manifest-goal-")
+    assert len(mail.sent) == 1
+    uuid.UUID(mail.sent[0]["key"])  # Open Media's /v1/me routes accept only a UUID
     send = next(t for t in view["tasks"] if t["step_key"] == "send")
     assert send["status"] == "completed" and send["verification"]["verified"] is True
     for _ in range(3):  # requests, sweeps and webhooks advance it again
@@ -399,7 +403,13 @@ def test_voice_hears_each_waiting_message_not_the_plan():
 
 
 def test_a_follow_up_threads_under_the_first_email_waits_for_a_yes_and_stops_at_two(db, mail):
-    view = _approve(db, _email_goal(db, follow_up="Quick thought: is it finding people or knowing what to ask that's harder?"))
+    view = _approve(
+        db,
+        _email_goal(
+            db,
+            follow_up="Quick thought: is it finding people or knowing what to ask that's harder?",
+        ),
+    )
     goal_id = view["goal"]["id"]
     with pytest.raises(engine.GoalError, match="few days"):
         engine.follow_up(db, USER, goal_id)  # too soon
@@ -411,8 +421,11 @@ def test_a_follow_up_threads_under_the_first_email_waits_for_a_yes_and_stops_at_
     pending = [a for a in follow["approvals"] if a["status"] == "pending"]
     assert follow["goal"]["title"] == "Follow up with Priya Shah"
     assert pending[0]["scope"]["subject"] == "Re: Question about your accelerator prep"
-    assert pending[0]["scope"]["in_reply_to"].startswith("<om-manifest-goal-")
-    assert "is it finding people" in pending[0]["scope"]["body"] and outreach.OPT_OUT in pending[0]["scope"]["body"]
+    assert pending[0]["scope"]["in_reply_to"].startswith("<om-")
+    assert (
+        "is it finding people" in pending[0]["scope"]["body"]
+        and outreach.OPT_OUT in pending[0]["scope"]["body"]
+    )
     assert len(mail.sent) == 1  # nothing sent until the yes
     assert engine.view(db, USER, goal_id)["goal"]["status"] == "cancelled"
     with pytest.raises(engine.GoalError, match="already followed up"):
@@ -432,4 +445,32 @@ def test_a_follow_up_threads_under_the_first_email_waits_for_a_yes_and_stops_at_
 def test_follow_up_status_says_why_not(db, mail):
     view = _email_goal(db)
     tasks = engine.view(db, USER, view["goal"]["id"])["tasks"]
-    assert engine.follow_up_status(tasks) == {"allowed": False, "reason": "It hasn't been sent yet."}
+    assert engine.follow_up_status(tasks) == {
+        "allowed": False,
+        "reason": "It hasn't been sent yet.",
+    }
+
+
+def test_the_real_mail_adapter_sends_a_uuid_key_and_threads(monkeypatch):
+    """What goes over the wire to Open Media (its /v1/me routes refuse a non-UUID key)."""
+    from app.services.integrations.open_media import mail as real_mail
+
+    calls = []
+
+    class Client:
+        def connected(self, user_id, method, path, **kw):
+            calls.append((method, path, kw))
+            return {"message": {"sourceMessageId": "<x@y>"}}
+
+    monkeypatch.setattr(real_mail, "get_client", lambda: Client())
+    key = str(uuid.uuid4())
+    real_mail.send(
+        USER, to="a@b.co", subject="Hi", text="Hello", idempotency_key=key, in_reply_to="<x@y>"
+    )
+    method, path, kw = calls[0]
+    assert (method, path) == ("POST", "/email") and kw["headers"] == {"Idempotency-Key": key}
+    assert kw["json"]["in_reply_to"] == "<x@y>" and kw["idempotent"] is True
+    with pytest.raises(ValueError, match="UUID"):
+        real_mail.send(
+            USER, to="a@b.co", subject="Hi", text="Hello", idempotency_key="manifest-goal-1"
+        )
