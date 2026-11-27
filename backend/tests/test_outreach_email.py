@@ -474,3 +474,30 @@ def test_the_real_mail_adapter_sends_a_uuid_key_and_threads(monkeypatch):
         real_mail.send(
             USER, to="a@b.co", subject="Hi", text="Hello", idempotency_key="manifest-goal-1"
         )
+
+
+def test_a_bounce_is_caught_reported_and_blocks_follow_ups(db, mail):
+    """The real iCloud bounce from 2026-11-27 (Stephen's email), with Priya's address."""
+    view = _approve(db, _email_goal(db))
+    mail.rows.insert(0, {
+        "messageId": "<bounce-1@icloud.com>", "from": "Mail Delivery System <MAILER-DAEMON@icloud.com>",
+        "subject": "Undelivered Mail Returned to Sender", "folder": "INBOX",
+        "sentAt": (store.now() + timedelta(seconds=30)).isoformat(),
+        "text": "This is a system-generated message to inform you that your email could not\\n"
+        "be delivered to one or more recipients.\\n\\n<priya@studio.test>: host 127.0.0.1[127.0.0.1] "
+        "said: 550 5.7.1\\n   [CS101] Message rejected due to local policy; if you feel that your "
+        "email was rejected in error, please forward a copy",
+    })  # fmt: skip
+    view = engine.advance(db, USER, view["goal"]["id"], force_check=True)
+    reply = next(t for t in view["tasks"] if t["step_key"] == "reply")
+    assert reply["status"] == "blocked" and reply["result"]["bounced"] is True
+    assert reply["result"]["bounce_reason"].startswith("550 5.7.1")
+    assert "CS101" in reply["result"]["bounce_reason"]
+    assert "didn't arrive" in reply["last_error"]
+    assert "Priya Shah" in " ".join(view["report"]["needs_you"])
+    status = engine.follow_up_status(view["tasks"])
+    assert status["allowed"] is False and "didn't arrive" in status["reason"]
+    # An unrelated bounce (another address) is not mistaken for this one.
+    other = _approve(db, _email_goal(db, title="Email Ana", to="ana@other.test"))
+    other = engine.advance(db, USER, other["goal"]["id"], force_check=True)
+    assert next(t for t in other["tasks"] if t["step_key"] == "reply")["status"] == "waiting_external"

@@ -220,3 +220,20 @@ test("a send Open Media refused says why and can be tried again", () => {
   expect(screen.getByText("Open Media refused it.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
 });
+
+test("a bounced email says it didn't arrive, why, and offers no follow-up", () => {
+  const bounced = goal({
+    approvals: [{ ...approval, status: "approved" }],
+    draft: { ...draft, sendStatus: "completed", sentAt: "2026-11-20T10:00:00Z", replyStatus: "blocked",
+      bounced: true, bounceReason: "550 5.7.1 [CS101] Message rejected due to local policy",
+      followUpState: { allowed: false, reason: "It didn't arrive, so a follow-up wouldn't either.", after: null } } as never,
+  });
+  expect(draftStatus(bounced)).toBe("Didn't arrive: their side rejected it");
+  render(
+    <MockedProvider mocks={[]}>
+      <OutreachDraft goal={bounced} onBack={() => {}} onDecided={() => {}} />
+    </MockedProvider>,
+  );
+  expect(screen.getByTestId("bounce-notice")).toHaveTextContent("CS101");
+  expect(screen.queryByText("No reply yet?")).not.toBeInTheDocument();
+});

@@ -224,6 +224,8 @@ def follow_up_status(tasks: list[dict[str, Any]]) -> dict[str, Any]:
         return {"allowed": False, "reason": "It hasn't been sent yet."}
     if reply and reply["status"] == DONE:
         return {"allowed": False, "reason": "They already replied."}
+    if reply and (reply.get("result") or {}).get("bounced"):
+        return {"allowed": False, "reason": "It didn't arrive, so a follow-up wouldn't either."}
     if reply and (reply.get("result") or {}).get("followed_up_by"):
         return {"allowed": False, "reason": "You already followed up."}
     if number >= MAX_FOLLOW_UPS:

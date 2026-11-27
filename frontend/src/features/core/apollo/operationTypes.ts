@@ -454,6 +454,9 @@ export interface GoalDraft {
   mailboxReady?: boolean | null;
   replyStatus: string | null;
   reply: string | null;
+  /** A delivery-failure notice came back for it, and the server's reason. */
+  bounced?: boolean;
+  bounceReason?: string | null;
   /** 1 or 2 for a follow-up; 0 for a first message. */
   followUpNumber?: number;
   followedUp?: boolean;
