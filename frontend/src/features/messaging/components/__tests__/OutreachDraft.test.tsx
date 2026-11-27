@@ -85,7 +85,9 @@ test("the whole message, who it's for and why, then Send approves exactly it", a
       <OutreachDraft goal={goal()} position={{ index: 0, total: 3 }} onBack={() => {}} onDecided={onDecided} />
     </MockedProvider>,
   );
-  expect(screen.getByText("Priya Shah · priya@studio.test")).toBeInTheDocument();
+  expect(screen.getByText(/To Priya Shah · priya@studio\.test/)).toBeInTheDocument();
+  // Your message is a chat bubble, marked as a draft until it's sent.
+  expect(screen.getByTestId("outreach-receipt")).toHaveTextContent("Draft · not sent");
   expect(screen.getByText("Question about your accelerator prep")).toBeInTheDocument();
   expect(screen.getByText(/juggling three docs/)).toBeInTheDocument();
   expect(screen.getByText("Posted about juggling application documents.")).toBeInTheDocument();
@@ -146,7 +148,8 @@ test("a reply is shown in their words, without the untrusted markers", () => {
       <OutreachDraft goal={replied} onBack={() => {}} onDecided={() => {}} />
     </MockedProvider>,
   );
-  expect(screen.getByText("Priya Shah replied")).toBeInTheDocument();
+  // Their reply is their bubble, under yours, like any chat.
+  expect(screen.getByText("Priya Shah", { selector: ".om-sender" })).toBeInTheDocument();
   expect(screen.getByText("I use Notion, it's a mess.")).toBeInTheDocument();
 });
 

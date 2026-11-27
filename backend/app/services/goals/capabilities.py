@@ -30,6 +30,8 @@ from app.utils.logger import logger
 REPLY_CHECK_EVERY = timedelta(minutes=15)
 REPLY_WAIT_DEFAULT_DAYS = 7
 MAX_REPLY_CHARS = 1500
+SYNC_EVERY = timedelta(minutes=2)
+REPLY_SCAN_ROWS = 50  # newest stored emails read per check; keeps Open Media inside its CPU budget
 
 
 @dataclass
@@ -371,6 +373,7 @@ def _send_email(ctx: Context, data: dict[str, Any]) -> Outcome:
             # Open Media takes a UUID; the step's own id is one, and a retry reuses it.
             idempotency_key=str(ctx.task["id"]),
             in_reply_to=scope.get("in_reply_to"),
+            to_name=scope.get("to_name"),
         )
     except OpenMediaError as exc:
         if exc.status == 409 or exc.code == "no_mailbox":
@@ -438,12 +441,24 @@ def _await_email_reply(ctx: Context, sent: dict[str, Any], days: int) -> Outcome
     to = sent["to"].lower()
     sent_at = store.parse_time(sent.get("sent_at"))
     waiting = {"channel": "email", "waiting_for": sent.get("to_name") or to, "to": to}
-    if sent.get("mailbox_id"):
-        try:  # fetch new mail now; Open Media only syncs while its app is open
+    # Waiting can take days: a busy or unreachable Open Media just means "look again later",
+    # never a failed goal. Recent mail is enough (a reply or bounce lands after the send).
+    # Fetching new mail is the expensive part: at most every two minutes, however often the
+    # goal is checked (app refreshes, voice questions).
+    last_sync = store.parse_time((ctx.task.get("result") or {}).get("synced_at"))
+    if sent.get("mailbox_id") and (last_sync is None or store.now() - last_sync >= SYNC_EVERY):
+        waiting["synced_at"] = store.now().isoformat()
+        try:  # Open Media only syncs while its app is open
             mail.sync(ctx.user_id, str(sent["mailbox_id"]))
-        except OpenMediaError as exc:
-            logger.info("mailbox sync skipped", extra={"http.status_code": exc.status})
-    rows = mail.stored(ctx.user_id, limit=200)
+        except Exception as exc:
+            logger.info("mailbox sync skipped", extra={"exception.type": type(exc).__name__})
+    elif last_sync is not None:
+        waiting["synced_at"] = last_sync.isoformat()
+    try:
+        rows = mail.stored(ctx.user_id, limit=REPLY_SCAN_ROWS)
+    except Exception as exc:
+        logger.info("stored mail unavailable", extra={"exception.type": type(exc).__name__})
+        return Outcome("waiting", waiting, check_after=REPLY_CHECK_EVERY)
     bounce = _bounce_for(rows, to, sent.get("message_id"), sent_at)
     if bounce is not None:
         who = sent.get("to_name") or to

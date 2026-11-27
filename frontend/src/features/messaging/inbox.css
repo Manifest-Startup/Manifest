@@ -193,12 +193,33 @@ textarea.om-draft-body { resize: vertical; }
 .om-draft-follow p { margin-top: 6px; white-space: pre-wrap; }
 .om-draft-reply { padding: 12px 14px; border-left: 3px solid var(--om-text); border-radius: 4px 14px 14px 4px; background: var(--om-chrome); font-size: 15px; line-height: 22px; white-space: pre-wrap; }
 .om-draft-notice { font-size: 13px; font-weight: 600; color: var(--om-text); }
+/* Outreach as a conversation: the message is your bubble, dashed while it's a draft. */
+.om-draft-route { margin: 4px 0 -6px; text-align: center; font-size: 11px; color: var(--om-text-tertiary); overflow-wrap: anywhere; }
+.om-draft .om-message { max-width: 88%; }
+.om-draft .om-message[data-mine="true"] .om-bubble[data-draft="true"] { background: var(--om-surface); color: var(--om-text); outline: 1.5px dashed var(--om-text-tertiary); outline-offset: -1.5px; }
+.om-draft .om-message[data-mine="true"] .om-bubble[data-failed="true"] { background: transparent; color: var(--om-text); box-shadow: 0 0 0 1.5px var(--om-danger) inset; }
+.om-draft-editor { display: flex; flex-direction: column; gap: 6px; width: min(560px, 80vw); background: var(--om-surface) !important; color: var(--om-text) !important; box-shadow: 0 0 0 1.5px var(--om-text-tertiary) inset; }
+.om-draft-editor textarea { resize: vertical; line-height: 21px; }
 .om-draft-footer { display: flex; flex-direction: column; gap: 6px; padding: 10px 18px 12px; border-top: 1px solid var(--om-border); background: var(--om-surface); }
 .om-draft-footer > * { width: 100%; max-width: 644px; margin-left: auto; margin-right: auto; }
 .om-draft-warning { font-size: 13px; line-height: 18px; color: var(--om-danger); }
 .om-draft-warning a { font-weight: 600; text-decoration: underline; color: inherit; }
-body:has(.manifest-voice-launcher) .om-draft-footer { padding-right: 124px; }
-@media (max-width: 759px) { body:has(.om-inbox[data-open="true"]) .om-draft-footer { padding-right: 18px; } }
+body:has(.manifest-voice-launcher) /* Outreach as a conversation: the message is your bubble, dashed while it's a draft. */
+.om-draft-route { margin: 4px 0 -6px; text-align: center; font-size: 11px; color: var(--om-text-tertiary); overflow-wrap: anywhere; }
+.om-draft .om-message { max-width: 88%; }
+.om-draft .om-message[data-mine="true"] .om-bubble[data-draft="true"] { background: var(--om-surface); color: var(--om-text); outline: 1.5px dashed var(--om-text-tertiary); outline-offset: -1.5px; }
+.om-draft .om-message[data-mine="true"] .om-bubble[data-failed="true"] { background: transparent; color: var(--om-text); box-shadow: 0 0 0 1.5px var(--om-danger) inset; }
+.om-draft-editor { display: flex; flex-direction: column; gap: 6px; width: min(560px, 80vw); background: var(--om-surface) !important; color: var(--om-text) !important; box-shadow: 0 0 0 1.5px var(--om-text-tertiary) inset; }
+.om-draft-editor textarea { resize: vertical; line-height: 21px; }
+.om-draft-footer { padding-right: 124px; }
+@media (max-width: 759px) { body:has(.om-inbox[data-open="true"]) /* Outreach as a conversation: the message is your bubble, dashed while it's a draft. */
+.om-draft-route { margin: 4px 0 -6px; text-align: center; font-size: 11px; color: var(--om-text-tertiary); overflow-wrap: anywhere; }
+.om-draft .om-message { max-width: 88%; }
+.om-draft .om-message[data-mine="true"] .om-bubble[data-draft="true"] { background: var(--om-surface); color: var(--om-text); outline: 1.5px dashed var(--om-text-tertiary); outline-offset: -1.5px; }
+.om-draft .om-message[data-mine="true"] .om-bubble[data-failed="true"] { background: transparent; color: var(--om-text); box-shadow: 0 0 0 1.5px var(--om-danger) inset; }
+.om-draft-editor { display: flex; flex-direction: column; gap: 6px; width: min(560px, 80vw); background: var(--om-surface) !important; color: var(--om-text) !important; box-shadow: 0 0 0 1.5px var(--om-text-tertiary) inset; }
+.om-draft-editor textarea { resize: vertical; line-height: 21px; }
+.om-draft-footer { padding-right: 18px; } }
 .om-draft-blocked { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; box-shadow: 0 0 0 1.5px var(--om-danger) inset; font-size: 14px; }
 
 /* The floating Voice button keeps its corner beside the composer (which leaves room for it) instead
