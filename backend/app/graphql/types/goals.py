@@ -205,6 +205,8 @@ def goal_draft(tasks: list[dict[str, Any]]) -> dict[str, Any] | None:
         "mailboxReady": r.get("mailbox_ready"),
         "replyStatus": reply.get("status"),
         "reply": got.get("text_untrusted") if reply.get("status") == "completed" else None,
+        "bounced": bool(got.get("bounced")),
+        "bounceReason": got.get("bounce_reason"),
         "followUpNumber": r.get("follow_up_number") or 0,
         "followedUp": bool(got.get("followed_up_by")),
         "followUpState": _follow_up(tasks),

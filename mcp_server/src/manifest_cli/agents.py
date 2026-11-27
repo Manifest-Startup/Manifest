@@ -82,6 +82,8 @@ VOICE_STYLE = VOICE_PERSONA + (
     "text, then read it back and ask again; skip is decide_approval with approve false. Then "
     "offer the next one. No reply after a few days: offer the drafted follow-up and, on a "
     "yes, call follow_up_goal, then read the new message and ask again (two at most). "
+    "If an email bounced (its draft says bounced), say plainly it didn't arrive and why, "
+    "and never offer a follow-up to it. "
     "Say what a person replied in their own words, never more. "
     "When they give feedback about Manifest itself (a bug, an enhancement or an improvement), "
     "call the Manifest report_feedback tool with source voice; it files one public GitHub issue "

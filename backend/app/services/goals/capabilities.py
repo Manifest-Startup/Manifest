@@ -421,7 +421,9 @@ def _send_email(ctx: Context, data: dict[str, Any]) -> Outcome:
         result,
         {
             "verified": verified,
-            "how": "Email is in your Sent mail" if verified else "Your mail server accepted it",
+            "how": "Your mail server accepted it (Manifest watches for a bounce)"
+            if verified
+            else "Your mail server accepted it",
         },
     )
 
@@ -442,6 +444,16 @@ def _await_email_reply(ctx: Context, sent: dict[str, Any], days: int) -> Outcome
         except OpenMediaError as exc:
             logger.info("mailbox sync skipped", extra={"http.status_code": exc.status})
     rows = mail.stored(ctx.user_id, limit=200)
+    bounce = _bounce_for(rows, to, sent.get("message_id"), sent_at)
+    if bounce is not None:
+        who = sent.get("to_name") or to
+        return Outcome(
+            "blocked",
+            {**waiting, "bounced": True, "bounce_reason": bounce},
+            {"verified": True, "how": "A delivery-failure notice came back"},
+            error=f"Your email to {who} didn't arrive: their side rejected it ({bounce}). "
+            "Nothing more will be sent to this address; find another way to reach them.",
+        )
     replies = [
         r
         for r in rows
@@ -482,6 +494,38 @@ def _await_email_reply(ctx: Context, sent: dict[str, Any], days: int) -> Outcome
             dedupe_key=f"security.injection:{reply.get('messageId')}",
         )
     return Outcome("completed", result, {"verified": True, "how": "Reply is in your mail"})
+
+
+_BOUNCE_SENDER = re.compile(r"mailer-daemon|postmaster|mail delivery", re.IGNORECASE)
+_BOUNCE_SUBJECT = re.compile(
+    r"undeliver|delivery (status notification|failure|has failed)|returned (mail|to sender)|"
+    r"failure notice|could not be delivered|not delivered",
+    re.IGNORECASE,
+)
+_BOUNCE_REASON = re.compile(
+    r"\b[45]\d\d[ -][245]\.\d{1,3}\.\d{1,3}\b.{0,160}|\b55\d\b.{0,160}", re.S
+)
+
+
+def _bounce_for(
+    rows: list[dict[str, Any]], to: str, message_id: str | None, sent_at: Any
+) -> str | None:
+    """A delivery-failure notice about this email: a message from the mail system, after the
+    send, that names the recipient (or our Message-ID). Returns the server's reason, short."""
+    for row in rows:
+        when = store.parse_time(row.get("sentAt"))
+        if sent_at and when and when < sent_at:
+            continue
+        sender, subject = str(row.get("from") or ""), str(row.get("subject") or "")
+        if not (_BOUNCE_SENDER.search(sender) or _BOUNCE_SUBJECT.search(subject)):
+            continue
+        text = str(row.get("text") or "")
+        if to not in text.lower() and not (message_id and message_id in text):
+            continue
+        found = _BOUNCE_REASON.search(text)
+        reason = " ".join((found.group(0) if found else subject or "delivery failed").split())
+        return reason[:200]
+    return None
 
 
 _QUOTE_START = re.compile(r"^(on .{4,200} wrote:|-{2,} ?original message|from: )", re.IGNORECASE)
