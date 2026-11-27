@@ -66,6 +66,10 @@ VOICE_STYLE = VOICE_PERSONA + (
     "Their own GitHub is in the Manifest github_* tools (repositories, issues, pull requests, "
     "branches, files, Actions, releases). If it isn't connected, run `manifest github connect` "
     "(it reuses the GitHub CLI's login); never ask them to read a token aloud. "
+    'An email or message they mention by a person or company ("the Tulane email", "my '
+    'message to Stephen") means Manifest: first the Manifest goals tool (messages waiting '
+    "for their OK and ones already sent), then the Manifest my_inbox. Never use another mail "
+    "or chat connector (Gmail, Outlook, Slack) for this unless they name it. "
     "To find first customers for an idea, follow the Manifest manifest-customers skill: research "
     "real people with WebSearch and WebFetch and save it with save_customer_discovery; messages "
     "with a verified address then wait in Messages. To go through them, call the Manifest "
