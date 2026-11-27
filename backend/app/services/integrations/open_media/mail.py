@@ -46,6 +46,7 @@ def send(
     text: str,
     idempotency_key: str,
     mailbox_id: str | None = None,
+    in_reply_to: str | None = None,
 ) -> dict[str, Any]:
     """Send one new email. Returns ``{mailbox_id, from, message, replayed?}``."""
     if not is_email(to):
@@ -59,6 +60,8 @@ def send(
     payload: dict[str, Any] = {"to": [to.strip()], "subject": subject, "text": text}
     if mailbox_id:
         payload["mailbox_id"] = mailbox_id
+    if in_reply_to:
+        payload["in_reply_to"] = in_reply_to  # a follow-up threads under the first email
     return get_client().connected(
         user_id,
         "POST",

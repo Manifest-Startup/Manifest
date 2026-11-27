@@ -146,9 +146,12 @@ def _free_port() -> int:
 def _serve(app: FastAPI, port: int) -> uvicorn.Server:
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     threading.Thread(target=server.run, daemon=True).start()
-    deadline = time.time() + 10
+    # Both servers must accept connections before the call starts: the greeting is spoken the
+    # moment the socket opens, so a late stub would silently drop it (seen on a loaded machine).
+    deadline = time.time() + 60
     while not server.started and time.time() < deadline:
         time.sleep(0.05)
+    assert server.started, f"test server on port {port} didn't start"
     return server
 
 
@@ -167,7 +170,9 @@ async def _talk(url: str) -> tuple[list, int]:
     ready = json.dumps(
         {"label": "rtvi-ai", "type": "client-ready", "id": "1", "data": {"version": "2.3.0"}}
     )
-    async with websockets.connect(url, additional_headers={"Authorization": "Bearer tok"}) as ws:
+    async with websockets.connect(
+        url, additional_headers={"Authorization": "Bearer tok"}, open_timeout=60
+    ) as ws:
         await ws.send(fp.Frame(message=fp.MessageFrame(data=ready)).SerializeToString())
 
         async def read():
@@ -181,6 +186,13 @@ async def _talk(url: str) -> tuple[list, int]:
                     events.append((data.get("type"), data.get("data")))
 
         reader = asyncio.create_task(read())
+        # Like a person, let the hello finish before talking: speaking over it interrupts (and
+        # cancels) the greeting, which on a busy machine is still being synthesised.
+        # No audio meanwhile: the stub recogniser counts audio chunks, not loudness, so even
+        # silence would start a "turn" and cut the greeting off.
+        deadline = time.time() + 30
+        while time.time() < deadline and "bot-stopped-speaking" not in [t for t, _ in events]:
+            await asyncio.sleep(0.02)
         for _ in range(25):
             await ws.send(_frame_audio(silence))
             await asyncio.sleep(0.02)

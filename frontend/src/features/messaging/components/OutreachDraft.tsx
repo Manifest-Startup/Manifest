@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMutation } from "@apollo/client/react";
 
-import { DECIDE_APPROVAL, EDIT_GOAL_DRAFT, RETRY_GOAL_STEP } from "features/core/apollo/queries";
+import { DECIDE_APPROVAL, EDIT_GOAL_DRAFT, FOLLOW_UP_GOAL, RETRY_GOAL_STEP } from "features/core/apollo/queries";
 import type { GoalDraft, GoalSummary } from "features/core/apollo/operationTypes";
 
 import InboxAvatar from "./InboxAvatar";
@@ -53,9 +53,10 @@ export function draftStatus(goal: GoalSummary): string {
   if (pendingApproval(goal)) return "Waiting for your OK";
   if (draft.reply) return `Replied: “${draft.reply.replace(/<<<UNTRUSTED_(BEGIN|END):reply>>>/g, "").trim().slice(0, 120)}”`;
   if (draft.sendStatus === "blocked") return "Not sent yet: needs you";
+  if (draft.followedUp) return "Followed up";
   if (draft.sendStatus === "cancelled") return "Not sent";
   if (draft.replyStatus === "blocked") return "No reply yet";
-  if (draft.sentAt) return `Sent ${when(draft.sentAt)} · waiting for a reply`;
+  if (draft.sentAt) return `${draft.followUpNumber ? "Follow-up sent" : "Sent"} ${when(draft.sentAt)} · waiting for a reply`;
   return goal.status === "cancelled" ? "Not sent" : "Sending…";
 }
 
@@ -66,16 +67,19 @@ interface OutreachDraftProps {
   onBack: () => void;
   /** After Send or Skip: open the next waiting message (or close). */
   onDecided: () => void;
+  /** Open another goal's card (a follow-up just prepared). */
+  onOpenGoal?: (goalId: string) => void;
 }
 
 /** One prepared message in full: who and why, the exact text, and Send / Edit / Skip. Sending
  * approves exactly this text (ADR 0020); an edit replaces the approval before anything goes out. */
-const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, onDecided }) => {
+const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, onDecided, onOpenGoal }) => {
   const draft = goal.draft as GoalDraft;
   const approval = pendingApproval(goal);
   const [decide, { loading: deciding }] = useMutation(DECIDE_APPROVAL);
   const [edit, { loading: saving }] = useMutation(EDIT_GOAL_DRAFT);
   const [retry, { loading: retrying }] = useMutation(RETRY_GOAL_STEP);
+  const [followUp, { loading: following }] = useMutation(FOLLOW_UP_GOAL);
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState(draft.subject ?? "");
   const [body, setBody] = useState(draft.body ?? "");
@@ -84,7 +88,14 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const isEmail = draft.channel === "email";
   const name = draftName(draft);
-  const busy = deciding || saving || retrying;
+  const busy = deciding || saving || retrying || following;
+  const canOfferFollowUp = Boolean(draft.sentAt && !draft.reply && !draft.followedUp && draft.followUpState);
+  const prepareFollowUp = () =>
+    void run(async () => {
+      const result = await followUp({ variables: { goalId: goal.id } });
+      const next = result?.data?.followUpGoal.id;
+      if (next) onOpenGoal?.(next);
+    });
 
   useEffect(() => {
     if (!editing) {
@@ -147,7 +158,7 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
         <div className="om-draft">
           {draft.why || evidence.length ? (
             <div className="om-draft-why">
-              <p className="om-draft-label">Why them</p>
+              <p className="om-draft-label">{draft.followUpNumber ? "Following up" : "Why them"}</p>
               {draft.why ? <p>{draft.why}</p> : null}
               {evidence.length ? (
                 <ul>
@@ -227,7 +238,7 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
             </p>
           </div>
 
-          {draft.followUp && approval ? (
+          {draft.followUp && approval && !draft.followUpNumber ? (
             <details className="om-draft-follow">
               <summary>Follow-up for later, if there&apos;s no reply</summary>
               <p>{draft.followUp}</p>
@@ -264,6 +275,23 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
             </div>
           ) : !approval ? (
             <p className="om-draft-meta">{draftStatus(goal)}</p>
+          ) : null}
+
+          {canOfferFollowUp ? (
+            <div className="om-draft-why" data-testid="follow-up-offer">
+              <p className="om-draft-label">No reply yet?</p>
+              {draft.followUp ? <p className="om-draft-body">{draft.followUp}</p> : null}
+              {draft.followUpState?.allowed ? (
+                <div className="om-draft-actions" style={{ marginTop: 10 }}>
+                  <button type="button" className="om-goal-primary" disabled={busy} onClick={prepareFollowUp}>
+                    {following ? "Preparing…" : "Draft follow-up"}
+                  </button>
+                </div>
+              ) : (
+                <p className="om-draft-meta">{draft.followUpState?.reason}</p>
+              )}
+              {error ? <p role="alert" className="om-goal-error">{error}</p> : null}
+            </div>
           ) : null}
         </div>
       </div>

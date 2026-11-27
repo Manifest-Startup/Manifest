@@ -87,14 +87,17 @@ def email_outreach_plan(
     follow_up: str | None = None,
     purpose: str = "",
     wait_days: int = 5,
+    thread: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Email someone from the person's own mailbox and hear back: prepare, approve and send,
-    wait for the reply, remember what they said."""
+    wait for the reply, remember what they said. ``thread`` (in_reply_to, follow_up_of,
+    follow_up_number) makes it a follow-up in the same thread."""
     return [
         {
             "key": "draft",
             "capability": "email.prepare",
             "input": {
+                **(thread or {}),
                 "to": to,
                 "to_name": to_name,
                 "organization": organization,
@@ -203,6 +206,111 @@ def edit_draft(
     if goal["status"] == "blocked":
         store.cas_update(db, store.GOALS, goal_id, {"status": "blocked"}, {"status": "active"})
     return advance(db, user_id, goal_id)
+
+
+FOLLOW_UP_AFTER = timedelta(days=3)
+MAX_FOLLOW_UPS = 2
+
+
+def follow_up_status(tasks: list[dict[str, Any]]) -> dict[str, Any]:
+    """Whether a sent email may get a follow-up now: sent, unanswered, not already followed up,
+    at least three days ago, and at most two follow-ups to anyone."""
+    prepared = next((t for t in tasks if t["capability"] == "email.prepare"), None)
+    send = next((t for t in tasks if t["capability"] == "email.send"), None)
+    reply = next((t for t in tasks if t["capability"] == "reply.await"), None)
+    sent = (send or {}).get("result") or {}
+    number = int(((prepared or {}).get("result") or {}).get("follow_up_number") or 0)
+    if not send or send["status"] != DONE or not sent.get("message_id"):
+        return {"allowed": False, "reason": "It hasn't been sent yet."}
+    if reply and reply["status"] == DONE:
+        return {"allowed": False, "reason": "They already replied."}
+    if reply and (reply.get("result") or {}).get("followed_up_by"):
+        return {"allowed": False, "reason": "You already followed up."}
+    if number >= MAX_FOLLOW_UPS:
+        return {"allowed": False, "reason": "That's two follow-ups already; better to stop here."}
+    sent_at = store.parse_time(sent.get("sent_at"))
+    if sent_at and store.now() - sent_at < FOLLOW_UP_AFTER:
+        ready = sent_at + FOLLOW_UP_AFTER
+        return {
+            "allowed": False,
+            "reason": f"Give them a few days; a follow-up is fine from {ready:%A}.",
+            "after": ready.isoformat(),
+        }
+    return {"allowed": True, "number": number + 1}
+
+
+def follow_up(db: Any, user_id: str, goal_id: str, *, body: str | None = None) -> dict[str, Any]:
+    """Prepare the follow-up to an unanswered email, in the same thread, waiting for the
+    person's yes like the first one. Their own words win over the drafted follow-up."""
+    from app.services.ideas import outreach
+
+    goal = _goal(db, user_id, goal_id)
+    tasks = _tasks(db, goal_id)
+    status = follow_up_status(tasks)
+    if not status["allowed"]:
+        raise GoalError(status["reason"])
+    first = next(t for t in tasks if t["capability"] == "email.prepare")["result"]
+    sent = next(t for t in tasks if t["capability"] == "email.send")["result"]
+    text = (body or first.get("follow_up") or "").strip()
+    if not text:
+        raise GoalError("Say what the follow-up should say.")
+    problems, _notes = outreach.check(first["subject"], text, follow_up=True)
+    if problems:
+        raise GoalError(" ".join(problems))
+    subject = (
+        first["subject"]
+        if first["subject"].lower().startswith("re:")
+        else f"Re: {first['subject']}"
+    )
+    who = first.get("to_name") or first.get("organization") or first["to"]
+    view_ = create_goal(
+        db,
+        user_id,
+        title=f"Follow up with {who}",
+        idea_id=goal.get("idea_id"),
+        steps=email_outreach_plan(
+            to=first["to"],
+            to_name=first.get("to_name"),
+            organization=first.get("organization"),
+            subject=subject,
+            body=outreach.finish(text, outreach.sender_name(db, user_id)),
+            why=f"No reply to your email of {store.parse_time(sent.get('sent_at')):%B %-d}.",
+            evidence=first.get("evidence") or [],
+            purpose=first.get("purpose") or "",
+            wait_days=7,
+            thread={
+                "in_reply_to": sent["message_id"],
+                "follow_up_of": goal_id,
+                "follow_up_number": status["number"],
+            },
+        ),
+        desired_outcome=goal.get("desired_outcome") or "",
+        source={**(goal.get("source") or {}), "follow_up_of": goal_id},
+    )
+    new_id = view_["goal"]["id"]
+    # The new goal carries the thread on; the first one stops waiting.
+    reply = next((t for t in tasks if t["capability"] == "reply.await"), None)
+    if reply and reply["status"] not in FINISHED:
+        store.cas_update(
+            db,
+            store.TASKS,
+            reply["id"],
+            {"status": reply["status"]},
+            {
+                "status": "cancelled",
+                "result": {**(reply.get("result") or {}), "followed_up_by": new_id},
+            },
+        )
+        _cancel_dependents(db, user_id, goal_id, reply["step_key"])
+    if goal["status"] in ("active", "blocked"):
+        store.cas_update(
+            db, store.GOALS, goal_id, {"status": goal["status"]}, {"status": "cancelled"}
+        )
+    store.record_event(
+        db, user_id, goal_id, "goal.followed_up", f"Followed up: {view_['goal']['title']}",
+        {"follow_up_goal_id": new_id}, dedupe_key=f"goal.followed_up:{goal_id}",
+    )  # fmt: skip
+    return view(db, user_id, new_id)
 
 
 def _validate_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:

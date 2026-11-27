@@ -454,6 +454,15 @@ export interface GoalDraft {
   mailboxReady?: boolean | null;
   replyStatus: string | null;
   reply: string | null;
+  /** 1 or 2 for a follow-up; 0 for a first message. */
+  followUpNumber?: number;
+  followedUp?: boolean;
+  /** Whether a follow-up can be prepared now, and if not why (or from when). */
+  followUpState?: { allowed: boolean; reason: string | null; after: string | null };
+}
+
+export interface FollowUpGoalData {
+  followUpGoal: GoalSummary;
 }
 
 export interface GoalSummary {

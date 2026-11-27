@@ -205,6 +205,20 @@ def goal_draft(tasks: list[dict[str, Any]]) -> dict[str, Any] | None:
         "mailboxReady": r.get("mailbox_ready"),
         "replyStatus": reply.get("status"),
         "reply": got.get("text_untrusted") if reply.get("status") == "completed" else None,
+        "followUpNumber": r.get("follow_up_number") or 0,
+        "followedUp": bool(got.get("followed_up_by")),
+        "followUpState": _follow_up(tasks),
+    }
+
+
+def _follow_up(tasks: list[dict[str, Any]]) -> dict[str, Any]:
+    from app.services.goals.engine import follow_up_status
+
+    status = follow_up_status(tasks)
+    return {
+        "allowed": status["allowed"],
+        "reason": status.get("reason"),
+        "after": status.get("after"),
     }
 
 

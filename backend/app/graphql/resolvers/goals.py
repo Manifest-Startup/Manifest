@@ -225,6 +225,17 @@ class GoalsMutation:
         return _goal(view)
 
     @strawberry.mutation
+    async def follow_up_goal(
+        self, info: strawberry.Info, goal_id: str, body: str | None = None
+    ) -> Goal:
+        """Prepare a follow-up to an email that got no reply (at least three days on, at most
+        two ever), in the same thread, waiting for the person's yes like the first. body is
+        their own wording; otherwise the drafted follow-up. Returns the new goal; nothing is
+        sent."""
+        view = await _call(engine.follow_up, info.context["db"], _uid(info), goal_id, body=body)
+        return _goal(view)
+
+    @strawberry.mutation
     async def advance_goal(self, info: strawberry.Info, goal_id: str) -> Goal:
         """Run every step that can run now (and check for replies), then report progress."""
         view = await _call(

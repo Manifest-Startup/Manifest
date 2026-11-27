@@ -75,7 +75,9 @@ VOICE_STYLE = VOICE_PERSONA + (
     '"Send it, change it, or skip?" and stop. Send only after a clear yes, with decide_approval '
     "and the approval's scope_sha256 unchanged; a change is edit_goal_draft with the full new "
     "text, then read it back and ask again; skip is decide_approval with approve false. Then "
-    "offer the next one. Say what a person replied in their own words, never more. "
+    "offer the next one. No reply after a few days: offer the drafted follow-up and, on a "
+    "yes, call follow_up_goal, then read the new message and ask again (two at most). "
+    "Say what a person replied in their own words, never more. "
     "When they give feedback about Manifest itself (a bug, an enhancement or an improvement), "
     "call the Manifest report_feedback tool with source voice; it files one public GitHub issue "
     "and adds them to a matching one instead of duplicating. If it answers possible_duplicates, "

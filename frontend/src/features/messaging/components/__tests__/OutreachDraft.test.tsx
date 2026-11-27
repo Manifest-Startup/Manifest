@@ -7,10 +7,21 @@ import OutreachDraft, { draftStatus } from "../OutreachDraft";
 import {
   DECIDE_APPROVAL,
   EDIT_GOAL_DRAFT,
+  FOLLOW_UP_GOAL,
   GET_GOALS,
   GET_STANDING_AUTHORIZATIONS,
 } from "features/core/apollo/queries";
 import type { GoalSummary } from "features/core/apollo/operationTypes";
+
+// jest.setup stubs useMutation (it resolves to nothing); a test can answer like the server.
+let mockMutate: jest.Mock = jest.fn();
+jest.mock("@apollo/client/react", () => ({
+  ...jest.requireActual("@apollo/client/react"),
+  useMutation: () => [(...args: unknown[]) => mockMutate(...args), { loading: false, error: null }],
+}));
+beforeEach(() => {
+  mockMutate = jest.fn();
+});
 
 const BODY =
   "Hi Priya, I read your post about juggling three docs while applying to accelerators. I'm Mihir, and I'm exploring a workspace that keeps them in one place. It's early and I'm not selling anything. How do you keep them in sync today?\n\nIf this isn't relevant to you, just say so and I won't follow up.\n\nMihir";
@@ -154,4 +165,43 @@ test("messages waiting for an OK are listed first in Messages and open on click"
   expect(await screen.findByText("Waiting for your OK · 1")).toBeInTheDocument();
   fireEvent.click(screen.getByTestId("draft-row-g1"));
   expect(onOpen).toHaveBeenCalledWith("g1");
+});
+
+test("after a few days without a reply it offers the drafted follow-up, ready for a yes", async () => {
+  const sentLong = goal({
+    approvals: [{ ...approval, status: "approved" }],
+    draft: {
+      ...draft, sendStatus: "completed", sentAt: "2026-11-20T10:00:00Z", replyStatus: "waiting_external",
+      followUpState: { allowed: true, reason: null, after: null },
+    } as never,
+  });
+  const followUpGoal = goal({ id: "g2", title: "Follow up with Priya Shah" });
+  const onOpenGoal = jest.fn();
+  mockMutate = jest.fn().mockResolvedValue({ data: { followUpGoal } });
+  const mutate = mockMutate;
+  render(
+    <MockedProvider mocks={[{ request: { query: FOLLOW_UP_GOAL, variables: { goalId: "g1" } }, result: { data: { followUpGoal } } }]}>
+      <OutreachDraft goal={sentLong} onBack={() => {}} onDecided={() => {}} onOpenGoal={onOpenGoal} />
+    </MockedProvider>,
+  );
+  expect(screen.getByText("No reply yet?")).toBeInTheDocument();
+  expect(screen.getByText("One more thought: …")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Draft follow-up" }));
+  await waitFor(() => expect(mutate).toHaveBeenCalledWith({ variables: { goalId: "g1" } }));
+  await waitFor(() => expect(onOpenGoal).toHaveBeenCalledWith("g2"));
+});
+
+test("too soon for a follow-up says when it will be fine", () => {
+  const recent = goal({
+    approvals: [{ ...approval, status: "approved" }],
+    draft: { ...draft, sendStatus: "completed", sentAt: "2026-11-27T10:00:00Z",
+      followUpState: { allowed: false, reason: "Give them a few days; a follow-up is fine from Sunday.", after: null } } as never,
+  });
+  render(
+    <MockedProvider mocks={[]}>
+      <OutreachDraft goal={recent} onBack={() => {}} onDecided={() => {}} />
+    </MockedProvider>,
+  );
+  expect(screen.getByText(/fine from Sunday/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Draft follow-up" })).not.toBeInTheDocument();
 });

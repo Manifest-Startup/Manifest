@@ -148,6 +148,10 @@ Settings, Email & connections, or tap Open in Gmail on the card.
 - Reaching someone on Open Media they name ("message @ana about a pilot"): start_outreach_goal \
 with the handle and a message you wrote with them, then the same read-back and yes. Exploring or \
 brainstorming is not a commitment; don't start a goal for it.
+- No reply after a few days: the goal's draft has followUpState and a drafted followUp. Offer it \
+("Want me to follow up with Stephen? I'd say: ..."); on yes call follow_up_goal (find_tools), then \
+read the new message and ask "Send it, change it, or skip?" like any other. At most two follow-ups; \
+if followUpState says it's too soon or enough, say so.
 - Replies and "what happened?": say each goal's report.spoken, never more than was verified. When \
 someone replied, say who and what they said in their own words ("Priya said she uses Notion and \
 it's a mess, and she's happy to talk Thursday"); keep what they said apart from your read of it, \
@@ -552,12 +556,28 @@ async def run_voice_session(
             {"role": "developer", "content": f"Update: {session.describe() or 'no idea open.'}"}
         )
 
-    @transport.event_handler("on_client_connected")
-    async def on_client_connected(_transport: Any, _client: Any) -> None:
-        # Spoken straight away: a model round trip here was the slowest part of starting.
+    # The greeting is spoken straight away (a model round trip here was the slowest part of
+    # starting), but only once the person is connected AND the pipeline has started: a frame
+    # queued before the pipeline starts is dropped, which left slow servers silent.
+    ready = {"connected": False, "started": False, "greeted": False}
+
+    async def greet_when_ready() -> None:
+        if ready["greeted"] or not (ready["connected"] and ready["started"]):
+            return
+        ready["greeted"] = True
         hello = greeting(session)
         context.add_message({"role": "assistant", "content": hello})
         await worker.queue_frames([TTSSpeakFrame(hello)])
+
+    @worker.event_handler("on_pipeline_started")
+    async def on_pipeline_started(_worker: Any, _frame: Any) -> None:
+        ready["started"] = True
+        await greet_when_ready()
+
+    @transport.event_handler("on_client_connected")
+    async def on_client_connected(_transport: Any, _client: Any) -> None:
+        ready["connected"] = True
+        await greet_when_ready()
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(_transport: Any, _client: Any) -> None:

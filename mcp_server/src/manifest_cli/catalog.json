@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "37e537b493edca8a87d5af7542d69632f0edf1fb940b58a84301a612ddf59613",
+ "schema_sha256": "f8128df84632b22068b8da270fb8da9213ad822af7f7109b4b631d2a13ce1a32",
  "operations": [
   {
    "name": "me",
@@ -4686,6 +4686,35 @@
     {
      "name": "subject",
      "flag": "--subject",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "followUpGoal",
+   "command": "follow-up-goal",
+   "kind": "mutation",
+   "description": "Prepare a follow-up to an email that got no reply (at least three days on, at most two ever), in the same thread, waiting for the person's yes like the first. body is their own wording; otherwise the drafted follow-up. Returns the new goal; nothing is sent.",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
+   "args": [
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
      "type": "String",
      "kind": "scalar",
      "required": false,
