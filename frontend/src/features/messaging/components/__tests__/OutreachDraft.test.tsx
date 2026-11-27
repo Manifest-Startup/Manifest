@@ -228,7 +228,7 @@ test("a bounced email says it didn't arrive, why, and offers no follow-up", () =
       bounced: true, bounceReason: "550 5.7.1 [CS101] Message rejected due to local policy",
       followUpState: { allowed: false, reason: "It didn't arrive, so a follow-up wouldn't either.", after: null } } as never,
   });
-  expect(draftStatus(bounced)).toBe("Didn't arrive: their side rejected it");
+  expect(draftStatus(bounced)).toBe("Didn't arrive: rejected before delivery");
   render(
     <MockedProvider mocks={[]}>
       <OutreachDraft goal={bounced} onBack={() => {}} onDecided={() => {}} />

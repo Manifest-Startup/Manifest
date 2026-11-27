@@ -451,7 +451,7 @@ def _await_email_reply(ctx: Context, sent: dict[str, Any], days: int) -> Outcome
             "blocked",
             {**waiting, "bounced": True, "bounce_reason": bounce},
             {"verified": True, "how": "A delivery-failure notice came back"},
-            error=f"Your email to {who} didn't arrive: their side rejected it ({bounce}). "
+            error=f"Your email to {who} didn't arrive: it was rejected before delivery ({bounce}). "
             "Nothing more will be sent to this address; find another way to reach them.",
         )
     replies = [
@@ -524,7 +524,9 @@ def _bounce_for(
             continue
         found = _BOUNCE_REASON.search(text)
         reason = " ".join((found.group(0) if found else subject or "delivery failed").split())
-        return reason[:200]
+        # Keep the server's code and reason; drop the boilerplate that follows it.
+        reason = re.split(r";\s*(if you|please)|\s+Txn\b|\s+\(in reply to", reason, flags=re.I)[0]
+        return reason.strip()[:200]
     return None
 
 

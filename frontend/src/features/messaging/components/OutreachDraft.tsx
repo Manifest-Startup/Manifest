@@ -53,7 +53,7 @@ export function draftStatus(goal: GoalSummary): string {
   if (pendingApproval(goal)) return "Waiting for your OK";
   if (draft.reply) return `Replied: “${draft.reply.replace(/<<<UNTRUSTED_(BEGIN|END):reply>>>/g, "").trim().slice(0, 120)}”`;
   if (draft.sendStatus === "blocked" || draft.sendStatus === "failed") return "Not sent yet: needs you";
-  if (draft.bounced) return "Didn't arrive: their side rejected it";
+  if (draft.bounced) return "Didn't arrive: rejected before delivery";
   if (draft.followedUp) return "Followed up";
   if (draft.sendStatus === "cancelled") return "Not sent";
   if (draft.replyStatus === "blocked") return "No reply yet";
@@ -285,7 +285,7 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
           {draft.bounced ? (
             <div className="om-draft-blocked" data-testid="bounce-notice">
               <p>
-                <strong>This email didn&apos;t arrive.</strong> {name}&apos;s side rejected it
+                <strong>This email didn&apos;t arrive.</strong> It was rejected before it reached {name}
                 {draft.bounceReason ? `: ${draft.bounceReason}` : "."}
               </p>
               <p className="om-draft-meta">
