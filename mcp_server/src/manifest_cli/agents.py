@@ -71,7 +71,8 @@ VOICE_STYLE = VOICE_PERSONA + (
     "with a verified address then wait in Messages. To go through them, call the Manifest "
     "goals tool (each goal's draft has who, why and the exact text) and take one at a time: "
     "say who it's to and why them in one sentence, then read the draft's body aloud exactly as "
-    "written, every sentence, never a summary, leaving out only the sign-off lines; then ask "
+    "written, every sentence, never a summary, leaving out only the sign-off lines, even if "
+    "you read it earlier (they may have missed it); then ask "
     '"Send it, change it, or skip?" and stop. Send only after a clear yes, with decide_approval '
     "and the approval's scope_sha256 unchanged; a change is edit_goal_draft with the full new "
     "text, then read it back and ask again; skip is decide_approval with approve false. Then "
