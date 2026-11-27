@@ -11,6 +11,9 @@ import {
 } from "features/core/apollo/queries";
 import type { GoalApproval, GoalSummary } from "features/core/apollo/operationTypes";
 
+import InboxAvatar from "./InboxAvatar";
+import { draftName, draftStatus, initialsOf, pendingApproval } from "./OutreachDraft";
+
 const GOALS_POLL_MS = 30_000;
 // The standing approval the card offers: small on purpose, and revocable below.
 const STANDING = { maxPerWeek: 3, days: 30 };
@@ -152,9 +155,46 @@ function StandingApprovals() {
   );
 }
 
-/** What Manifest is doing for the person through Open Media (ADR 0020): messages waiting for
- * their yes, and where each goal stands. Renders nothing when there are no goals. */
-const GoalsPanel: React.FC = () => {
+function DraftRow({ goal, active, onOpen }: { goal: GoalSummary; active: boolean; onOpen: (id: string) => void }) {
+  const draft = goal.draft!;
+  const name = draftName(draft);
+  const waiting = Boolean(pendingApproval(goal));
+  const preview = waiting ? draft.subject || draft.body?.split("\n")[0] : draftStatus(goal);
+  return (
+    <li>
+      <button
+        type="button"
+        className="om-row"
+        data-unread={waiting}
+        aria-current={active ? "true" : undefined}
+        aria-label={`${waiting ? "Waiting for your OK: " : ""}${draft.channel === "email" ? "email" : "message"} to ${name}. ${preview ?? ""}`}
+        data-testid={`draft-row-${goal.id}`}
+        onClick={() => onOpen(goal.id)}
+      >
+        <InboxAvatar name={name} initials={initialsOf(name)} />
+        <span className="om-row-main">
+          <span className="om-row-top">
+            <span className="om-row-name">{name}</span>
+            <span className="om-row-time">{draft.channel === "email" ? "Email" : "Open Media"}</span>
+          </span>
+          {draft.organization ? <span className="om-row-context">{draft.organization}</span> : null}
+          <span className="om-row-bottom">
+            <span className="om-row-preview">{preview}</span>
+          </span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+interface GoalsPanelProps {
+  selectedGoalId?: string;
+  onOpenDraft?: (goalId: string) => void;
+}
+
+/** What Manifest is doing for the person through Open Media (ADR 0020, 0026): prepared messages
+ * waiting for their OK first, then the ones already out, then other goals. */
+const GoalsPanel: React.FC<GoalsPanelProps> = ({ selectedGoalId, onOpenDraft }) => {
   const { data, previousData, refetch } = useQuery(GET_GOALS, {
     pollInterval: GOALS_POLL_MS,
     fetchPolicy: "cache-and-network",
@@ -162,6 +202,10 @@ const GoalsPanel: React.FC = () => {
   // Keep the last answer on screen while a refetch is in flight, so a card the person is
   // using never unmounts under their click.
   const goals = (data ?? previousData)?.goals ?? [];
+  const drafts = onOpenDraft ? goals.filter((g) => g.draft) : [];
+  const waiting = drafts.filter((g) => pendingApproval(g));
+  const out = drafts.filter((g) => !pendingApproval(g));
+  const others = goals.filter((g) => !drafts.includes(g));
   if (goals.length === 0) {
     return (
       <section className="om-goals" aria-label="Manifest is working on">
@@ -171,8 +215,28 @@ const GoalsPanel: React.FC = () => {
   }
   return (
     <section className="om-goals" aria-label="Manifest is working on" data-testid="goals-panel">
+      {waiting.length ? (
+        <div data-testid="drafts-waiting">
+          <p className="om-section-label">Waiting for your OK · {waiting.length}</p>
+          <ul className="om-list-rows">
+            {waiting.map((goal) => (
+              <DraftRow key={goal.id} goal={goal} active={goal.id === selectedGoalId} onOpen={onOpenDraft!} />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {out.length ? (
+        <div data-testid="drafts-out">
+          <p className="om-section-label">Outreach</p>
+          <ul className="om-list-rows">
+            {out.map((goal) => (
+              <DraftRow key={goal.id} goal={goal} active={goal.id === selectedGoalId} onOpen={onOpenDraft!} />
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <StandingApprovals />
-      {goals.map((goal) => {
+      {others.map((goal) => {
         const pending = goal.approvals.filter((a) => a.status === "pending");
         const status = pending.length ? null : line(goal); // the approval says it all
         return (

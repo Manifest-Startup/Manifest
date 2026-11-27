@@ -209,6 +209,22 @@ class GoalsMutation:
         return _goal(view)
 
     @strawberry.mutation
+    async def edit_goal_draft(
+        self,
+        info: strawberry.Info,
+        goal_id: str,
+        body: str | None = None,
+        subject: str | None = None,
+    ) -> Goal:
+        """Change a prepared message (its text, and an email's subject) before it is sent, as the
+        person asked. The old approval is replaced by one for the new text: read the new
+        version back and get a fresh yes. Nothing is sent."""
+        view = await _call(
+            engine.edit_draft, info.context["db"], _uid(info), goal_id, body=body, subject=subject
+        )
+        return _goal(view)
+
+    @strawberry.mutation
     async def advance_goal(self, info: strawberry.Info, goal_id: str) -> Goal:
         """Run every step that can run now (and check for replies), then report progress."""
         view = await _call(

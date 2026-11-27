@@ -147,6 +147,12 @@ def save_draft(user_id: str, conversation_id: str, *, body: str, ref: str) -> di
     return response.get("draft") or {}
 
 
+def update_draft(user_id: str, draft_id: str, *, body: str) -> None:
+    get_client().connected(
+        user_id, "PATCH", f"/drafts/{quote(draft_id, safe='')}", json={"body": body}
+    )
+
+
 def discard_draft(user_id: str, draft_id: str) -> None:
     get_client().connected(user_id, "DELETE", f"/drafts/{quote(draft_id, safe='')}")
 

@@ -1,6 +1,6 @@
 # 0018. From an idea to first customers, in the conversation
 
-- Status: Proposed (2026-11-21).
+- Status: Proposed (2026-11-21). Extended by ADR 0026: prepared messages now wait in Messages and are sent from the person's own mailbox on their yes.
 - Code: `backend/app/services/ideas/customer_discovery.py` (the flow, scoring, note), `backend/app/services/integrations/discovery_connectors.py` (capabilities and providers), `backend/app/graphql/resolvers/discovery.py`, `types/discovery.py`; voice: `services/voice/live/bot.py` (prompt, activity summary), `tools.py` (core tools, labels, clipping); plugin: `agent-plugin/skills/manifest-customers/`, `commands/customers.md`; Gmail: `routes/oauth_routes.py` provider `gmail`, `frontend/src/features/account/lib/integrationsCatalog.ts`.
 
 ## Context

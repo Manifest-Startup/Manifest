@@ -1,6 +1,6 @@
 {
   "name": "manifest",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Manifest for Gemini CLI: turn a startup idea into an investable plan, with your Manifest account over OAuth.",
   "contextFileName": "agent-plugin/CONTEXT.md",
   "mcpServers": {

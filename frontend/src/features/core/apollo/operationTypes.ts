@@ -433,12 +433,50 @@ export interface GoalReport {
   next: string[];
 }
 
+/** The message a goal prepared, and where it stands (Goal.draft). */
+export interface GoalDraft {
+  channel: "email" | "open_media";
+  to: string | null;
+  toName: string | null;
+  organization: string | null;
+  subject: string | null;
+  body: string | null;
+  why: string | null;
+  evidence: { text: string; url: string }[];
+  followUp: string | null;
+  composeUrl: string | null;
+  edited: boolean;
+  sendStatus: string | null;
+  sendError: string | null;
+  sentAt: string | null;
+  from: string | null;
+  /** False when no mailbox can send yet (known before Send); null when not checked. */
+  mailboxReady?: boolean | null;
+  replyStatus: string | null;
+  reply: string | null;
+}
+
 export interface GoalSummary {
   id: string;
   title: string;
   status: string;
   approvals: GoalApproval[];
   report: GoalReport | null;
+  draft: GoalDraft | null;
+}
+
+export interface EditGoalDraftVariables {
+  goalId: string;
+  body?: string | null;
+  subject?: string | null;
+}
+
+export interface EditGoalDraftData {
+  editGoalDraft: GoalSummary;
+}
+
+export interface RetryGoalStepData {
+  retryGoalStep: GoalSummary;
 }
 
 export interface GoalTimelineEvent {

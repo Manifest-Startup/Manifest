@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "8b85d3b360af07b5c3e8e678ea4be38aad21d8521a5bba5d8a587c2721eee8be",
+ "catalog_sha256": "64c657a3a0f340a12240b794ccde562ad0ddee8fbc733cdee3adc94ead0946d7",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -374,7 +374,7 @@
    "_call": {
     "via": "graphql",
     "field": "advanceGoal",
-    "document": "mutation AdvanceGoal($goalId: String!) { advanceGoal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "mutation AdvanceGoal($goalId: String!) { advanceGoal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "goalId"
     ]
@@ -590,7 +590,7 @@
    "_call": {
     "via": "graphql",
     "field": "cancelGoal",
-    "document": "mutation CancelGoal($goalId: String!) { cancelGoal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "mutation CancelGoal($goalId: String!) { cancelGoal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "goalId"
     ]
@@ -830,7 +830,7 @@
    "_call": {
     "via": "graphql",
     "field": "createGoal",
-    "document": "mutation CreateGoal($title: String!, $steps: JSON!, $desiredOutcome: String, $successCriteria: [String!], $ideaId: String) { createGoal(title: $title, steps: $steps, desiredOutcome: $desiredOutcome, successCriteria: $successCriteria, ideaId: $ideaId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "mutation CreateGoal($title: String!, $steps: JSON!, $desiredOutcome: String, $successCriteria: [String!], $ideaId: String) { createGoal(title: $title, steps: $steps, desiredOutcome: $desiredOutcome, successCriteria: $successCriteria, ideaId: $ideaId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "title",
      "steps",
@@ -1128,7 +1128,7 @@
    "_call": {
     "via": "graphql",
     "field": "decideApproval",
-    "document": "mutation DecideApproval($approvalId: String!, $approve: Boolean!, $scopeSha256: String!) { decideApproval(approvalId: $approvalId, approve: $approve, scopeSha256: $scopeSha256) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "mutation DecideApproval($approvalId: String!, $approve: Boolean!, $scopeSha256: String!) { decideApproval(approvalId: $approvalId, approve: $approve, scopeSha256: $scopeSha256) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "approvalId",
      "approve",
@@ -1294,7 +1294,7 @@
   {
    "name": "draft_outreach",
    "title": "Draft outreach",
-   "description": "Write one short, personal customer-discovery email per prospect (all of them, or the names/ids given), using only the evidence found. Nothing is sent. Uses your OpenAI key. Changes the person's Manifest account; say what you will do before calling.",
+   "description": "Write one short, honest customer-discovery message per prospect (all of them, or the names/ids given), from the evidence only and checked against the outreach rules. Those with a verified address wait in Messages for the person's yes; nothing is sent. Uses your OpenAI key. Changes the person's Manifest account; say what you will do before calling.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -1552,6 +1552,46 @@
     "path": "/api/dsar/retention/exceptions",
     "body": [],
     "extras": {}
+   }
+  },
+  {
+   "name": "edit_goal_draft",
+   "title": "Edit goal draft",
+   "description": "Change a prepared message (its text, and an email's subject) before it is sent, as the person asked. The old approval is replaced by one for the new text: read the new version back and get a fresh yes. Nothing is sent. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "goalId": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     },
+     "subject": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "goalId"
+    ]
+   },
+   "annotations": {
+    "title": "Edit goal draft",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "editGoalDraft",
+    "document": "mutation EditGoalDraft($goalId: String!, $body: String, $subject: String) { editGoalDraft(goalId: $goalId, body: $body, subject: $subject) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
+    "variables": [
+     "goalId",
+     "body",
+     "subject"
+    ]
    }
   },
   {
@@ -3422,7 +3462,7 @@
    "_call": {
     "via": "graphql",
     "field": "goal",
-    "document": "query Goal($goalId: String!) { goal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "query Goal($goalId: String!) { goal(goalId: $goalId) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "goalId"
     ]
@@ -3475,7 +3515,7 @@
    "_call": {
     "via": "graphql",
     "field": "goals",
-    "document": "query Goals($includeClosed: Boolean) { goals(includeClosed: $includeClosed) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "query Goals($includeClosed: Boolean) { goals(includeClosed: $includeClosed) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "includeClosed"
     ]
@@ -5150,6 +5190,45 @@
    }
   },
   {
+   "name": "queue_outreach",
+   "title": "Queue outreach",
+   "description": "Put the prepared messages (all, or the names/ids given) in Messages, each waiting for the person's yes; one already waiting is updated, one already sent is left alone. Drafting and saving already do this, so call it only to retry. Nothing is sent. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "prospects": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId"
+    ]
+   },
+   "annotations": {
+    "title": "Queue outreach",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "queueOutreach",
+    "document": "mutation QueueOutreach($ideaId: String!, $prospects: [String!]) { queueOutreach(ideaId: $ideaId, prospects: $prospects) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "prospects"
+    ]
+   }
+  },
+  {
    "name": "regenerate_all_bmc_sections",
    "title": "Regenerate all bmc sections",
    "description": "Regenerate every Business Model Canvas section of an idea. Changes the person's Manifest account; say what you will do before calling.",
@@ -5689,7 +5768,7 @@
    "_call": {
     "via": "graphql",
     "field": "retryGoalStep",
-    "document": "mutation RetryGoalStep($goalId: String!, $stepKey: String!) { retryGoalStep(goalId: $goalId, stepKey: $stepKey) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "mutation RetryGoalStep($goalId: String!, $stepKey: String!) { retryGoalStep(goalId: $goalId, stepKey: $stepKey) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "goalId",
      "stepKey"
@@ -5877,7 +5956,7 @@
   {
    "name": "save_customer_discovery",
    "title": "Save customer discovery",
-   "description": "Save customer discovery you researched yourself (use this when the person has no OpenAI key and you have web search). work may hold research, segment, icp, prospects (append: true to add) and outreach, in the shapes customer_discovery returns. Every prospect needs a source URL; unsourced findings are stored as hypotheses. Changes the person's Manifest account; say what you will do before calling.",
+   "description": "Save customer discovery you researched yourself (use this when the person has no OpenAI key and you have web search). work may hold research, segment, icp, prospects (append: true to add), outreach and sender_name, in the shapes customer_discovery returns. Every prospect needs a source URL; kind \"person\" for an individual (creator, freelancer, consumer). contact.source must be the public page that shows the address (it is read to check), or contact.verified_by \"apollo\"/\"person\". Outreach that breaks the rules (see the manifest-customers skill) comes back in limitations to rewrite; the rest waits in Messages for the person's yes (queue: false to hold it). Changes the person's Manifest account; say what you will do before calling.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -5993,6 +6072,48 @@
      "conversationId",
      "content",
      "clientId"
+    ]
+   }
+  },
+  {
+   "name": "set_outreach_recipient",
+   "title": "Set outreach recipient",
+   "description": "Use the email address or Open Media @handle the person gave for a prospect (name or id). Only an address the person said; never one you guessed. Its message then waits in Messages for their yes. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ideaId": {
+      "type": "string"
+     },
+     "prospect": {
+      "type": "string"
+     },
+     "address": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "ideaId",
+     "prospect",
+     "address"
+    ]
+   },
+   "annotations": {
+    "title": "Set outreach recipient",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "setOutreachRecipient",
+    "document": "mutation SetOutreachRecipient($ideaId: String!, $prospect: String!, $address: String!) { setOutreachRecipient(ideaId: $ideaId, prospect: $prospect, address: $address) { ideaId stage summary segment notePath demo limitations updatedAt speakingTip data } }",
+    "variables": [
+     "ideaId",
+     "prospect",
+     "address"
     ]
    }
   },
@@ -6207,7 +6328,7 @@
    "_call": {
     "via": "graphql",
     "field": "startOutreachGoal",
-    "document": "mutation StartOutreachGoal($handle: String!, $message: String!, $purpose: String, $title: String, $ideaId: String, $waitDays: Int) { startOutreachGoal(handle: $handle, message: $message, purpose: $purpose, title: $title, ideaId: $ideaId, waitDays: $waitDays) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } } }",
+    "document": "mutation StartOutreachGoal($handle: String!, $message: String!, $purpose: String, $title: String, $ideaId: String, $waitDays: Int) { startOutreachGoal(handle: $handle, message: $message, purpose: $purpose, title: $title, ideaId: $ideaId, waitDays: $waitDays) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
     "variables": [
      "handle",
      "message",

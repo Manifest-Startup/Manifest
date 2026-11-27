@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generated_by": "scripts/generate_cli_catalog.py",
- "schema_sha256": "6888d0a81a4253cca331c074ecbc5d302aeadbfd2415d23a74803856d4dec8b7",
+ "schema_sha256": "37e537b493edca8a87d5af7542d69632f0edf1fb940b58a84301a612ddf59613",
  "operations": [
   {
    "name": "me",
@@ -1484,7 +1484,7 @@
    "description": "Your goals, most recently active first (closed ones with includeClosed), each with its steps, approvals waiting for you and a progress report (``report.spoken``).",
    "destructive": false,
    "returns": "[Goal!]!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "includeClosed",
@@ -1504,7 +1504,7 @@
    "description": "One goal with its steps, approvals, timeline, facts and a progress report to say aloud (``report.spoken``). Reading it doesn't run anything; use advanceGoal for that.",
    "destructive": false,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "goalId",
@@ -4376,7 +4376,7 @@
    "name": "draftOutreach",
    "command": "draft-outreach",
    "kind": "mutation",
-   "description": "Write one short, personal customer-discovery email per prospect (all of them, or the names/ids given), using only the evidence found. Nothing is sent. Uses your OpenAI key.",
+   "description": "Write one short, honest customer-discovery message per prospect (all of them, or the names/ids given), from the evidence only and checked against the outreach rules. Those with a verified address wait in Messages for the person's yes; nothing is sent. Uses your OpenAI key.",
    "destructive": false,
    "returns": "CustomerDiscovery!",
    "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
@@ -4414,7 +4414,7 @@
    "name": "saveCustomerDiscovery",
    "command": "save-customer-discovery",
    "kind": "mutation",
-   "description": "Save customer discovery you researched yourself (use this when the person has no OpenAI key and you have web search). work may hold research, segment, icp, prospects (append: true to add) and outreach, in the shapes customer_discovery returns. Every prospect needs a source URL; unsourced findings are stored as hypotheses.",
+   "description": "Save customer discovery you researched yourself (use this when the person has no OpenAI key and you have web search). work may hold research, segment, icp, prospects (append: true to add), outreach and sender_name, in the shapes customer_discovery returns. Every prospect needs a source URL; kind \"person\" for an individual (creator, freelancer, consumer). contact.source must be the public page that shows the address (it is read to check), or contact.verified_by \"apollo\"/\"person\". Outreach that breaks the rules (see the manifest-customers skill) comes back in limitations to rewrite; the rest waits in Messages for the person's yes (queue: false to hold it).",
    "destructive": false,
    "returns": "CustomerDiscovery!",
    "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
@@ -4432,6 +4432,73 @@
      "name": "work",
      "flag": "--work",
      "type": "JSON!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "queueOutreach",
+   "command": "queue-outreach",
+   "kind": "mutation",
+   "description": "Put the prepared messages (all, or the names/ids given) in Messages, each waiting for the person's yes; one already waiting is updated, one already sent is left alone. Drafting and saving already do this, so call it only to retry. Nothing is sent.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "prospects",
+     "flag": "--prospects",
+     "type": "[String!]",
+     "kind": "list",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
+   "name": "setOutreachRecipient",
+   "command": "set-outreach-recipient",
+   "kind": "mutation",
+   "description": "Use the email address or Open Media @handle the person gave for a prospect (name or id). Only an address the person said; never one you guessed. Its message then waits in Messages for their yes.",
+   "destructive": false,
+   "returns": "CustomerDiscovery!",
+   "selection": "{ ideaId stage summary segment notePath demo limitations updatedAt speakingTip data }",
+   "args": [
+    {
+     "name": "ideaId",
+     "flag": "--idea-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "prospect",
+     "flag": "--prospect",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "address",
+     "flag": "--address",
+     "type": "String!",
      "kind": "scalar",
      "required": true,
      "default": null,
@@ -4475,7 +4542,7 @@
    "description": "Save a goal the person committed to, with a plan: steps = [{key, capability, input, depends_on}] (see goalCapabilities; reference an earlier step's result as \"$steps.<key>\" or \"$steps.<key>.<field>\"). Runs what it can at once; tier 2+ steps wait for approval. Only for real commitments, not ideas being explored. An active goal with the same title is returned instead of a duplicate (existing: true).",
    "destructive": false,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "title",
@@ -4531,7 +4598,7 @@
    "description": "Reach out to someone on Open Media and hear back: checks the handle, prepares the message, asks the person to approve exactly that message (pendingApprovals), sends it, waits for the reply and records it as knowledge. Nothing is sent before approval.",
    "destructive": false,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "handle",
@@ -4590,13 +4657,51 @@
    ]
   },
   {
+   "name": "editGoalDraft",
+   "command": "edit-goal-draft",
+   "kind": "mutation",
+   "description": "Change a prepared message (its text, and an email's subject) before it is sent, as the person asked. The old approval is replaced by one for the new text: read the new version back and get a fresh yes. Nothing is sent.",
+   "destructive": false,
+   "returns": "Goal!",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
+   "args": [
+    {
+     "name": "goalId",
+     "flag": "--goal-id",
+     "type": "String!",
+     "kind": "scalar",
+     "required": true,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "body",
+     "flag": "--body",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    },
+    {
+     "name": "subject",
+     "flag": "--subject",
+     "type": "String",
+     "kind": "scalar",
+     "required": false,
+     "default": null,
+     "description": ""
+    }
+   ]
+  },
+  {
    "name": "advanceGoal",
    "command": "advance-goal",
    "kind": "mutation",
    "description": "Run every step that can run now (and check for replies), then report progress.",
    "destructive": false,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "goalId",
@@ -4616,7 +4721,7 @@
    "description": "Approve or decline one request. Only after the person clearly said yes or no to this exact request (its summary and consequences); pass its scopeSha256 unchanged. Approving runs the step at once.",
    "destructive": true,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "approvalId",
@@ -4730,7 +4835,7 @@
    "description": "Stop a goal: open steps and pending approvals are cancelled; history stays.",
    "destructive": true,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "goalId",
@@ -4750,7 +4855,7 @@
    "description": "Try a blocked or failed step again after the person fixed what blocked it.",
    "destructive": false,
    "returns": "Goal!",
-   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } }",
+   "selection": "{ id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft }",
    "args": [
     {
      "name": "goalId",

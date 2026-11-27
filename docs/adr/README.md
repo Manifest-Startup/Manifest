@@ -27,5 +27,6 @@ Short records of decisions that shape Manifest's architecture, in Michael Nygard
 - [0023 — One bridge, several agents, honest setup](0023-one-bridge-several-agents.md)
 - [0024 — A voice that sounds like a person, and reads tone on the device](0024-a-voice-that-sounds-like-a-person.md)
 - [0025 — AGPL-3.0 core, Apache-2.0 agent packages, CC BY 4.0 docs](0025-agpl-core-apache-agent-packages-cc-by-docs.md)
+- [0026 — Outreach waits in Messages, goes from your own mailbox, and comes back in their words](0026-first-customers-wait-in-messages.md)
 
 Notes for agents: add a record when a change moves ownership of data between systems, adds an external dependency, or removes a feature. Keep each under a page and link the code and docs it governs.

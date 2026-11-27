@@ -245,8 +245,10 @@ class DiscoveryMutation:
         prospects: list[str] | None = None,
         sender_name: str | None = None,
     ) -> CustomerDiscovery:
-        """Write one short, personal customer-discovery email per prospect (all of them, or the
-        names/ids given), using only the evidence found. Nothing is sent. Uses your OpenAI key."""
+        """Write one short, honest customer-discovery message per prospect (all of them, or the
+        names/ids given), from the evidence only and checked against the outreach rules. Those
+        with a verified address wait in Messages for the person's yes; nothing is sent. Uses
+        your OpenAI key."""
         from app.services.ideas import customer_discovery as cd
 
         return await _run(
@@ -270,8 +272,12 @@ class DiscoveryMutation:
     ) -> CustomerDiscovery:
         """Save customer discovery you researched yourself (use this when the person has no
         OpenAI key and you have web search). work may hold research, segment, icp, prospects
-        (append: true to add) and outreach, in the shapes customer_discovery returns. Every
-        prospect needs a source URL; unsourced findings are stored as hypotheses."""
+        (append: true to add), outreach and sender_name, in the shapes customer_discovery
+        returns. Every prospect needs a source URL; kind "person" for an individual (creator,
+        freelancer, consumer). contact.source must be the public page that shows the address
+        (it is read to check), or contact.verified_by "apollo"/"person". Outreach that breaks
+        the rules (see the manifest-customers skill) comes back in limitations to rewrite;
+        the rest waits in Messages for the person's yes (queue: false to hold it)."""
         from app.services.ideas import customer_discovery as cd
 
         payload = work if isinstance(work, dict) else {}
@@ -280,6 +286,44 @@ class DiscoveryMutation:
             idea_id,
             "agent",
             lambda db, uid, idea: cd.save_agent_work(db=db, user_id=uid, idea=idea, work=payload),
+            uses_ai=False,
+        )
+
+    @strawberry.mutation
+    async def queue_outreach(
+        self, info: strawberry.Info, idea_id: str, prospects: list[str] | None = None
+    ) -> CustomerDiscovery:
+        """Put the prepared messages (all, or the names/ids given) in Messages, each waiting for
+        the person's yes; one already waiting is updated, one already sent is left alone.
+        Drafting and saving already do this, so call it only to retry. Nothing is sent."""
+        from app.services.ideas import customer_discovery as cd
+
+        return await _run(
+            info,
+            idea_id,
+            "queue",
+            lambda db, uid, idea: cd.queue_outreach(
+                db=db, user_id=uid, idea=idea, prospect_ids=prospects
+            ),
+            uses_ai=False,
+        )
+
+    @strawberry.mutation
+    async def set_outreach_recipient(
+        self, info: strawberry.Info, idea_id: str, prospect: str, address: str
+    ) -> CustomerDiscovery:
+        """Use the email address or Open Media @handle the person gave for a prospect (name or
+        id). Only an address the person said; never one you guessed. Its message then waits in
+        Messages for their yes."""
+        from app.services.ideas import customer_discovery as cd
+
+        return await _run(
+            info,
+            idea_id,
+            "recipient",
+            lambda db, uid, idea: cd.set_recipient(
+                db=db, user_id=uid, idea=idea, prospect=prospect, address=address
+            ),
             uses_ai=False,
         )
 

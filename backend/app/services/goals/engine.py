@@ -75,6 +75,136 @@ def outreach_plan(
     ]
 
 
+def email_outreach_plan(
+    *,
+    to: str,
+    subject: str,
+    body: str,
+    to_name: str | None = None,
+    organization: str | None = None,
+    why: str = "",
+    evidence: list[dict[str, Any]] | None = None,
+    follow_up: str | None = None,
+    purpose: str = "",
+    wait_days: int = 5,
+) -> list[dict[str, Any]]:
+    """Email someone from the person's own mailbox and hear back: prepare, approve and send,
+    wait for the reply, remember what they said."""
+    return [
+        {
+            "key": "draft",
+            "capability": "email.prepare",
+            "input": {
+                "to": to,
+                "to_name": to_name,
+                "organization": organization,
+                "subject": subject,
+                "body": body,
+                "why": why,
+                "evidence": evidence or [],
+                "follow_up": follow_up,
+                "purpose": purpose,
+            },
+        },
+        {
+            "key": "send",
+            "capability": "email.send",
+            "input": {"draft": "$steps.draft"},
+            "depends_on": ["draft"],
+        },
+        {
+            "key": "reply",
+            "capability": "reply.await",
+            "input": {"after": "$steps.send", "days": wait_days},
+            "depends_on": ["send"],
+        },
+        {
+            "key": "learn",
+            "capability": "knowledge.record",
+            "input": {"reply": "$steps.reply"},
+            "depends_on": ["reply"],
+        },
+    ]
+
+
+PREPARE_STEPS = ("message.prepare", "email.prepare")
+
+
+def edit_draft(
+    db: Any,
+    user_id: str,
+    goal_id: str,
+    *,
+    body: str | None = None,
+    subject: str | None = None,
+) -> dict[str, Any]:
+    """Change a prepared message before it is sent. The pending approval is replaced by one for
+    the new text, so a yes always covers exactly what goes out."""
+    goal = _goal(db, user_id, goal_id)
+    tasks = _tasks(db, goal_id)
+    prepared = next(
+        (
+            t
+            for t in tasks
+            if t["capability"] in PREPARE_STEPS
+            and t["status"] == DONE
+            and any(
+                t["step_key"] in (o.get("depends_on") or []) and o["status"] not in FINISHED
+                for o in tasks
+            )
+        ),
+        None,
+    )
+    if goal["status"] not in ("active", "blocked") or prepared is None:
+        raise GoalError("There's no unsent message to change in this goal.")
+    result = dict(prepared.get("result") or {})
+    text = (body if body is not None else result.get("body") or "").strip()
+    if not text:
+        raise GoalError("The message can't be empty.")
+    if len(text) > 20_000:
+        raise GoalError("That message is too long.")
+    result["body"] = text
+    if prepared["capability"] == "email.prepare":
+        new_subject = " ".join(
+            (subject if subject is not None else result.get("subject") or "").split()
+        )
+        if not new_subject:
+            raise GoalError("The email needs a subject.")
+        result["subject"] = new_subject[:200]
+        result["compose_url"] = capabilities.compose_link(result["to"], result["subject"], text)
+    result["edited"] = True
+    if not store.cas_update(db, store.TASKS, prepared["id"], {"status": DONE}, {"result": result}):
+        raise GoalError("That message just changed. Look again and retry.")
+    if result.get("open_media_draft_id"):
+        try:  # keep the copy in their Open Media conversation in step (best effort)
+            capabilities.messaging.update_draft(
+                user_id, str(result["open_media_draft_id"]), body=text
+            )
+        except Exception as exc:
+            logger.info(
+                "goal draft not updated in Open Media",
+                extra={"exception.type": type(exc).__name__, "goal_id": goal_id},
+            )
+    store.record_event(
+        db,
+        user_id,
+        goal_id,
+        "draft.edited",
+        "You changed the message before sending.",
+        {"task_id": prepared["id"]},
+        dedupe_key=f"draft.edited:{prepared['id']}:{policy.scope_sha256(result)}",
+    )
+    # A send that was blocked (e.g. no mailbox) gets another try with the new text.
+    for task in tasks:
+        if prepared["step_key"] in (task.get("depends_on") or []) and task["status"] == "blocked":
+            store.cas_update(
+                db, store.TASKS, task["id"], {"status": "blocked"}, {"status": "ready"}
+            )
+    if goal["status"] == "blocked":
+        store.cas_update(db, store.GOALS, goal_id, {"status": "blocked"}, {"status": "active"})
+    return advance(db, user_id, goal_id)
+
+
 def _validate_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not steps:
         raise GoalError("A goal needs at least one step.")
@@ -571,8 +701,10 @@ def _report(
         elif status == "running":
             report["in_progress"].append(task["title"])
         elif status == "waiting_external":
-            who = (task.get("result") or {}).get("waiting_for")
-            report["waiting"].append(f"{task['title']}" + (f" from @{who}" if who else ""))
+            result = task.get("result") or {}
+            who = result.get("waiting_for")
+            who = (who if result.get("channel") == "email" else f"@{who}") if who else None
+            report["waiting"].append(f"{task['title']}" + (f" from {who}" if who else ""))
         elif status == "awaiting_authorization" and task["id"] in pending:
             report["needs_you"].append(f"Approve or decline: {pending[task['id']]['summary']}")
         elif status in ("blocked", "failed"):
@@ -618,10 +750,23 @@ def view(db: Any, user_id: str, goal_id: str) -> dict[str, Any]:
     }
 
 
+RECENTLY_ACHIEVED = timedelta(days=14)
+
+
 def list_goals(db: Any, user_id: str, *, include_closed: bool = False) -> list[dict[str, Any]]:
+    """Open goals, plus ones achieved in the last two weeks: an answered outreach is when the
+    person most wants to see what came back."""
     goals = store.select(db, store.GOALS, user_id=user_id)
     goals.sort(key=lambda g: g.get("updated_at") or "", reverse=True)
-    return [g for g in goals if include_closed or g["status"] in ("active", "blocked")]
+    since = store.now() - RECENTLY_ACHIEVED
+
+    def shown(goal: dict[str, Any]) -> bool:
+        if include_closed or goal["status"] in ("active", "blocked"):
+            return True
+        updated = store.parse_time(goal.get("updated_at"))
+        return goal["status"] == "achieved" and updated is not None and updated >= since
+
+    return [g for g in goals if shown(g)]
 
 
 def pending_approvals(db: Any, user_id: str) -> list[dict[str, Any]]:

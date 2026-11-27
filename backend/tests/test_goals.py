@@ -351,7 +351,7 @@ def test_unknown_handle_blocks_before_anything_is_drafted(db, om):
 @pytest.mark.parametrize(
     ("steps", "message"),
     [
-        ([{"key": "x", "capability": "email.send", "input": {}}], "Unknown capability"),
+        ([{"key": "x", "capability": "email.blast", "input": {}}], "Unknown capability"),
         (
             [
                 {

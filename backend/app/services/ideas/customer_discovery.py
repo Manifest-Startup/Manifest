@@ -8,9 +8,12 @@ One conversation, four steps the founder can revisit in any order (voice or text
 2. ``find_prospects`` — real companies matching the chosen segment (Apollo.io when the server
    has it, otherwise web search), each with evidence, an explainable score and what is still
    unverified. Websites are checked to resolve, so invented companies drop out.
-3. ``draft_outreach`` — one personal, low-pressure email per prospect, built only from the
-   evidence; recipients are filled in only from a verified address.
-4. ``create_gmail_drafts`` — saves those emails as Gmail drafts. Manifest never sends.
+3. ``draft_outreach`` — one short, honest, low-pressure message per prospect, built only from
+   the evidence and checked against the outreach rules (``app.services.ideas.outreach``);
+   recipients are filled in only from a verified address.
+4. Each message with a recipient waits in Messages for the founder's yes (a goal, ADR 0020),
+   then goes from their own mailbox or Open Media account; replies come back to the goal.
+   ``create_gmail_drafts`` and the Open in Gmail links remain for people who send elsewhere.
 
 Agents with their own web search (Claude Code, Codex…) and no OpenAI key do steps 1–3
 themselves and store them with ``save_agent_work``; the same validation applies.
@@ -31,6 +34,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
 
+from app.services.ideas import outreach as writing
 from app.services.ideas import vault_sync
 from app.services.ideas.vault import safe_name
 from app.services.integrations import discovery_connectors as connectors
@@ -433,7 +437,7 @@ PROSPECT_SHAPE = """{
 
 
 def _contactability(contact: dict[str, Any] | None, maker: dict[str, Any] | None) -> int:
-    if contact and contact.get("verified") and contact.get("kind") == "email":
+    if contact and contact.get("verified") and contact.get("kind") in ("email", "open_media"):
         return 5
     if maker and maker.get("source"):
         return 3 if not contact or not contact.get("value") else 4
@@ -458,19 +462,96 @@ def _decision_maker(raw: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def _contact(raw: dict[str, Any]) -> dict[str, Any] | None:
+_HANDLE = re.compile(r"^@?([a-z0-9_]{3,24})$", re.I)
+# Who can vouch for an address besides a public page we read ourselves.
+TRUSTED_VERIFIERS = {"apollo", "hunter", "person"}
+
+
+def _contact(raw: dict[str, Any], origin: str = "agent") -> dict[str, Any] | None:
     value = _text(raw.get("value"), 200)
     if not value:
         return None
     source = _url(raw.get("source"))
+    method = _text(raw.get("method"), 120)
+    if re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", value, re.I):
+        kind = "email"
+        value = value.lower()
+    elif _HANDLE.match(value) and "open media" in (method or "").lower():
+        kind, value = "open_media", "@" + _HANDLE.match(value).group(1).lower()
+    else:
+        kind = "other"
+    by = str(raw.get("verified_by") or "").lower() or None
+    # The server's own Apollo lookups are trusted as returned; anything else must be shown by
+    # a provider, by the founder, or on the cited page (checked in _verify_contacts).
+    trusted = (origin == "apollo" and bool(raw.get("verified"))) or by in TRUSTED_VERIFIERS
     return {
-        "method": _text(raw.get("method"), 120),
+        "method": method,
         "value": value,
-        "kind": "email" if re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", value, re.I) else "other",
+        "kind": kind,
         "source": source,
-        # Verified only when a provider verified it or a public page we can cite shows it.
-        "verified": bool(raw.get("verified")) or bool(source),
+        "verified": trusted,
+        "verified_by": by if trusted else None,
     }
+
+
+def _on_page(address: str, text: str) -> bool:
+    """The address appears on the page, also written as "name [at] domain [dot] com"."""
+    plain = re.sub(r"\s*[\[(]\s*(at)\s*[\])]\s*|\s+at\s+", "@", text, flags=re.I)
+    plain = re.sub(r"\s*[\[(]\s*(dot)\s*[\])]\s*|\s+dot\s+", ".", plain, flags=re.I)
+    return address.lower() in plain.lower()
+
+
+def _check_contact(prospect: dict[str, Any]) -> None:
+    contact = prospect.get("contact")
+    if not contact or contact.get("verified") or contact["kind"] == "other":
+        return
+    if contact["kind"] == "open_media":
+        from app.services.integrations.open_media.client import get_client
+
+        handle = contact["value"].lstrip("@")
+        try:
+            profile = get_client().public(f"/v1/profiles/{handle}")
+            data = profile.get("data") if isinstance(profile.get("data"), dict) else profile
+            ok = str(data.get("handle") or "").lower() == handle
+        except Exception:
+            ok = False
+        contact.update(verified=ok, verified_by="open_media" if ok else None)
+        if not ok:
+            prospect["unverified"].append(f"No Open Media account called {contact['value']}.")
+        return
+    if not contact.get("source"):
+        prospect["unverified"].append("The email address has no source; find where it's public.")
+        return
+    try:
+        ok = _on_page(contact["value"], connectors.web_read(contact["source"])["text"])
+    except Exception:
+        ok = False
+    contact.update(verified=ok, verified_by="public page" if ok else None)
+    if not ok:
+        prospect["unverified"].append(
+            f"Couldn't find {contact['value']} on the page cited for it; not used as a recipient."
+        )
+
+
+def _verify_contacts(prospects: list[dict[str, Any]]) -> None:
+    """Read the cited page for each address (and look up Open Media handles) before anyone
+    becomes a recipient. Contactability follows what was actually confirmed."""
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        list(pool.map(_check_contact, prospects))
+    for prospect in prospects:
+        prospect["unverified"] = [
+            u for u in prospect["unverified"] if not u.startswith("No verified contact")
+        ]
+        if not (prospect.get("contact") or {}).get("verified"):
+            prospect["unverified"].append("No verified contact; find one before reaching out.")
+        _rescore(prospect)
+
+
+def _rescore(prospect: dict[str, Any]) -> None:
+    prospect["scores"]["contactability"] = _contactability(
+        prospect.get("contact"), prospect.get("decision_maker")
+    )
+    prospect["score"] = round(sum(WEIGHTS[k] * prospect["scores"][k] / 5 for k in WEIGHTS) * 100)
 
 
 def _gaps(
@@ -516,8 +597,12 @@ def normalize_prospect(entry: dict[str, Any], origin: str) -> dict[str, Any] | N
     if not sources and origin != "demo":
         return None  # never keep a company we cannot point to
 
+    kind = "person" if str(entry.get("kind") or "").lower() == "person" else "company"
     maker = _decision_maker(_dict(entry.get("decision_maker")))
-    contact = _contact(_dict(entry.get("contact")))
+    if kind == "person" and maker is None and sources:
+        # A creator, freelancer or consumer: the prospect is the person themselves.
+        maker = _decision_maker({"name": name, "title": entry.get("role"), "source": sources[0]})
+    contact = _contact(_dict(entry.get("contact")), origin)
 
     raw_scores = _dict(entry.get("scores"))
     scores = {
@@ -541,6 +626,7 @@ def normalize_prospect(entry: dict[str, Any], origin: str) -> dict[str, Any] | N
             entry.get("id") or uuid.uuid5(uuid.NAMESPACE_URL, _domain(website) or name.lower())
         ),
         "name": name,
+        "kind": kind,
         "website": website,
         "industry": _text(entry.get("industry"), 120),
         "description": _text(entry.get("description")),
@@ -761,6 +847,7 @@ def find_prospects(
     if dropped > 0:
         limitations.append(f"Dropped {dropped} result(s) with no source to check them against.")
     _check_websites(found)
+    _verify_contacts(found)
     found = [p for p in found if p.get("website_checked") or not p.get("website")]
     found.sort(key=lambda p: (-p["score"], p["name"].lower()))
     fresh = _merge(state["prospects"], found, state["excluded"])[len(state["prospects"]) :][:count]
@@ -798,37 +885,59 @@ def exclude_prospects(
 # ---- outreach -----------------------------------------------------------------------------
 
 OUTREACH_SYSTEM = (
-    "You write short, honest customer-discovery emails for a founder. The goal is a conversation "
-    "about the prospect's problem, not a sale. Rules: plain, warm, specific; 60-120 words; no "
-    "hype or marketing clichés; never claim familiarity, past contact, mutual connections or "
-    "problems the evidence does not show; refer only to the evidence given; one low-pressure ask "
-    "(a 15-minute chat or a reply). " + UNTRUSTED + " Answer with one JSON object only."
+    "You write customer-discovery messages for a founder: the goal is to learn how one person "
+    "handles a problem today, not to sell. People should be glad they got it.\n"
+    + writing.RULES
+    + "\n"
+    + UNTRUSTED
+    + " Answer with one JSON object only."
 )
 
 
-def normalize_outreach(
-    entry: dict[str, Any], prospect: dict[str, Any], origin: str
-) -> dict[str, Any] | None:
-    subject, body = _text(entry.get("subject"), 120), str(entry.get("body") or "").strip()[:3000]
-    if not subject or not body:
-        return None
+def _recipient(prospect: dict[str, Any]) -> tuple[str | None, str]:
+    """(address, channel): a verified email, else a verified Open Media handle, else nothing."""
     contact = prospect.get("contact") or {}
-    to = (
-        contact.get("value") if contact.get("kind") == "email" and contact.get("verified") else None
-    )
+    if contact.get("verified") and contact.get("kind") == "email":
+        return contact["value"], "email"
+    if contact.get("verified") and contact.get("kind") == "open_media":
+        return contact["value"].lstrip("@").lower(), "open_media"
+    return None, "email"
+
+
+def normalize_outreach(
+    entry: dict[str, Any], prospect: dict[str, Any], origin: str, sender: str | None = None
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """A message that passes the outreach rules, or None and what to fix."""
+    subject = " ".join(str(entry.get("subject") or "").split())[:120]
+    body = str(entry.get("body") or "").strip()[:3000]
+    if not body:
+        return None, ["It's empty."]
+    to, channel = _recipient(prospect)
+    if channel == "open_media" and not subject:
+        subject = f"Message to @{to}"
+    if not subject:
+        return None, ["It has no subject."]
+    problems, notes = writing.check(subject, body)
+    if problems:
+        return None, problems
+    body = writing.finish(body, sender)
     return {
         "prospect_id": prospect["id"],
         "prospect_name": prospect["name"],
         "to": to,
+        "channel": channel,
         "to_name": (prospect.get("decision_maker") or {}).get("name"),
         "subject": subject,
         "body": body,
+        "words": writing.message_words(body),
+        "notes": notes,
         "follow_up": _text(entry.get("follow_up"), 600),
         "personalization": _text(entry.get("personalization"), 400),
         "origin": origin,
         "gmail_draft_id": None,
+        "goal_id": None,
         "created_at": _iso(),
-    }
+    }, []
 
 
 def draft_outreach(
@@ -850,11 +959,14 @@ def draft_outreach(
             "emails and save them with save_customer_discovery."
         )
     research = state.get("research") or {}
+    sender = sender_name or writing.sender_name(db, user_id)
     brief = {
         "idea": idea.get("title"),
+        "idea_description": _text(idea.get("description"), 800),
         "product_summary": research.get("product_summary"),
         "value_proposition": (research.get("business_model") or {}).get("value_proposition"),
-        "sender_name": sender_name or "the founder",
+        "stage": "early: talking to people before building more; nothing to sell yet",
+        "sender_name": sender or "the founder",
         "prospects": [
             {
                 k: p.get(k)
@@ -866,6 +978,7 @@ def draft_outreach(
                     "why_fit",
                     "need_evidence",
                     "decision_maker",
+                    "kind",
                 )
             }
             for p in prospects
@@ -881,24 +994,68 @@ def draft_outreach(
             '"follow_up": "a short follow-up for a week later", "personalization": "which evidence made it personal"}]}',
         },
     ]
-    parsed = ai_layer.generate_structured_response(messages)
     by_id = {p["id"]: p for p in prospects}
-    drafts = []
-    for entry in (parsed or {}).get("emails") or []:
-        prospect = by_id.get(str((entry or {}).get("prospect_id")))
-        draft = normalize_outreach(entry, prospect, "ai") if prospect else None
-        if draft:
-            drafts.append(draft)
-    _replace_outreach(state, drafts)
+    drafts: dict[str, dict[str, Any]] = {}
+    rejected: dict[str, list[str]] = {}
+    for _attempt in range(2):  # one rewrite for drafts that broke a rule
+        parsed = ai_layer.generate_structured_response(messages)
+        for entry in (parsed or {}).get("emails") or []:
+            prospect = by_id.get(str((entry or {}).get("prospect_id")))
+            if not prospect or prospect["id"] in drafts:
+                continue
+            draft, problems = normalize_outreach(entry, prospect, "ai", sender)
+            if draft:
+                drafts[prospect["id"]] = draft
+                rejected.pop(prospect["id"], None)
+            else:
+                rejected[prospect["id"]] = problems
+        if not rejected:
+            break
+        messages = messages + [
+            {
+                "role": "user",
+                "content": "Rewrite only these, fixing what's listed, same JSON shape:\n"
+                + json.dumps({pid: why for pid, why in rejected.items()}),
+            }
+        ]
+    _replace_outreach(state, list(drafts.values()))
+    limitations = _outreach_limits(state, prospects, drafts, rejected)
+    limitations += _queue(db, user_id, idea, state, set(drafts))
     state["path"] = save_state(db, user_id, idea, state)
-    missing = [p["name"] for p in prospects if p["id"] not in {d["prospect_id"] for d in drafts}]
-    limitations = [f"No draft came back for: {', '.join(missing)}."] if missing else []
-    no_to = [d["prospect_name"] for d in drafts if not d["to"]]
-    if no_to:
-        limitations.append(
-            f"No verified email for {', '.join(no_to)}; those drafts have no recipient yet."
-        )
     return {"state": state, "limitations": limitations}
+
+
+def _outreach_limits(
+    state: dict[str, Any],
+    prospects: list[dict[str, Any]],
+    drafts: dict[str, dict[str, Any]],
+    rejected: dict[str, list[str]],
+) -> list[str]:
+    names = {p["id"]: p["name"] for p in prospects}
+    limits = [
+        f"No usable draft for {names.get(pid, pid)}: {' '.join(why)}"
+        for pid, why in rejected.items()
+    ]
+    missing = [p["name"] for p in prospects if p["id"] not in drafts and p["id"] not in rejected]
+    if missing:
+        limits.append(f"No draft came back for: {', '.join(missing)}.")
+    return limits
+
+
+def _queue(
+    db: Any, user_id: str, idea: dict[str, Any], state: dict[str, Any], ids: set[str]
+) -> list[str]:
+    """Put the new drafts in Messages for approval; a hiccup there never loses the drafts."""
+    if not ids:
+        return []
+    try:
+        return writing.queued_summary(writing.queue(db, user_id, idea, state, ids))
+    except Exception as exc:
+        log_failure("queue", exc)
+        return [
+            "The drafts are saved in your note, but I couldn't put them in Messages just now; "
+            "ask me again in a moment."
+        ]
 
 
 def _select(state: dict[str, Any], ids_or_names: list[str] | None) -> list[dict[str, Any]]:
@@ -973,6 +1130,45 @@ def create_gmail_drafts(
     return {"state": state, "created": created, "limitations": limitations}
 
 
+def queue_outreach(
+    *, db: Any, user_id: str, idea: dict[str, Any], prospect_ids: list[str] | None = None
+) -> dict[str, Any]:
+    """Put prepared messages (all, or the names/ids given) in Messages, each waiting for a yes."""
+    state = load_state(db, user_id, idea)
+    wanted = {p["id"] for p in _select(state, prospect_ids)}
+    if not any(o["prospect_id"] in wanted for o in state.get("outreach") or []):
+        raise DiscoveryError("There are no prepared messages yet. Ask me to draft them first.")
+    limitations = _queue(db, user_id, idea, state, wanted)
+    state["path"] = save_state(db, user_id, idea, state)
+    return {"state": state, "limitations": limitations}
+
+
+def set_recipient(
+    *, db: Any, user_id: str, idea: dict[str, Any], prospect: str, address: str
+) -> dict[str, Any]:
+    """The founder gives the address (an email or an Open Media @handle) for a prospect; their
+    word is the verification. The prepared message then goes to Messages for their yes."""
+    found = _select(load_state(db, user_id, idea), [prospect])
+    if not found:
+        raise DiscoveryError(f"There's no prospect called {prospect!r} for this idea.")
+    state = load_state(db, user_id, idea)
+    target = next(p for p in state["prospects"] if p["id"] == found[0]["id"])
+    value = address.strip()
+    method = "Open Media" if value.startswith("@") else "given by you"
+    contact = _contact({"value": value, "method": method, "verified_by": "person"})
+    if not contact or contact["kind"] == "other":
+        raise DiscoveryError("Give an email address or an Open Media @handle.")
+    target["contact"] = contact
+    target["unverified"] = [u for u in target["unverified"] if "contact" not in u.lower()]
+    _rescore(target)
+    for draft in state.get("outreach") or []:
+        if draft["prospect_id"] == target["id"]:
+            draft["to"], draft["channel"] = _recipient(target)
+    limitations = _queue(db, user_id, idea, state, {target["id"]})
+    state["path"] = save_state(db, user_id, idea, state)
+    return {"state": state, "limitations": limitations}
+
+
 # ---- work written by the person's own agent ------------------------------------------------
 
 
@@ -999,26 +1195,43 @@ def save_agent_work(
         if len(found) < len(raw):
             limitations.append(f"Skipped {len(raw) - len(found)} prospect(s) without a source URL.")
         _check_websites(found)
+        _verify_contacts(found)
         found.sort(key=lambda p: (-p["score"], p["name"].lower()))
         base = state["prospects"] if work.get("append") else []
         state["prospects"] = _merge(base, found, state.get("excluded") or [])
     if isinstance(work.get("outreach"), list):
-        by_id = {p["id"]: p for p in state.get("prospects") or []}
-        by_name = {p["name"].lower(): p for p in state.get("prospects") or []}
-        drafts = []
-        for entry in work["outreach"]:
-            if not isinstance(entry, dict):
-                continue
-            key = str(entry.get("prospect_id") or entry.get("prospect_name") or "")
-            prospect = by_id.get(key) or by_name.get(key.lower())
-            draft = normalize_outreach(entry, prospect, "agent") if prospect else None
-            if draft:
-                drafts.append(draft)
-            else:
-                limitations.append(f"Skipped an email for unknown prospect {key!r}.")
-        _replace_outreach(state, drafts)
+        limitations += _save_agent_outreach(db, user_id, idea, state, work)
     state["path"] = save_state(db, user_id, idea, state)
     return {"state": state, "limitations": limitations}
+
+
+def _save_agent_outreach(
+    db: Any, user_id: str, idea: dict[str, Any], state: dict[str, Any], work: dict[str, Any]
+) -> list[str]:
+    limitations: list[str] = []
+    by_id = {p["id"]: p for p in state.get("prospects") or []}
+    by_name = {p["name"].lower(): p for p in state.get("prospects") or []}
+    drafts = []
+    sender = _text(work.get("sender_name"), 120) or writing.sender_name(db, user_id)
+    for entry in work["outreach"]:
+        if not isinstance(entry, dict):
+            continue
+        key = str(entry.get("prospect_id") or entry.get("prospect_name") or "")
+        prospect = by_id.get(key) or by_name.get(key.lower())
+        if not prospect:
+            limitations.append(f"Skipped an email for unknown prospect {key!r}.")
+            continue
+        draft, problems = normalize_outreach(entry, prospect, "agent", sender)
+        if draft:
+            drafts.append(draft)
+        else:
+            limitations.append(
+                f"Not saved, rewrite it: the message to {prospect['name']}: {' '.join(problems)}"
+            )
+    _replace_outreach(state, drafts)
+    if work.get("queue", True):
+        limitations += _queue(db, user_id, idea, state, {d["prospect_id"] for d in drafts})
+    return limitations
 
 
 # ---- presenting ---------------------------------------------------------------------------
@@ -1140,16 +1353,24 @@ def compose_url(o: dict[str, Any]) -> str:
 
 
 def _md_outreach(o: dict[str, Any]) -> list[str]:
-    status = "saved in Gmail drafts" if o.get("gmail_draft_id") else "not in Gmail yet"
+    if o.get("goal_id"):
+        status = "waiting in Messages for your OK"
+    elif o.get("gmail_draft_id"):
+        status = "saved in Gmail drafts"
+    else:
+        status = "no recipient yet" if not o.get("to") else "draft"
+    to = o.get("to") or "(no verified address yet)"
+    if o.get("channel") == "open_media" and o.get("to"):
+        to = f"@{o['to']} on Open Media"
     lines = [
         "",
         f"### {o['prospect_name']} ({status})",
-        f"**To:** {o.get('to') or '(no verified address yet)'}  ",
+        f"**To:** {to}  ",
         f"**Subject:** {o['subject']}",
-        f"[Open in Gmail]({compose_url(o)})",
-        "",
-        o["body"],
     ]
+    if o.get("channel") != "open_media":
+        lines.append(f"[Open in Gmail]({compose_url(o)})")
+    lines += ["", o["body"]]
     if o.get("follow_up"):
         lines += ["", f"_Follow-up idea:_ {o['follow_up']}"]
     if o.get("personalization"):
@@ -1181,7 +1402,11 @@ def render_markdown(state: dict[str, Any]) -> str:
         for i, p in enumerate(prospects, 1):
             lines += _md_prospect(i, p)
     if state.get("outreach"):
-        lines += ["", "## Outreach drafts", "_Prepared, not sent. Manifest never sends email._"]
+        lines += [
+            "",
+            "## Outreach drafts",
+            "_Each one waits in Messages for your OK; nothing is sent until you say yes._",
+        ]
         for o in state["outreach"]:
             lines += _md_outreach(o)
     return "\n".join(lines).strip()
@@ -1196,9 +1421,9 @@ def view(state: dict[str, Any], *, limitations: list[str] | None = None) -> dict
         "outreach" if outreach else "prospects" if prospects else "research" if research else "idea"
     )
     if stage == "outreach":
-        saved = sum(1 for o in outreach if o.get("gmail_draft_id"))
-        summary = f"{len(outreach)} email{'s' if len(outreach) != 1 else ''} prepared" + (
-            f", {saved} in Gmail drafts" if saved else ""
+        waiting = sum(1 for o in outreach if o.get("goal_id"))
+        summary = f"{len(outreach)} message{'s' if len(outreach) != 1 else ''} prepared" + (
+            f", {waiting} waiting in Messages for your OK" if waiting else ""
         )
     elif stage == "prospects":
         summary = f"{len(prospects)} prospect{'s' if len(prospects) != 1 else ''}: " + ", ".join(
@@ -1221,7 +1446,8 @@ def view(state: dict[str, Any], *, limitations: list[str] | None = None) -> dict
             **{k: state.get(k) for k in ("research", "icp", "segment", "prospects", "excluded")},
             "outreach": [{**o, "compose_url": compose_url(o)} for o in outreach],
         },
-        "speakingTip": "Say the summary and the top reasons in a sentence or two; don't read lists, URLs or emails aloud.",
+        "speakingTip": "Say the summary and the top reasons in a sentence or two; don't read "
+        "lists or URLs aloud. Read one message aloud only when asked, then ask before sending.",
     }
 
 

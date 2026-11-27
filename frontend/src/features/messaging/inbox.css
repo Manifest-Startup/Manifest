@@ -164,6 +164,42 @@
 .om-goal-timeline ol, .om-goal-timeline ul { display: flex; flex-direction: column; gap: 2px; padding-left: 16px; list-style: disc; }
 .om-goal-subtitle { margin-top: 8px; font-size: 13px; font-weight: 700; }
 .om-goal-kind { color: var(--om-text-tertiary); }
+.om-goals > div > .om-list-rows .om-row { width: 100%; margin: 0 0 2px; }
+.om-section-label.om-inbox-label { margin: 4px 18px 4px; }
+.om-section-label { margin: 6px 10px 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; color: var(--om-text-tertiary); text-transform: uppercase; }
+
+/* A prepared message, in full, before the person says yes (OutreachDraft). */
+.om-draft { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 680px; margin: 0 auto; padding: 18px 18px 24px; }
+.om-draft-label { margin-bottom: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; color: var(--om-text-tertiary); text-transform: uppercase; }
+.om-draft-why { padding: 12px 14px; border-radius: 14px; background: var(--om-chrome); font-size: 14px; line-height: 20px; color: var(--om-text-secondary); }
+.om-draft-why ul { margin-top: 6px; padding-left: 18px; list-style: disc; }
+.om-draft-why a { font-weight: 600; color: var(--om-text); text-decoration: underline; text-underline-offset: 2px; }
+.om-draft-card { padding: 14px 16px 12px; border: 1px solid var(--om-border); border-radius: 16px; background: var(--om-surface); }
+.om-draft-card[data-editing="true"] { border-color: var(--om-text-tertiary); }
+.om-draft-fields { display: flex; flex-direction: column; gap: 4px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--om-border); font-size: 14px; }
+.om-draft-fields > div { display: flex; gap: 10px; align-items: baseline; }
+.om-draft-fields dt { width: 60px; flex-shrink: 0; color: var(--om-text-tertiary); }
+.om-draft-fields dd { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.om-draft-body { white-space: pre-wrap; font-size: 15px; line-height: 22px; overflow-wrap: anywhere; }
+.om-draft-input { width: 100%; padding: 6px 8px; border: 1px solid var(--om-border); border-radius: 10px; background: var(--om-chrome); color: var(--om-text); font: inherit; outline: none; }
+.om-draft-input:focus { border-color: var(--om-text-tertiary); background: var(--om-surface); }
+textarea.om-draft-body { resize: vertical; }
+.om-draft-meta { font-size: 12px; color: var(--om-text-tertiary); }
+.om-draft-card .om-draft-meta { margin-top: 8px; }
+.om-draft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.om-draft-link { display: inline-flex; align-items: center; text-decoration: none; }
+.om-draft-follow { font-size: 13px; color: var(--om-text-secondary); }
+.om-draft-follow summary { cursor: pointer; font-weight: 600; color: var(--om-text); }
+.om-draft-follow p { margin-top: 6px; white-space: pre-wrap; }
+.om-draft-reply { padding: 12px 14px; border-left: 3px solid var(--om-text); border-radius: 4px 14px 14px 4px; background: var(--om-chrome); font-size: 15px; line-height: 22px; white-space: pre-wrap; }
+.om-draft-notice { font-size: 13px; font-weight: 600; color: var(--om-text); }
+.om-draft-footer { display: flex; flex-direction: column; gap: 6px; padding: 10px 18px 12px; border-top: 1px solid var(--om-border); background: var(--om-surface); }
+.om-draft-footer > * { width: 100%; max-width: 644px; margin-left: auto; margin-right: auto; }
+.om-draft-warning { font-size: 13px; line-height: 18px; color: var(--om-danger); }
+.om-draft-warning a { font-weight: 600; text-decoration: underline; color: inherit; }
+body:has(.manifest-voice-launcher) .om-draft-footer { padding-right: 124px; }
+@media (max-width: 759px) { body:has(.om-inbox[data-open="true"]) .om-draft-footer { padding-right: 18px; } }
+.om-draft-blocked { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; box-shadow: 0 0 0 1.5px var(--om-danger) inset; font-size: 14px; }
 
 /* The floating Voice button keeps its corner beside the composer (which leaves room for it) instead
  * of covering Send or the thread; while the privacy banner is up, it sits just above the banner. */

@@ -92,6 +92,12 @@ class Goal:
     timeline: list[GoalEvent]
     facts: list[KnowledgeFact]
     report: GoalReport | None
+    draft: JSON | None = strawberry.field(
+        default=None,
+        description="The message this goal prepared (channel, to, toName, organization, "
+        "subject, body, why, evidence, followUp, composeUrl) and where it stands "
+        "(sendStatus, sendError, sentAt, reply). Show it in full before the person approves.",
+    )
 
 
 @strawberry.type
@@ -166,6 +172,42 @@ def _spoken(report: dict[str, list[str]]) -> str:
     return " ".join(parts) or "Nothing has happened yet."
 
 
+_PREPARE = ("message.prepare", "email.prepare")
+_SEND = ("message.send", "email.send")
+
+
+def goal_draft(tasks: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The prepared message and its send/reply state, for a card the person can act on."""
+    prepared = next((t for t in tasks if t["capability"] in _PREPARE), None)
+    if not prepared or prepared.get("status") != "completed":
+        return None
+    r = prepared.get("result") or {}
+    send = next((t for t in tasks if t["capability"] in _SEND), None) or {}
+    reply = next((t for t in tasks if t["capability"] == "reply.await"), None) or {}
+    sent = send.get("result") or {}
+    got = reply.get("result") or {}
+    return {
+        "channel": r.get("channel") or "open_media",
+        "to": r.get("to"),
+        "toName": r.get("to_name"),
+        "organization": r.get("organization"),
+        "subject": r.get("subject"),
+        "body": r.get("body"),
+        "why": r.get("why") or r.get("purpose"),
+        "evidence": r.get("evidence") or [],
+        "followUp": r.get("follow_up"),
+        "composeUrl": r.get("compose_url") or sent.get("compose_url"),
+        "edited": bool(r.get("edited")),
+        "sendStatus": send.get("status"),
+        "sendError": send.get("last_error"),
+        "sentAt": sent.get("sent_at"),
+        "from": sent.get("from") or r.get("from"),
+        "mailboxReady": r.get("mailbox_ready"),
+        "replyStatus": reply.get("status"),
+        "reply": got.get("text_untrusted") if reply.get("status") == "completed" else None,
+    }
+
+
 def map_goal(goal: dict[str, Any], view: dict[str, Any] | None = None) -> Goal:
     view = view or {}
     report = view.get("report")
@@ -207,4 +249,5 @@ def map_goal(goal: dict[str, Any], view: dict[str, Any] | None = None) -> Goal:
         ],
         facts=[map_fact(f) for f in view.get("facts") or []],
         report=GoalReport(**report, spoken=_spoken(report)) if report else None,
+        draft=goal_draft(view.get("tasks") or []),
     )
