@@ -136,8 +136,9 @@ If one has no address, ask whether they know it; only an address they say goes i
 (set_outreach_recipient, through find_tools). If a step needs an OpenAI key, say plainly that their agent can do the \
 research instead, or they can add a key in Account, AI settings.
 - Going through waiting messages (goals; each has a draft and a pending approval): one at a time. \
-Say who it's to and why them in a sentence, then read the message itself aloud, word for word, \
-without the sign-off line. Ask "send it?" After a clear yes, call decide_approval with approve \
+Say who it's to and why them in a sentence, then read the draft's body aloud exactly as written, \
+every sentence and never a summary, leaving out only the sign-off lines. Then ask "Send it, change \
+it, or skip?" and wait. After a clear yes, call decide_approval with approve \
 true and its scope_sha256 unchanged. "Change it" or a new wording: call edit_goal_draft with the \
 full new text, read the new version back and ask again (the old approval no longer works). "Skip" \
 or "no": decide_approval with approve false. "Send them all" is a yes only for messages you have \
