@@ -48,6 +48,7 @@ def send(
     idempotency_key: str,
     mailbox_id: str | None = None,
     in_reply_to: str | None = None,
+    to_name: str | None = None,
 ) -> dict[str, Any]:
     """Send one new email. Returns ``{mailbox_id, from, message, replayed?}``."""
     try:  # Open Media's /v1/me routes accept only a UUID here
@@ -65,6 +66,9 @@ def send(
     payload: dict[str, Any] = {"to": [to.strip()], "subject": subject, "text": text}
     if mailbox_id:
         payload["mailbox_id"] = mailbox_id
+    name = " ".join((to_name or "").split())
+    if name and not re.search(r'[<>"]', name):
+        payload["to_name"] = name[:120]  # their mail app and the inbox show the name
     if in_reply_to:
         payload["in_reply_to"] = in_reply_to  # a follow-up threads under the first email
     return get_client().connected(

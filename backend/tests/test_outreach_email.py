@@ -41,7 +41,16 @@ class FakeMail:
         self.fail: Exception | None = None
 
     def send(
-        self, user_id, *, to, subject, text, idempotency_key, mailbox_id=None, in_reply_to=None
+        self,
+        user_id,
+        *,
+        to,
+        subject,
+        text,
+        idempotency_key,
+        mailbox_id=None,
+        in_reply_to=None,
+        to_name=None,
     ):
         if self.fail:
             error, self.fail = self.fail, None
@@ -52,7 +61,7 @@ class FakeMail:
         if any(r["messageId"] == message_id for r in self.rows):
             return {"mailbox_id": "box-1", "from": "me@founder.test", "replayed": True,
                     "message": {"sourceMessageId": message_id}}  # fmt: skip
-        self.sent.append({"to": to, "subject": subject, "text": text, "key": idempotency_key,
+        self.sent.append({"to": to, "to_name": to_name, "subject": subject, "text": text, "key": idempotency_key,
                           "in_reply_to": in_reply_to})  # fmt: skip
         row = {"messageId": message_id, "from": "me@founder.test", "to": [to], "subject": subject,
                "text": text, "sentAt": store.now().isoformat(), "folder": "Sent"}  # fmt: skip
@@ -177,6 +186,7 @@ def test_nothing_is_sent_until_the_exact_email_is_approved_then_it_goes_once(db,
     view = _approve(db, view)
     assert len(mail.sent) == 1
     uuid.UUID(mail.sent[0]["key"])  # Open Media's /v1/me routes accept only a UUID
+    assert mail.sent[0]["to_name"] == "Priya Shah"  # their mail app shows her name
     send = next(t for t in view["tasks"] if t["step_key"] == "send")
     assert send["status"] == "completed" and send["verification"]["verified"] is True
     for _ in range(3):  # requests, sweeps and webhooks advance it again
@@ -465,11 +475,18 @@ def test_the_real_mail_adapter_sends_a_uuid_key_and_threads(monkeypatch):
     monkeypatch.setattr(real_mail, "get_client", lambda: Client())
     key = str(uuid.uuid4())
     real_mail.send(
-        USER, to="a@b.co", subject="Hi", text="Hello", idempotency_key=key, in_reply_to="<x@y>"
+        USER,
+        to="a@b.co",
+        subject="Hi",
+        text="Hello",
+        idempotency_key=key,
+        in_reply_to="<x@y>",
+        to_name="Ana  Ruiz",
     )
     method, path, kw = calls[0]
     assert (method, path) == ("POST", "/email") and kw["headers"] == {"Idempotency-Key": key}
     assert kw["json"]["in_reply_to"] == "<x@y>" and kw["idempotent"] is True
+    assert kw["json"]["to_name"] == "Ana Ruiz"  # shown as "Ana Ruiz <a@b.co>"
     with pytest.raises(ValueError, match="UUID"):
         real_mail.send(
             USER, to="a@b.co", subject="Hi", text="Hello", idempotency_key="manifest-goal-1"
@@ -505,3 +522,23 @@ def test_a_bounce_is_caught_reported_and_blocks_follow_ups(db, mail):
     assert (
         next(t for t in other["tasks"] if t["step_key"] == "reply")["status"] == "waiting_external"
     )
+
+
+def test_waiting_survives_open_media_outages_and_syncs_at_most_every_two_minutes(
+    db, mail, monkeypatch
+):
+    view = _approve(db, _email_goal(db))
+    goal_id = view["goal"]["id"]
+    syncs = mail.syncs
+    for _ in range(5):  # app refreshes and voice questions
+        engine.advance(db, USER, goal_id, force_check=True)
+    assert mail.syncs - syncs <= 1
+
+    def down(*a, **k):
+        raise OpenMediaUnavailable("busy")
+
+    monkeypatch.setattr(capabilities.mail, "stored", down)
+    for _ in range(5):
+        view = engine.advance(db, USER, goal_id, force_check=True)
+    reply = next(t for t in view["tasks"] if t["step_key"] == "reply")
+    assert reply["status"] == "waiting_external" and view["goal"]["status"] == "active"

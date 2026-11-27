@@ -61,6 +61,14 @@ export function draftStatus(goal: GoalSummary): string {
   return goal.status === "cancelled" ? "Not sent" : "Sending…";
 }
 
+/** Under your sent bubble, like a chat receipt: what happened to this message, not the reply. */
+function sentReceipt(draft: GoalDraft, goal: GoalSummary): string {
+  if (draft.bounced) return "Didn't arrive";
+  if (draft.sendStatus === "blocked" || draft.sendStatus === "failed") return "Not sent";
+  if (draft.sentAt) return `${draft.followUpNumber ? "Follow-up sent" : "Sent"} ${when(draft.sentAt)}`;
+  return draftStatus(goal);
+}
+
 interface OutreachDraftProps {
   goal: GoalSummary;
   /** How many messages are waiting, and this one's place, for "2 of 5". */
@@ -185,76 +193,63 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
             </div>
           ) : null}
 
-          <div className="om-draft-card" data-editing={editing}>
-            <dl className="om-draft-fields">
-              <div>
-                <dt>To</dt>
-                <dd>{isEmail ? `${draft.toName ? `${draft.toName} · ` : ""}${draft.to}` : `@${draft.to} on Open Media`}</dd>
-              </div>
-              <div>
-                <dt>From</dt>
-                <dd>
-                  {draft.from ??
-                    (!isEmail
-                      ? "Your Open Media account"
-                      : draft.mailboxReady === false
-                        ? "No mailbox can send yet"
-                        : "Your email, connected in Open Media")}
-                </dd>
-              </div>
-              {isEmail ? (
-                <div>
-                  <dt>Subject</dt>
-                  <dd>
-                    {editing ? (
-                      <input
-                        className="om-draft-input"
-                        value={subject}
-                        maxLength={200}
-                        onChange={(e) => setSubject(e.target.value)}
-                        aria-label="Subject"
-                      />
-                    ) : (
-                      <strong>{draft.subject}</strong>
-                    )}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
+          <p className="om-draft-route">
+            To {isEmail ? `${draft.toName ? `${draft.toName} · ` : ""}${draft.to}` : `@${draft.to} on Open Media`}
+            {" · from "}
+            {draft.from ??
+              (!isEmail
+                ? "your Open Media account"
+                : draft.mailboxReady === false
+                  ? "no mailbox that can send yet"
+                  : "your email in Open Media")}
+          </p>
+
+          {/* Your message, as a chat bubble: dashed while it's a draft, solid once it's sent. */}
+          <div className="om-message" data-mine="true" data-email={isEmail || undefined} data-start="true" data-end="true">
             {editing ? (
-              <textarea
-                ref={bodyRef}
-                className="om-draft-body om-draft-input"
-                value={body}
-                rows={Math.min(20, Math.max(8, body.split("\n").reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 64)), 1)))}
-                onChange={(e) => setBody(e.target.value)}
-                aria-label="Message"
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setEditing(false);
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void save();
-                }}
-              />
+              <div className="om-bubble om-draft-editor">
+                {isEmail ? (
+                  <input
+                    className="om-draft-input"
+                    value={subject}
+                    maxLength={200}
+                    onChange={(e) => setSubject(e.target.value)}
+                    aria-label="Subject"
+                  />
+                ) : null}
+                <textarea
+                  ref={bodyRef}
+                  className="om-draft-input"
+                  value={body}
+                  rows={Math.min(20, Math.max(8, body.split("\n").reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 56)), 1)))}
+                  onChange={(e) => setBody(e.target.value)}
+                  aria-label="Message"
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEditing(false);
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void save();
+                  }}
+                />
+              </div>
             ) : (
-              <p className="om-draft-body">{draft.body}</p>
+              <div className="om-bubble" data-draft={approval ? "true" : undefined} data-failed={draft.bounced || blocked || undefined}>
+                {isEmail && draft.subject ? <div className="om-bubble-subject">{draft.subject}</div> : null}
+                <div className="om-bubble-text">{draft.body}</div>
+              </div>
             )}
-            <p className="om-draft-meta">
-              {count} words{draft.edited ? " · edited by you" : ""}
-              {count > 110 ? " · shorter messages get more replies" : ""}
+            <p className={`om-receipt${draft.bounced || blocked ? " om-receipt-failed" : ""}`} data-testid="outreach-receipt">
+              {approval
+                ? `Draft · not sent · ${count} words${draft.edited ? " · edited by you" : ""}${count > 110 ? " · shorter gets more replies" : ""}`
+                : sentReceipt(draft, goal)}
             </p>
           </div>
 
-          {draft.followUp && approval && !draft.followUpNumber ? (
-            <details className="om-draft-follow">
-              <summary>Follow-up for later, if there&apos;s no reply</summary>
-              <p>{draft.followUp}</p>
-            </details>
-          ) : null}
-
           {draft.reply ? (
-            <div className="om-draft-reply">
-              <p className="om-draft-label">{name} replied</p>
-              <p>{draft.reply.replace(/<<<UNTRUSTED_(BEGIN|END):reply>>>/g, "").trim()}</p>
-              <p className="om-draft-meta">The whole conversation is in your inbox. Ask Voice to help you answer.</p>
+            <div className="om-message" data-email={isEmail || undefined} data-start="true" data-end="true">
+              <p className="om-sender">{name}</p>
+              <div className="om-bubble">
+                <div className="om-bubble-text">{draft.reply.replace(/<<<UNTRUSTED_(BEGIN|END):reply>>>/g, "").trim()}</div>
+              </div>
+              <p className="om-receipt">The whole conversation is in your inbox. Ask Voice to help you answer.</p>
             </div>
           ) : null}
 
@@ -278,8 +273,6 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
                 ) : null}
               </div>
             </div>
-          ) : !approval ? (
-            <p className="om-draft-meta">{draftStatus(goal)}</p>
           ) : null}
 
           {draft.bounced ? (
@@ -310,6 +303,14 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
               {error ? <p role="alert" className="om-goal-error">{error}</p> : null}
             </div>
           ) : null}
+
+          {draft.followUp && approval && !draft.followUpNumber ? (
+            <details className="om-draft-follow">
+              <summary>Follow-up for later, if there&apos;s no reply</summary>
+              <p>{draft.followUp}</p>
+            </details>
+          ) : null}
+
         </div>
       </div>
       {approval ? (
