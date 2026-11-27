@@ -10,6 +10,7 @@ stored in the person's mail, so the conversation and any reply show up in Messag
 from __future__ import annotations
 
 import re
+import uuid
 from typing import Any
 from urllib.parse import quote
 
@@ -49,6 +50,10 @@ def send(
     in_reply_to: str | None = None,
 ) -> dict[str, Any]:
     """Send one new email. Returns ``{mailbox_id, from, message, replayed?}``."""
+    try:  # Open Media's /v1/me routes accept only a UUID here
+        uuid.UUID(str(idempotency_key))
+    except ValueError:
+        raise ValueError("The idempotency key must be a UUID.") from None
     if not is_email(to):
         raise ValueError("That isn't an email address.")
     subject = " ".join((subject or "").split())

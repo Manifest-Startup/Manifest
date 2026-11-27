@@ -205,3 +205,18 @@ test("too soon for a follow-up says when it will be fine", () => {
   expect(screen.getByText(/fine from Sunday/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Draft follow-up" })).not.toBeInTheDocument();
 });
+
+test("a send Open Media refused says why and can be tried again", () => {
+  const failed = goal({
+    approvals: [{ ...approval, status: "approved" }],
+    draft: { ...draft, sendStatus: "failed", sendError: "Open Media refused it." } as never,
+  });
+  expect(draftStatus(failed)).toBe("Not sent yet: needs you");
+  render(
+    <MockedProvider mocks={[]}>
+      <OutreachDraft goal={failed} onBack={() => {}} onDecided={() => {}} />
+    </MockedProvider>,
+  );
+  expect(screen.getByText("Open Media refused it.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+});

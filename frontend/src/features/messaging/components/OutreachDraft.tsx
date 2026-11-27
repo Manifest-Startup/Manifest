@@ -52,7 +52,7 @@ export function draftStatus(goal: GoalSummary): string {
   if (!draft) return "";
   if (pendingApproval(goal)) return "Waiting for your OK";
   if (draft.reply) return `Replied: “${draft.reply.replace(/<<<UNTRUSTED_(BEGIN|END):reply>>>/g, "").trim().slice(0, 120)}”`;
-  if (draft.sendStatus === "blocked") return "Not sent yet: needs you";
+  if (draft.sendStatus === "blocked" || draft.sendStatus === "failed") return "Not sent yet: needs you";
   if (draft.followedUp) return "Followed up";
   if (draft.sendStatus === "cancelled") return "Not sent";
   if (draft.replyStatus === "blocked") return "No reply yet";
@@ -133,7 +133,9 @@ const OutreachDraft: React.FC<OutreachDraftProps> = ({ goal, position, onBack, o
   };
 
   const evidence = draft.evidence.filter((e) => e.text);
-  const blocked = draft.sendStatus === "blocked";
+  // A send that stopped (no mailbox) or failed (Open Media refused it) waits for "Try again";
+  // the person's yes still covers exactly this text.
+  const blocked = draft.sendStatus === "blocked" || draft.sendStatus === "failed";
   const count = words(editing ? body : draft.body ?? "");
 
   return (
