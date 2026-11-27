@@ -171,6 +171,9 @@ const MessagesPage: React.FC = () => {
             }
             onBack={() => openDraft(undefined)}
             onDecided={() => void afterDecision()}
+            onOpenGoal={(goalId) => {
+              void refetchGoals().then(() => openDraft(goalId));
+            }}
           />
         ) : (
           <section className="om-thread-pane" data-testid="messages-empty-state">

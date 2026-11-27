@@ -469,6 +469,7 @@ class _DefaultDenyAuthExtension(SchemaExtension):
         "decide_approval": "account.write",
         "decideApproval": "account.write",
         "editGoalDraft": "account.write",
+        "followUpGoal": "account.write",
         "cancel_goal": "account.write",
         "cancelGoal": "account.write",
         "retry_goal_step": "account.write",

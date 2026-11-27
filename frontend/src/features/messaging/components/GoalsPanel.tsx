@@ -175,7 +175,9 @@ function DraftRow({ goal, active, onOpen }: { goal: GoalSummary; active: boolean
         <span className="om-row-main">
           <span className="om-row-top">
             <span className="om-row-name">{name}</span>
-            <span className="om-row-time">{draft.channel === "email" ? "Email" : "Open Media"}</span>
+            <span className="om-row-time">
+              {draft.followUpNumber ? "Follow-up" : draft.channel === "email" ? "Email" : "Open Media"}
+            </span>
           </span>
           {draft.organization ? <span className="om-row-context">{draft.organization}</span> : null}
           <span className="om-row-bottom">

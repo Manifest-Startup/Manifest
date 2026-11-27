@@ -24,4 +24,5 @@ ADR 0018 stopped at prepared emails in a note, with Open in Gmail links. Founder
 - Sending email needs a mailbox with outgoing (SMTP) settings connected in Open Media. Without one, the card offers Open in Gmail.
 - A reply is only seen after Manifest syncs the mailbox. The goal sweep does that every 15 minutes while a reply is awaited, and the mailbox sync is rate-limited by Open Media.
 - One crash window remains: SMTP accepted the email, then the Worker died before storing the copy. A retry would then send a second time. That window is milliseconds and is documented here.
-- Follow-ups are drafted with each message and shown on the card but aren't sent automatically. When the wait ends with no reply, the goal asks the founder.
+- Follow-ups (2026-11-27): after at least three days without a reply, `followUpGoal` (the card's "Draft follow-up" button, or voice) prepares the drafted follow-up, or the founder's own words, as "Re: <subject>" with `in_reply_to` set to the first email's Message-ID, so it threads in the reader's mail app. It waits for a yes like the first email. There are at most two follow-ups, a bare "bumping this" is refused, and the first goal stops waiting. Nothing is followed up automatically.
+- Voice greets only after the pipeline has started and the person has connected. A greeting queued earlier was dropped on slow servers.

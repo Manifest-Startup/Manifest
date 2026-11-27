@@ -1,6 +1,6 @@
 {
  "generated_by": "scripts/generate_agent_tools.py",
- "catalog_sha256": "64c657a3a0f340a12240b794ccde562ad0ddee8fbc733cdee3adc94ead0946d7",
+ "catalog_sha256": "7bc69b56fa0a1fb16a1daf93ff1bc4b6c648c3e49747f77e72311702d9298045",
  "excluded": {
   "startGuestSession": "Creates a throwaway guest workspace; agents always act as the signed-in person.",
   "logoutUser": "Would end the agent's own session. Disconnect an agent under Account → Security → Active sessions, or use revoke_account_session.",
@@ -1790,6 +1790,42 @@
     "document": "query FindSimilarIdeas($ideaDescription: String!) { findSimilarIdeas(ideaDescription: $ideaDescription) { similarIdeas } }",
     "variables": [
      "ideaDescription"
+    ]
+   }
+  },
+  {
+   "name": "follow_up_goal",
+   "title": "Follow up goal",
+   "description": "Prepare a follow-up to an email that got no reply (at least three days on, at most two ever), in the same thread, waiting for the person's yes like the first. body is their own wording; otherwise the drafted follow-up. Returns the new goal; nothing is sent. Changes the person's Manifest account; say what you will do before calling.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "goalId": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "goalId"
+    ]
+   },
+   "annotations": {
+    "title": "Follow up goal",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "_call": {
+    "via": "graphql",
+    "field": "followUpGoal",
+    "document": "mutation FollowUpGoal($goalId: String!, $body: String) { followUpGoal(goalId: $goalId, body: $body) { id title desiredOutcome successCriteria status ideaId createdAt updatedAt existing steps { key title capability riskTier status dependsOn result verification attempts lastError nextCheckAt } approvals { id goalId action summary reason consequences riskTier scope scopeSha256 status expiresAt decidedAt } timeline { type summary createdAt payload } facts { id subjectType subject predicate value kind confidence sourceType sourceRef status supersededBy createdAt } report { completed inProgress waiting needsYou next spoken } draft } }",
+    "variables": [
+     "goalId",
+     "body"
     ]
    }
   },

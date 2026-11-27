@@ -32,7 +32,7 @@ Spend about five minutes per prospect, and stop when you have these:
 - **One question** about how they handle it today (their past and present, not "would you buy"). Offer a call only as an option ("a one-line reply is plenty").
 - **An easy out** ("If this isn't relevant, just say so and I won't follow up.") and the founder's first name. Manifest adds both if missing.
 - **Never:** urgency, discounts, "quick call", "touch base", "circle back", "game-changer", "revolutionary", "synergy", "free", "guarantee", ALL CAPS.
-- **Follow-up** (follow_up): for 5–7 days later. 1–3 sentences that add something new or a sharper question, and offer to stop. At most two follow-ups ever; stop at once on any "no".
+- **Follow-up** (follow_up): for 5–7 days later; after three days without a reply, `follow_up_goal` prepares it in the same thread ("Re: …"), waiting for the founder's yes like the first. Two at most; it refuses earlier ones and says when. 1–3 sentences that add something new or a sharper question, and offer to stop. At most two follow-ups ever; stop at once on any "no".
 - An Open Media direct message is the same, shorter, with no subject.
 
 Example (adapt it; never copy):

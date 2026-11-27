@@ -22,6 +22,8 @@ MIN_WORDS = 25
 TARGET_WORDS = (40, 90)
 MAX_WORDS = 150
 MAX_SUBJECT_WORDS = 8
+MIN_FOLLOW_UP_WORDS = 8
+MAX_FOLLOW_UP_WORDS = 70
 FOLLOW_UP_DAYS = 5
 
 RULES = """How to write it (each rule is from the outreach evidence; follow all of them):
@@ -94,18 +96,23 @@ def words(text: str) -> int:
     return len(re.findall(r"[A-Za-z0-9'’-]+", text or ""))
 
 
-def _problems(subject: str, body: str, count: int) -> list[str]:
+def _problems(subject: str, body: str, count: int, follow_up: bool = False) -> list[str]:
     problems = []
     text = f"{subject}\n{body}"
     if _PLACEHOLDER.search(text):
         problems.append("It still has a placeholder like [Name]; fill it in.")
-    if re.match(r"\s*(re|fwd?|fw)\s*:", subject or "", re.I):
+    if not follow_up and re.match(r"\s*(re|fwd?|fw)\s*:", subject or "", re.I):
         problems.append("The subject pretends to be a reply or forward.")
-    if _FAKE_FAMILIARITY.search(text):
+    if not follow_up and _FAKE_FAMILIARITY.search(text):
         problems.append("It implies past contact that didn't happen.")
-    if count < MIN_WORDS:
+    if follow_up:  # 1 to 3 sentences, never a bare "bumping this"
+        if count < MIN_FOLLOW_UP_WORDS:
+            problems.append(f"Say something new in the follow-up ({count} words).")
+        if count > MAX_FOLLOW_UP_WORDS:
+            problems.append(f"Keep the follow-up short ({count} words).")
+    elif count < MIN_WORDS:
         problems.append(f"It's too short to make sense ({count} words).")
-    if count > MAX_WORDS:
+    if not follow_up and count > MAX_WORDS:
         problems.append(f"It's too long ({count} words); keep it under {TARGET_WORDS[1]}.")
     salesy = [p for p in _SALESY if p in text.lower()]
     if salesy:
@@ -138,10 +145,10 @@ def message_words(body: str) -> int:
     return words("\n".join(lines))
 
 
-def check(subject: str, body: str) -> tuple[list[str], list[str]]:
+def check(subject: str, body: str, *, follow_up: bool = False) -> tuple[list[str], list[str]]:
     """(problems that make it unsendable, notes for the founder)."""
     count = message_words(body)
-    return _problems(subject, body, count), _notes(subject, body, count)
+    return _problems(subject, body, count, follow_up), _notes(subject, body, count)
 
 
 def finish(body: str, sender_name: str | None) -> str:

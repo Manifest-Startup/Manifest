@@ -302,6 +302,10 @@ def _prepare_email(ctx: Context, data: dict[str, Any]) -> Outcome:
         "follow_up": str(data.get("follow_up") or "")[:1500] or None,
         "compose_url": compose_link(to, subject, body),
     }
+    if data.get("in_reply_to"):  # a follow-up, in the same thread as the first email
+        result["in_reply_to"] = str(data["in_reply_to"])[:900]
+        result["follow_up_of"] = str(data.get("follow_up_of") or "")[:80] or None
+        result["follow_up_number"] = int(data.get("follow_up_number") or 1)
     # Say up front which mailbox it would go from, or that none can send yet (best effort).
     try:
         box = mail.sending_mailbox(ctx.user_id)
@@ -338,6 +342,8 @@ def _email_scope(ctx: Context, data: dict[str, Any]) -> dict[str, Any]:
         "subject": draft["subject"],
         "body": draft["body"],
         "idea_id": ctx.goal.get("idea_id"),
+        # Only follow-ups carry it, so first emails keep the scope (and approvals) they had.
+        **({"in_reply_to": draft["in_reply_to"]} if draft.get("in_reply_to") else {}),
     }
 
 
@@ -345,8 +351,9 @@ def _email_describe(ctx: Context, data: dict[str, Any]) -> dict[str, str]:
     draft = _email_draft(data)
     who = draft.get("to_name") or draft["to"]
     at = f" at {draft['organization']}" if draft.get("organization") else ""
+    verb = "Follow up with" if draft.get("in_reply_to") else "Email"
     return {
-        "summary": f'Email {who}{at}: "{draft["subject"]}"',
+        "summary": f'{verb} {who}{at}: "{draft["subject"]}"',
         "reason": draft.get("why") or f"Goal: {ctx.goal['title']}",
         "consequences": f"{who} gets this email from your own mailbox, and their reply comes "
         "to your Messages. It can't be unsent.",
@@ -362,6 +369,7 @@ def _send_email(ctx: Context, data: dict[str, Any]) -> Outcome:
             subject=scope["subject"],
             text=scope["body"],
             idempotency_key=f"manifest-goal-{ctx.task['id']}",
+            in_reply_to=scope.get("in_reply_to"),
         )
     except OpenMediaError as exc:
         if exc.status == 409 or exc.code == "no_mailbox":

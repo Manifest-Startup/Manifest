@@ -36,6 +36,7 @@ import type {
   EditGoalDraftData,
   EditGoalDraftVariables,
   RetryGoalStepData,
+  FollowUpGoalData,
   GetGoalTimelineData,
   GetStandingAuthorizationsData,
   GrantStandingAuthorizationData,
@@ -1022,6 +1023,14 @@ export const DECIDE_APPROVAL: TypedDocumentNode<DecideApprovalData, DecideApprov
 export const EDIT_GOAL_DRAFT: TypedDocumentNode<EditGoalDraftData, EditGoalDraftVariables> = gql`
   mutation EditGoalDraft($goalId: String!, $body: String, $subject: String) {
     editGoalDraft(goalId: $goalId, body: $body, subject: $subject) {
+      ${GOAL_SUMMARY_FIELDS}
+    }
+  }
+`;
+
+export const FOLLOW_UP_GOAL: TypedDocumentNode<FollowUpGoalData, { goalId: string; body?: string | null }> = gql`
+  mutation FollowUpGoal($goalId: String!, $body: String) {
+    followUpGoal(goalId: $goalId, body: $body) {
       ${GOAL_SUMMARY_FIELDS}
     }
   }

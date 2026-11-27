@@ -39,7 +39,7 @@ class FakeMail:
         self.syncs = 0
         self.fail: Exception | None = None
 
-    def send(self, user_id, *, to, subject, text, idempotency_key, mailbox_id=None):
+    def send(self, user_id, *, to, subject, text, idempotency_key, mailbox_id=None, in_reply_to=None):
         if self.fail:
             error, self.fail = self.fail, None
             raise error
@@ -49,7 +49,8 @@ class FakeMail:
         if any(r["messageId"] == message_id for r in self.rows):
             return {"mailbox_id": "box-1", "from": "me@founder.test", "replayed": True,
                     "message": {"sourceMessageId": message_id}}  # fmt: skip
-        self.sent.append({"to": to, "subject": subject, "text": text, "key": idempotency_key})
+        self.sent.append({"to": to, "subject": subject, "text": text, "key": idempotency_key,
+                          "in_reply_to": in_reply_to})  # fmt: skip
         row = {"messageId": message_id, "from": "me@founder.test", "to": [to], "subject": subject,
                "text": text, "sentAt": store.now().isoformat(), "folder": "Sent"}  # fmt: skip
         self.rows.insert(0, row)
@@ -395,3 +396,40 @@ def test_voice_hears_each_waiting_message_not_the_plan():
         {"id": "a1", "summary": "Email Priya", "consequences": "c", "scopeSha256": "h"}
     ]
     assert tools._clip(spoken) == spoken  # eight messages fit whole in one answer
+
+
+def test_a_follow_up_threads_under_the_first_email_waits_for_a_yes_and_stops_at_two(db, mail):
+    view = _approve(db, _email_goal(db, follow_up="Quick thought: is it finding people or knowing what to ask that's harder?"))
+    goal_id = view["goal"]["id"]
+    with pytest.raises(engine.GoalError, match="few days"):
+        engine.follow_up(db, USER, goal_id)  # too soon
+    send = store.one(db, store.TASKS, goal_id=goal_id, step_key="send")
+    old = (store.now() - timedelta(days=4)).isoformat()
+    store.cas_update(db, store.TASKS, send["id"], {"status": "completed"},
+                     {"result": {**send["result"], "sent_at": old}})  # fmt: skip
+    follow = engine.follow_up(db, USER, goal_id)
+    pending = [a for a in follow["approvals"] if a["status"] == "pending"]
+    assert follow["goal"]["title"] == "Follow up with Priya Shah"
+    assert pending[0]["scope"]["subject"] == "Re: Question about your accelerator prep"
+    assert pending[0]["scope"]["in_reply_to"].startswith("<om-manifest-goal-")
+    assert "is it finding people" in pending[0]["scope"]["body"] and outreach.OPT_OUT in pending[0]["scope"]["body"]
+    assert len(mail.sent) == 1  # nothing sent until the yes
+    assert engine.view(db, USER, goal_id)["goal"]["status"] == "cancelled"
+    with pytest.raises(engine.GoalError, match="already followed up"):
+        engine.follow_up(db, USER, goal_id)
+    _approve(db, follow)
+    assert len(mail.sent) == 2 and mail.sent[1]["subject"].startswith("Re: ")
+    assert mail.sent[1]["in_reply_to"] == mail.rows[-1]["messageId"]  # threads under the first
+    # Only the follow-up shows now, and a "bumping this" note is refused.
+    assert [g["title"] for g in engine.list_goals(db, USER)] == ["Follow up with Priya Shah"]
+    send2 = store.one(db, store.TASKS, goal_id=follow["goal"]["id"], step_key="send")
+    store.cas_update(db, store.TASKS, send2["id"], {"status": "completed"},
+                     {"result": {**send2["result"], "sent_at": old}})  # fmt: skip
+    with pytest.raises(engine.GoalError, match="something new"):
+        engine.follow_up(db, USER, follow["goal"]["id"], body="Just bumping this.")
+
+
+def test_follow_up_status_says_why_not(db, mail):
+    view = _email_goal(db)
+    tasks = engine.view(db, USER, view["goal"]["id"])["tasks"]
+    assert engine.follow_up_status(tasks) == {"allowed": False, "reason": "It hasn't been sent yet."}
